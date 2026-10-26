@@ -6,7 +6,7 @@
 
 **Revised**: 2026-10-26 — product-concept direction (browser monitor, capability cards, AI Rogue demo, redacted real frame)
 
-**Status**: Implemented; 90 contract checks + 137 deep checks + axe 0 violations; pending review
+**Status**: Implemented; 100 contract checks + 150 deep checks + axe 0 violations (1 incomplete color-contrast/poster); pending review
 
 **Input**: User description: "Write an attractive single interactive HTML with voice-over, using a skill, to show this project to others. Three rotating poster pages. Use a real DOOM 3 frame inside a browser/monitor, plus marketing concepts like key remapping, mods, and one-sentence AI Rogue generation. Follow the agent workflow. Use subagents in parallel."
 
@@ -110,15 +110,18 @@ credit. `--no-hero` produces the procedural version. No original game data enter
 - **FR-002**: It MUST contain exactly three posters: PLAY, WHY IT'S REAL, VISION.
 - **FR-003**: Each poster MUST have embedded Chinese voice-over and word-synced bilingual captions.
 - **FR-004**: Users MUST be able to navigate, pause/resume, mute, toggle captions and fullscreen with
-  mouse, keyboard and touch.
+  mouse, keyboard and **real touch** input. Touch MUST be verified with CDP touch events, not mouse
+  pointer events. Space on a focused control MUST activate that control, not toggle playback.
 - **FR-005**: Autoplay blockage MUST fall back to a silent timed rotation and a one-click sound
   recovery without a reload.
 - **FR-006**: A fixed 1920×1080 stage MUST scale to any viewport without reflow or overflow.
-- **FR-007**: Every numeric claim MUST carry a visible `ROADMAP §1` source tag and expose its
-  evidence command on hover/focus.
-- **FR-008**: The deck MUST label the build `M0 · ENGINE PORT IN PROGRESS`, the vision roadmap
-  `CONCEPT ROADMAP / 2026`, and the AI Rogue demo `CONCEPT DEMO · NOT A SHIPPED FEATURE`. It MUST
-  NOT claim a shipped port or shipped AI feature.
+- **FR-007**: Every quantitative **evidence** claim on poster 2 MUST carry a visible `ROADMAP §1`
+  source tag and expose its evidence command on hover/focus. HUD values and generated timecodes are
+  illustrative, not research claims.
+- **FR-008**: The deck MUST label the build `M0 · SCAFFOLD` (with “engine port in progress”), the
+  vision roadmap `CONCEPT ROADMAP / 2026`, and the AI Rogue demo `CONCEPT DEMO · NOT A SHIPPED
+  FEATURE`. The lead MUST be future tense (`will run`), and M0 MUST NOT claim a CI baseline that is
+  absent from the repository. It MUST NOT claim a shipped port or shipped AI feature.
 - **FR-009**: Poster 1 MUST render a browser/monitor mockup with a real frame. The committed default
   MUST be the redacted `assets/hero-redacted.png`; `--no-hero` MUST restore the procedural frame.
 - **FR-010**: Poster 1 MUST show four capability cards (PLAY, REMAP, MOD, AI ROGUE) with status tags
@@ -129,18 +132,20 @@ credit. `--no-hero` produces the procedural version. No original game data enter
   PENDING · NOT A LICENSED RELEASE`; the original screenshot MUST NOT be committed. `--hero`,
   `--hero-label`, `--hero-credit` and `--out` MUST allow a licensed replacement.
 - **FR-013**: The build MUST be reproducible from `narration.json` and the authored source parts,
-  and MUST reuse a local TTS cache when available.
+  MUST reuse a local TTS cache when available, and two consecutive default builds MUST be byte-identical.
 - **FR-014**: The deck MUST expose `?page=N`, `?snap=1`, `?mute=1`, `?autoplay=0`, and `?cc=0`.
 - **FR-015**: `showcase/start.cmd` MUST launch Edge kiosk with the autoplay exemption and a local
   profile, without tracked machine-specific paths.
 - **FR-016**: `showcase/verify.py` MUST mechanize the contract: offline audit, three posters, zero
   console errors, narration, captions, claims, redacted-hero label, capability cards, AI Rogue,
   controls, autoplay fallback, screenshots.
-- **FR-017**: `showcase/verify_deep.py` MUST cover Edge + Chrome, offline, reduced motion, touch,
-  loop, caption sync, evidence hovers, mute, fullscreen, 4K/portrait, animation, performance,
-  accessible names, HTML parse and `start.cmd`.
+- **FR-017**: `showcase/verify_deep.py` MUST cover Edge + Chrome, offline, reduced motion, **real CDP
+  touch**, Space-on-control, page visibility, canvas-unavailable fallback, loop, caption sync,
+  evidence hovers, mute, fullscreen, 4K + DPR2, portrait, animation, performance, accessible names,
+  HTML parse and `start.cmd`.
 - **FR-018**: The framework MUST degrade to static visuals when animation is unavailable or reduced
-  motion is requested, without losing content.
+  motion is requested, without losing DOM content, captions or navigation. A missing 2D canvas
+  context MUST NOT prevent boot, captions or paging.
 
 ## Key Entities
 
@@ -155,16 +160,18 @@ credit. `--no-hero` produces the procedural version. No original game data enter
 - **SC-001**: `index.html` is one file between 100 KB and 4 MB with no external subresource.
 - **SC-002**: Zero console errors and zero page errors on all three posters.
 - **SC-003**: Three 1920×1080 screenshots, non-blank and pairwise different.
-- **SC-004**: Narration total 50–85 s; each poster at least 12 s; at least five caption changes per
-  poster.
+- **SC-004**: Narration total 50–85 s; each poster at least 12 s; at least five caption chunks per
+  poster (actual 6/7/7, verified by seeking every chunk).
 - **SC-005**: ArrowRight changes poster within 300 ms; Space toggles pause; V is not required.
 - **SC-006**: Six roadmap literals match `docs/ROADMAP.md` §1.
 - **SC-007**: A full `file://` load with external requests blocked produces no external request.
 - **SC-008**: `?page=N&snap=1` is visually settled; all active reveals are opacity ≥ 0.99.
 - **SC-009**: Poster 1 shows the redacted capture, the `REDACTED CAPTURE` label and the four
   capability cards; `--no-hero` produces the procedural frame.
-- **SC-010**: `GENERATE RUN` changes the prompt and seed and keeps the `CONCEPT DEMO` note.
-- **SC-011**: axe-core WCAG 2.1 A/AA reports zero violations on all three posters after settling.
+- **SC-010**: `GENERATE RUN` changes the prompt, seed, map and modifier and keeps the `CONCEPT DEMO` note.
+- **SC-011**: axe-core WCAG 2.1 A/AA reports zero violations on all three posters after settling;
+  the 1 incomplete color-contrast check per poster (text over image/canvas) MUST be recorded rather
+  than presented as full AA verification.
 
 ## Assumptions
 

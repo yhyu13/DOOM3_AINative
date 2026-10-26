@@ -15,9 +15,10 @@ Microsoft Edge kiosk with the autoplay exemption.
 | **02 · WHY IT'S REAL** | *No shortcuts.* | Six measured facts from `docs/ROADMAP.md` §1: 1,387 C/C++ files, 734,180 lines, 100 fixed-function calls, 207 ARB references, 0 pak archives, 0 Emscripten references. |
 | **03 · VISION** | *Your DOOM. Your rules.* | **REMAP** (M5 planned), **MOD** (M7 planned), and **AI ROGUE** — a working concept demo where one sentence regenerates a seed, a map and a modifier. Plus the seven-step delivery loop and the M0–M7 roadmap. |
 
-The deck is a **product concept**, not a claim that the port is shipped. Poster 1 carries
-`M0 · ENGINE PORT IN PROGRESS`, poster 3 labels the roadmap `CONCEPT ROADMAP / 2026`, and the AI
-Rogue panel says `CONCEPT DEMO · NOT A SHIPPED FEATURE`.
+The deck is a **product concept**, not a claim that the port is shipped. Poster 1 uses future-tense
+product copy (`will run`), carries `M0 · SCAFFOLD`, and says the engine port is in progress; poster 3
+labels the roadmap `CONCEPT ROADMAP / 2026`, and the AI Rogue panel says
+`CONCEPT DEMO · NOT A SHIPPED FEATURE`.
 
 ## The redacted capture
 
@@ -150,16 +151,20 @@ uv run --python 3.12 showcase/verify_deep.py
 
 Current evidence (2026-10-26):
 
-- `verify.py` — **90 passed, 0 failed**. Single file 1.61 MiB, zero external requests, three posters,
+- `verify.py` — **100 passed, 0 failed**. Single file 1.61 MiB, zero external requests, three posters,
   zero console/page errors, three distinct screenshots, embedded narration, six claim literals,
   redacted-hero label, four capability cards, AI Rogue concept, keyboard/pause/captions,
   autoplay-blocked fallback, `?autoplay=0`, 1366 scaling.
-- `verify_deep.py` — **137 passed, 0 failed, 1 skipped**. Edge + Chrome, offline `file://`, reduced
-  motion, `cc=0`, touch/swipe, 3→1 loop, caption + word sync at all 20 chunks, evidence hovers,
-  mute, fullscreen, 4K, portrait, animation, 60 fps, accessible button names, HTML parse, and the
-  `start.cmd` contract. The one skip is Firefox: not installed on this machine.
-- **axe-core 4.10.3, WCAG 2.1 A/AA** — **0 violations** on all three posters after a 900 ms settle
-  (the first pass exposed two real contrast misses, both fixed).
+- `verify_deep.py` — **150 passed, 0 failed, 1 skipped**. Edge + Chrome, offline `file://`, reduced
+  motion, `cc=0`, **real CDP touch swipe (no `pointercancel`)**, 3→1 loop, caption + word sync at all
+  20 chunks, Space-on-control, page visibility, canvas-unavailable fallback, evidence hovers, mute,
+  fullscreen, 4K + DPR2, portrait, animation, **56.3 fps measured** (gate ≥30), accessible button
+  names, HTML parse, and the `start.cmd` contract. The one skip is Firefox: not installed.
+- **axe-core 4.10.3, WCAG 2.1 A/AA** — **0 violations** on all three posters after a 900 ms settle;
+  **1 incomplete color-contrast check per poster** (119/88/111 nodes, text over image/canvas), so AA
+  contrast is not fully machine-verified. The first pass exposed two real contrast misses, both fixed.
+- **Reproducibility** — two consecutive default builds are byte-identical: 1,685,252 bytes,
+  SHA-256 `62f7d40273b88b91b557bb063f872a476a6c0c6dec8a0e48abe0f63a42896f8e`.
 
 Screenshots and logs land in `showcase/evidence/`, which is git-ignored. `verify.py --headed` lets
 you watch the run.

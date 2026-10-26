@@ -2,8 +2,11 @@
 (() => {
   'use strict';
   const DATA = window.SHOWCASE_DATA;
-  const CANVAS = window.__SHOWCASE_CANVAS__;
-  if (!DATA || !CANVAS) return;
+  const CANVAS = window.__SHOWCASE_CANVAS__ || {
+    stages: [],
+    init() {}, drawActive() {}, drawAllStatic() {}, setStageActive() {}, setParallax() {}
+  };
+  if (!DATA) return;
 
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
@@ -42,7 +45,7 @@
   const initialPage = Math.min(3, Math.max(1, parseInt(params.get('page') || '1', 10) || 1));
 
   const META = DATA.pages.map(p => ({ name: p.name || String(p.id || '').toUpperCase() }));
-  const STAGES = CANVAS.stages;
+  const STAGES = CANVAS.stages || [];
   const DEFAULT_STAGE = 'HOVER OR FOCUS A STAGE TO SEE THE EVIDENCE IT MUST PRODUCE.';
   const DEFAULT_RM = '<b>M0 · NOW</b> — the repository proves its own baseline before it claims a port.';
 
@@ -349,6 +352,7 @@
   function setCaptions(next) {
     state.captions = typeof next === 'boolean' ? next : !state.captions;
     caption.classList.toggle('is-hidden', !state.captions);
+    caption.setAttribute('aria-hidden', state.captions ? 'false' : 'true');
     updateCapsBtn();
     toast(state.captions ? 'CAPTIONS ON' : 'CAPTIONS OFF');
   }
@@ -433,6 +437,7 @@
     updateMuteBtn();
     updateCapsBtn();
     caption.classList.toggle('is-hidden', !state.captions);
+    caption.setAttribute('aria-hidden', state.captions ? 'false' : 'true');
 
     if (DATA.hero) {
       const h = DATA.hero;
@@ -532,8 +537,20 @@
 
   soundGate.addEventListener('click', enableSound);
 
+  let hiddenWasPlaying = false;
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      hiddenWasPlaying = state.playing;
+      if (state.playing) pause();
+    } else if (hiddenWasPlaying) {
+      hiddenWasPlaying = false;
+      play();
+    }
+  });
+
   window.addEventListener('keydown', e => {
     if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+    if ((e.code === 'Space' || e.key === ' ') && e.target && e.target.closest && e.target.closest('button,a,[role="button"]')) return;
     if (e.key === 'ArrowRight') { e.preventDefault(); advance(1); }
     else if (e.key === 'ArrowLeft') { e.preventDefault(); advance(-1); }
     else if (e.code === 'Space' || e.key === ' ') { e.preventDefault(); toggle(); }

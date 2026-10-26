@@ -7,6 +7,7 @@
   if (!cv) return;
   cv.width = W * DPR; cv.height = H * DPR;
   const ctx = cv.getContext('2d');
+  if (!ctx) return;
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
 
   const ZS = [0.24, 0.29, 0.35, 0.43, 0.53, 0.65, 0.79, 1.0];

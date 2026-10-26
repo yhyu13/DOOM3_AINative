@@ -231,10 +231,14 @@ async def build(hero: Path | None, out: Path, hero_credit: str | None, hero_labe
             flush=True,
         )
 
+    hero = hero.resolve() if hero else None
+    default_hero = DEFAULT_HERO.resolve()
     if hero is None and not no_hero and DEFAULT_HERO.exists():
-        hero = DEFAULT_HERO
-        hero_credit = hero_credit or DEFAULT_HERO_CREDIT
-        hero_label = hero_label or DEFAULT_HERO_LABEL
+        if hero_label or hero_credit:
+            print("WARNING: --hero-label/--hero-credit are ignored without --hero; using redacted defaults.", file=sys.stderr)
+        hero = default_hero
+        hero_credit = DEFAULT_HERO_CREDIT
+        hero_label = DEFAULT_HERO_LABEL
         print("[hero] using the default redacted capture", flush=True)
 
     hero_data = None
@@ -256,8 +260,9 @@ async def build(hero: Path | None, out: Path, hero_credit: str | None, hero_labe
         elif len(raw) > 2.5 * 1024 * 1024:
             print(f"WARNING: hero media is {len(raw)/1024/1024:.1f} MiB; aim for <= 2.5 MiB to stay near the 4 MiB deck budget.", file=sys.stderr)
         hero_type = "image" if mime.startswith("image/") else "video"
-        credit = (hero_credit or "LOCAL / NOT IN GIT").strip()
-        label = hero_label or ("REDACTED CAPTURE" if hero == DEFAULT_HERO else f"LICENSED {hero_type.upper()}")
+        is_default = hero == default_hero
+        credit = (hero_credit or (DEFAULT_HERO_CREDIT if is_default else "LOCAL / NOT IN GIT")).strip()
+        label = hero_label or (DEFAULT_HERO_LABEL if is_default else f"LICENSED {hero_type.upper()}")
         hero_data = {
             "type": hero_type,
             "src": f"data:{mime};base64," + base64.b64encode(raw).decode("ascii"),

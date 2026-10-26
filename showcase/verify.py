@@ -117,6 +117,13 @@ def main() -> int:
     check('src="http' not in html and "src='http" not in html, "artifact :: no external src")
     check('href="http' not in html and "href='http" not in html, "artifact :: no external href")
     check("@import url(http" not in html, "artifact :: no remote CSS import")
+    check(not re.search(r"(?:src|href)\s*=\s*['\"]?https?://", html, re.I), "artifact :: no remote src/href (regex)")
+    check(not re.search(r"url\(\s*['\"]?https?://", html, re.I), "artifact :: no remote CSS url()")
+    check(not re.search(r"fetch\(\s*['\"]?https?://", html, re.I), "artifact :: no remote fetch()")
+    check(not INDEX.read_bytes().startswith(b"\xef\xbb\xbf"), "artifact :: no UTF-8 BOM")
+    check(not re.search(r"[A-Za-z]:\\", html), "artifact :: no absolute drive path")
+    check(not re.search(r"gho_|github_pat_", html), "artifact :: no token pattern")
+    check(not (ROOT / "assets" / "hero.png").exists(), "asset :: original unredacted screenshot absent")
     check(html.count("data:audio/mpeg;base64,") == 3, "artifact :: three embedded MP3 narration tracks")
     check((ROOT / "assets" / "hero-redacted.png").exists(), "asset :: redacted capture file exists")
     check((ROOT / "assets" / "README.md").exists(), "asset :: provenance note exists")
@@ -138,6 +145,7 @@ def main() -> int:
 
         hashes: list[str] = []
         durations: list[float] = []
+        chunk_counts: list[int] = []
 
         # ---- three settled posters
         for n in (1, 2, 3):
@@ -155,6 +163,8 @@ def main() -> int:
                 check(page.evaluate("document.querySelector('#browserView').dataset.hero") == "1", "poster 1 :: redacted hero is active")
                 check(page.evaluate("document.querySelector('#heroImage').classList.contains('is-on')"), "poster 1 :: redacted image is visible")
                 check("REDACTED" in badge and "LICENSING PENDING" in badge, "poster 1 :: redacted / licensing label")
+                check(page.evaluate("Array.from(document.querySelectorAll('#audioBank audio')).every(a => a.muted)"), "poster 1 :: ?mute=1 mutes every track")
+                chunk_counts = page.evaluate("window.__SHOWCASE__.data.pages.map(p => p.chunks.length)")
                 check(page.locator(".feature-row .feature").count() == 4, "poster 1 :: four capability cards")
                 features = page.locator(".feature-row").inner_text()
                 check(all(x in features for x in ("PLAY", "REMAP", "MOD", "AI ROGUE")), "poster 1 :: capability names present")
@@ -185,6 +195,7 @@ def main() -> int:
             total = sum(durations)
             check(all(d >= 12 for d in durations), f"narration :: every poster at least 12s ({[round(d,1) for d in durations]})")
             check(50 <= total <= 85, f"narration :: total {total:.1f}s within 50–85s")
+        check(len(chunk_counts) == 3 and all(n >= 5 for n in chunk_counts), f"narration :: at least five caption chunks per poster ({chunk_counts})")
 
         # ---- claims must match the roadmap literals
         ctx, page, errors, requests = new_page(browser)
@@ -195,7 +206,7 @@ def main() -> int:
                         "CONCEPT ROADMAP / 2026", "M5 / PLANNED", "M7 / PLANNED", "CONCEPT DEMO · NOT A SHIPPED FEATURE"):
             check(literal in content, f"claims :: literal present: {literal}")
         check(content.count("ROADMAP §1") >= 6, "claims :: every numeric card carries a source tag")
-        check("M0 · ENGINE PORT IN PROGRESS" in content and "The target, not a shipped build" in content, "claims :: scaffold status is explicit")
+        check("M0 · SCAFFOLD" in content and "Engine port in progress" in content and "The target, not a shipped build" in content, "claims :: scaffold status is explicit")
         ctx.close()
 
         # ---- AI Rogue concept demo (poster 3)
@@ -203,10 +214,13 @@ def main() -> int:
         page.goto(page_url(3, snap=True), wait_until="load")
         wait_ready(page)
         before_prompt = page.locator("#promptText").inner_text()
+        before_chips = page.locator("#promptOut span").all_inner_texts()
         page.locator("#generateBtn").click()
         page.wait_for_timeout(1000)
         after_prompt = page.locator("#promptText").inner_text()
+        after_chips = page.locator("#promptOut span").all_inner_texts()
         check(after_prompt != before_prompt, "vision :: AI Rogue prompt regenerates")
+        check(before_chips != after_chips and len(after_chips) == 3, "vision :: seed / map / modifier regenerate")
         check("SEED" in page.locator("#promptOut").inner_text(), "vision :: generated run shows a seed")
         check("CONCEPT DEMO" in page.locator(".prompt-note").inner_text(), "vision :: AI Rogue is labelled as a concept")
         audit_console(errors, "vision")

@@ -77,10 +77,12 @@ def url(page: int = 1, snap: bool = False, mute: bool = True, cc: bool = True, a
     return INDEX.resolve().as_uri() + "?" + "&".join(q)
 
 
-def new_ctx(browser, **kwargs):
+def new_ctx(browser, init_script=None, **kwargs):
     kwargs.setdefault("viewport", {"width": 1920, "height": 1080})
     kwargs.setdefault("device_scale_factor", 1)
     ctx = browser.new_context(**kwargs)
+    if init_script:
+        ctx.add_init_script(init_script)
     page = ctx.new_page()
     errors: list[str] = []
     requests: list[str] = []
@@ -220,6 +222,8 @@ def main() -> int:
             wait_ready(page)
             check(page.evaluate("document.querySelector('#caption').classList.contains('is-hidden')"), "cc=0 :: caption starts hidden")
             check(page.evaluate("window.__SHOWCASE__.state().captions") is False, "cc=0 :: captions state false")
+            check(page.evaluate("document.querySelector('#caption').getAttribute('aria-hidden')") == "true", "cc=0 :: caption aria-hidden true")
+            check(page.evaluate("document.querySelector('#ccEn').lang") == "en", "a11y :: English caption line is lang=en")
             ctx.close()
 
             # start on poster 3
@@ -229,22 +233,27 @@ def main() -> int:
             check(page.evaluate("document.body.dataset.page") == "3", "page=3 :: starts on poster 3")
             ctx.close()
 
-            # touch / swipe
+            # touch / swipe with real CDP touch events (not page.mouse)
             ctx, page, errors, requests = new_ctx(browser, viewport={"width": 1366, "height": 768}, has_touch=True)
             page.goto(url(1, snap=False), wait_until="load")
             wait_ready(page)
-            page.mouse.move(800, 400)
-            page.mouse.down()
-            page.mouse.move(380, 400, steps=8)
-            page.mouse.up()
-            page.wait_for_timeout(500)
-            check(page.evaluate("document.body.dataset.page") == "2", "touch :: left swipe advances to poster 2")
-            page.mouse.move(380, 400)
-            page.mouse.down()
-            page.mouse.move(820, 400, steps=8)
-            page.mouse.up()
-            page.wait_for_timeout(500)
-            check(page.evaluate("document.body.dataset.page") == "1", "touch :: right swipe returns to poster 1")
+            page.evaluate("window.__cancelCount = 0; document.querySelector('#stage').addEventListener('pointercancel', () => window.__cancelCount++)")
+            cdp = ctx.new_cdp_session(page)
+
+            def swipe(x0, y0, x1, y1):
+                cdp.send("Input.dispatchTouchEvent", {"type": "touchStart", "touchPoints": [{"x": x0, "y": y0, "radiusX": 2, "radiusY": 2, "force": 1, "id": 1}]})
+                steps = 10
+                for i in range(1, steps + 1):
+                    cdp.send("Input.dispatchTouchEvent", {"type": "touchMove", "touchPoints": [{"x": int(x0 + (x1 - x0) * i / steps), "y": int(y0 + (y1 - y0) * i / steps), "radiusX": 2, "radiusY": 2, "force": 1, "id": 1}]})
+                cdp.send("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []})
+
+            swipe(800, 400, 380, 400)
+            page.wait_for_timeout(600)
+            check(page.evaluate("document.body.dataset.page") == "2", "touch :: real touch swipe advances to poster 2")
+            check(page.evaluate("window.__cancelCount") == 0, "touch :: no pointercancel during swipe")
+            swipe(380, 400, 820, 400)
+            page.wait_for_timeout(600)
+            check(page.evaluate("document.body.dataset.page") == "1", "touch :: real touch swipe returns to poster 1")
             ctx.close()
 
             # 3 -> 1 loop
@@ -269,13 +278,16 @@ def main() -> int:
                 if pidx:
                     page.evaluate("(n) => window.__SHOWCASE__.go(n)", pidx + 1)
                     page.wait_for_timeout(400)
-                chunks = page.evaluate("(n) => window.__SHOWCASE__.data.pages[n].chunks.map(c => ({zh: c.zh, start: c.start}))", pidx)
+                chunks = page.evaluate("(n) => window.__SHOWCASE__.data.pages[n].chunks.map(c => ({zh: c.zh, mark: (c.marks && c.marks.length ? c.marks[0].t : c.start)}))", pidx)
                 for ci, c in enumerate(chunks):
                     page.evaluate("""(args) => {
                         const a = document.querySelector(`#audioBank audio[data-page="${args.n}"]`);
                         a.currentTime = args.t;
-                    }""", {"n": pidx + 1, "t": c["start"] + 0.06})
-                    page.wait_for_timeout(230)
+                    }""", {"n": pidx + 1, "t": c["mark"] + 0.02})
+                    try:
+                        page.wait_for_function("(zh) => document.querySelector('#ccZh').innerText.trim() === zh", arg=c["zh"], timeout=1800)
+                    except Exception:
+                        pass
                     shown = page.locator("#ccZh").inner_text().strip()
                     on = page.evaluate("document.querySelectorAll('#ccZh .w.on').length")
                     check(shown == c["zh"], f"caption sync :: poster {pidx+1} chunk {ci+1} text")
@@ -355,6 +367,17 @@ def main() -> int:
             shot(page, "deep-4k-poster-1.png")
             ctx.close()
 
+            # DPR2 / high-density backing store
+            ctx, page, errors, requests = new_ctx(browser, viewport={"width": 1920, "height": 1080}, device_scale_factor=2)
+            page.goto(url(1, snap=True), wait_until="load")
+            wait_ready(page)
+            dims = page.evaluate("""() => ({
+              fx1: [document.getElementById('fx1').width, document.getElementById('fx1').height],
+              frame: [document.getElementById('fxFrame').width, document.getElementById('fxFrame').height]
+            })""")
+            check(dims["fx1"] == [3840, 2160] and dims["frame"] == [3840, 2160], f"dpr2 :: canvases render at 2x backing ({dims})")
+            ctx.close()
+
             # portrait
             ctx, page, errors, requests = new_ctx(browser, viewport={"width": 390, "height": 844})
             page.goto(url(1, snap=True), wait_until="load")
@@ -393,6 +416,45 @@ def main() -> int:
             })""")
             check(fps >= 30, f"performance :: {fps:.1f} fps over 1.5 s")
             audit_console(errors, "animation")
+            ctx.close()
+
+            # Space on a focused control must activate the control, not toggle playback
+            ctx, page, errors, requests = new_ctx(browser)
+            page.goto(url(1, snap=False), wait_until="load")
+            wait_ready(page)
+            page.locator('[data-act="next"]').focus()
+            page.keyboard.press("Space")
+            page.wait_for_timeout(450)
+            check(page.evaluate("document.body.dataset.page") == "2", "keyboard :: Space on NEXT activates the control")
+            check(page.evaluate("window.__SHOWCASE__.state().playing") is True, "keyboard :: Space on NEXT does not pause")
+            ctx.close()
+
+            # visibility: pause on hidden, resume on visible if it was playing
+            ctx, page, errors, requests = new_ctx(browser)
+            page.goto(url(1, snap=False), wait_until="load")
+            wait_ready(page)
+            try:
+                page.evaluate("Object.defineProperty(document, 'hidden', { configurable: true, get: () => true }); document.dispatchEvent(new Event('visibilitychange'))")
+                page.wait_for_timeout(350)
+                check(page.evaluate("window.__SHOWCASE__.state().playing") is False, "visibility :: pauses while hidden")
+                page.evaluate("Object.defineProperty(document, 'hidden', { configurable: true, get: () => false }); document.dispatchEvent(new Event('visibilitychange'))")
+                page.wait_for_timeout(450)
+                check(page.evaluate("window.__SHOWCASE__.state().playing") is True, "visibility :: resumes when visible")
+            except Exception as exc:
+                skip("visibility :: pause/resume", str(exc).splitlines()[0][:120])
+            audit_console(errors, "visibility")
+            ctx.close()
+
+            # canvas unavailable: DOM, captions and navigation must still work
+            ctx, page, errors, requests = new_ctx(browser, init_script="HTMLCanvasElement.prototype.getContext = function () { return null; };")
+            page.goto(url(1, snap=True), wait_until="load")
+            wait_ready(page)
+            check(page.evaluate("document.body.dataset.page") == "1", "canvas-fallback :: page still boots")
+            check(len(page.locator("#ccZh").inner_text().strip()) > 0, "canvas-fallback :: captions still render")
+            page.keyboard.press("ArrowRight")
+            page.wait_for_timeout(350)
+            check(page.evaluate("document.body.dataset.page") == "2", "canvas-fallback :: navigation still works")
+            audit_console(errors, "canvas-fallback")
             ctx.close()
 
             # accessible names

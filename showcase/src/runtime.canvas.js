@@ -3,6 +3,7 @@
   'use strict';
   const W = 1920, H = 1080;
   const DPR = Math.min(2, window.devicePixelRatio || 1);
+  const DATA = window.SHOWCASE_DATA || {};
 
   const STAGES = [
     { n: 1, label: 'ISSUE', x: 210, y: 560, detail: 'acceptance criteria are commands, exit codes, byte counts or screenshots. If it cannot be checked mechanically, it is rewritten.' },
@@ -40,6 +41,7 @@
     if (!cv) return null;
     cv.width = W * DPR; cv.height = H * DPR;
     const ctx = cv.getContext('2d');
+    if (!ctx) return null;
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     return ctx;
   }
@@ -52,6 +54,7 @@
     const c = document.createElement('canvas');
     c.width = c.height = 64;
     const x = c.getContext('2d');
+    if (!x) return null;
     const gr = x.createRadialGradient(32, 32, 0, 32, 32, 32);
     gr.addColorStop(0, `rgba(${r},${g},${b},1)`);
     gr.addColorStop(.22, `rgba(${r},${g},${b},.72)`);
@@ -89,7 +92,7 @@
   }
 
   function drawPortal(t, freeze) {
-    if (!ctx1) return;
+    if (!ctx1 || !SPARK || !EMBER || !DEEP) return;
     const ctx = ctx1;
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
@@ -302,7 +305,7 @@
   }
 
   function drawNetwork(t, freeze) {
-    if (!ctx3) return;
+    if (!ctx3 || !SPARK || !EMBER) return;
     const ctx = ctx3;
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
@@ -397,7 +400,7 @@
   function drawActive(page, t, freeze) {
     if (page === 1) {
       drawPortal(t, freeze);
-      if (window.__SHOWCASE_FRAME__) window.__SHOWCASE_FRAME__.draw(t, freeze);
+      if (!DATA.hero && window.__SHOWCASE_FRAME__) window.__SHOWCASE_FRAME__.draw(t, freeze);
     } else if (page === 2) drawRain(t, freeze);
     else if (page === 3) drawNetwork(t, freeze);
   }

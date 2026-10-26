@@ -38,7 +38,7 @@ scaled to viewport.
 **Project Type**: Static single-file presentation artifact plus reproducible build/verification
 scripts.
 
-**Performance Goals**: 60 fps canvas on integrated graphics; first render under 1.5 s; file under
+**Performance Goals**: Target 60 fps canvas; measured 56.3 fps on this machine (gate ≥30); first render under 1.5 s; file under
 4 MB; no layout shift (system fonts only).
 
 **Constraints**: Fully offline at presentation time; original screenshot not committed; redacted
@@ -55,7 +55,7 @@ loop steps, eight roadmap milestones, six numeric claims.
 | Pristine submodule untouched | PASS | Scope is `showcase/**` and `specs/002-project-showcase/**`. |
 | No game data committed | PASS | The original screenshot is not in git; the redacted placeholder is tracked and labelled. No `.pk4/.pk3/.pak`. |
 | No direct commit to `main` | PASS | Worktree `feat/2-project-showcase`; PR required. |
-| Evidence before victory | PASS | 90 contract checks, 137 deep checks, axe 0 violations; logs/screenshots. |
+| Evidence before victory | PASS | 100 contract checks, 150 deep checks, axe 0 violations (1 incomplete/poster); logs/screenshots. |
 | No secrets or absolute machine paths | PASS | `start.cmd` uses `%~dp0` and `%ProgramFiles%`; README uses repo-relative sample paths. |
 | One writer per file | PASS | Single worker owns the scope. |
 | Spec before plan before tasks | PASS | `spec.md`, this file, `tasks.md`. |
@@ -114,8 +114,10 @@ showcase/
    without network after the first synthesis.
 9. **Kiosk launcher.** `start.cmd` starts Edge with `--kiosk`,
    `--autoplay-policy=no-user-gesture-required` and a local profile.
-10. **Two verification layers.** `verify.py` is the PR contract; `verify_deep.py` covers the matrix
-    (Chrome, offline, reduced motion, touch, sync, 4K). `axe-core` is run separately for WCAG AA.
+10. **Two verification layers.** `verify.py` is the PR contract (100 checks); `verify_deep.py` covers
+    the matrix (150 checks: Chrome, offline, reduced motion, **real CDP touch**, Space-on-control,
+    visibility, canvas fallback, sync, 4K + DPR2). `axe-core` is run separately for WCAG AA; the
+    color-contrast incomplete nodes over image/canvas are recorded.
 
 ## Risks and Mitigations
 
@@ -125,8 +127,9 @@ showcase/
 | Autoplay blocked at a booth | Kiosk flag; silent-clock fallback; click gate. |
 | Real frame provokes "is this shipped?" | `M0 · ENGINE PORT IN PROGRESS`, `CONCEPT` tags, redaction bar. |
 | AI Rogue over-promises | `CONCEPT DEMO · NOT A SHIPPED FEATURE`; deterministic local demo only. |
-| Hero image swallows touch | `pointer-events:none`, `draggable=false`; swipe test. |
-| Claim drift | Verifier asserts the six roadmap literals. |
+| Hero image / stage swallows touch | `pointer-events:none`, `draggable=false`, `#stage{touch-action:none}`; real CDP touch test asserts no `pointercancel`. |
+| Claim drift / overstated copy | Verifier asserts six literals; `M0 · SCAFFOLD`, future-tense lead and `CONCEPT` labels. |
+| Byte drift | Two consecutive default builds hashed byte-identical. |
 | Large file | 1.61 MiB total; 4 MiB budget; verifier checks size. |
 | Firefox unavailable | Deep matrix records one skip; Edge/Chrome both pass. |
 
