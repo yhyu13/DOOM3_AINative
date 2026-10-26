@@ -425,11 +425,9 @@
   .p2-old{
     position:absolute;inset:0;z-index:2;width:100%;height:100%;object-fit:cover;pointer-events:none;
     clip-path:polygon(0 0,calc(var(--split,46)*1%) 0,calc(var(--split,46)*1% - 260px) 100%,0 100%);
-    filter:saturate(.55) brightness(.7) contrast(1.05);transition:clip-path .7s ease;
+    filter:saturate(.55) brightness(.7) contrast(1.05);
   }
-  .p2.is-dragging .p2-old{transition:none}
-  .snap .p2-old,.snap .p2-handle{transition:none!important}
-  .p2-divider{position:absolute;inset:0;z-index:4;pointer-events:none}
+    .p2-divider{position:absolute;inset:0;z-index:4;pointer-events:none}
   .p2-split-svg{position:absolute;inset:0;width:100%;height:100%}
   .p2-split-svg line{stroke:rgba(255,154,92,.85);stroke-width:2;filter:drop-shadow(0 0 10px rgba(255,77,23,.5))}
   .p2-handle{
@@ -440,6 +438,7 @@
     backdrop-filter:blur(6px);box-shadow:0 0 24px rgba(255,77,23,.3);
   }
   .p2-handle:focus-visible{outline:2px solid var(--ember);outline-offset:4px}
+  .p2.is-auto .p2-handle{border-color:rgba(184,255,90,.75);box-shadow:0 0 30px rgba(184,255,90,.35);color:var(--acid)}
   .p2-copy{position:absolute;left:56px;top:118px;width:780px;z-index:6}
   .p2-title{margin:14px 0 0;padding:0}
   .p2-title > span{display:block;font-family:var(--display);font-weight:700;text-transform:uppercase;line-height:.82;letter-spacing:-.012em}
@@ -2210,6 +2209,13 @@
     const old = audioFor(state.page);
     if (old) old.pause();
     state.page = next;
+    if (next === 2) {
+      lastInteract = performance.now();
+      splitTarget = splitValue; splitV = 0;
+      setAuto(false); autoNext = 0;
+    } else if (autoActive) {
+      setAuto(false); splitTarget = splitValue; splitV = 0;
+    }
     state.pausedAt = 0;
     state.pageT0 = performance.now();
     state.captionKey = -1;
@@ -2398,10 +2404,33 @@
   function loop() {
     requestAnimationFrame(loop);
     if (snap) return;
+    const now = performance.now();
+    const dt = Math.min(.05, Math.max(0, (now - lastFrame) / 1000));
+    lastFrame = now;
     const t = pageTime();
     updateCaption(t);
     updateProgress(t);
     if (!state.reduceMotion) CANVAS.drawActive(state.page, performance.now() / 1000, false);
+    if (state.page === 2 && !state.reduceMotion) {
+      if (!dragging && now - lastInteract > 2600) {
+        if (!autoActive) {
+          setAuto(true);
+          autoTarget = splitValue > 50 ? 32 : 72;
+          splitTarget = autoTarget;
+          autoNext = now + 4200;
+        } else if (now >= autoNext) {
+          autoTarget = autoTarget > 50 ? 32 : 72;
+          splitTarget = autoTarget;
+          autoNext = now + 4200;
+        }
+      } else if (autoActive) {
+        setAuto(false);
+        splitTarget = splitValue;
+      }
+      springStep(dt);
+    } else if (autoActive) {
+      setAuto(false);
+    }
     if (state.playing && state.mode === 'silent' && !state.advanceScheduled) {
       const dur = DATA.pages[state.page - 1].duration;
       if (t >= dur) scheduleAdvance(900);
@@ -2519,8 +2548,16 @@
 
   /* ---------------- 2004 / 2026 comparison ---------------- */
   let splitValue = 46;
+  let splitTarget = 46;
+  let splitV = 0;
   let dragging = false;
   let revealed = false;
+  let lastInteract = performance.now();
+  let autoActive = false;
+  let autoTarget = 72;
+  let autoNext = 0;
+  let lastFrame = performance.now();
+
   function setSplit(v) {
     const next = Math.max(18, Math.min(82, Number(v) || 46));
     splitValue = next;
@@ -2532,9 +2569,34 @@
     }
     if (p2Handle) p2Handle.setAttribute('aria-valuenow', String(Math.round(next)));
   }
+  function setAuto(on) {
+    autoActive = on;
+    if (p2) p2.classList.toggle('is-auto', on);
+    const label = p2Handle && p2Handle.querySelector('span');
+    if (label) label.textContent = on ? 'AUTO' : 'DRAG';
+  }
+  function markInteraction() {
+    lastInteract = performance.now();
+    splitTarget = splitValue;
+    if (autoActive) setAuto(false);
+  }
+  function springStep(dt) {
+    if (dragging || state.snap) return;
+    const diff = splitTarget - splitValue;
+    splitV += diff * 7.5 * dt;
+    splitV *= Math.max(0, 1 - 4.8 * dt);
+    if (Math.abs(diff) < .10 && Math.abs(splitV) < .06) {
+      splitV = 0;
+      if (splitValue !== splitTarget) setSplit(splitTarget);
+    } else {
+      setSplit(splitValue + splitV * dt);
+    }
+  }
   if (p2Handle) {
     p2Handle.addEventListener('pointerdown', e => {
       dragging = true;
+      markInteraction();
+      setAuto(false);
       if (p2) p2.classList.add('is-dragging');
       try { p2Handle.setPointerCapture(e.pointerId); } catch (_) {}
       e.stopPropagation();
@@ -2545,26 +2607,44 @@
       const r = stage.getBoundingClientRect();
       if (!r.width) return;
       setSplit(((e.clientX - r.left) / r.width) * 100);
+      splitTarget = splitValue;
+      splitV = 0;
+      lastInteract = performance.now();
       e.preventDefault();
     });
     p2Handle.addEventListener('pointerup', e => {
       dragging = false;
+      splitTarget = splitValue;
+      splitV = 0;
+      lastInteract = performance.now();
       if (p2) p2.classList.remove('is-dragging');
       try { p2Handle.releasePointerCapture(e.pointerId); } catch (_) {}
     });
     p2Handle.addEventListener('pointercancel', () => {
       dragging = false;
+      splitTarget = splitValue;
+      splitV = 0;
+      lastInteract = performance.now();
       if (p2) p2.classList.remove('is-dragging');
     });
     p2Handle.addEventListener('keydown', e => {
-      if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { setSplit(splitValue - 3); e.preventDefault(); e.stopPropagation(); }
-      else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { setSplit(splitValue + 3); e.preventDefault(); e.stopPropagation(); }
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+        markInteraction(); splitTarget = Math.max(18, splitTarget - 4);
+        if (state.reduceMotion) setSplit(splitTarget);
+        e.preventDefault(); e.stopPropagation();
+      } else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+        markInteraction(); splitTarget = Math.min(82, splitTarget + 4);
+        if (state.reduceMotion) setSplit(splitTarget);
+        e.preventDefault(); e.stopPropagation();
+      }
     });
   }
   if (p2Reveal) {
     p2Reveal.addEventListener('click', () => {
       revealed = !revealed;
-      setSplit(revealed ? 80 : 32);
+      markInteraction();
+      splitTarget = revealed ? 80 : 32;
+      if (state.reduceMotion) setSplit(splitTarget);
       p2Reveal.textContent = revealed ? 'BACK TO 2004' : 'REVEAL 2026';
     });
   }
@@ -2610,6 +2690,7 @@
   let sw = null;
   stage.addEventListener('pointerdown', e => {
     if (e.target.closest('button,.claim,.stage-node,.rm-cell,.caption,.bottombar,.p2-handle,.p2-reveal,.p2-compare-actions,.p2-divider')) return;
+    if (state.page === 2) markInteraction();
     sw = { x: e.clientX, y: e.clientY, t: performance.now() };
     if (state.mode === 'silent') enableSound();
   });
@@ -2628,6 +2709,7 @@
     const x = ((e.clientX - r.left) / r.width) * 2 - 1;
     const y = ((e.clientY - r.top) / r.height) * 2 - 1;
     CANVAS.setParallax(x, y);
+    if (state.page === 2) markInteraction();
   });
 
   window.__SHOWCASE__ = {

@@ -224,6 +224,13 @@
     const old = audioFor(state.page);
     if (old) old.pause();
     state.page = next;
+    if (next === 2) {
+      lastInteract = performance.now();
+      splitTarget = splitValue; splitV = 0;
+      setAuto(false); autoNext = 0;
+    } else if (autoActive) {
+      setAuto(false); splitTarget = splitValue; splitV = 0;
+    }
     state.pausedAt = 0;
     state.pageT0 = performance.now();
     state.captionKey = -1;
@@ -412,10 +419,33 @@
   function loop() {
     requestAnimationFrame(loop);
     if (snap) return;
+    const now = performance.now();
+    const dt = Math.min(.05, Math.max(0, (now - lastFrame) / 1000));
+    lastFrame = now;
     const t = pageTime();
     updateCaption(t);
     updateProgress(t);
     if (!state.reduceMotion) CANVAS.drawActive(state.page, performance.now() / 1000, false);
+    if (state.page === 2 && !state.reduceMotion) {
+      if (!dragging && now - lastInteract > 2600) {
+        if (!autoActive) {
+          setAuto(true);
+          autoTarget = splitValue > 50 ? 32 : 72;
+          splitTarget = autoTarget;
+          autoNext = now + 4200;
+        } else if (now >= autoNext) {
+          autoTarget = autoTarget > 50 ? 32 : 72;
+          splitTarget = autoTarget;
+          autoNext = now + 4200;
+        }
+      } else if (autoActive) {
+        setAuto(false);
+        splitTarget = splitValue;
+      }
+      springStep(dt);
+    } else if (autoActive) {
+      setAuto(false);
+    }
     if (state.playing && state.mode === 'silent' && !state.advanceScheduled) {
       const dur = DATA.pages[state.page - 1].duration;
       if (t >= dur) scheduleAdvance(900);
@@ -533,8 +563,16 @@
 
   /* ---------------- 2004 / 2026 comparison ---------------- */
   let splitValue = 46;
+  let splitTarget = 46;
+  let splitV = 0;
   let dragging = false;
   let revealed = false;
+  let lastInteract = performance.now();
+  let autoActive = false;
+  let autoTarget = 72;
+  let autoNext = 0;
+  let lastFrame = performance.now();
+
   function setSplit(v) {
     const next = Math.max(18, Math.min(82, Number(v) || 46));
     splitValue = next;
@@ -546,9 +584,34 @@
     }
     if (p2Handle) p2Handle.setAttribute('aria-valuenow', String(Math.round(next)));
   }
+  function setAuto(on) {
+    autoActive = on;
+    if (p2) p2.classList.toggle('is-auto', on);
+    const label = p2Handle && p2Handle.querySelector('span');
+    if (label) label.textContent = on ? 'AUTO' : 'DRAG';
+  }
+  function markInteraction() {
+    lastInteract = performance.now();
+    splitTarget = splitValue;
+    if (autoActive) setAuto(false);
+  }
+  function springStep(dt) {
+    if (dragging || state.snap) return;
+    const diff = splitTarget - splitValue;
+    splitV += diff * 7.5 * dt;
+    splitV *= Math.max(0, 1 - 4.8 * dt);
+    if (Math.abs(diff) < .10 && Math.abs(splitV) < .06) {
+      splitV = 0;
+      if (splitValue !== splitTarget) setSplit(splitTarget);
+    } else {
+      setSplit(splitValue + splitV * dt);
+    }
+  }
   if (p2Handle) {
     p2Handle.addEventListener('pointerdown', e => {
       dragging = true;
+      markInteraction();
+      setAuto(false);
       if (p2) p2.classList.add('is-dragging');
       try { p2Handle.setPointerCapture(e.pointerId); } catch (_) {}
       e.stopPropagation();
@@ -559,26 +622,44 @@
       const r = stage.getBoundingClientRect();
       if (!r.width) return;
       setSplit(((e.clientX - r.left) / r.width) * 100);
+      splitTarget = splitValue;
+      splitV = 0;
+      lastInteract = performance.now();
       e.preventDefault();
     });
     p2Handle.addEventListener('pointerup', e => {
       dragging = false;
+      splitTarget = splitValue;
+      splitV = 0;
+      lastInteract = performance.now();
       if (p2) p2.classList.remove('is-dragging');
       try { p2Handle.releasePointerCapture(e.pointerId); } catch (_) {}
     });
     p2Handle.addEventListener('pointercancel', () => {
       dragging = false;
+      splitTarget = splitValue;
+      splitV = 0;
+      lastInteract = performance.now();
       if (p2) p2.classList.remove('is-dragging');
     });
     p2Handle.addEventListener('keydown', e => {
-      if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { setSplit(splitValue - 3); e.preventDefault(); e.stopPropagation(); }
-      else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { setSplit(splitValue + 3); e.preventDefault(); e.stopPropagation(); }
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+        markInteraction(); splitTarget = Math.max(18, splitTarget - 4);
+        if (state.reduceMotion) setSplit(splitTarget);
+        e.preventDefault(); e.stopPropagation();
+      } else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+        markInteraction(); splitTarget = Math.min(82, splitTarget + 4);
+        if (state.reduceMotion) setSplit(splitTarget);
+        e.preventDefault(); e.stopPropagation();
+      }
     });
   }
   if (p2Reveal) {
     p2Reveal.addEventListener('click', () => {
       revealed = !revealed;
-      setSplit(revealed ? 80 : 32);
+      markInteraction();
+      splitTarget = revealed ? 80 : 32;
+      if (state.reduceMotion) setSplit(splitTarget);
       p2Reveal.textContent = revealed ? 'BACK TO 2004' : 'REVEAL 2026';
     });
   }
@@ -624,6 +705,7 @@
   let sw = null;
   stage.addEventListener('pointerdown', e => {
     if (e.target.closest('button,.claim,.stage-node,.rm-cell,.caption,.bottombar,.p2-handle,.p2-reveal,.p2-compare-actions,.p2-divider')) return;
+    if (state.page === 2) markInteraction();
     sw = { x: e.clientX, y: e.clientY, t: performance.now() };
     if (state.mode === 'silent') enableSound();
   });
@@ -642,6 +724,7 @@
     const x = ((e.clientX - r.left) / r.width) * 2 - 1;
     const y = ((e.clientY - r.top) / r.height) * 2 - 1;
     CANVAS.setParallax(x, y);
+    if (state.page === 2) markInteraction();
   });
 
   window.__SHOWCASE__ = {

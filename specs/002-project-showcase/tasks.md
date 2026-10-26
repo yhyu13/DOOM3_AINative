@@ -57,7 +57,7 @@
   card visuals and monitor bezel
 - [x] T022 Licence audit: no legally reusable screenshot found; documented the redacted-placeholder
   decision and the rejected candidates
-- [x] T033 Final build + `verify.py` **118 passed, 0 failed**
+- [x] T033 Final build + `verify.py` **121 passed, 0 failed**
 - [x] T034 Final `verify_deep.py` **161 passed, 0 failed, 1 skipped** (Firefox not installed)
 - [x] T035 axe-core 4.10.3 WCAG 2.1 A/AA **0 violations**; 1 incomplete color-contrast/poster
   (120/66/111 nodes) recorded rather than claimed as full AA
@@ -67,8 +67,8 @@
 - [x] T043 Space-on-control guard + page-visibility pause/resume
 - [x] T044 Canvas-unavailable fallback + caption `aria-hidden` + `#ccEn lang="en"`
 - [x] T045 Truthfulness: `M0 · SCAFFOLD`, future-tense lead, no false CI baseline, no “no retail assets” claim
-- [x] T046 Byte-reproducibility (two builds, SHA-256 `66b9…9fb2`) + hero-label edge cases
-- [x] T047 README/spec/plan/tasks + PR evidence updated to 118/161/axe-incomplete/60.0–60.3 fps
+- [x] T046 Byte-reproducibility (two builds, SHA-256 `9271…0ff5`) + hero-label edge cases
+- [x] T047 README/spec/plan/tasks + PR evidence updated to 121/161/axe-incomplete/60.0–60.3 fps
 - [x] T048 Re-ran contract, deep and axe after the review fixes
 - [x] T049 Redesigned poster 2 as THE DREAM: Mars-hangar vision render, 2004 archival diptych,
   NEXT-GEN LOOK / AI DIRECTOR / PERSONAL RUN, proof strip
@@ -84,6 +84,7 @@
 - [x] T059 Added the 2026 modern corridor render + draggable/reveal split
 - [x] T060 Updated page 2 copy/narration/archival/labels to the comparison
 - [x] T061 Updated verifiers/docs/evidence and re-ran 118/161/axe
+- [x] T063 Added the 2.6 s idle auto-sweep with a damped spring (drag/reveal take over; reduced motion disables)
 - [x] T038 Animation test fix: canvas frame-change + 0.6% page diff threshold
 - [x] T039 README/spec/plan/tasks aligned to the product concept
 
@@ -106,7 +107,7 @@
 
 | Bucket | Count |
 |---|---|
-| Done | 56 |
+| Done | 57 |
 | Superseded | 2 (T024, T050) |
 | Pending before review | 1 (T062) |
 | Pending review/merge | 2 (T041, T062) |

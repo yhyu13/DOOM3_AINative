@@ -6,7 +6,7 @@
 
 **Revised**: 2026-10-26 — product-concept direction (browser monitor, capability cards, AI Rogue demo, redacted real frame)
 
-**Status**: Implemented; 118 contract checks + 161 deep checks + axe 0 violations (1 incomplete color-contrast/poster); pending review
+**Status**: Implemented; 121 contract checks + 161 deep checks + axe 0 violations (1 incomplete color-contrast/poster); pending review
 
 **Input**: User description: "Write an attractive single interactive HTML with voice-over, using a skill, to show this project to others. Three rotating poster pages. Use a real DOOM 3 frame inside a browser/monitor, plus marketing concepts like key remapping, mods, and one-sentence AI Rogue generation. Follow the agent workflow. Use subagents in parallel."
 
@@ -148,8 +148,8 @@ credit. `--no-hero` produces the procedural version. No original game data enter
   context MUST NOT prevent boot, captions or paging.
 - **FR-019**: Poster 2 MUST sell the modern-FPS/AI-native experience as a **2004 / 2026 diagonal
   comparison**: the left side is the redacted 2004 archival frame, the right side a procedural 2026
-  modern corridor labelled `PROCEDURAL MODERN RENDER · NOT A GAME CAPTURE`; a draggable diagonal and
-  a REVEAL 2026 toggle; and three cards (NEXT-GEN LOOK, AI DIRECTOR, PERSONAL RUN). It MUST NOT be a
+  modern corridor labelled `PROCEDURAL MODERN RENDER · NOT A GAME CAPTURE`; a draggable diagonal, a REVEAL 2026 toggle, and an idle auto-sweep with a damped spring
+  (disabled under reduced motion); and three cards (NEXT-GEN LOOK, AI DIRECTOR, PERSONAL RUN). It MUST NOT be a
   six-card source/evidence wall.
 
 ## Key Entities
@@ -179,7 +179,7 @@ credit. `--no-hero` produces the procedural version. No original game data enter
   the 1 incomplete color-contrast check per poster (text over image/canvas) MUST be recorded rather
   than presented as full AA verification.
 - **SC-012**: Poster 2 contains the 2004/2026 diagonal comparison, the 2004 archival frame, the 2026
-  modern render, the draggable/reveal control, the three experience cards and the proof strip; it
+  modern render, the draggable/reveal/auto-sweep control, the three experience cards and the proof strip; it
   contains no six-card source wall.
 
 ## Assumptions
@@ -190,4 +190,4 @@ credit. `--no-hero` produces the procedural version. No original game data enter
 - The 82.8 s narration is the accepted length; the old 64 s script is replaced.
 - The AI Rogue demo is deterministic and local; it does not call a model or network.
 - The redacted image is committed at `showcase/assets/hero-redacted.png` (≈0.71 MiB); the deck total
-  is ≈2.63 MiB.
+  is ≈2.64 MiB.

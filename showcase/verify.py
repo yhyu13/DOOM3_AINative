@@ -224,17 +224,28 @@ def main() -> int:
 
         # ---- 2004 / 2026 compare slider
         ctx, page, errors, requests = new_page(browser)
-        page.goto(page_url(2, snap=True), wait_until="load")
+        page.goto(page_url(2, snap=False), wait_until="load")
         wait_ready(page)
         before_split = page.locator("#p2Handle").get_attribute("aria-valuenow")
         page.locator("#p2Reveal").click()
-        page.wait_for_timeout(900)
+        page.wait_for_timeout(2200)
         after_split = page.locator("#p2Handle").get_attribute("aria-valuenow")
         check(before_split == "46" and after_split == "80", f"compare :: reveal 2026 changes the split ({before_split} -> {after_split})")
         page.locator("#p2Reveal").click()
-        page.wait_for_timeout(900)
+        page.wait_for_timeout(2200)
         check(page.locator("#p2Handle").get_attribute("aria-valuenow") == "32", "compare :: back to 2004 changes the split")
         audit_console(errors, "compare")
+        ctx.close()
+
+        # ---- idle auto-sweep with damping
+        ctx, page, errors, requests = new_page(browser)
+        page.goto(page_url(2, snap=False), wait_until="load")
+        wait_ready(page)
+        page.wait_for_timeout(4400)
+        auto_split = page.locator("#p2Handle").get_attribute("aria-valuenow")
+        check(int(auto_split) > 50, f"compare :: idle auto-sweep moves the split ({auto_split})")
+        check("AUTO" in page.locator("#p2Handle").inner_text(), "compare :: auto state is visible on the handle")
+        audit_console(errors, "compare auto")
         ctx.close()
 
         # ---- AI Rogue concept demo (poster 3)
