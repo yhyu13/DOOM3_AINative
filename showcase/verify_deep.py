@@ -323,7 +323,7 @@ def main() -> int:
             page.locator("#p2Reveal").click()
             page.wait_for_timeout(2200)
             after_split = page.locator("#p2Handle").get_attribute("aria-valuenow")
-            check(before_split == "46" and after_split == "80", f"compare :: reveal changes the split ({before_split} -> {after_split})")
+            check(before_split == "46" and after_split == "32", f"compare :: reveal changes the split ({before_split} -> {after_split})")
             page.goto(url(2, snap=False), wait_until="load")
             wait_ready(page)
             p2fps = page.evaluate("""() => new Promise(resolve => {
@@ -335,7 +335,7 @@ def main() -> int:
                 }
                 requestAnimationFrame(f);
             })""")
-            check(p2fps >= 30, f"performance :: page 2 isometric map {p2fps:.1f} fps")
+            check(p2fps >= 30, f"performance :: page 2 comparison {p2fps:.1f} fps")
             audit_console(errors, "compare poster")
             ctx.close()
 

@@ -430,13 +430,17 @@
       if (!dragging && now - lastInteract > 2600) {
         if (!autoActive) {
           setAuto(true);
-          autoTarget = splitValue > 50 ? 32 : 72;
+          autoTarget = splitValue > 50 ? 40 : 72;
           splitTarget = autoTarget;
           autoNext = now + 4200;
+          revealed = autoTarget < 50;
+          if (p2Reveal) p2Reveal.textContent = revealed ? 'BACK TO 2004' : 'REVEAL 2026';
         } else if (now >= autoNext) {
-          autoTarget = autoTarget > 50 ? 32 : 72;
+          autoTarget = autoTarget > 50 ? 40 : 72;
           splitTarget = autoTarget;
           autoNext = now + 4200;
+          revealed = autoTarget < 50;
+          if (p2Reveal) p2Reveal.textContent = revealed ? 'BACK TO 2004' : 'REVEAL 2026';
         }
       } else if (autoActive) {
         setAuto(false);
@@ -620,8 +624,9 @@
     p2Handle.addEventListener('pointermove', e => {
       if (!dragging) return;
       const r = stage.getBoundingClientRect();
-      if (!r.width) return;
-      setSplit(((e.clientX - r.left) / r.width) * 100);
+      if (!r.width || !r.height) return;
+      const yFrac = (e.clientY - r.top) / r.height;
+      setSplit(((e.clientX - r.left) + 260 * yFrac) / r.width * 100);
       splitTarget = splitValue;
       splitV = 0;
       lastInteract = performance.now();
@@ -645,21 +650,21 @@
     p2Handle.addEventListener('keydown', e => {
       if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
         markInteraction(); splitTarget = Math.max(18, splitTarget - 4);
-        if (state.reduceMotion) setSplit(splitTarget);
+        if (state.snap || state.reduceMotion) setSplit(splitTarget);
         e.preventDefault(); e.stopPropagation();
       } else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
         markInteraction(); splitTarget = Math.min(82, splitTarget + 4);
-        if (state.reduceMotion) setSplit(splitTarget);
+        if (state.snap || state.reduceMotion) setSplit(splitTarget);
         e.preventDefault(); e.stopPropagation();
       }
     });
   }
   if (p2Reveal) {
     p2Reveal.addEventListener('click', () => {
-      revealed = !revealed;
       markInteraction();
-      splitTarget = revealed ? 80 : 32;
-      if (state.reduceMotion) setSplit(splitTarget);
+      revealed = !revealed;
+      splitTarget = revealed ? 32 : 80;
+      if (state.snap || state.reduceMotion) setSplit(splitTarget);
       p2Reveal.textContent = revealed ? 'BACK TO 2004' : 'REVEAL 2026';
     });
   }

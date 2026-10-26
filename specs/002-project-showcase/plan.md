@@ -57,7 +57,7 @@ loop steps, eight roadmap milestones, six numeric claims.
 | Pristine submodule untouched | PASS | Scope is `showcase/**` and `specs/002-project-showcase/**`. |
 | No game data committed | PASS | The original screenshot is not in git; the redacted placeholder is tracked and labelled. No `.pk4/.pk3/.pak`. |
 | No direct commit to `main` | PASS | Worktree `feat/2-project-showcase`; PR required. |
-| Evidence before victory | PASS | 121 contract checks, 161 deep checks, axe 0 violations (1 incomplete/poster); logs/screenshots. |
+| Evidence before victory | PASS | 123 contract checks, 161 deep checks, axe 0 violations (1 incomplete/poster); logs/screenshots. |
 | No secrets or absolute machine paths | PASS | `start.cmd` uses `%~dp0` and `%ProgramFiles%`; README uses repo-relative sample paths. |
 | One writer per file | PASS | Single worker owns the scope. |
 | Spec before plan before tasks | PASS | `spec.md`, this file, `tasks.md`. |
@@ -117,8 +117,8 @@ showcase/
    without network after the first synthesis.
 9. **Kiosk launcher.** `start.cmd` starts Edge with `--kiosk`,
    `--autoplay-policy=no-user-gesture-required` and a local profile.
-10. **Two verification layers.** `verify.py` is the PR contract (102 checks); `verify_deep.py` covers
-    the matrix (151 checks: Chrome, offline, reduced motion, **real CDP touch**, Space-on-control,
+10. **Two verification layers.** `verify.py` is the PR contract (123 checks); `verify_deep.py` covers
+    the matrix (161 checks: Chrome, offline, reduced motion, **real CDP touch**, Space-on-control,
     visibility, canvas fallback, sync, 4K + DPR2). `axe-core` is run separately for WCAG AA; the
     color-contrast incomplete nodes over image/canvas are recorded.
 11. **Sell the dream, prove it elsewhere.** Poster 2 is the 2004/2026 comparison + AI-native

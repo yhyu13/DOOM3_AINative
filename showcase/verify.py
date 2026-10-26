@@ -230,11 +230,21 @@ def main() -> int:
         page.locator("#p2Reveal").click()
         page.wait_for_timeout(2200)
         after_split = page.locator("#p2Handle").get_attribute("aria-valuenow")
-        check(before_split == "46" and after_split == "80", f"compare :: reveal 2026 changes the split ({before_split} -> {after_split})")
+        check(before_split == "46" and after_split == "32", f"compare :: reveal 2026 expands the modern side ({before_split} -> {after_split})")
         page.locator("#p2Reveal").click()
         page.wait_for_timeout(2200)
-        check(page.locator("#p2Handle").get_attribute("aria-valuenow") == "32", "compare :: back to 2004 changes the split")
+        check(page.locator("#p2Handle").get_attribute("aria-valuenow") == "80", "compare :: back to 2004 expands the old side")
         audit_console(errors, "compare")
+        ctx.close()
+
+        # ---- snap-mode button regression (no spring)
+        ctx, page, errors, requests = new_page(browser)
+        page.goto(page_url(2, snap=True), wait_until="load")
+        wait_ready(page)
+        page.locator("#p2Reveal").click()
+        page.wait_for_timeout(350)
+        check(page.locator("#p2Handle").get_attribute("aria-valuenow") == "32", "compare :: snap-mode reveal updates immediately")
+        audit_console(errors, "compare snap")
         ctx.close()
 
         # ---- idle auto-sweep with damping

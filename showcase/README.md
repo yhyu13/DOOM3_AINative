@@ -12,7 +12,7 @@ Microsoft Edge kiosk with the autoplay exemption.
 | Poster | Claim | What it shows |
 |---|---|---|
 | **01 · PLAY** | *DOOM 3 in the browser.* | A monitor/browser mockup with a **real DOOM 3 frame, fully redacted in `XX`**, a live HUD, and four capability cards: **PLAY / REMAP / MOD / AI ROGUE**. |
-| **02 · THE DREAM** | *Modern FPS. Personal hell.* | A **2004 / 2026 diagonal comparison**: the left side is the **redacted 2004 archival frame**, the right side a **procedural 2026 modern corridor** (Mars window, volumetric light, HUD). Drag the diagonal, press **REVEAL 2026**, or let it auto-sweep after 2.6 s idle; **NEXT-GEN LOOK / AI DIRECTOR / PERSONAL RUN**; one proof strip. |
+| **02 · THE DREAM** | *Modern FPS. Personal hell.* | A **2004 / 2026 diagonal comparison**: the left side is the **redacted 2004 archival frame**, the right side a **procedural 2026 modern corridor** (Mars window, volumetric light, HUD). Drag the diagonal, press **REVEAL 2026**, or let it auto-sweep after 2.6 s idle; **REVEAL 2026** expands the modern side (32), **BACK TO 2004** expands the old side (80); **NEXT-GEN LOOK / AI DIRECTOR / PERSONAL RUN**; one proof strip. |
 | **03 · VISION** | *Your DOOM. Your rules.* | **REMAP** (M5 planned), **MOD** (M7 planned), and **AI ROGUE** — a working concept demo where one sentence regenerates a seed, a map and a modifier. Plus the seven-step delivery loop and the M0–M7 roadmap. |
 
 The deck is a **product concept**, not a claim that the port is shipped. Poster 1 uses future-tense
@@ -152,7 +152,7 @@ uv run --python 3.12 showcase/verify_deep.py
 
 Current evidence (2026-10-26):
 
-- `verify.py` — **121 passed, 0 failed**. Single file 2.64 MiB, zero external requests, three posters,
+- `verify.py` — **123 passed, 0 failed**. Single file 2.64 MiB, zero external requests, three posters,
   zero console/page errors, three distinct screenshots, embedded narration, six claim literals,
   redacted-hero label, four capability cards, AI Rogue concept, keyboard/pause/captions,
   autoplay-blocked fallback, `?autoplay=0`, 1366 scaling.
@@ -164,8 +164,8 @@ Current evidence (2026-10-26):
 - **axe-core 4.10.3, WCAG 2.1 A/AA** — **0 violations** on all three posters after a 900 ms settle;
   **1 incomplete color-contrast check per poster** (120/66/111 nodes, text over image/canvas), so AA
   contrast is not fully machine-verified. The first pass exposed two real contrast misses, both fixed.
-- **Reproducibility** — two consecutive default builds are byte-identical: 2,763,472 bytes,
-  SHA-256 `9271a323737bde5786267953fe38d93af60dd4dfae20ac041b42e4621e630ff5`.
+- **Reproducibility** — two consecutive default builds are byte-identical: 2,763,851 bytes,
+  SHA-256 `7490170e003d1e7c5f3c8dd3c7e6d8751b68d6a0eda4c6e401e01c43f5fbeb72`.
 
 Screenshots and logs land in `showcase/evidence/`, which is git-ignored. `verify.py --headed` lets
 you watch the run.
