@@ -3,7 +3,7 @@
   "permission": {
     "edit": {
       ".git/**": "deny",
-      "doom3/**": "ask",
+      "doom3_orig/**": "ask",
       "*.pk4": "deny",
       "*.pk3": "deny"
     }

@@ -16,32 +16,40 @@ the specs, and the workflow.
 
 ## Repository facts
 
-- `doom3/` — git submodule: `https://github.com/yhyu13/DOOM-3.git` (fork of `id-Software/DOOM-3`),
-  the DOOM 3 GPL source release of 2011-11-22. License: GPLv3 (`doom3/COPYING.txt`).
-  The source release contains **no game data**; assets remain under the original EULA
-  (`doom3/README.txt`). Native build reference: `doom3/neo/doom.sln` (Visual Studio 2010,
-  DirectX SDK), per `doom3/README.txt`.
+- `doom3_orig/doom3/` — **pristine** git submodule: `https://github.com/yhyu13/DOOM-3.git`
+  (fork of `id-Software/DOOM-3`), the DOOM 3 GPL source release of 2011-11-22. License: GPLv3
+  (`doom3_orig/doom3/COPYING.txt`). The source release contains **no game data**; assets remain
+  under the original EULA (`doom3_orig/doom3/README.txt`). Native build reference:
+  `doom3_orig/doom3/neo/doom.sln` (Visual Studio 2010, DirectX SDK).
+- `doom3_orig/doc/` — engine analysis notes written against the pristine tree (evidence for the
+  port; line numbers drift when the submodule is bumped).
+- `targets/<name>/doom3/` — one **copy** of the pristine source per migration target, created by
+  `scripts/new-target.ps1`. Copies are git-ignored scratch trees; a target never edits the pristine
+  submodule or another target's copy. See `targets/README.md`.
 - `.specify/`, `.kilo/command/speckit.*.md` — GitHub spec-kit, installed with the generic
   integration and PowerShell scripts.
 - `.kilo/skills/` — 14 project-local skills (12 from the user's skill vault, 2 vendored from
   upstream MIT repositories). Real files, not junctions, so worktrees and CI get the same skills.
-- `scripts/` — workflow helpers (worktrees, skill verification).
+- `scripts/` — workflow helpers (worktrees, target copies, skill verification).
 
 ## Non-negotiables
 
-1. **Never edit the submodule casually.** Any change inside `doom3/` belongs on a branch of the
-   fork; land it there, then record a submodule bump here (`git add doom3`) with the new commit
-   SHA in the PR body. Unexplained submodule dirt is a review blocker.
-2. **Never commit game data or build output.** `.pk4`/`.pk3`/`.pak` assets, binaries, object
+1. **The pristine submodule is read-only.** Never edit `doom3_orig/doom3/` in place. Engine changes
+   belong on a branch of the fork; land it there, then bump `doom3_orig/doom3` here
+   (`git add doom3_orig/doom3`) with the new SHA in the PR body. Migration work happens in
+   `targets/<name>/doom3`, which is never committed. Unexplained submodule dirt is a review blocker.
+2. **One copy per target.** Do not share a target copy, and do not edit one target from another
+   target's session. Create a copy with `scripts/new-target.ps1 -Name <target>`.
+3. **Never commit game data or build output.** `.pk4`/`.pk3`/`.pak` assets, binaries, object
    files, and per-worktree build directories stay out of git. GPLv3 covers the source only.
-3. **No direct commits to `main`.** No force-push to `main`. No `git stash` — stashes are shared
+4. **No direct commits to `main`.** No force-push to `main`. No `git stash` — stashes are shared
    across worktrees and silently corrupt parallel work.
-4. **Evidence before victory.** A task is done only when a command's output proves it: build exit
+5. **Evidence before victory.** A task is done only when a command's output proves it: build exit
    code, test summary, screenshot, or file listing. Load the `verification-before-completion`
    skill before claiming completion.
-5. **No secrets or machine-specific absolute paths** in tracked files. Use environment variables
+6. **No secrets or machine-specific absolute paths** in tracked files. Use environment variables
    and paths relative to the repository root.
-6. **One writer per file.** Parallel agents must not edit the same file; split by ownership
+7. **One writer per file.** Parallel agents must not edit the same file; split by ownership
    (see `docs/GIT_WORKFLOW.md`).
 
 ## Spec-driven flow
@@ -75,8 +83,10 @@ the engine build, the renderer, or the submodule.
 
 ## Working in a worktree
 
-Agent Manager runs `.kilo/setup-script.ps1` for every new worktree, which initialises `doom3/`.
-For a hand-made worktree run `git submodule update --init --recursive` inside it. Build
+Agent Manager runs `.kilo/setup-script.ps1` for every new worktree, which initialises
+`doom3_orig/doom3/`. For a hand-made worktree run `git submodule update --init --recursive` inside
+it. Target copies (`targets/<name>/doom3`) are not part of git; recreate them in a new worktree
+with `scripts/new-target.ps1 -Name <target>` instead of copying them between worktrees. Build
 directories, caches, and ports must be derived from `WORKTREE_PATH`; never share them.
 
 ## Skills

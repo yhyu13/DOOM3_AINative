@@ -12,6 +12,11 @@ Desktop.ini
 .kilocode/
 .opencode/
 
+# ---- per-target migration copies (untracked scratch trees; see targets/README.md) ----
+targets/*/doom3/
+targets/*/build/
+targets/*/out/
+
 # ---- build output (per worktree, never shared) ----
 build/
 build-*/
@@ -48,7 +53,7 @@ node_modules/
 *.data
 *.js.mem
 
-# ---- game data: not redistributable with the source (see doom3/README.txt) ----
+# ---- game data: not redistributable with the source (see doom3_orig/doom3/README.txt) ----
 *.pk4
 *.pk3
 *.pak

@@ -81,7 +81,7 @@ If it cannot be checked mechanically, rewrite it until it can.
 ## 4. Worktree lifecycle
 
 ```powershell
-# 1. create (fetches origin, branches from origin/main, initialises doom3/)
+# 1. create (fetches origin, branches from origin/main, initialises doom3_orig/doom3/)
 .\scripts\new-worktree.ps1 -Issue 42 -Slug webgl-audio -Kind feat
 
 # 2. enter and confirm isolation
@@ -116,7 +116,7 @@ git worktree prune
 `gh pr merge <n> --squash` — do **not** pass `--delete-branch` while the worktree still
 exists; let `remove-worktree.ps1` delete the local branch after merge.
 git 2.25 cannot `worktree remove` a checkout that contains submodules. The script therefore
-verifies the tree (including untracked files inside `doom3/`) is clean, then retries with
+verifies the tree (including untracked files inside `doom3_orig/doom3/`) is clean, then retries with
 `--force --force`. `-Force` skips that guard and discards uncommitted work.
 
 ## 5. Parallelism rules
@@ -132,8 +132,8 @@ Example split for the current milestone (replace paths with the real ones before
 
 | Worker | Issue | Owns (write) | Reads only | Port | Build dir |
 |---|---|---|---|---|---|
-| w1 | #42 | `src/audio/**` | `doom3/neo/sound/**` | 27701 | `build/` |
-| w2 | #43 | `src/render/**` | `doom3/neo/renderer/**` | 27702 | `build/` |
+| w1 | #42 | `src/audio/**` | `doom3_orig/doom3/neo/sound/**` | 27701 | `build/` |
+| w2 | #43 | `src/render/**` | `doom3_orig/doom3/neo/renderer/**` | 27702 | `build/` |
 | w3 | #44 | `docs/**`, `scripts/**` | everything | — | — |
 
 ```powershell
@@ -147,17 +147,26 @@ $env:D3_BUILD = Join-Path $env:WORKTREE_PATH 'build'
 
 ## 6. DOOM 3 specifics
 
-- `doom3/` is a submodule (GPLv3 source only). A change inside it is made **on a branch of the
-  fork** `yhyu13/DOOM-3`, pushed there, and landed on `main` here as a submodule bump:
-  `git add doom3` in the superproject, commit message `chore(doom3): bump to <sha>`, PR body
-  carries the fork PR URL and the old/new SHA. Never commit submodule changes ad hoc.
+- `doom3_orig/doom3/` is a **pristine** submodule (GPLv3 source only). Treat it as read-only: no
+  formatting, no builds, no edits in place.
+- Migration work happens in `targets/<name>/doom3/`, one copy per target, created with
+  `.\scripts\new-target.ps1 -Name <target>` (no shared git metadata; the copy is git-ignored).
+  Inspect divergence with `.\scripts\diff-target.ps1 -Name <target>`. A worker owns exactly one
+  target copy and never edits another target's copy.
+- A change that must live in the engine itself is made **on a branch of the fork**
+  `yhyu13/DOOM-3`, pushed there, and landed on `main` here as a submodule bump:
+  `git add doom3_orig/doom3` in the superproject, commit message
+  `chore(doom3): bump to <sha>`, PR body carries the fork PR URL and the old/new SHA. Never commit
+  submodule changes ad hoc, and never let fork work exist only inside a target copy.
 - A submodule bump PR requires one independent reviewer (build-system changes do too).
 - Game assets (`.pk4`/`.pk3`/`.pak`), binaries, object files, and `build/` stay out of git.
   The source release ships no data; do not add it.
 - `git submodule update --init` inside each worktree creates a **per-worktree** submodule
-  checkout under `.git/worktrees/<wt>/modules/doom3`. That is isolated but costs another clone;
-  initialise only worktrees that touch `doom3/`, and expect disk/network time.
-- A worktree whose submodule is detached is normal; branch inside `doom3/` explicitly before editing.
+  checkout. That is isolated but costs another clone; initialise only worktrees that touch the
+  pristine source, and expect disk/network time. Recreate target copies inside a worktree with
+  `new-target.ps1`; never copy them between worktrees.
+- A worktree whose submodule is detached is normal; branch inside `doom3_orig/doom3/` explicitly
+  before editing — but prefer a fork branch plus a bump over a detached local commit.
 
 ## 7. Conflict and failure protocol
 
@@ -172,7 +181,7 @@ $env:D3_BUILD = Join-Path $env:WORKTREE_PATH 'build'
 ## 8. Merge policy
 
 - Squash merge only. PR body must contain `Closes #N`, the evidence block, and risk/rollback.
-- Every PR gets a coordinator review. `doom3/` submodule bumps and build-system changes also require
+- Every PR gets a coordinator review. `doom3_orig/doom3/` submodule bumps and build-system changes also require
   one **independent** reviewer (never the author) who reruns the verification command.
 - Reviewer runs the `code-review` skill pinned at `origin/main...HEAD`; comments cite file:line.
 - Merge only when: CI/verification green, review approved, no out-of-scope paths touched,
@@ -215,7 +224,7 @@ Red lines (max 10, no exceptions):
 2. One issue per branch; never two agents on one branch or one worktree.
 3. Never `git stash`.
 4. Never commit game assets, binaries, or build output.
-5. Never edit `doom3/` without a fork branch and a recorded submodule bump.
+5. Never edit `doom3_orig/doom3/` without a fork branch and a recorded submodule bump.
 6. Never merge with red verification; draft PRs stay draft.
 7. Never write outside the issue's in-scope paths.
 8. Never let a reviewer review their own diff.

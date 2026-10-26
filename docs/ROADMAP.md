@@ -6,26 +6,26 @@ Evidence captured 2026-10-26 from this working tree. Facts are in §1–§2; mil
 
 | Check | Finding | Evidence |
 |---|---|---|
-| Submodule | `doom3/` at `a9c49da5afb18201d31e3f0a429a037e56ce2b9a`; commit date 2012-01-31; message says source was released under GPL on 2011-11-22 | `git -C doom3 log -1` |
-| Remote | `https://github.com/yhyu13/DOOM-3.git` | `.gitmodules`; `git -C doom3 remote -v` |
-| Worktree | clean; `git -C doom3 status --porcelain` produced 0 lines | command |
-| Tracked size | 2,156 files, 33.7 MB; 2,151 files under `neo/`; `base/` has 1 file | `git -C doom3 ls-files`; filesystem |
-| Source counts | 563 `.cpp`, 654 `.h`, 170 `.c` (1,387 C/C++ files); 734,180 lines across those files; 236 tracked files have no extension | `git -C doom3 ls-files`; line count |
-| Extension counts | `.h` 654, `.cpp` 563, `.c` 170, `.html` 47, `.pdf` 40, `.3` 38, `.in` 31, `.BMP` 29, `.ico` 25, `.png` 21 | `git -C doom3 ls-files` |
+| Submodule | `doom3_orig/doom3/` at `a9c49da5afb18201d31e3f0a429a037e56ce2b9a`; commit date 2012-01-31; message says source was released under GPL on 2011-11-22 | `git -C doom3_orig/doom3 log -1` |
+| Remote | `https://github.com/yhyu13/DOOM-3.git` | `.gitmodules`; `git -C doom3_orig/doom3 remote -v` |
+| Worktree | clean; `git -C doom3_orig/doom3 status --porcelain` produced 0 lines | command |
+| Tracked size | 2,156 files, 33.7 MB; 2,151 files under `neo/`; `base/` has 1 file | `git -C doom3_orig/doom3 ls-files`; filesystem |
+| Source counts | 563 `.cpp`, 654 `.h`, 170 `.c` (1,387 C/C++ files); 734,180 lines across those files; 236 tracked files have no extension | `git -C doom3_orig/doom3 ls-files`; line count |
+| Extension counts | `.h` 654, `.cpp` 563, `.c` 170, `.html` 47, `.pdf` 40, `.3` 38, `.in` 31, `.BMP` 29, `.ico` 25, `.png` 21 | `git -C doom3_orig/doom3 ls-files` |
 | Layout | Engine sources and build files are in `neo/`: `cm`, `curl`, `d3xp`, `framework`, `game`, `idlib`, `MayaImport`, `openal`, `renderer`, `sound`, `sys`, `tools`, `TypeInfo`, `ui` | directory listing |
-| `base/` contents | `base/default.cfg` only: 14 bytes, content `# empty file` | file read; `git -C doom3 ls-files base` |
-| Game assets | 0 `.pk4`, 0 `.pk3`, 0 `.pak`, 0 `.map`, 0 `.md5mesh`, 0 `.md5anim`, 0 `.roq`, 0 `.tga`, 0 `.dds`; no playable game data | `git -C doom3 ls-files`; filesystem scan |
+| `base/` contents | `base/default.cfg` only: 14 bytes, content `# empty file` | file read; `git -C doom3_orig/doom3 ls-files base` |
+| Game assets | 0 `.pk4`, 0 `.pk3`, 0 `.pak`, 0 `.map`, 0 `.md5mesh`, 0 `.md5anim`, 0 `.roq`, 0 `.tga`, 0 `.dds`; no playable game data | `git -C doom3_orig/doom3 ls-files`; filesystem scan |
 | License | GPLv3 (`COPYING.txt`, 36,441 bytes); `README.txt` adds additional terms and excludes third-party code (curl, JPEG, OggVorbis, PropTree, OpenAL SDK, Base64) | `COPYING.txt`; `README.txt:73-75` |
-| Build files | 1 `.sln`, 7 `.vcxproj`, 1 `.vcproj`, 1 `.dsp`, 1 `SConstruct`, 5 `neo/sys/scons/SConscript.*`, 6 `.xcodeproj`; **0** `CMakeLists.txt`, **0** Meson, **0** engine `Makefile` (only vendor Makefiles under `neo/curl/**` and `neo/openal/docs/`) | `git -C doom3 ls-files`; listing |
+| Build files | 1 `.sln`, 7 `.vcxproj`, 1 `.vcproj`, 1 `.dsp`, 1 `SConstruct`, 5 `neo/sys/scons/SConscript.*`, 6 `.xcodeproj`; **0** `CMakeLists.txt`, **0** Meson, **0** engine `Makefile` (only vendor Makefiles under `neo/curl/**` and `neo/openal/docs/`) | `git -C doom3_orig/doom3 ls-files`; listing |
 | Windows solution | `neo/doom.sln` has only `Win32` configurations; `doomdll.vcxproj` uses `ToolsVersion="4.0"` (VS2010), has no `PlatformToolset` element, and hardcodes the DirectX SDK June 2010 include path | `doom.sln`; `doomdll.vcxproj` |
 | SCons | `neo/SConstruct` + `SConscript.core/curl/game/gl/idlib`; Python 2 syntax (`print '...'`, imports `commands`, `popen2`, `StringIO`) | `SConstruct:6`, `SConstruct:197` |
 | Xcode | `neo/sys/osx/` contains `Doom3`, `game`, `d3xp`, `idlib`, `oggVorbis`, and `SubProjects/curl` Xcode projects | `README.txt:52`; listing |
 | Existing web code | 0 `emscripten`/`EMSCRIPTEN`, 0 `webgl`, 0 `wasm` references under `neo/`; no `web/`, `src/`, `port/`, `tests/` top-level directories | search; listing |
 | Toolchain (environment, not repo) | git 2.25.0, node 24.19.0, uv 0.12.13, bare python 2.7.16 (`py` launcher 3.14.4); `emcc`, `em++`, `scons`, `cmake` missing; `gh` present; VS2022 Professional and MSBuild present; VS2010 and DirectX SDK June 2010 not found at the checked/default locations | `Get-Command`; `vswhere` |
-| Root repo state (pre-commit snapshot) | `main` was unborn when this table was written; `.gitmodules` and `doom3` were staged and every scaffold file was untracked. The initial scaffold commit follows this inspection | `git status --porcelain`; `git log` |
+| Root repo state | scaffold committed on `main`; pristine submodule recorded at `doom3_orig/doom3`; per-target copies live under `targets/` and are git-ignored | `git log --oneline`; `git submodule status` |
 | CI | `.github/` absent; no workflow files; `gh` installed but no workflow to list | listing |
 | Spec-kit / skills | 14 skills in `.kilo/skills/`; 10 `/speckit.*` commands in `.kilo/command/`; `.specify/memory/constitution.md` is still the unfilled template | `docs/SKILLS.md`; listing |
-| Untracked analysis docs | `doom3_orig/doc/*.md` (4 files, ~176 KB) appeared from another session while scaffolding; they are not staged and are not part of the initial commit | directory listing |
+| Untracked analysis docs | `doom3_orig/doc/*.md` (6 files, ~264 KB: overview, platform, renderer, scripting, AI, build/deps) appeared from another session; they are not staged and are not part of the scaffold commit | directory listing |
 
 **Unknowns, not facts:** peak engine memory and working set in WASM; browser/GPU performance envelope; whether the 2011 VS2010 solution builds under modern MSVC; the exact retail asset/pak layout relative to `fs_basepath`; the current Emscripten GL/Asyncify/pthread support matrix (emcc is not installed); which demo files retail data contains and how deterministic they are across builds.
 
@@ -55,12 +55,14 @@ Evidence captured 2026-10-26 from this working tree. Facts are in §1–§2; mil
 
 Roles follow `docs/GIT_WORKFLOW.md`: **coordinator** owns integration and the submodule bump, **worker** owns one worktree/issue, **reviewer** is independent and never the author. Every exit criterion is a command result, artifact, or log.
 
+Paths below point at the pristine submodule (`doom3_orig/doom3`) because that is what this evidence was collected from. A worker doing a milestone creates a target copy with `scripts/new-target.ps1 -Name <target>` and edits/builds `targets/<target>/doom3`, never the pristine tree.
+
 ### M0 — Repo + CI baseline [suggestion]
 
 | Field | Plan |
 |---|---|
 | Goal | Make the scaffold reproducible and gate it in CI without touching engine source. |
-| Exit criteria | `git submodule status` shows `a9c49da...`; `git -C doom3 status --porcelain` is empty; `main` has an initial commit; CI runs `scripts/verify-skills.ps1`, a submodule-integrity check, and an asset check (`git -C doom3 ls-files '*.pk4' '*.pk3' '*.pak'` is empty); missing `emcc`/VS prerequisites fail with a named prerequisite message, not a silent skip. |
+| Exit criteria | `git submodule status` shows `a9c49da...`; `git -C doom3_orig/doom3 status --porcelain` is empty; `main` has an initial commit; CI runs `scripts/verify-skills.ps1`, a submodule-integrity check, and an asset check (`git -C doom3_orig/doom3 ls-files '*.pk4' '*.pk3' '*.pak'` is empty); missing `emcc`/VS prerequisites fail with a named prerequisite message, not a silent skip. |
 | Main risks | Unborn `main`; no CI provider or workflow; worktree-local state leaking into commits; secrets in logs; `git stash` is forbidden. |
 | First command | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-skills.ps1` |
 | Spec-kit driver | `/speckit.specify` → `/speckit.tasks` (fill `/speckit.constitution` first) |
@@ -72,9 +74,9 @@ Roles follow `docs/GIT_WORKFLOW.md`: **coordinator** owns integration and the su
 | Field | Plan |
 |---|---|
 | Goal | Produce the original client/game binaries from a documented Windows toolchain, or prove exactly why the 2011 build cannot be reproduced and record the fallback. |
-| Exit criteria | One documented native build command exits 0 and produces DoomDLL (Application), Game, and Game-d3xp (DynamicLibrary) artifacts; the log and toolchain versions are archived; `doom3/` is clean or points at a recorded fork commit; the build is 32-bit. |
+| Exit criteria | One documented native build command exits 0 and produces DoomDLL (Application), Game, and Game-d3xp (DynamicLibrary) artifacts; the log and toolchain versions are archived; `doom3_orig/doom3/` is clean or points at a recorded fork commit; the build is 32-bit. |
 | Main risks | VS2010/v100 toolset and DirectX SDK June 2010 are not found; modern MSVC rejects 2011 C++; hardcoded SDK include paths; Python 2 SCons; 32-bit dependencies; MayaImport is optional but may break whole-solution builds. |
-| First command | `$vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"; $msbuild = @(& $vswhere -latest -requires Microsoft.Component.MSBuild -find "MSBuild\**\Bin\MSBuild.exe")[0]; & $msbuild doom3\neo\doom.sln /p:Configuration=Release /p:Platform=Win32 /m` — expected to fail until prerequisites or a CMake port exist; archive the exact errors. |
+| First command | `$vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"; $msbuild = @(& $vswhere -latest -requires Microsoft.Component.MSBuild -find "MSBuild\**\Bin\MSBuild.exe")[0]; & $msbuild doom3_orig\doom3\neo\doom.sln /p:Configuration=Release /p:Platform=Win32 /m` — expected to fail until prerequisites or a CMake port exist; archive the exact errors. |
 | Spec-kit driver | `/speckit.plan` → `/speckit.tasks` |
 | Installed skill | `game-build-verification`; supporting `cross-platform-guide` |
 | Owner | worker |
@@ -96,7 +98,7 @@ Roles follow `docs/GIT_WORKFLOW.md`: **coordinator** owns integration and the su
 | Field | Plan |
 |---|---|
 | Goal | Load legally supplied DOOM 3 data in the browser through a deterministic VFS, without committing any asset. |
-| Exit criteria | A local manifest lists pak name/size/hash; no `.pk4/.pk3/.pak` is tracked (`git -C doom3 ls-files` is empty for those extensions); the wasm opens a known file from a pak via the Emscripten FS; missing assets produce an actionable error; pak search order, patch override, and case handling are documented; a synthetic fixture works with no retail data. |
+| Exit criteria | A local manifest lists pak name/size/hash; no `.pk4/.pk3/.pak` is tracked (`git -C doom3_orig/doom3 ls-files` is empty for those extensions); the wasm opens a known file from a pak via the Emscripten FS; missing assets produce an actionable error; pak search order, patch override, and case handling are documented; a synthetic fixture works with no retail data. |
 | Main risks | EULA/licensing; pak zip handling and case sensitivity; preload size and startup time; IDBFS quota; CORS; lazy range fetch; user-supplied paths. |
 | First command | `Get-ChildItem -Path $env:DOOM3_ASSETS -Recurse -Filter *.pk4` (set `DOOM3_ASSETS` to a legal local install; commit nothing) |
 | Spec-kit driver | `/speckit.plan` → `/speckit.tasks` |
@@ -110,7 +112,7 @@ Roles follow `docs/GIT_WORKFLOW.md`: **coordinator** owns integration and the su
 | Goal | Render a deterministic DOOM 3 scene in WebGL2 from the client build. |
 | Exit criteria | A WebGL2 context is created; translated shaders compile; `r_renderer arb2` or a documented fallback renders the scene; a Playwright canvas screenshot is non-blank and within the threshold recorded with the first human-reviewed golden; no GL error storm; every fixed-function/ARB replacement is listed. |
 | Main risks | ARB assembly and fixed-function translation; GLSL ES 3.00 precision/limits; missing GL extensions; material/shader data lives in assets; the GPL release omits depth-fail stencil shadows; GPU/driver variance. |
-| First command | `emcc -v; findstr /s /c:"glProgramStringARB" doom3\neo\renderer\*.cpp` (probe the SDK and the ARB dependency), then serve the built client. |
+| First command | `emcc -v; findstr /s /c:"glProgramStringARB" doom3_orig\doom3\neo\renderer\*.cpp` (probe the SDK and the ARB dependency), then serve the built client. |
 | Spec-kit driver | `/speckit.plan` → `/speckit.analyze` |
 | Installed skill | `wasm-emscripten`; supporting `cross-platform-guide`, `game-debug` |
 | Owner | worker |
@@ -145,7 +147,7 @@ Roles follow `docs/GIT_WORKFLOW.md`: **coordinator** owns integration and the su
 |---|---|
 | Goal | Make the issue → worktree → spec → implement → test → review → PR loop run with evidence gates. |
 | Exit criteria | A PR gate runs the build, headless smoke, deterministic demo playback, screenshot diff, perf budget, and log triage; a failing gate blocks merge; the PR carries the evidence artifact; the reviewer is independent; an agent runbook documents the loop; no agent merges its own work. |
-| Main risks | Flaky screenshots; GPU/browser variance; asset licensing in CI; agents editing `doom3/` directly; false positives; CI cost; silent skips. |
+| Main risks | Flaky screenshots; GPU/browser variance; asset licensing in CI; agents editing `doom3_orig/doom3/` directly; false positives; CI cost; silent skips. |
 | First command | `gh workflow list` (currently empty; this is the baseline). |
 | Spec-kit driver | `/speckit.implement` → `/speckit.analyze` |
 | Installed skill | `code-review`, `verification-before-completion`, `webapp-testing`, `using-git-worktrees` |
@@ -176,6 +178,6 @@ Roles follow `docs/GIT_WORKFLOW.md`: **coordinator** owns integration and the su
 
 ## [suggestion] 6. Next 3 actions
 
-1. **Coordinator:** record M0 evidence and land the scaffold — run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-skills.ps1`, `git submodule status`, and `git -C doom3 status --porcelain`; commit the reviewed tree, then add the CI workflow and the prerequisite check.
+1. **Coordinator:** record M0 evidence and land the scaffold — run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-skills.ps1`, `git submodule status`, and `git -C doom3_orig/doom3 status --porcelain`; commit the reviewed tree, then add the CI workflow and the prerequisite check.
 2. **Worker:** run the M1 native-build probe exactly as written, archive the failure text, and decide via `/speckit.plan` between restoring VS2010 + DirectX SDK June 2010 and adding a modern CMake build.
 3. **Worker:** install/activate emsdk, run `emcc --version`, then `/speckit.specify` the M2 dedicated-WASM slice with a synthetic asset fixture and the no-GL/no-audio import check.

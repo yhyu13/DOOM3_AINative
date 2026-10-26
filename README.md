@@ -3,20 +3,23 @@
 An AI-native workspace for migrating **DOOM 3** (idTech4, C++, OpenGL) to the web, and for running
 the port as an agent-driven engineering loop: spec → worktree → PR → independent review → evidence.
 
-**Status: scaffold.** No port code yet. The engine source is vendored as a submodule; milestone
-plan and exit criteria live in [`docs/ROADMAP.md`](docs/ROADMAP.md).
+**Status: scaffold.** No port code yet. The engine source is a pristine submodule; each migration
+target works on its own copy under `targets/`. Milestones and exit criteria live in
+[`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ## What is in the box
 
 | Path | Contents |
 |---|---|
-| `doom3/` | Git submodule — DOOM 3 GPL source release (2011-11-22), GPLv3, **no game assets** |
+| `doom3_orig/doom3/` | **Pristine** git submodule — DOOM 3 GPL source (2011-11-22), GPLv3, **no game assets** |
+| `doom3_orig/doc/` | Engine analysis notes (overview, platform, renderer, scripting, AI, build/deps) |
+| `targets/<name>/doom3/` | One working **copy** per migration target (ignored scratch tree; see `targets/README.md`) |
 | `.specify/` | GitHub spec-kit infrastructure (templates, PowerShell scripts, constitution) |
 | `.kilo/command/` | `/speckit.*` slash commands (constitution, specify, clarify, plan, tasks, analyze, implement, converge, checklist, taskstoissues) |
 | `.kilo/skills/` | 14 project-local skills (game dev, debugging, review, browser testing, C++→WASM) |
 | `.kilo/setup-script.ps1` | Initialises the submodule in every Agent Manager worktree |
 | `docs/` | Workflow, skills inventory, roadmap |
-| `scripts/` | Worktree helpers and the skill verifier |
+| `scripts/` | Worktree helpers, target copies, skill verifier |
 
 ## Quick start
 
@@ -26,6 +29,12 @@ git clone --recurse-submodules <repo-url> DOOM3_AINative
 
 # already cloned without it:
 git submodule update --init --recursive
+
+# create the working copy for a migration target (pristine stays untouched)
+.\scripts\new-target.ps1 -Name web
+
+# see how far a target has drifted from the pristine source
+.\scripts\diff-target.ps1 -Name web
 
 # verify the local skill install
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-skills.ps1
@@ -57,15 +66,21 @@ the same behaviour without the user's global vault. Each skill is a directory wi
 Provenance, pinned commits, and the "deliberately not installed" list are in
 [`docs/SKILLS.md`](docs/SKILLS.md).
 
-## Engine submodule
+## Engine submodule and target copies
 
-`doom3/` points at a fork of `id-Software/DOOM-3`. Changes to the engine are made on a fork branch,
-never as unexplained working-tree dirt here; this repository only records submodule bumps. The
+`doom3_orig/doom3/` is a pristine clone of a fork of `id-Software/DOOM-3`; it is pinned by commit
+and treated as read-only evidence. Engine changes are made on a fork branch, never as unexplained
+working-tree dirt here; this repository only records submodule bumps.
+
+Migration work happens in `targets/<name>/doom3/`, a plain copy created by
+`scripts/new-target.ps1` with no shared git metadata. Each target gets exactly one copy, so ports
+cannot leak into each other; `scripts/diff-target.ps1` shows the divergence from pristine. The
 source release has no game data — `.pk4`/`.pk3`/`.pak` files are ignored and must not be committed.
 
 ## Licensing
 
-- Engine source in `doom3/`: GPLv3 (`doom3/COPYING.txt`).
-- Game data: not included, still governed by the original DOOM 3 EULA (`doom3/README.txt`).
+- Engine source in `doom3_orig/doom3/`: GPLv3 (`doom3_orig/doom3/COPYING.txt`).
+- Game data: not included, still governed by the original DOOM 3 EULA
+  (`doom3_orig/doom3/README.txt`).
 - Skills under `.kilo/skills/`: each carries its upstream licence; see `docs/SKILLS.md`.
 - This repository's own code and docs: licence not chosen yet.
