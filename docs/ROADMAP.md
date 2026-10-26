@@ -25,7 +25,7 @@ Evidence captured 2026-10-26 from this working tree. Facts are in §1–§2; mil
 | Root repo state | scaffold committed on `main`; pristine submodule recorded at `doom3_orig/doom3`; per-target copies live under `targets/` and are git-ignored | `git log --oneline`; `git submodule status` |
 | CI | `.github/` absent; no workflow files; `gh` installed but no workflow to list | listing |
 | Spec-kit / skills | 14 skills in `.kilo/skills/`; 10 `/speckit.*` commands in `.kilo/command/`; `.specify/memory/constitution.md` is still the unfilled template | `docs/SKILLS.md`; listing |
-| Untracked analysis docs | `doom3_orig/doc/*.md` (6 files, ~264 KB: overview, platform, renderer, scripting, AI, build/deps) appeared from another session; they are not staged and are not part of the scaffold commit | directory listing |
+| Engine analysis notes | `doom3_orig/doc/*.md` (6 files, ~264 KB: overview/metrics, platform, renderer, scripting, AI, build/deps), read-only analysis of the pristine tree; paths normalised to `doom3_orig/doom3/` | directory listing |
 
 **Unknowns, not facts:** peak engine memory and working set in WASM; browser/GPU performance envelope; whether the 2011 VS2010 solution builds under modern MSVC; the exact retail asset/pak layout relative to `fs_basepath`; the current Emscripten GL/Asyncify/pthread support matrix (emcc is not installed); which demo files retail data contains and how deterministic they are across builds.
 
