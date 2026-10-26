@@ -1,0 +1,62 @@
+# ---- OS / editor ----
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.swp
+.vscode/
+.idea/
+
+# ---- Kilo / agent harness local state ----
+.kilo/agent-manager.json
+.kilo/worktrees/
+.kilocode/
+.opencode/
+
+# ---- build output (per worktree, never shared) ----
+build/
+build-*/
+out/
+bin/
+obj/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+*.sln.docstates
+*.suo
+*.user
+*.VC.db
+*.VC.opendb
+*.pdb
+*.ilk
+*.obj
+*.o
+*.a
+*.lib
+*.exp
+*.exe
+*.dll
+*.so
+*.dylib
+
+# ---- web / wasm build output ----
+web/dist/
+web/build/
+dist/
+node_modules/
+*.wasm
+*.wasm.map
+*.data
+*.js.mem
+
+# ---- game data: not redistributable with the source (see doom3/README.txt) ----
+*.pk4
+*.pk3
+*.pak
+*.resources
+
+# ---- logs / temp ----
+*.log
+logs/
+tmp/
+*.tmp
+.cache/
