@@ -323,7 +323,7 @@ def main() -> int:
             page.locator("#p2Reveal").click()
             page.wait_for_timeout(2200)
             after_split = page.locator("#p2Handle").get_attribute("aria-valuenow")
-            check(before_split == "46" and after_split == "32", f"compare :: reveal changes the split ({before_split} -> {after_split})")
+            check(before_split == "46" and after_split == "80", f"compare :: back-to-2004 changes the split ({before_split} -> {after_split})")
             page.goto(url(2, snap=False), wait_until="load")
             wait_ready(page)
             p2fps = page.evaluate("""() => new Promise(resolve => {

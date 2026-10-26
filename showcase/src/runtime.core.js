@@ -427,7 +427,7 @@
     updateProgress(t);
     if (!state.reduceMotion) CANVAS.drawActive(state.page, performance.now() / 1000, false);
     if (state.page === 2 && !state.reduceMotion) {
-      if (!dragging && now - lastInteract > 2600) {
+      if (state.playing && !dragging && now - lastInteract > 2600) {
         if (!autoActive) {
           setAuto(true);
           autoTarget = splitValue > 50 ? 40 : 72;
@@ -587,6 +587,13 @@
       p2SplitLine.setAttribute('x2', String(top - 260));
     }
     if (p2Handle) p2Handle.setAttribute('aria-valuenow', String(Math.round(next)));
+    if (p2Reveal) {
+      const nextRevealed = next < 50;
+      if (nextRevealed !== revealed) {
+        revealed = nextRevealed;
+        p2Reveal.textContent = revealed ? 'BACK TO 2004' : 'REVEAL 2026';
+      }
+    }
   }
   function setAuto(on) {
     autoActive = on;
@@ -597,6 +604,7 @@
   function markInteraction() {
     lastInteract = performance.now();
     splitTarget = splitValue;
+    splitV = 0;
     if (autoActive) setAuto(false);
   }
   function springStep(dt) {
@@ -616,6 +624,7 @@
       dragging = true;
       markInteraction();
       setAuto(false);
+      try { p2Handle.focus({ preventScroll: true }); } catch (_) {}
       if (p2) p2.classList.add('is-dragging');
       try { p2Handle.setPointerCapture(e.pointerId); } catch (_) {}
       e.stopPropagation();
@@ -625,8 +634,10 @@
       if (!dragging) return;
       const r = stage.getBoundingClientRect();
       if (!r.width || !r.height) return;
+      const scale = r.width / 1920;
+      const lx = (e.clientX - r.left) / scale;
       const yFrac = (e.clientY - r.top) / r.height;
-      setSplit(((e.clientX - r.left) + 260 * yFrac) / r.width * 100);
+      setSplit((lx + 260 * yFrac) / 1920 * 100);
       splitTarget = splitValue;
       splitV = 0;
       lastInteract = performance.now();

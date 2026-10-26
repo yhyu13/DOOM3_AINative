@@ -11,7 +11,7 @@ Build one offline, self-contained HTML product concept with three posters:
 1. **PLAY** — a browser/monitor mockup with a **redacted real DOOM 3 frame**, live HUD and four
    capability cards (PLAY, REMAP, MOD, AI ROGUE).
 2. **THE DREAM** — a 2004 / 2026 diagonal comparison: redacted 2004 archival on the left, a procedural
-   2026 modern corridor on the right, a draggable diagonal, REVEAL 2026 toggle and a 2.6 s idle auto-sweep with a damped spring, and NEXT-GEN LOOK /
+   2026 modern corridor on the right, a draggable knob, REVEAL 2026 toggle and a 2.6 s idle auto-sweep with a damped spring, and NEXT-GEN LOOK /
    AI DIRECTOR / PERSONAL RUN. The six evidence numbers move to README and a one-line proof strip;
    the poster sells the imagination, not the difficulty.
 3. **VISION** — REMAP/MOD/AI ROGUE concept cards, an interactive one-sentence Rogue demo, the
@@ -57,7 +57,7 @@ loop steps, eight roadmap milestones, six numeric claims.
 | Pristine submodule untouched | PASS | Scope is `showcase/**` and `specs/002-project-showcase/**`. |
 | No game data committed | PASS | The original screenshot is not in git; the redacted placeholder is tracked and labelled. No `.pk4/.pk3/.pak`. |
 | No direct commit to `main` | PASS | Worktree `feat/2-project-showcase`; PR required. |
-| Evidence before victory | PASS | 123 contract checks, 161 deep checks, axe 0 violations (1 incomplete/poster); logs/screenshots. |
+| Evidence before victory | PASS | 124 contract checks, 161 deep checks, axe 0 violations (1 incomplete/poster); logs/screenshots. |
 | No secrets or absolute machine paths | PASS | `start.cmd` uses `%~dp0` and `%ProgramFiles%`; README uses repo-relative sample paths. |
 | One writer per file | PASS | Single worker owns the scope. |
 | Spec before plan before tasks | PASS | `spec.md`, this file, `tasks.md`. |
