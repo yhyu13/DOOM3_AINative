@@ -401,14 +401,17 @@
     if (page === 1) {
       drawPortal(t, freeze);
       if (!DATA.hero && window.__SHOWCASE_FRAME__) window.__SHOWCASE_FRAME__.draw(t, freeze);
-    } else if (page === 2) drawRain(t, freeze);
-    else if (page === 3) drawNetwork(t, freeze);
+    } else if (page === 2) {
+      if (window.__SHOWCASE_DREAM__) window.__SHOWCASE_DREAM__.draw(t, freeze);
+      else drawRain(t, freeze);
+    } else if (page === 3) drawNetwork(t, freeze);
   }
 
   function drawAllStatic() {
     drawPortal(0, true);
     if (window.__SHOWCASE_FRAME__) window.__SHOWCASE_FRAME__.draw(0, true);
-    drawRain(0, true);
+    if (window.__SHOWCASE_DREAM__) window.__SHOWCASE_DREAM__.draw(0, true);
+    else drawRain(0, true);
     drawNetwork(0, true);
   }
 

@@ -37,36 +37,40 @@
     },
     {
       "id": "reality",
-      "name": "REALITY / 现实",
+      "name": "THE DREAM / 想象力",
       "label": "REALITY",
       "chunks": [
         {
-          "zh": "先看现实。",
-          "en": "Start with reality."
+          "zh": "忘掉源码有多难。",
+          "en": "Forget how hard the source is."
         },
         {
-          "zh": "一千三百八十七个 C/C++ 文件，七十三万四千一百八十行代码。",
-          "en": "1,387 C/C++ files. 734,180 lines of code."
+          "zh": "想象一下，DOOM 3 的画面，像 2026 年的 3A 大作。",
+          "en": "Imagine DOOM 3 looking like a 2026 AAA title."
         },
         {
-          "zh": "一百处固定管线调用，两百零七个 ARB 着色器。",
-          "en": "100 fixed-function calls. 207 ARB shader references."
+          "zh": "PBR、HDR、体积光、4K、120 帧。",
+          "en": "PBR. HDR. Volumetric light. 4K. 120 frames."
         },
         {
-          "zh": "仓库里没有一个 pak 资源包。",
-          "en": "Not a single pak archive in the repository."
+          "zh": "然后，AI 接管导演。",
+          "en": "Then the AI takes the director's chair."
         },
         {
-          "zh": "也没有一行 Emscripten。",
-          "en": "And not one line of Emscripten."
+          "zh": "它读懂你的玩法，重写节奏、恐惧和敌人。",
+          "en": "It reads your playstyle and rewrites pacing, fear and enemies."
         },
         {
-          "zh": "这不是打开一个编译开关。",
-          "en": "This is not a build flag."
+          "zh": "每一局，都是为你生成的。",
+          "en": "Every run is generated for you."
         },
         {
-          "zh": "而是重写渲染器、文件系统、输入和主循环。",
-          "en": "It means rewriting the renderer, the filesystem, input, and the main loop."
+          "zh": "同一座火星基地，不同的地狱。",
+          "en": "Same Mars base. A different hell."
+        },
+        {
+          "zh": "这不是重制，这是重生。",
+          "en": "Not a remaster. A rebirth."
         }
       ]
     },

@@ -6,7 +6,7 @@
 
 **Revised**: 2026-10-26 — product-concept direction (browser monitor, capability cards, AI Rogue demo, redacted real frame)
 
-**Status**: Implemented; 102 contract checks + 151 deep checks + axe 0 violations (1 incomplete color-contrast/poster); pending review
+**Status**: Implemented; 110 contract checks + 158 deep checks + axe 0 violations (1 incomplete color-contrast/poster); pending review
 
 **Input**: User description: "Write an attractive single interactive HTML with voice-over, using a skill, to show this project to others. Three rotating poster pages. Use a real DOOM 3 frame inside a browser/monitor, plus marketing concepts like key remapping, mods, and one-sentence AI Rogue generation. Follow the agent workflow. Use subagents in parallel."
 
@@ -26,7 +26,7 @@ licence. The owner explicitly chose a **redacted real frame** for the submitted 
 - The original is not in the repository. The redacted asset is `LICENSING PENDING` and is a
   placeholder; it must be replaced with a licensed capture before public distribution.
 
-All quantitative claims come from `docs/ROADMAP.md` §1, captured 2026-10-26.
+The six quantitative evidence claims live in README/`docs/ROADMAP.md` §1, captured 2026-10-26; poster 2 carries a one-line proof strip instead of a source-card wall.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -48,8 +48,8 @@ web page" and the platform vision within seconds.
 1. **Given** the file is opened offline, **When** poster 1 appears, **Then** the monitor shows a
    redacted real frame with a visible `REDACTED CAPTURE / LICENSING PENDING` badge and four
    capability cards.
-2. **Given** the narration ends on poster 1, **When** the deck advances, **Then** poster 2 shows
-   the measured evidence and poster 3 shows the vision.
+2. **Given** the narration ends on poster 1, **When** the deck advances, **Then** poster 2 sells the
+   modern-FPS/AI-native dream and poster 3 shows the platform vision.
 3. **Given** the deck loops from poster 3, **Then** it returns to poster 1 without reloading.
 
 ---
@@ -107,7 +107,7 @@ credit. `--no-hero` produces the procedural version. No original game data enter
 
 - **FR-001**: The deliverable MUST be one self-contained `showcase/index.html` that works from
   `file://` with no network.
-- **FR-002**: It MUST contain exactly three posters: PLAY, WHY IT'S REAL, VISION.
+- **FR-002**: It MUST contain exactly three posters: PLAY, THE DREAM, VISION.
 - **FR-003**: Each poster MUST have embedded Chinese voice-over and word-synced bilingual captions.
 - **FR-004**: Users MUST be able to navigate, pause/resume, mute, toggle captions and fullscreen with
   mouse, keyboard and **real touch** input. Touch MUST be verified with CDP touch events, not mouse
@@ -115,9 +115,9 @@ credit. `--no-hero` produces the procedural version. No original game data enter
 - **FR-005**: Autoplay blockage MUST fall back to a silent timed rotation and a one-click sound
   recovery without a reload.
 - **FR-006**: A fixed 1920×1080 stage MUST scale to any viewport without reflow or overflow.
-- **FR-007**: Every quantitative **evidence** claim on poster 2 MUST carry a visible `ROADMAP §1`
-  source tag and expose its evidence command on hover/focus. HUD values and generated timecodes are
-  illustrative, not research claims.
+- **FR-007**: The six quantitative evidence claims MUST live in README/ROADMAP with a `ROADMAP §1`
+  source, and poster 2 MUST carry a one-line proof strip (1,387 / 734,180 / 0 game data). Poster 2
+  MUST NOT be an evidence-card wall. HUD values and generated timecodes are illustrative.
 - **FR-008**: The deck MUST label the build `M0 · SCAFFOLD` (with “port work starts at M1”), the
   vision roadmap `CONCEPT ROADMAP / 2026`, and the AI Rogue demo `CONCEPT DEMO · NOT A SHIPPED
   FEATURE`. The lead MUST be future tense (`will run`, `将在里面跑`), and M0 MUST NOT claim a CI baseline that is
@@ -146,6 +146,9 @@ credit. `--no-hero` produces the procedural version. No original game data enter
 - **FR-018**: The framework MUST degrade to static visuals when animation is unavailable or reduced
   motion is requested, without losing DOM content, captions or navigation. A missing 2D canvas
   context MUST NOT prevent boot, captions or paging.
+- **FR-019**: Poster 2 MUST sell the modern-FPS/AI-native experience: a 2026 vision render (procedural,
+  labelled `NOT A GAME CAPTURE`), a 2004 archival diptych, and three cards (NEXT-GEN LOOK, AI DIRECTOR,
+  PERSONAL RUN). It MUST NOT be a six-card source/evidence wall.
 
 ## Key Entities
 
@@ -163,7 +166,8 @@ credit. `--no-hero` produces the procedural version. No original game data enter
 - **SC-004**: Narration total 50–85 s; each poster at least 12 s; at least five caption chunks per
   poster (actual 6/7/7, verified by seeking every chunk).
 - **SC-005**: ArrowRight changes poster within 300 ms; Space toggles pause; V is not required.
-- **SC-006**: Six roadmap literals match `docs/ROADMAP.md` §1.
+- **SC-006**: The six roadmap literals are present in README with `ROADMAP §1`, and the poster proof
+  strip carries 1,387 / 734,180 / 0 game data.
 - **SC-007**: A full `file://` load with external requests blocked produces no external request.
 - **SC-008**: `?page=N&snap=1` is visually settled; all active reveals are opacity ≥ 0.99.
 - **SC-009**: Poster 1 shows the redacted capture, the `REDACTED CAPTURE` label and the four
@@ -172,13 +176,15 @@ credit. `--no-hero` produces the procedural version. No original game data enter
 - **SC-011**: axe-core WCAG 2.1 A/AA reports zero violations on all three posters after settling;
   the 1 incomplete color-contrast check per poster (text over image/canvas) MUST be recorded rather
   than presented as full AA verification.
+- **SC-012**: Poster 2 contains the 2026 vision render, the 2004 archival frame, the three experience
+  cards and the proof strip; it contains no six-card source wall.
 
 ## Assumptions
 
 - The repository owner accepts the redacted derivative as a placeholder and will replace it before
   public distribution; the original screenshot is not committed.
 - Firefox is not installed on this machine; the deep matrix records one skip.
-- The 74.3 s narration is the accepted length; the old 64 s script is replaced.
+- The 77.4 s narration is the accepted length; the old 64 s script is replaced.
 - The AI Rogue demo is deterministic and local; it does not call a model or network.
 - The redacted image is committed at `showcase/assets/hero-redacted.png` (≈0.71 MiB); the deck total
   is ≈1.61 MiB.

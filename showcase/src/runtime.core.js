@@ -32,6 +32,8 @@
   const mediaBadge = $('#mediaBadge');
   const heroVideo = $('#heroVideo');
   const heroImage = $('#heroImage');
+  const p2Archival = $('#p2Archival');
+  const p2ArchivalWrap = $('#p2ArchivalWrap');
   const stageDetail = $('#stageDetail');
   const generateBtn = $('#generateBtn');
   const promptText = $('#promptText');
@@ -456,6 +458,15 @@
       if (mediaBadge) {
         const label = h.label || ('LICENSED ' + String(h.type || 'media').toUpperCase());
         mediaBadge.innerHTML = `<b>${esc(label)}</b>${esc(credit)}`;
+      }
+    }
+
+    if (p2ArchivalWrap && p2Archival) {
+      if (DATA.hero && DATA.hero.type === 'image') {
+        p2Archival.src = DATA.hero.src;
+        p2ArchivalWrap.dataset.empty = '0';
+      } else {
+        p2ArchivalWrap.dataset.empty = '1';
       }
     }
 

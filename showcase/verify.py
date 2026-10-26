@@ -199,15 +199,20 @@ def main() -> int:
             check(50 <= total <= 85, f"narration :: total {total:.1f}s within 50–85s")
         check(len(chunk_counts) == 3 and all(n >= 5 for n in chunk_counts), f"narration :: at least five caption chunks per poster ({chunk_counts})")
 
-        # ---- claims must match the roadmap literals
+        # ---- evidence lives in README + a one-line proof strip on poster 2
         ctx, page, errors, requests = new_page(browser)
         page.goto(page_url(2), wait_until="load")
         wait_ready(page)
         content = page.content()
-        for literal in ("1,387", "734,180", "207", "100", "pak archives", "Emscripten references", "docs/ROADMAP.md §1",
-                        "CONCEPT ROADMAP / 2026", "M5 / PLANNED", "M7 / PLANNED", "CONCEPT DEMO · NOT A SHIPPED FEATURE"):
-            check(literal in content, f"claims :: literal present: {literal}")
-        check(content.count("ROADMAP §1") >= 6, "claims :: every numeric card carries a source tag")
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        for literal in ("1,387", "734,180", "100", "207", "pak archives", "Emscripten references"):
+            check(literal in readme, f"claims :: README evidence present: {literal}")
+        check("ROADMAP §1" in readme or "docs/ROADMAP.md §1" in readme, "claims :: README cites the roadmap")
+        for literal in ("MODERN FPS.", "PERSONAL HELL.", "NEXT-GEN LOOK", "AI DIRECTOR", "PERSONAL RUN",
+                        "1,387", "734,180", "0 GAME DATA", "VISION RENDER · PROCEDURAL · NOT A GAME CAPTURE"):
+            check(literal in content, f"dream :: literal present: {literal}")
+        for literal in ("CONCEPT ROADMAP / 2026", "M5 / PLANNED", "M7 / PLANNED", "CONCEPT DEMO · NOT A SHIPPED FEATURE"):
+            check(literal in content, f"vision :: literal present: {literal}")
         check("M0 · SCAFFOLD" in content and "Port work starts at M1" in content and "The target, not a shipped build" in content, "claims :: scaffold status is explicit")
         ctx.close()
 

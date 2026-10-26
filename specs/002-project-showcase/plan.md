@@ -10,8 +10,9 @@ Build one offline, self-contained HTML product concept with three posters:
 
 1. **PLAY** — a browser/monitor mockup with a **redacted real DOOM 3 frame**, live HUD and four
    capability cards (PLAY, REMAP, MOD, AI ROGUE).
-2. **WHY IT'S REAL** — measured evidence that this is not a wrapper: 1,387 files, 734,180 lines,
-   100 fixed-function calls, 207 ARB references, 0 pak archives, 0 Emscripten refs.
+2. **THE DREAM** — a cinematic 2026 Mars-hangar vision render with a demon silhouette and volumetric
+   light, a 2004 archival diptych, and NEXT-GEN LOOK / AI DIRECTOR / PERSONAL RUN. The six evidence
+   numbers move to README and a one-line proof strip; the poster sells the imagination, not the difficulty.
 3. **VISION** — REMAP/MOD/AI ROGUE concept cards, an interactive one-sentence Rogue demo, the
    seven-step delivery loop and the M0–M7 roadmap.
 
@@ -45,7 +46,7 @@ scripts.
 asset labelled licensing-pending; no game data; no absolute machine paths; autoplay fallback;
 keyboard controls; reduced motion; touch.
 
-**Scale/Scope**: Three posters, 74 s narration, four capability cards, three vision cards, seven
+**Scale/Scope**: Three posters, 77.4 s narration, four capability cards, three dream cards, three vision cards, seven
 loop steps, eight roadmap milestones, six numeric claims.
 
 ## Constitution Check
@@ -55,7 +56,7 @@ loop steps, eight roadmap milestones, six numeric claims.
 | Pristine submodule untouched | PASS | Scope is `showcase/**` and `specs/002-project-showcase/**`. |
 | No game data committed | PASS | The original screenshot is not in git; the redacted placeholder is tracked and labelled. No `.pk4/.pk3/.pak`. |
 | No direct commit to `main` | PASS | Worktree `feat/2-project-showcase`; PR required. |
-| Evidence before victory | PASS | 102 contract checks, 151 deep checks, axe 0 violations (1 incomplete/poster); logs/screenshots. |
+| Evidence before victory | PASS | 110 contract checks, 158 deep checks, axe 0 violations (1 incomplete/poster); logs/screenshots. |
 | No secrets or absolute machine paths | PASS | `start.cmd` uses `%~dp0` and `%ProgramFiles%`; README uses repo-relative sample paths. |
 | One writer per file | PASS | Single worker owns the scope. |
 | Spec before plan before tasks | PASS | `spec.md`, this file, `tasks.md`. |
@@ -79,6 +80,7 @@ showcase/
 │   ├── posters.css
 │   ├── body.html
 │   ├── runtime.frame.js       # procedural industrial fallback
+│   ├── runtime.dream.js       # 2026 Mars-hangar vision render
 │   ├── runtime.canvas.js      # portal / rain / graph
 │   ├── runtime.core.js        # audio, captions, controls, AI Rogue demo
 │   └── narration.json
@@ -114,10 +116,13 @@ showcase/
    without network after the first synthesis.
 9. **Kiosk launcher.** `start.cmd` starts Edge with `--kiosk`,
    `--autoplay-policy=no-user-gesture-required` and a local profile.
-10. **Two verification layers.** `verify.py` is the PR contract (100 checks); `verify_deep.py` covers
-    the matrix (150 checks: Chrome, offline, reduced motion, **real CDP touch**, Space-on-control,
+10. **Two verification layers.** `verify.py` is the PR contract (102 checks); `verify_deep.py` covers
+    the matrix (151 checks: Chrome, offline, reduced motion, **real CDP touch**, Space-on-control,
     visibility, canvas fallback, sync, 4K + DPR2). `axe-core` is run separately for WCAG AA; the
     color-contrast incomplete nodes over image/canvas are recorded.
+11. **Sell the dream, prove it elsewhere.** Poster 2 is the 2026 visual + AI-native experience
+    concept; the six roadmap numbers live in README and a one-line proof strip. This keeps the
+    evidence traceable without making players read a code audit.
 
 ## Risks and Mitigations
 
@@ -128,6 +133,7 @@ showcase/
 | Real frame provokes "is this shipped?" | `M0 · SCAFFOLD`, `CONCEPT` tags, redaction bar. |
 | AI Rogue over-promises | `CONCEPT DEMO · NOT A SHIPPED FEATURE`; deterministic local demo only. |
 | Hero image / stage swallows touch | `pointer-events:none`, `draggable=false`, `#stage{touch-action:none}`; real CDP touch test asserts no `pointercancel`. |
+| Poster 2 becomes a source lecture | The dream page is visual; the six evidence numbers move to README + a one-line proof strip. |
 | Claim drift / overstated copy | Verifier asserts six literals; `M0 · SCAFFOLD`, future-tense lead and `CONCEPT` labels. |
 | Byte drift | Two consecutive default builds hashed byte-identical. |
 | Large file | 1.61 MiB total; 4 MiB budget; verifier checks size. |

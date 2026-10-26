@@ -313,10 +313,12 @@ def main() -> int:
             check("M4" in rm and "WebGL2" in rm, "evidence :: roadmap hover reveals milestone")
             page.goto(url(2, snap=True), wait_until="load")
             wait_ready(page)
-            page.hover(".claim")
-            page.wait_for_timeout(300)
-            opacity = page.evaluate("getComputedStyle(document.querySelector('.claim-detail')).opacity")
-            check(float(opacity) > 0.9, "evidence :: claim hover reveals the command")
+            check(page.locator(".p2-feature").count() == 3, "dream :: three experience cards")
+            check("NEXT-GEN LOOK" in page.locator(".p2-features").inner_text(), "dream :: next-gen look card")
+            check(page.evaluate("document.querySelector('#p2Archival').src.startsWith('data:image/png')"), "dream :: 2004 archival frame is present")
+            check("VISION RENDER" in page.locator(".p2-vision-label").inner_text(), "dream :: vision render label")
+            check("734,180" in page.locator(".p2-proof").inner_text(), "dream :: proof strip carries the reality check")
+            audit_console(errors, "dream poster")
             ctx.close()
 
             # mute toggle
