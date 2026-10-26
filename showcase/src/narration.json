@@ -1,0 +1,109 @@
+{
+  "voice": "zh-CN-YunxiNeural",
+  "rate": "+8%",
+  "volume": "+0%",
+  "pitch": "+0Hz",
+  "pages": [
+    {
+      "id": "target",
+      "name": "PLAY / 产品",
+      "label": "TARGET",
+      "chunks": [
+        {
+          "zh": "想象一下，打开一个网页，DOOM 3 就在里面跑。",
+          "en": "Imagine opening a web page, and DOOM 3 running inside it."
+        },
+        {
+          "zh": "不用安装，不用云游戏，不用模拟器。",
+          "en": "No install. No cloud. No emulator."
+        },
+        {
+          "zh": "WebAssembly 和 WebGL2，把二〇〇四年的 idTech4 引擎，直接搬进浏览器。",
+          "en": "WebAssembly and WebGL2 bring the 2004 idTech4 engine straight into the browser."
+        },
+        {
+          "zh": "鼠标锁定，手柄，改键，Mod，全部在网页里。",
+          "en": "Pointer lock, gamepad, rebinding, mods — all in the page."
+        },
+        {
+          "zh": "这，就是 DOOM3_AINative。",
+          "en": "This is DOOM3_AINative."
+        },
+        {
+          "zh": "我们正在把它变成现实。",
+          "en": "We are building it."
+        }
+      ]
+    },
+    {
+      "id": "reality",
+      "name": "REALITY / 现实",
+      "label": "REALITY",
+      "chunks": [
+        {
+          "zh": "先看现实。",
+          "en": "Start with reality."
+        },
+        {
+          "zh": "一千三百八十七个 C/C++ 文件，七十三万四千一百八十行代码。",
+          "en": "1,387 C/C++ files. 734,180 lines of code."
+        },
+        {
+          "zh": "一百处固定管线调用，两百零七个 ARB 着色器。",
+          "en": "100 fixed-function calls. 207 ARB shader references."
+        },
+        {
+          "zh": "仓库里没有一个 pak 资源包。",
+          "en": "Not a single pak archive in the repository."
+        },
+        {
+          "zh": "也没有一行 Emscripten。",
+          "en": "And not one line of Emscripten."
+        },
+        {
+          "zh": "这不是打开一个编译开关。",
+          "en": "This is not a build flag."
+        },
+        {
+          "zh": "而是重写渲染器、文件系统、输入和主循环。",
+          "en": "It means rewriting the renderer, the filesystem, input, and the main loop."
+        }
+      ]
+    },
+    {
+      "id": "loop",
+      "name": "VISION / 愿景",
+      "label": "LOOP",
+      "chunks": [
+        {
+          "zh": "改键，Mod，AI 一句话生成 Rogue 模式。",
+          "en": "Rebind anything. Drop in a mod. Describe a run."
+        },
+        {
+          "zh": "一句话，生成地图、规则和敌人。",
+          "en": "One sentence generates the map, the rules, the enemies."
+        },
+        {
+          "zh": "这不是一个启动器，而是一个 AI 原生的游戏平台。",
+          "en": "Not a launcher. An AI-native game platform."
+        },
+        {
+          "zh": "一个议题，一个分支，一个工作树，一个 PR。",
+          "en": "One issue, one branch, one worktree, one PR."
+        },
+        {
+          "zh": "规格、实现、独立审查、证据门禁。",
+          "en": "Spec, implementation, independent review, evidence gates."
+        },
+        {
+          "zh": "从 M0 到 M7，每一步都由证据推进。",
+          "en": "From M0 to M7, every step is driven by evidence."
+        },
+        {
+          "zh": "目标，是让 DOOM 3 在浏览器里重生。",
+          "en": "The goal: DOOM 3, reborn in the browser."
+        }
+      ]
+    }
+  ]
+}
