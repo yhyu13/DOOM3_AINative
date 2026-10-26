@@ -32,8 +32,11 @@
   const mediaBadge = $('#mediaBadge');
   const heroVideo = $('#heroVideo');
   const heroImage = $('#heroImage');
-  const p2Archival = $('#p2Archival');
-  const p2ArchivalWrap = $('#p2ArchivalWrap');
+  const p2 = $('.p2');
+  const p2Old = $('#p2Old');
+  const p2SplitLine = $('#p2SplitLine');
+  const p2Handle = $('#p2Handle');
+  const p2Reveal = $('#p2Reveal');
   const stageDetail = $('#stageDetail');
   const generateBtn = $('#generateBtn');
   const promptText = $('#promptText');
@@ -461,14 +464,9 @@
       }
     }
 
-    if (p2ArchivalWrap && p2Archival) {
-      if (DATA.hero && DATA.hero.type === 'image') {
-        p2Archival.src = DATA.hero.src;
-        p2ArchivalWrap.dataset.empty = '0';
-      } else {
-        p2ArchivalWrap.dataset.empty = '1';
-      }
-    }
+    if (p2Old && DATA.archival && DATA.archival.src) p2Old.src = DATA.archival.src;
+    else if (p2Old) p2Old.style.display = 'none';
+    setSplit(46);
 
     if (snap) {
       stage.classList.add('snap');
@@ -533,6 +531,58 @@
     });
   }
 
+  /* ---------------- 2004 / 2026 comparison ---------------- */
+  let splitValue = 46;
+  let dragging = false;
+  let revealed = false;
+  function setSplit(v) {
+    const next = Math.max(18, Math.min(82, Number(v) || 46));
+    splitValue = next;
+    if (p2) p2.style.setProperty('--split', next);
+    if (p2SplitLine) {
+      const top = 1920 * next / 100;
+      p2SplitLine.setAttribute('x1', String(top));
+      p2SplitLine.setAttribute('x2', String(top - 260));
+    }
+    if (p2Handle) p2Handle.setAttribute('aria-valuenow', String(Math.round(next)));
+  }
+  if (p2Handle) {
+    p2Handle.addEventListener('pointerdown', e => {
+      dragging = true;
+      if (p2) p2.classList.add('is-dragging');
+      try { p2Handle.setPointerCapture(e.pointerId); } catch (_) {}
+      e.stopPropagation();
+      e.preventDefault();
+    });
+    p2Handle.addEventListener('pointermove', e => {
+      if (!dragging) return;
+      const r = stage.getBoundingClientRect();
+      if (!r.width) return;
+      setSplit(((e.clientX - r.left) / r.width) * 100);
+      e.preventDefault();
+    });
+    p2Handle.addEventListener('pointerup', e => {
+      dragging = false;
+      if (p2) p2.classList.remove('is-dragging');
+      try { p2Handle.releasePointerCapture(e.pointerId); } catch (_) {}
+    });
+    p2Handle.addEventListener('pointercancel', () => {
+      dragging = false;
+      if (p2) p2.classList.remove('is-dragging');
+    });
+    p2Handle.addEventListener('keydown', e => {
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { setSplit(splitValue - 3); e.preventDefault(); e.stopPropagation(); }
+      else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { setSplit(splitValue + 3); e.preventDefault(); e.stopPropagation(); }
+    });
+  }
+  if (p2Reveal) {
+    p2Reveal.addEventListener('click', () => {
+      revealed = !revealed;
+      setSplit(revealed ? 80 : 32);
+      p2Reveal.textContent = revealed ? 'BACK TO 2004' : 'REVEAL 2026';
+    });
+  }
+
   /* ---------------- controls ---------------- */
   $$('[data-act]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -561,6 +611,7 @@
 
   window.addEventListener('keydown', e => {
     if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+    if (e.target === p2Handle) return;
     if ((e.code === 'Space' || e.key === ' ') && e.target && e.target.closest && e.target.closest('button,a,[role="button"]')) return;
     if (e.key === 'ArrowRight') { e.preventDefault(); advance(1); }
     else if (e.key === 'ArrowLeft') { e.preventDefault(); advance(-1); }
@@ -572,7 +623,7 @@
 
   let sw = null;
   stage.addEventListener('pointerdown', e => {
-    if (e.target.closest('button,.claim,.stage-node,.rm-cell,.caption,.bottombar')) return;
+    if (e.target.closest('button,.claim,.stage-node,.rm-cell,.caption,.bottombar,.p2-handle,.p2-reveal,.p2-compare-actions,.p2-divider')) return;
     sw = { x: e.clientX, y: e.clientY, t: performance.now() };
     if (state.mode === 'silent') enableSound();
   });
@@ -609,6 +660,7 @@
       muted: state.muted,
       captions: state.captions,
       snap: state.snap,
+      split: splitValue,
       prompt: promptText ? promptText.textContent : null,
       time: pageTime(),
       duration: DATA.pages[state.page - 1].duration,

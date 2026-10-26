@@ -273,14 +273,23 @@ async def build(hero: Path | None, out: Path, hero_credit: str | None, hero_labe
         print(f"[hero] label : {label}", flush=True)
         print(f"[hero] credit: {credit}", flush=True)
 
+    archival_data = None
+    if DEFAULT_HERO.exists():
+        raw_a = DEFAULT_HERO.read_bytes()
+        archival_data = {
+            "src": "data:image/png;base64," + base64.b64encode(raw_a).decode("ascii"),
+            "label": "2004 ARCHIVAL / REDACTED",
+        }
+        print(f"[archival] inlined {DEFAULT_HERO.name} for the 2004 inset", flush=True)
+
     css = read("base.css") + "\n" + read("posters.css")
     head = read("head.html").replace("<!--__CSS__-->", "<style>\n" + css + "\n</style>")
     body = read("body.html")
     frame = read("runtime.frame.js")
-    mapjs = read("runtime.map.js")
+    cmp = read("runtime.compare.js")
     canvas = read("runtime.canvas.js")
     core = read("runtime.core.js")
-    data = {"pages": pages, "hero": hero_data}
+    data = {"pages": pages, "hero": hero_data, "archival": archival_data}
     data_json = json.dumps(data, ensure_ascii=False).replace("<", "\\u003c")
 
     html = (
@@ -292,7 +301,7 @@ async def build(hero: Path | None, out: Path, hero_credit: str | None, hero_labe
         + ";</script>\n<script>\n"
         + frame
         + "\n</script>\n<script>\n"
-        + mapjs
+        + cmp
         + "\n</script>\n<script>\n"
         + canvas
         + "\n</script>\n<script>\n"

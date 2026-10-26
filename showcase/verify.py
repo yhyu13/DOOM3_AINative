@@ -159,8 +159,11 @@ def main() -> int:
             check(page.evaluate("document.querySelectorAll('.poster.is-active').length") == 1, f"poster {n} :: exactly one active poster")
             check(page.evaluate("document.querySelector('.poster.is-active').dataset.poster") == str(n), f"poster {n} :: correct active poster")
             if n == 2:
-                rooms = page.evaluate("window.__SHOWCASE_MAP__ ? window.__SHOWCASE_MAP__.rooms : null")
-                check(bool(rooms) and len(rooms) == 7 and "HELL GATE" in rooms and "REACTOR" in rooms, f"poster 2 :: isometric map rooms ({rooms})")
+                check(page.evaluate("document.querySelector('#p2Old').src.startsWith('data:image/png')"), "poster 2 :: 2004 archival image present")
+                check(page.locator("#p2Handle").count() == 1 and page.locator("#p2Reveal").count() == 1, "poster 2 :: compare handle + reveal button")
+                check(page.locator("#p2SplitLine").count() == 1, "poster 2 :: diagonal split line")
+                check(page.locator(".claim,.claims").count() == 0, "poster 2 :: no source-card wall")
+                check("PROCEDURAL MODERN RENDER" in page.locator(".p2-vision-label").inner_text(), "poster 2 :: modern-render truth label")
             if n == 1:
                 check(page.locator(".monitor").count() == 1, "poster 1 :: browser monitor present")
                 check(page.locator("#browserView #fxFrame").count() == 1, "poster 1 :: game canvas sits inside the browser viewport")
@@ -212,11 +215,26 @@ def main() -> int:
             check(literal in readme, f"claims :: README evidence present: {literal}")
         check("ROADMAP §1" in readme or "docs/ROADMAP.md §1" in readme, "claims :: README cites the roadmap")
         for literal in ("MODERN FPS.", "PERSONAL HELL.", "NEXT-GEN LOOK", "AI DIRECTOR", "PERSONAL RUN",
-                        "1,387", "734,180", "0 GAME DATA", "PROCEDURAL LEVEL MAP · NOT A GAME CAPTURE"):
+                        "1,387", "734,180", "0 GAME DATA", "PROCEDURAL MODERN RENDER · NOT A GAME CAPTURE"):
             check(literal in content, f"dream :: literal present: {literal}")
         for literal in ("CONCEPT ROADMAP / 2026", "M5 / PLANNED", "M7 / PLANNED", "CONCEPT DEMO · NOT A SHIPPED FEATURE"):
             check(literal in content, f"vision :: literal present: {literal}")
         check("M0 · SCAFFOLD" in content and "Port work starts at M1" in content and "The target, not a shipped build" in content, "claims :: scaffold status is explicit")
+        ctx.close()
+
+        # ---- 2004 / 2026 compare slider
+        ctx, page, errors, requests = new_page(browser)
+        page.goto(page_url(2, snap=True), wait_until="load")
+        wait_ready(page)
+        before_split = page.locator("#p2Handle").get_attribute("aria-valuenow")
+        page.locator("#p2Reveal").click()
+        page.wait_for_timeout(900)
+        after_split = page.locator("#p2Handle").get_attribute("aria-valuenow")
+        check(before_split == "46" and after_split == "80", f"compare :: reveal 2026 changes the split ({before_split} -> {after_split})")
+        page.locator("#p2Reveal").click()
+        page.wait_for_timeout(900)
+        check(page.locator("#p2Handle").get_attribute("aria-valuenow") == "32", "compare :: back to 2004 changes the split")
+        audit_console(errors, "compare")
         ctx.close()
 
         # ---- AI Rogue concept demo (poster 3)

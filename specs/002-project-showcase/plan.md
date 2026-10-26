@@ -10,10 +10,10 @@ Build one offline, self-contained HTML product concept with three posters:
 
 1. **PLAY** — a browser/monitor mockup with a **redacted real DOOM 3 frame**, live HUD and four
    capability cards (PLAY, REMAP, MOD, AI ROGUE).
-2. **THE DREAM** — an isometric/oblique 3D cutaway of a Mars base (rooms, corridors, reactor, hell gate),
-   an AI route and player/hostile markers, a 2004 archival diptych, and NEXT-GEN LOOK / AI DIRECTOR /
-   PERSONAL RUN. The six evidence numbers move to README and a one-line proof strip; the poster sells
-   the imagination, not the difficulty.
+2. **THE DREAM** — a 2004 / 2026 diagonal comparison: redacted 2004 archival on the left, a procedural
+   2026 modern corridor on the right, a draggable diagonal and REVEAL 2026 toggle, and NEXT-GEN LOOK /
+   AI DIRECTOR / PERSONAL RUN. The six evidence numbers move to README and a one-line proof strip;
+   the poster sells the imagination, not the difficulty.
 3. **VISION** — REMAP/MOD/AI ROGUE concept cards, an interactive one-sentence Rogue demo, the
    seven-step delivery loop and the M0–M7 roadmap.
 
@@ -47,7 +47,7 @@ scripts.
 asset labelled licensing-pending; no game data; no absolute machine paths; autoplay fallback;
 keyboard controls; reduced motion; touch.
 
-**Scale/Scope**: Three posters, 79.6 s narration, four capability cards, three dream cards, three vision cards, seven
+**Scale/Scope**: Three posters, 82.8 s narration, four capability cards, three dream cards, three vision cards, seven
 loop steps, eight roadmap milestones, six numeric claims.
 
 ## Constitution Check
@@ -57,7 +57,7 @@ loop steps, eight roadmap milestones, six numeric claims.
 | Pristine submodule untouched | PASS | Scope is `showcase/**` and `specs/002-project-showcase/**`. |
 | No game data committed | PASS | The original screenshot is not in git; the redacted placeholder is tracked and labelled. No `.pk4/.pk3/.pak`. |
 | No direct commit to `main` | PASS | Worktree `feat/2-project-showcase`; PR required. |
-| Evidence before victory | PASS | 111 contract checks, 159 deep checks, axe 0 violations (1 incomplete/poster); logs/screenshots. |
+| Evidence before victory | PASS | 118 contract checks, 161 deep checks, axe 0 violations (1 incomplete/poster); logs/screenshots. |
 | No secrets or absolute machine paths | PASS | `start.cmd` uses `%~dp0` and `%ProgramFiles%`; README uses repo-relative sample paths. |
 | One writer per file | PASS | Single worker owns the scope. |
 | Spec before plan before tasks | PASS | `spec.md`, this file, `tasks.md`. |
@@ -81,7 +81,7 @@ showcase/
 │   ├── posters.css
 │   ├── body.html
 │   ├── runtime.frame.js       # procedural industrial fallback
-│   ├── runtime.map.js         # isometric 3D Mars-base level map
+│   ├── runtime.compare.js     # 2004 / 2026 modern comparison render
 │   ├── runtime.canvas.js      # portal / rain / graph
 │   ├── runtime.core.js        # audio, captions, controls, AI Rogue demo
 │   └── narration.json
@@ -121,7 +121,7 @@ showcase/
     the matrix (151 checks: Chrome, offline, reduced motion, **real CDP touch**, Space-on-control,
     visibility, canvas fallback, sync, 4K + DPR2). `axe-core` is run separately for WCAG AA; the
     color-contrast incomplete nodes over image/canvas are recorded.
-11. **Sell the dream, prove it elsewhere.** Poster 2 is the 2026 isometric level-map + AI-native
+11. **Sell the dream, prove it elsewhere.** Poster 2 is the 2004/2026 comparison + AI-native
     experience concept; the six roadmap numbers live in README and a one-line proof strip. This keeps the
     evidence traceable without making players read a code audit.
 

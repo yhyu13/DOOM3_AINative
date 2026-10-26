@@ -94,10 +94,21 @@
       <div class="poster-tag">POSTER 01 / PLAY</div>
     </section>
 
-    <!-- ================= POSTER 2 · THE DREAM ================= -->
-    <section class="poster p2" data-poster="2" aria-label="Poster 2 — The dream">
+    <!-- ================= POSTER 2 · 2004 → 2026 ================= -->
+    <section class="poster p2" data-poster="2" data-split="46" aria-label="Poster 2 — 2004 versus 2026">
       <canvas class="fx" id="fx2" width="1920" height="1080" aria-hidden="true"></canvas>
+      <img class="p2-old" id="p2Old" alt="Redacted 2004 archival DOOM 3 frame" draggable="false">
       <div class="shade"></div>
+
+      <div class="p2-divider" id="p2Divider" aria-hidden="true">
+        <svg class="p2-split-svg" viewBox="0 0 1920 1080" preserveAspectRatio="none">
+          <line id="p2SplitLine" x1="883" y1="0" x2="623" y2="1080"/>
+        </svg>
+      </div>
+      <div class="p2-handle" id="p2Handle" role="slider" tabindex="0"
+           aria-label="Drag to compare 2004 and 2026" aria-valuemin="18" aria-valuemax="82" aria-valuenow="46">
+        <span>DRAG</span>
+      </div>
 
       <div class="p2-copy">
         <div class="kicker reveal" style="--d:.04s">
@@ -107,32 +118,34 @@
           <span class="t1 reveal" style="--d:.10s">MODERN FPS.</span>
           <span class="t2 reveal" style="--d:.18s">PERSONAL HELL.</span>
         </h1>
-        <p class="p2-lead reveal" style="--d:.28s">What if DOOM 3 looked like a 2026 flagship — and the whole Mars base was a map the AI could rewrite?</p>
-        <p class="p2-zh reveal" style="--d:.34s">如果 DOOM 3 有 2026 年的画面，整座火星基地还是一张 AI 可以重写的地图？</p>
+        <p class="p2-lead reveal" style="--d:.28s">Same base. Two eras. Drag the line.</p>
+        <p class="p2-zh reveal" style="--d:.34s">同一座火星基地，两个时代。拖动斜线。</p>
       </div>
 
-      <aside class="p2-archival reveal" style="--d:.38s" id="p2ArchivalWrap">
-        <div class="pa-head"><b>2004</b><span>ARCHIVAL FRAME</span></div>
-        <img id="p2Archival" alt="Redacted archival DOOM 3 frame" draggable="false">
-        <div class="pa-foot"><span>→ 2026 / VISION</span><em>REDACTED</em></div>
-      </aside>
+      <div class="p2-labels reveal" style="--d:.38s">
+        <span class="p2-old-label">2004 / ARCHIVE · REDACTED</span>
+        <span class="p2-new-label">2026 / MODERN RENDER</span>
+      </div>
 
-      <div class="p2-vision-label reveal" style="--d:.42s">PROCEDURAL LEVEL MAP · NOT A GAME CAPTURE</div>
+      <div class="p2-compare-actions reveal" style="--d:.42s">
+        <span class="p2-vision-label">PROCEDURAL MODERN RENDER · NOT A GAME CAPTURE</span>
+        <button class="p2-reveal" id="p2Reveal">REVEAL 2026</button>
+      </div>
 
       <div class="p2-features">
-        <article class="p2-feature reveal" style="--d:.46s" tabindex="0">
+        <article class="p2-feature reveal" style="--d:.46s">
           <span class="pf-no">01 / LOOK</span>
           <h2>NEXT-GEN LOOK</h2>
-          <p>3D cutaway. PBR. Volumetric light. 4K / 120.</p>
+          <p>PBR. HDR. Volumetric light. 4K / 120.</p>
           <span class="pf-tag">VISION</span>
         </article>
-        <article class="p2-feature reveal" style="--d:.50s" tabindex="0">
+        <article class="p2-feature reveal" style="--d:.50s">
           <span class="pf-no">02 / DIRECTOR</span>
           <h2>AI DIRECTOR</h2>
           <p>Reads your style. Rewrites routes, pacing, scares, encounters.</p>
           <span class="pf-tag is-ai">AI NATIVE</span>
         </article>
-        <article class="p2-feature reveal" style="--d:.54s" tabindex="0">
+        <article class="p2-feature reveal" style="--d:.54s">
           <span class="pf-no">03 / RUN</span>
           <h2>PERSONAL RUN</h2>
           <p>One sentence. A run shaped around you.</p>
@@ -145,7 +158,7 @@
         <b>THE PORT IS REAL. THE VISION IS BIGGER.</b>
       </div>
 
-      <div class="poster-tag">POSTER 02 / THE DREAM</div>
+      <div class="poster-tag">POSTER 02 / 2004 → 2026</div>
     </section>
 
     <!-- ================= POSTER 3 · VISION ================= -->

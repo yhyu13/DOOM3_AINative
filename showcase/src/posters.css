@@ -233,60 +233,56 @@
 
 
 
-  /* ---------- poster 2 / the dream ---------- */
+  /* ---------- poster 2 / 2004 → 2026 ---------- */
   .p2 .shade{
+    position:absolute;inset:0;z-index:3;pointer-events:none;
     background:
-      linear-gradient(90deg,rgba(6,6,7,.99) 0%,rgba(6,6,7,.96) 34%,rgba(6,6,7,.62) 46%,rgba(6,6,7,.16) 58%,rgba(6,6,7,.03) 76%,rgba(6,6,7,.16) 100%),
-      linear-gradient(0deg,rgba(6,6,7,.99) 0%,rgba(6,6,7,.16) 55%);
+      linear-gradient(90deg,rgba(6,6,7,.98) 0%,rgba(6,6,7,.94) 34%,rgba(6,6,7,.52) 48%,rgba(6,6,7,.08) 62%,rgba(6,6,7,0) 80%),
+      linear-gradient(0deg,rgba(6,6,7,.99) 0%,rgba(6,6,7,.15) 52%);
   }
-  .p2-copy{position:absolute;left:56px;top:118px;width:940px;z-index:3}
+  .p2-old{
+    position:absolute;inset:0;z-index:2;width:100%;height:100%;object-fit:cover;pointer-events:none;
+    clip-path:polygon(0 0,calc(var(--split,46)*1%) 0,calc(var(--split,46)*1% - 260px) 100%,0 100%);
+    filter:saturate(.55) brightness(.7) contrast(1.05);transition:clip-path .7s ease;
+  }
+  .p2.is-dragging .p2-old{transition:none}
+  .snap .p2-old,.snap .p2-handle{transition:none!important}
+  .p2-divider{position:absolute;inset:0;z-index:4;pointer-events:none}
+  .p2-split-svg{position:absolute;inset:0;width:100%;height:100%}
+  .p2-split-svg line{stroke:rgba(255,154,92,.85);stroke-width:2;filter:drop-shadow(0 0 10px rgba(255,77,23,.5))}
+  .p2-handle{
+    position:absolute;left:calc(var(--split,46)*1% - 130px);top:50%;transform:translate(-50%,-50%);
+    z-index:5;width:46px;height:46px;border-radius:50%;border:1px solid var(--ember);
+    background:rgba(6,6,7,.72);color:var(--ink);display:grid;place-items:center;
+    font:8px var(--mono);letter-spacing:.12em;cursor:ew-resize;pointer-events:auto;
+    backdrop-filter:blur(6px);box-shadow:0 0 24px rgba(255,77,23,.3);
+  }
+  .p2-handle:focus-visible{outline:2px solid var(--ember);outline-offset:4px}
+  .p2-copy{position:absolute;left:56px;top:118px;width:780px;z-index:6}
   .p2-title{margin:14px 0 0;padding:0}
   .p2-title > span{display:block;font-family:var(--display);font-weight:700;text-transform:uppercase;line-height:.82;letter-spacing:-.012em}
   .p2-title .t1{font-size:112px}
   .p2-title .t2{font-size:112px;color:transparent;-webkit-text-stroke:2px var(--ink)}
-  .p2-lead{width:820px;margin:16px 0 0;font-size:21px;line-height:1.45;color:rgba(244,239,230,.84)}
+  .p2-lead{width:620px;margin:16px 0 0;font-size:21px;line-height:1.4;color:rgba(244,239,230,.88)}
   .p2-zh{margin:8px 0 0;font-size:15px;line-height:1.5;color:var(--dim);letter-spacing:.10em}
-
-  .p2-archival{
-    position:absolute;right:56px;top:126px;width:300px;z-index:5;padding:8px;
-    border:1px solid rgba(244,239,230,.18);background:rgba(6,6,7,.84);backdrop-filter:blur(8px);
-  }
-  .p2-archival img{display:block;width:100%;height:200px;object-fit:cover;filter:saturate(.7) contrast(1.05)}
-  .p2-archival[data-empty="1"] img{display:none}
-  .p2-archival[data-empty="1"]::before{
-    content:"2004 / SOURCE-ONLY\A NO RETAIL FRAME";white-space:pre;display:grid;place-items:center;
-    height:200px;border:1px dashed var(--line);font:9px/1.8 var(--mono);letter-spacing:.14em;color:var(--faint);text-align:center;
-  }
-  .pa-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;font:8px/1 var(--mono);letter-spacing:.14em;color:var(--faint)}
-  .pa-head b{font-size:18px;color:var(--ink);font-weight:600;letter-spacing:.02em}
-  .pa-foot{display:flex;justify-content:space-between;align-items:center;margin-top:6px;font:8px/1 var(--mono);letter-spacing:.12em;color:var(--ember-soft)}
-  .pa-foot em{color:var(--faint);font-style:normal}
-  .p2-vision-label{
-    position:absolute;right:56px;top:404px;z-index:5;padding:5px 8px;
-    border:1px solid rgba(184,255,90,.28);background:rgba(6,6,7,.72);
-    font:7px/1 var(--mono);letter-spacing:.14em;color:var(--acid);backdrop-filter:blur(6px);
-  }
-
-  .p2-features{position:absolute;left:56px;top:470px;width:566px;display:flex;flex-direction:column;gap:12px;z-index:4}
-  .p2-feature{
-    position:relative;height:100px;padding:12px 16px;border:1px solid var(--line);
-    background:rgba(8,8,10,.86);backdrop-filter:blur(10px);
-    transition:border-color .25s,transform .25s,background .25s;
-  }
+  .p2-labels{position:absolute;left:56px;right:56px;top:100px;z-index:6;display:flex;justify-content:space-between;pointer-events:none}
+  .p2-old-label,.p2-new-label{padding:4px 7px;border:1px solid var(--line);background:rgba(6,6,7,.66);font:8px/1 var(--mono);letter-spacing:.14em;backdrop-filter:blur(4px)}
+  .p2-old-label{color:var(--dim)}
+  .p2-new-label{color:var(--acid);border-color:rgba(184,255,90,.30)}
+  .p2-compare-actions{position:absolute;right:56px;top:716px;z-index:6;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+  .p2-vision-label{padding:5px 7px;border:1px solid rgba(184,255,90,.28);background:rgba(6,6,7,.72);font:8px/1 var(--mono);letter-spacing:.12em;color:var(--acid);backdrop-filter:blur(6px)}
+  .p2-reveal{height:32px;padding:0 12px;border:1px solid rgba(255,77,23,.55);background:rgba(255,77,23,.12);font:8px/1 var(--mono);letter-spacing:.12em;color:var(--ember-soft);cursor:pointer}
+  .p2-reveal:hover,.p2-reveal:focus-visible{background:rgba(255,77,23,.22);border-color:var(--ember)}
+  .p2-features{position:absolute;left:56px;top:468px;width:566px;display:flex;flex-direction:column;gap:12px;z-index:6}
+  .p2-feature{position:relative;height:100px;padding:12px 16px;border:1px solid var(--line);background:rgba(8,8,10,.86);backdrop-filter:blur(10px);transition:border-color .25s,transform .25s,background .25s}
   .p2-feature:hover,.p2-feature:focus-visible{border-color:rgba(255,77,23,.58);background:rgba(22,12,9,.92);transform:translateY(-2px)}
   .p2-feature:nth-child(2){border-color:rgba(255,77,23,.34);background:linear-gradient(180deg,rgba(34,15,9,.9),rgba(12,8,7,.86))}
   .pf-no{font:8px/1 var(--mono);letter-spacing:.16em;color:var(--ember)}
   .p2-feature h2{margin:6px 0 0;font-family:var(--display);font-size:25px;line-height:1;text-transform:uppercase;color:var(--ink)}
   .p2-feature p{margin:6px 0 0;font-size:11px;line-height:1.4;color:rgba(244,239,230,.78);max-width:480px}
   .pf-tag{position:absolute;right:16px;top:16px;padding:3px 6px;border:1px solid rgba(184,255,90,.30);font:7px/1 var(--mono);letter-spacing:.12em;color:var(--acid)}
-  .pf-tag.is-ai{color:var(--ember-soft);border-color:rgba(255,77,23,.5)}
-  .pf-tag.is-concept{color:var(--ember-soft);border-color:rgba(255,77,23,.5)}
-
-  .p2-proof{
-    position:absolute;left:56px;top:812px;width:1808px;z-index:4;display:flex;justify-content:space-between;gap:20px;
-    padding-top:8px;border-top:1px solid var(--line);
-    font:7px/1.4 var(--mono);letter-spacing:.08em;color:var(--faint);
-  }
+  .pf-tag.is-ai,.pf-tag.is-concept{color:var(--ember-soft);border-color:rgba(255,77,23,.5)}
+  .p2-proof{position:absolute;left:56px;top:812px;width:1808px;z-index:6;display:flex;justify-content:space-between;gap:20px;padding-top:8px;border-top:1px solid var(--line);font:9px/1.4 var(--mono);letter-spacing:.08em;color:var(--dim)}
   .p2-proof b{color:var(--ember-soft);font-weight:500;white-space:nowrap}
 
   /* ---------- poster 3 / vision ---------- */

@@ -57,18 +57,18 @@
   card visuals and monitor bezel
 - [x] T022 Licence audit: no legally reusable screenshot found; documented the redacted-placeholder
   decision and the rejected candidates
-- [x] T033 Final build + `verify.py` **111 passed, 0 failed**
-- [x] T034 Final `verify_deep.py` **159 passed, 0 failed, 1 skipped** (Firefox not installed)
+- [x] T033 Final build + `verify.py` **118 passed, 0 failed**
+- [x] T034 Final `verify_deep.py` **161 passed, 0 failed, 1 skipped** (Firefox not installed)
 - [x] T035 axe-core 4.10.3 WCAG 2.1 A/AA **0 violations**; 1 incomplete color-contrast/poster
-  (120/69/111 nodes) recorded rather than claimed as full AA
+  (120/66/111 nodes) recorded rather than claimed as full AA
 - [x] T036 Contrast fixes: browser URL and AI Rogue concept note promoted from `--faint` to `--dim`
 - [x] T037 Touch fix: hero media `pointer-events:none` + `draggable=false` + `#stage{touch-action:none}`
 - [x] T038b Real CDP touch regression test (touchStart/move/end, no `pointercancel`)
 - [x] T043 Space-on-control guard + page-visibility pause/resume
 - [x] T044 Canvas-unavailable fallback + caption `aria-hidden` + `#ccEn lang="en"`
 - [x] T045 Truthfulness: `M0 · SCAFFOLD`, future-tense lead, no false CI baseline, no “no retail assets” claim
-- [x] T046 Byte-reproducibility (two builds, SHA-256 `7ef3…3b9b`) + hero-label edge cases
-- [x] T047 README/spec/plan/tasks + PR evidence updated to 111/159/axe-incomplete/56–60 fps
+- [x] T046 Byte-reproducibility (two builds, SHA-256 `66b9…9fb2`) + hero-label edge cases
+- [x] T047 README/spec/plan/tasks + PR evidence updated to 118/161/axe-incomplete/60.0–60.3 fps
 - [x] T048 Re-ran contract, deep and axe after the review fixes
 - [x] T049 Redesigned poster 2 as THE DREAM: Mars-hangar vision render, 2004 archival diptych,
   NEXT-GEN LOOK / AI DIRECTOR / PERSONAL RUN, proof strip
@@ -80,6 +80,10 @@
 - [x] T055 Updated page 2 copy/narration/features to the map (79.6 s total)
 - [x] T056 Updated verifiers/README/spec/tasks for the map and moved evidence
 - [x] T057 Re-ran contract, deep, axe, repro and updated PR evidence for the map
+- [x] T058 Replaced the map with the 2004 / 2026 diagonal comparison slider
+- [x] T059 Added the 2026 modern corridor render + draggable/reveal split
+- [x] T060 Updated page 2 copy/narration/archival/labels to the comparison
+- [x] T061 Updated verifiers/docs/evidence and re-ran 118/161/axe
 - [x] T038 Animation test fix: canvas frame-change + 0.6% page diff threshold
 - [x] T039 README/spec/plan/tasks aligned to the product concept
 
@@ -87,6 +91,7 @@
 
 - [x] T021 Commit only scoped paths; push `feat/2-project-showcase`; open PR with evidence and `Closes #2`
 - [x] T040 Independent review of the PR diff against this spec (reviewer ≠ author) — **READY TO MERGE**; blocking touch fixed; non-blocking polish applied
+- [ ] T062 Independent review of the 2004/2026 comparison page
 - [ ] T041 Merge after review (squash only; coordinator/reviewer, not the author)
 - [ ] T042 Replace `hero-redacted.png` with a licensed capture before public distribution
   (owner/licensing gate; not a code blocker for the PR)
@@ -94,24 +99,24 @@
 ## Dependencies
 
 - T002/T003 → T004–T008 → T023/T028 → T029/T030/T031 → T025/T026 → T018/T019
-- T018/T019 → T020 → T043–T057 → T021 → T040 → T041
+- T018/T019 → T020 → T043–T061 → T021 → T040 → T062 → T041
 - T042 is a release gate, not a PR blocker; the redacted asset is labelled pending.
 
 ## Completion
 
 | Bucket | Count |
 |---|---|
-| Done | 52 |
+| Done | 56 |
 | Superseded | 2 (T024, T050) |
-| Pending before review | 0 |
-| Pending review/merge | 1 (T041) |
+| Pending before review | 1 (T062) |
+| Pending review/merge | 2 (T041, T062) |
 | Pending release/licensing | 1 (T042) |
 
 ## Acceptance Mapping
 
 | Spec | Tasks |
 |---|---|
-| FR-001, FR-002, FR-005, FR-018, FR-019 | T004, T005, T008, T018, T019, T049, T054 |
+| FR-001, FR-002, FR-005, FR-018, FR-019 | T004, T005, T008, T018, T019, T058, T059 |
 | FR-003, FR-014 | T002, T006, T025 |
 | FR-004, FR-006 | T004, T012 |
 | FR-007, FR-008 | T018, T020, T051 |
@@ -131,4 +136,4 @@
 | SC-009 | T029, T030 |
 | SC-010 | T031, T018 |
 | SC-011 | T035, T036 |
-| SC-012 | T018, T049, T054 |
+| SC-012 | T018, T058, T059 |

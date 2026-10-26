@@ -6,7 +6,7 @@
 
 **Revised**: 2026-10-26 — product-concept direction (browser monitor, capability cards, AI Rogue demo, redacted real frame)
 
-**Status**: Implemented; 111 contract checks + 159 deep checks + axe 0 violations (1 incomplete color-contrast/poster); pending review
+**Status**: Implemented; 118 contract checks + 161 deep checks + axe 0 violations (1 incomplete color-contrast/poster); pending review
 
 **Input**: User description: "Write an attractive single interactive HTML with voice-over, using a skill, to show this project to others. Three rotating poster pages. Use a real DOOM 3 frame inside a browser/monitor, plus marketing concepts like key remapping, mods, and one-sentence AI Rogue generation. Follow the agent workflow. Use subagents in parallel."
 
@@ -146,11 +146,11 @@ credit. `--no-hero` produces the procedural version. No original game data enter
 - **FR-018**: The framework MUST degrade to static visuals when animation is unavailable or reduced
   motion is requested, without losing DOM content, captions or navigation. A missing 2D canvas
   context MUST NOT prevent boot, captions or paging.
-- **FR-019**: Poster 2 MUST sell the modern-FPS/AI-native experience: a 2026 **isometric/oblique 3D
-  cutaway level map** (MEDLAB, SECURITY, CONTROL, REACTOR, HELL GATE, LANDING, CARGO, AI route,
-  player/hostile markers), labelled `PROCEDURAL LEVEL MAP · NOT A GAME CAPTURE`; a 2004 archival
-  diptych; and three cards (NEXT-GEN LOOK, AI DIRECTOR, PERSONAL RUN). It MUST NOT be a six-card
-  source/evidence wall.
+- **FR-019**: Poster 2 MUST sell the modern-FPS/AI-native experience as a **2004 / 2026 diagonal
+  comparison**: the left side is the redacted 2004 archival frame, the right side a procedural 2026
+  modern corridor labelled `PROCEDURAL MODERN RENDER · NOT A GAME CAPTURE`; a draggable diagonal and
+  a REVEAL 2026 toggle; and three cards (NEXT-GEN LOOK, AI DIRECTOR, PERSONAL RUN). It MUST NOT be a
+  six-card source/evidence wall.
 
 ## Key Entities
 
@@ -166,7 +166,7 @@ credit. `--no-hero` produces the procedural version. No original game data enter
 - **SC-002**: Zero console errors and zero page errors on all three posters.
 - **SC-003**: Three 1920×1080 screenshots, non-blank and pairwise different.
 - **SC-004**: Narration total 50–85 s; each poster at least 12 s; at least five caption chunks per
-  poster (actual 6/7/7, verified by seeking every chunk).
+  poster (actual 6/8/7, verified by seeking every chunk).
 - **SC-005**: ArrowRight changes poster within 300 ms; Space toggles pause; V is not required.
 - **SC-006**: The six roadmap literals are present in README with `ROADMAP §1`, and the poster proof
   strip carries 1,387 / 734,180 / 0 game data.
@@ -178,15 +178,16 @@ credit. `--no-hero` produces the procedural version. No original game data enter
 - **SC-011**: axe-core WCAG 2.1 A/AA reports zero violations on all three posters after settling;
   the 1 incomplete color-contrast check per poster (text over image/canvas) MUST be recorded rather
   than presented as full AA verification.
-- **SC-012**: Poster 2 contains the 2026 isometric 3D Mars-base map, the 2004 archival frame, the
-  three experience cards and the proof strip; it contains no six-card source wall.
+- **SC-012**: Poster 2 contains the 2004/2026 diagonal comparison, the 2004 archival frame, the 2026
+  modern render, the draggable/reveal control, the three experience cards and the proof strip; it
+  contains no six-card source wall.
 
 ## Assumptions
 
 - The repository owner accepts the redacted derivative as a placeholder and will replace it before
   public distribution; the original screenshot is not committed.
 - Firefox is not installed on this machine; the deep matrix records one skip.
-- The 79.6 s narration is the accepted length; the old 64 s script is replaced.
+- The 82.8 s narration is the accepted length; the old 64 s script is replaced.
 - The AI Rogue demo is deterministic and local; it does not call a model or network.
 - The redacted image is committed at `showcase/assets/hero-redacted.png` (≈0.71 MiB); the deck total
-  is ≈1.61 MiB.
+  is ≈2.63 MiB.

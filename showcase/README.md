@@ -12,7 +12,7 @@ Microsoft Edge kiosk with the autoplay exemption.
 | Poster | Claim | What it shows |
 |---|---|---|
 | **01 · PLAY** | *DOOM 3 in the browser.* | A monitor/browser mockup with a **real DOOM 3 frame, fully redacted in `XX`**, a live HUD, and four capability cards: **PLAY / REMAP / MOD / AI ROGUE**. |
-| **02 · THE DREAM** | *Modern FPS. Personal hell.* | A **3D isometric/oblique cutaway** of a Mars base — MEDLAB, SECURITY, CONTROL, REACTOR, HELL GATE, LANDING, CARGO — with an AI route, player/hostile markers, a 2004 archival diptych, and **NEXT-GEN LOOK / AI DIRECTOR / PERSONAL RUN**. The source evidence is reduced to one proof strip. |
+| **02 · THE DREAM** | *Modern FPS. Personal hell.* | A **2004 / 2026 diagonal comparison**: the left side is the **redacted 2004 archival frame**, the right side a **procedural 2026 modern corridor** (Mars window, volumetric light, HUD). Drag the diagonal or press **REVEAL 2026**; **NEXT-GEN LOOK / AI DIRECTOR / PERSONAL RUN**; one proof strip. |
 | **03 · VISION** | *Your DOOM. Your rules.* | **REMAP** (M5 planned), **MOD** (M7 planned), and **AI ROGUE** — a working concept demo where one sentence regenerates a seed, a map and a modifier. Plus the seven-step delivery loop and the M0–M7 roadmap. |
 
 The deck is a **product concept**, not a claim that the port is shipped. Poster 1 uses future-tense
@@ -87,7 +87,7 @@ kiosk with `Alt+F4`. Do not point it at a network URL: the deck is designed to r
 
 ## Narration
 
-Voice: `zh-CN-YunxiNeural`, rate `+8%`. Total: about **79.6 seconds**.
+Voice: `zh-CN-YunxiNeural`, rate `+8%`. Total: about **82.8 seconds**.
 
 **01 · PLAY**
 
@@ -95,7 +95,7 @@ Voice: `zh-CN-YunxiNeural`, rate `+8%`. Total: about **79.6 seconds**.
 
 **02 · THE DREAM**
 
-> 忘掉源码有多难。想象一下，从斜上方看下去，整座火星基地就是一张 3D 地图。医疗舱、安保区、反应堆、地狱门，全部在你眼前。然后，AI 接管导演。它读懂你的玩法，重写路线、节奏、恐惧和敌人。每一局，都是为你生成的。同一座火星基地，不同的地狱。这不是重制，这是重生。
+> 忘掉源码有多难。左边是 2004 年的存档画面，已经脱敏；右边是 2026 年的现代渲染。拖动这条斜线，看同一座火星基地能变成什么样。PBR、HDR、体积光、4K、120 帧。然后，AI 接管导演。它读懂你的玩法，重写节奏、恐惧和敌人。每一局，都是为你生成的。同一座基地，不同的地狱。这不是重制，这是重生。
 
 **03 · VISION**
 
@@ -131,7 +131,7 @@ showcase/
 │   ├── posters.css            poster 1/2/3 layouts
 │   ├── body.html              DOM
 │   ├── runtime.frame.js       procedural industrial reference frame (fallback)
-│   ├── runtime.map.js         isometric 3D Mars-base level map
+│   ├── runtime.compare.js     2004 / 2026 modern comparison render
 │   ├── runtime.canvas.js      portal / code rain / workflow graph
 │   └── runtime.core.js        audio, clock, captions, controls, AI Rogue demo
 ├── build.py                   TTS + timings + assembly + hero media
@@ -152,20 +152,20 @@ uv run --python 3.12 showcase/verify_deep.py
 
 Current evidence (2026-10-26):
 
-- `verify.py` — **111 passed, 0 failed**. Single file 1.67 MiB, zero external requests, three posters,
+- `verify.py` — **118 passed, 0 failed**. Single file 2.63 MiB, zero external requests, three posters,
   zero console/page errors, three distinct screenshots, embedded narration, six claim literals,
   redacted-hero label, four capability cards, AI Rogue concept, keyboard/pause/captions,
   autoplay-blocked fallback, `?autoplay=0`, 1366 scaling.
-- `verify_deep.py` — **159 passed, 0 failed, 1 skipped**. Edge + Chrome, offline `file://`, reduced
+- `verify_deep.py` — **161 passed, 0 failed, 1 skipped**. Edge + Chrome, offline `file://`, reduced
   motion, `cc=0`, **real CDP touch swipe (no `pointercancel`)**, 3→1 loop, caption + word sync at all
-  20 chunks, Space-on-control, page visibility, canvas-unavailable fallback, evidence hovers, mute,
-  fullscreen, 4K + DPR2, portrait, animation, **56–60 fps measured across runs** (56.3 conservative; gate ≥30), accessible button
+  21 chunks, Space-on-control, page visibility, canvas-unavailable fallback, evidence hovers, mute,
+  fullscreen, 4K + DPR2, portrait, animation, **60.0–60.3 fps measured across recent runs** (gate ≥30), accessible button
   names, HTML parse, and the `start.cmd` contract. The one skip is Firefox: not installed.
 - **axe-core 4.10.3, WCAG 2.1 A/AA** — **0 violations** on all three posters after a 900 ms settle;
-  **1 incomplete color-contrast check per poster** (120/69/111 nodes, text over image/canvas), so AA
+  **1 incomplete color-contrast check per poster** (120/66/111 nodes, text over image/canvas), so AA
   contrast is not fully machine-verified. The first pass exposed two real contrast misses, both fixed.
-- **Reproducibility** — two consecutive default builds are byte-identical: 1,751,063 bytes,
-  SHA-256 `7ef30ecf032a09bb7666ac1e7fe476deacacc37898db983c6973281d0be53b9b`.
+- **Reproducibility** — two consecutive default builds are byte-identical: 2,760,862 bytes,
+  SHA-256 `66b9ea4f38626aa316daae725bee1215f0db041b2a6170c177c907a5aa0b9fb2`.
 
 Screenshots and logs land in `showcase/evidence/`, which is git-ignored. `verify.py --headed` lets
 you watch the run.
@@ -193,7 +193,7 @@ verifier: it asserts the README literals and the poster proof strip.
   Rights remain with id/Bethesda; it is included only as a **redacted placeholder** with
   `LICENSING PENDING`. Replace it with a licensed capture before public distribution. The original
   screenshot is not in this repository.
-- The procedural reference frame, 2026 isometric level map, portal, code rain, graph and AI Rogue demo
+- The procedural reference frame, 2026 modern corridor render, portal, code rain, graph and AI Rogue demo
   are original code in this repository.
 - Narration is generated with Microsoft Edge TTS from the repository's own script.
 - Any `--hero` image or video is supplied by the operator; it is inlined into a local build but is

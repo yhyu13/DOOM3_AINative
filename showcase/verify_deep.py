@@ -313,14 +313,30 @@ def main() -> int:
             check("M4" in rm and "WebGL2" in rm, "evidence :: roadmap hover reveals milestone")
             page.goto(url(2, snap=True), wait_until="load")
             wait_ready(page)
-            check(page.locator(".p2-feature").count() == 3, "dream :: three experience cards")
-            check("NEXT-GEN LOOK" in page.locator(".p2-features").inner_text(), "dream :: next-gen look card")
-            check(page.evaluate("document.querySelector('#p2Archival').src.startsWith('data:image/png')"), "dream :: 2004 archival frame is present")
-            check("PROCEDURAL LEVEL MAP" in page.locator(".p2-vision-label").inner_text(), "dream :: vision render label")
-            check("734,180" in page.locator(".p2-proof").inner_text(), "dream :: proof strip carries the reality check")
-            rooms = page.evaluate("window.__SHOWCASE_MAP__ ? window.__SHOWCASE_MAP__.rooms : null")
-            check(bool(rooms) and len(rooms) == 7, f"dream :: isometric map exposes 7 rooms ({rooms})")
-            audit_console(errors, "dream poster")
+            check(page.locator(".p2-feature").count() == 3, "compare :: three experience cards")
+            check("NEXT-GEN LOOK" in page.locator(".p2-features").inner_text(), "compare :: next-gen look card")
+            check(page.evaluate("document.querySelector('#p2Old').src.startsWith('data:image/png')"), "compare :: 2004 archival frame is present")
+            check("PROCEDURAL MODERN RENDER" in page.locator(".p2-vision-label").inner_text(), "compare :: modern render label")
+            check("734,180" in page.locator(".p2-proof").inner_text(), "compare :: proof strip carries the reality check")
+            check(page.locator(".claim,.claims").count() == 0, "compare :: no source-card wall")
+            before_split = page.locator("#p2Handle").get_attribute("aria-valuenow")
+            page.locator("#p2Reveal").click()
+            page.wait_for_timeout(900)
+            after_split = page.locator("#p2Handle").get_attribute("aria-valuenow")
+            check(before_split == "46" and after_split == "80", f"compare :: reveal changes the split ({before_split} -> {after_split})")
+            page.goto(url(2, snap=False), wait_until="load")
+            wait_ready(page)
+            p2fps = page.evaluate("""() => new Promise(resolve => {
+                let n = 0; const t0 = performance.now();
+                function f() {
+                    n++;
+                    if (performance.now() - t0 < 1200) requestAnimationFrame(f);
+                    else resolve(n / ((performance.now() - t0) / 1000));
+                }
+                requestAnimationFrame(f);
+            })""")
+            check(p2fps >= 30, f"performance :: page 2 isometric map {p2fps:.1f} fps")
+            audit_console(errors, "compare poster")
             ctx.close()
 
             # mute toggle
