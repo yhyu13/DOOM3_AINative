@@ -21,7 +21,7 @@ Evidence captured 2026-10-26 from this working tree. Facts are in §1–§2; mil
 | SCons | `neo/SConstruct` + `SConscript.core/curl/game/gl/idlib`; Python 2 syntax (`print '...'`, imports `commands`, `popen2`, `StringIO`) | `SConstruct:6`, `SConstruct:197` |
 | Xcode | `neo/sys/osx/` contains `Doom3`, `game`, `d3xp`, `idlib`, `oggVorbis`, and `SubProjects/curl` Xcode projects | `README.txt:52`; listing |
 | Existing web code | 0 `emscripten`/`EMSCRIPTEN`, 0 `webgl`, 0 `wasm` references under `neo/`; no `web/`, `src/`, `port/`, `tests/` top-level directories | search; listing |
-| Toolchain (environment, not repo) | git 2.25.0, node 24.19.0, uv 0.12.13, python 2.7.16; `emcc`, `em++`, `scons`, `cmake` missing; `gh` present; VS2022 Professional and MSBuild present; VS2010 and DirectX SDK June 2010 not found at the checked/default locations | `Get-Command`; `vswhere` |
+| Toolchain (environment, not repo) | git 2.25.0, node 24.19.0, uv 0.12.13, bare python 2.7.16 (`py` launcher 3.14.4); `emcc`, `em++`, `scons`, `cmake` missing; `gh` present; VS2022 Professional and MSBuild present; VS2010 and DirectX SDK June 2010 not found at the checked/default locations | `Get-Command`; `vswhere` |
 | Root repo state (pre-commit snapshot) | `main` was unborn when this table was written; `.gitmodules` and `doom3` were staged and every scaffold file was untracked. The initial scaffold commit follows this inspection | `git status --porcelain`; `git log` |
 | CI | `.github/` absent; no workflow files; `gh` installed but no workflow to list | listing |
 | Spec-kit / skills | 14 skills in `.kilo/skills/`; 10 `/speckit.*` commands in `.kilo/command/`; `.specify/memory/constitution.md` is still the unfilled template | `docs/SKILLS.md`; listing |

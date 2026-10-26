@@ -38,7 +38,7 @@ try {
     }
 
     Write-Host '--- notes'
-    Write-Host 'python on PATH is 2.7: use `uv run --python 3.12 ...` for Python tooling.'
+    Write-Host 'bare `python` is 2.7; the `py` launcher is 3.x. Prefer `uv run --python 3.12 ...` for Python tooling.'
     Write-Host 'setup complete'
 }
 finally {

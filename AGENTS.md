@@ -68,7 +68,7 @@ the engine build, the renderer, or the submodule.
 | git | 2.25.0.windows.1 — no `git init -b`; PowerShell 5.1 has no `&&` |
 | node | v24.19.0 |
 | uv / uvx | 0.12.13 — use for spec-kit and Python tooling |
-| python | 2.7.16 — **do not** use bare `python` for new scripts; use `uv run --python 3.12 ...` |
+| python / py | bare `python` is 2.7.16; the `py` launcher resolves 3.14.4 — for new scripts use `uv run --python 3.12 ...` (or `py -3`) |
 | specify | `uvx --from git+https://github.com/github/spec-kit.git specify ...` |
 | emcc / emsdk | not installed yet (see `docs/ROADMAP.md` M2) |
 | gh | 2.100.0, on `PATH`, authenticated (workspace owner account) — see `docs/GIT_WORKFLOW.md` §0 |
