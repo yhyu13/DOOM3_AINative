@@ -1,4 +1,4 @@
-﻿# Implementation Plan: Native Windows 11 x64 build of DOOM 3
+# Implementation Plan: Native Windows 11 x64 build of DOOM 3
 
 **Branch**: `feat/1-win11-amd64-native-build` | **Spec**: [spec.md](spec.md) | **Issue**: #1
 **Evidence**: `doom3_orig/doc/06_win11_amd64_port_findings.md` (compile probe: idlib 44/44 and exe 197/197 TUs compile on x64 after 6 edits)
@@ -38,8 +38,8 @@ statically link the game module. Test with the official free demo data (legal, k
 ## Source layout (tracked)
 ```
 specs/001-win11-amd64-native-build/{spec,plan,tasks}.md
-targets/win11-amd64/CMakeLists.txt, CMakePresets.json, README.md, patches/*.patch
-scripts/verify-win11-amd64.ps1, scripts/smoke-win11-amd64.ps1, scripts/export-target-patches.ps1
+targets/win11-amd64/CMakeLists.txt, CMakePresets.json, sources.cmake, README.md, src/eaxguid_x64.cpp, patches/all-changes.{patch,manifest.txt}
+scripts/{verify,smoke,run}-win11-amd64.ps1, scripts/{export,apply}-target-patches.ps1, scripts/{capture-window,prepare-demo-data,gen-sources-win11-amd64}.ps1
 ```
 Untracked: `targets/win11-amd64/doom3/` (copy), `targets/win11-amd64/build/`, `_data/`.
 
