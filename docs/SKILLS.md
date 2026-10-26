@@ -4,6 +4,9 @@ Fourteen agent skills live in `.kilo/skills/<name>/SKILL.md` as real files — n
 symlinks — so that every agent session, every Agent Manager worktree, and CI sees exactly the
 same instructions without depending on the operator's global skill vault.
 
+Skills keep their own licences; the repository's GPL-3.0-or-later does not relicense them. See
+[`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md).
+
 - **Why local copies:** reproducible for any agent or CI runner. A fresh clone plus
   `git submodule update --init --recursive` is enough; nothing has to be installed under
   `~/.kilo/skills` on the machine first. Worktrees created by Agent Manager inherit the same

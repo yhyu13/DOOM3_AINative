@@ -79,8 +79,14 @@ source release has no game data — `.pk4`/`.pk3`/`.pak` files are ignored and m
 
 ## Licensing
 
-- Engine source in `doom3_orig/doom3/`: GPLv3 (`doom3_orig/doom3/COPYING.txt`).
+This repository's own content — specs, docs, scripts, workflow, automation — is
+**GPL-3.0-or-later** ([`LICENSE`](LICENSE)), matching the engine's licence so the port stays a
+single, compatible work.
+
+- Engine source in `doom3_orig/doom3/`: GPLv3 or later (`doom3_orig/doom3/COPYING.txt`).
 - Game data: not included, still governed by the original DOOM 3 EULA
   (`doom3_orig/doom3/README.txt`).
-- Skills under `.kilo/skills/`: each carries its upstream licence; see `docs/SKILLS.md`.
-- This repository's own code and docs: licence not chosen yet.
+- Spec Kit, MIT and Apache-2.0 skills: their own licences, recorded in
+  [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) and `docs/SKILLS.md`.
+
+SPDX identifier for this repository: `GPL-3.0-or-later`.

@@ -14,6 +14,9 @@ the specs, and the workflow.
 | `docs/SKILLS.md` | Which project skill to load for which stage, and where each skill came from. |
 | `docs/ROADMAP.md` | Milestones, exit criteria, and what is actually proven vs suggested. |
 
+Licence: this repository's own content is **GPL-3.0-or-later** (`LICENSE`); third-party notices
+are in `THIRD_PARTY_NOTICES.md`. Game data is not covered and must not be committed.
+
 ## Repository facts
 
 - `doom3_orig/doom3/` — **pristine** git submodule: `https://github.com/yhyu13/DOOM-3.git`
