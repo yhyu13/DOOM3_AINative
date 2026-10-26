@@ -158,6 +158,9 @@ def main() -> int:
             check(page.evaluate("document.body.dataset.page") == str(n), f"poster {n} :: body page state")
             check(page.evaluate("document.querySelectorAll('.poster.is-active').length") == 1, f"poster {n} :: exactly one active poster")
             check(page.evaluate("document.querySelector('.poster.is-active').dataset.poster") == str(n), f"poster {n} :: correct active poster")
+            if n == 2:
+                rooms = page.evaluate("window.__SHOWCASE_MAP__ ? window.__SHOWCASE_MAP__.rooms : null")
+                check(bool(rooms) and len(rooms) == 7 and "HELL GATE" in rooms and "REACTOR" in rooms, f"poster 2 :: isometric map rooms ({rooms})")
             if n == 1:
                 check(page.locator(".monitor").count() == 1, "poster 1 :: browser monitor present")
                 check(page.locator("#browserView #fxFrame").count() == 1, "poster 1 :: game canvas sits inside the browser viewport")
@@ -209,7 +212,7 @@ def main() -> int:
             check(literal in readme, f"claims :: README evidence present: {literal}")
         check("ROADMAP §1" in readme or "docs/ROADMAP.md §1" in readme, "claims :: README cites the roadmap")
         for literal in ("MODERN FPS.", "PERSONAL HELL.", "NEXT-GEN LOOK", "AI DIRECTOR", "PERSONAL RUN",
-                        "1,387", "734,180", "0 GAME DATA", "VISION RENDER · PROCEDURAL · NOT A GAME CAPTURE"):
+                        "1,387", "734,180", "0 GAME DATA", "PROCEDURAL LEVEL MAP · NOT A GAME CAPTURE"):
             check(literal in content, f"dream :: literal present: {literal}")
         for literal in ("CONCEPT ROADMAP / 2026", "M5 / PLANNED", "M7 / PLANNED", "CONCEPT DEMO · NOT A SHIPPED FEATURE"):
             check(literal in content, f"vision :: literal present: {literal}")

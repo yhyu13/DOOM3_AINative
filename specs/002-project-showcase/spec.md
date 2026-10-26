@@ -6,7 +6,7 @@
 
 **Revised**: 2026-10-26 — product-concept direction (browser monitor, capability cards, AI Rogue demo, redacted real frame)
 
-**Status**: Implemented; 110 contract checks + 158 deep checks + axe 0 violations (1 incomplete color-contrast/poster); pending review
+**Status**: Implemented; 111 contract checks + 159 deep checks + axe 0 violations (1 incomplete color-contrast/poster); pending review
 
 **Input**: User description: "Write an attractive single interactive HTML with voice-over, using a skill, to show this project to others. Three rotating poster pages. Use a real DOOM 3 frame inside a browser/monitor, plus marketing concepts like key remapping, mods, and one-sentence AI Rogue generation. Follow the agent workflow. Use subagents in parallel."
 
@@ -146,9 +146,11 @@ credit. `--no-hero` produces the procedural version. No original game data enter
 - **FR-018**: The framework MUST degrade to static visuals when animation is unavailable or reduced
   motion is requested, without losing DOM content, captions or navigation. A missing 2D canvas
   context MUST NOT prevent boot, captions or paging.
-- **FR-019**: Poster 2 MUST sell the modern-FPS/AI-native experience: a 2026 vision render (procedural,
-  labelled `NOT A GAME CAPTURE`), a 2004 archival diptych, and three cards (NEXT-GEN LOOK, AI DIRECTOR,
-  PERSONAL RUN). It MUST NOT be a six-card source/evidence wall.
+- **FR-019**: Poster 2 MUST sell the modern-FPS/AI-native experience: a 2026 **isometric/oblique 3D
+  cutaway level map** (MEDLAB, SECURITY, CONTROL, REACTOR, HELL GATE, LANDING, CARGO, AI route,
+  player/hostile markers), labelled `PROCEDURAL LEVEL MAP · NOT A GAME CAPTURE`; a 2004 archival
+  diptych; and three cards (NEXT-GEN LOOK, AI DIRECTOR, PERSONAL RUN). It MUST NOT be a six-card
+  source/evidence wall.
 
 ## Key Entities
 
@@ -176,15 +178,15 @@ credit. `--no-hero` produces the procedural version. No original game data enter
 - **SC-011**: axe-core WCAG 2.1 A/AA reports zero violations on all three posters after settling;
   the 1 incomplete color-contrast check per poster (text over image/canvas) MUST be recorded rather
   than presented as full AA verification.
-- **SC-012**: Poster 2 contains the 2026 vision render, the 2004 archival frame, the three experience
-  cards and the proof strip; it contains no six-card source wall.
+- **SC-012**: Poster 2 contains the 2026 isometric 3D Mars-base map, the 2004 archival frame, the
+  three experience cards and the proof strip; it contains no six-card source wall.
 
 ## Assumptions
 
 - The repository owner accepts the redacted derivative as a placeholder and will replace it before
   public distribution; the original screenshot is not committed.
 - Firefox is not installed on this machine; the deep matrix records one skip.
-- The 77.4 s narration is the accepted length; the old 64 s script is replaced.
+- The 79.6 s narration is the accepted length; the old 64 s script is replaced.
 - The AI Rogue demo is deterministic and local; it does not call a model or network.
 - The redacted image is committed at `showcase/assets/hero-redacted.png` (≈0.71 MiB); the deck total
   is ≈1.61 MiB.

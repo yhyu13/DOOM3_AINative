@@ -277,7 +277,7 @@ async def build(hero: Path | None, out: Path, hero_credit: str | None, hero_labe
     head = read("head.html").replace("<!--__CSS__-->", "<style>\n" + css + "\n</style>")
     body = read("body.html")
     frame = read("runtime.frame.js")
-    dream = read("runtime.dream.js")
+    mapjs = read("runtime.map.js")
     canvas = read("runtime.canvas.js")
     core = read("runtime.core.js")
     data = {"pages": pages, "hero": hero_data}
@@ -292,7 +292,7 @@ async def build(hero: Path | None, out: Path, hero_credit: str | None, hero_labe
         + ";</script>\n<script>\n"
         + frame
         + "\n</script>\n<script>\n"
-        + dream
+        + mapjs
         + "\n</script>\n<script>\n"
         + canvas
         + "\n</script>\n<script>\n"
