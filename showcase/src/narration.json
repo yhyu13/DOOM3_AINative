@@ -10,7 +10,7 @@
       "label": "TARGET",
       "chunks": [
         {
-          "zh": "想象一下，打开一个网页，DOOM 3 就在里面跑。",
+          "zh": "想象一下，打开一个网页，DOOM 3 将在里面跑。",
           "en": "Imagine opening a web page, and DOOM 3 running inside it."
         },
         {
@@ -18,8 +18,8 @@
           "en": "No install. No cloud. No emulator."
         },
         {
-          "zh": "WebAssembly 和 WebGL2，把二〇〇四年的 idTech4 引擎，直接搬进浏览器。",
-          "en": "WebAssembly and WebGL2 bring the 2004 idTech4 engine straight into the browser."
+          "zh": "WebAssembly 和 WebGL2，将把二〇〇四年的 idTech4 引擎，直接搬进浏览器。",
+          "en": "WebAssembly and WebGL2 will bring the 2004 idTech4 engine straight into the browser."
         },
         {
           "zh": "鼠标锁定，手柄，改键，Mod，全部在网页里。",

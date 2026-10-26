@@ -122,8 +122,10 @@ def main() -> int:
     check(not re.search(r"fetch\(\s*['\"]?https?://", html, re.I), "artifact :: no remote fetch()")
     check(not INDEX.read_bytes().startswith(b"\xef\xbb\xbf"), "artifact :: no UTF-8 BOM")
     check(not re.search(r"[A-Za-z]:\\", html), "artifact :: no absolute drive path")
-    check(not re.search(r"gho_|github_pat_", html), "artifact :: no token pattern")
-    check(not (ROOT / "assets" / "hero.png").exists(), "asset :: original unredacted screenshot absent")
+    check(not re.search(r"(?<![A-Za-z])[A-Za-z]:[\\/]", html), "artifact :: no drive path (slash/backslash)")
+    check(not re.search(r"\b(?:Users|home)[\\/]", html), "artifact :: no home directory path")
+    check(not re.search(r"ghp_|gho_|github_pat_|sk-[A-Za-z0-9]{20,}|BEGIN [A-Z ]*PRIVATE KEY", html), "artifact :: no token/private-key pattern")
+    check(not (ROOT / "assets" / "hero.png").exists() and not any(ROOT.rglob("source_steam*")), "asset :: original unredacted screenshot absent")
     check(html.count("data:audio/mpeg;base64,") == 3, "artifact :: three embedded MP3 narration tracks")
     check((ROOT / "assets" / "hero-redacted.png").exists(), "asset :: redacted capture file exists")
     check((ROOT / "assets" / "README.md").exists(), "asset :: provenance note exists")
@@ -206,7 +208,7 @@ def main() -> int:
                         "CONCEPT ROADMAP / 2026", "M5 / PLANNED", "M7 / PLANNED", "CONCEPT DEMO · NOT A SHIPPED FEATURE"):
             check(literal in content, f"claims :: literal present: {literal}")
         check(content.count("ROADMAP §1") >= 6, "claims :: every numeric card carries a source tag")
-        check("M0 · SCAFFOLD" in content and "Engine port in progress" in content and "The target, not a shipped build" in content, "claims :: scaffold status is explicit")
+        check("M0 · SCAFFOLD" in content and "Port work starts at M1" in content and "The target, not a shipped build" in content, "claims :: scaffold status is explicit")
         ctx.close()
 
         # ---- AI Rogue concept demo (poster 3)

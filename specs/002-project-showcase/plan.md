@@ -38,7 +38,7 @@ scaled to viewport.
 **Project Type**: Static single-file presentation artifact plus reproducible build/verification
 scripts.
 
-**Performance Goals**: Target 60 fps canvas; measured 56.3 fps on this machine (gate ≥30); first render under 1.5 s; file under
+**Performance Goals**: Target 60 fps canvas; measured 56.3–60.3 fps across runs on this machine (gate ≥30); first render under 1.5 s; file under
 4 MB; no layout shift (system fonts only).
 
 **Constraints**: Fully offline at presentation time; original screenshot not committed; redacted
@@ -55,7 +55,7 @@ loop steps, eight roadmap milestones, six numeric claims.
 | Pristine submodule untouched | PASS | Scope is `showcase/**` and `specs/002-project-showcase/**`. |
 | No game data committed | PASS | The original screenshot is not in git; the redacted placeholder is tracked and labelled. No `.pk4/.pk3/.pak`. |
 | No direct commit to `main` | PASS | Worktree `feat/2-project-showcase`; PR required. |
-| Evidence before victory | PASS | 100 contract checks, 150 deep checks, axe 0 violations (1 incomplete/poster); logs/screenshots. |
+| Evidence before victory | PASS | 102 contract checks, 151 deep checks, axe 0 violations (1 incomplete/poster); logs/screenshots. |
 | No secrets or absolute machine paths | PASS | `start.cmd` uses `%~dp0` and `%ProgramFiles%`; README uses repo-relative sample paths. |
 | One writer per file | PASS | Single worker owns the scope. |
 | Spec before plan before tasks | PASS | `spec.md`, this file, `tasks.md`. |
@@ -125,7 +125,7 @@ showcase/
 |---|---|
 | Redacted derivative still carries rights | Original not in git; asset labelled `LICENSING PENDING`; replace with licensed capture; provenance note. |
 | Autoplay blocked at a booth | Kiosk flag; silent-clock fallback; click gate. |
-| Real frame provokes "is this shipped?" | `M0 · ENGINE PORT IN PROGRESS`, `CONCEPT` tags, redaction bar. |
+| Real frame provokes "is this shipped?" | `M0 · SCAFFOLD`, `CONCEPT` tags, redaction bar. |
 | AI Rogue over-promises | `CONCEPT DEMO · NOT A SHIPPED FEATURE`; deterministic local demo only. |
 | Hero image / stage swallows touch | `pointer-events:none`, `draggable=false`, `#stage{touch-action:none}`; real CDP touch test asserts no `pointercancel`. |
 | Claim drift / overstated copy | Verifier asserts six literals; `M0 · SCAFFOLD`, future-tense lead and `CONCEPT` labels. |

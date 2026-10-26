@@ -6,7 +6,7 @@
 
 **Revised**: 2026-10-26 — product-concept direction (browser monitor, capability cards, AI Rogue demo, redacted real frame)
 
-**Status**: Implemented; 100 contract checks + 150 deep checks + axe 0 violations (1 incomplete color-contrast/poster); pending review
+**Status**: Implemented; 102 contract checks + 151 deep checks + axe 0 violations (1 incomplete color-contrast/poster); pending review
 
 **Input**: User description: "Write an attractive single interactive HTML with voice-over, using a skill, to show this project to others. Three rotating poster pages. Use a real DOOM 3 frame inside a browser/monitor, plus marketing concepts like key remapping, mods, and one-sentence AI Rogue generation. Follow the agent workflow. Use subagents in parallel."
 
@@ -118,9 +118,9 @@ credit. `--no-hero` produces the procedural version. No original game data enter
 - **FR-007**: Every quantitative **evidence** claim on poster 2 MUST carry a visible `ROADMAP §1`
   source tag and expose its evidence command on hover/focus. HUD values and generated timecodes are
   illustrative, not research claims.
-- **FR-008**: The deck MUST label the build `M0 · SCAFFOLD` (with “engine port in progress”), the
+- **FR-008**: The deck MUST label the build `M0 · SCAFFOLD` (with “port work starts at M1”), the
   vision roadmap `CONCEPT ROADMAP / 2026`, and the AI Rogue demo `CONCEPT DEMO · NOT A SHIPPED
-  FEATURE`. The lead MUST be future tense (`will run`), and M0 MUST NOT claim a CI baseline that is
+  FEATURE`. The lead MUST be future tense (`will run`, `将在里面跑`), and M0 MUST NOT claim a CI baseline that is
   absent from the repository. It MUST NOT claim a shipped port or shipped AI feature.
 - **FR-009**: Poster 1 MUST render a browser/monitor mockup with a real frame. The committed default
   MUST be the redacted `assets/hero-redacted.png`; `--no-hero` MUST restore the procedural frame.
@@ -178,7 +178,7 @@ credit. `--no-hero` produces the procedural version. No original game data enter
 - The repository owner accepts the redacted derivative as a placeholder and will replace it before
   public distribution; the original screenshot is not committed.
 - Firefox is not installed on this machine; the deep matrix records one skip.
-- The 74 s narration is the accepted length; the old 64 s script is replaced.
+- The 74.3 s narration is the accepted length; the old 64 s script is replaced.
 - The AI Rogue demo is deterministic and local; it does not call a model or network.
 - The redacted image is committed at `showcase/assets/hero-redacted.png` (≈0.71 MiB); the deck total
   is ≈1.61 MiB.

@@ -427,6 +427,13 @@ def main() -> int:
             page.wait_for_timeout(450)
             check(page.evaluate("document.body.dataset.page") == "2", "keyboard :: Space on NEXT activates the control")
             check(page.evaluate("window.__SHOWCASE__.state().playing") is True, "keyboard :: Space on NEXT does not pause")
+            page.goto(url(3, snap=False), wait_until="load")
+            wait_ready(page)
+            before_prompt = page.locator("#promptText").inner_text()
+            page.locator("#generateBtn").focus()
+            page.keyboard.press("Space")
+            page.wait_for_timeout(1000)
+            check(page.locator("#promptText").inner_text() != before_prompt, "keyboard :: Space on GENERATE RUN regenerates the prompt")
             ctx.close()
 
             # visibility: pause on hidden, resume on visible if it was playing
