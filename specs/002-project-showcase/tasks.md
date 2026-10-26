@@ -67,7 +67,7 @@
 
 ## Phase 7 — Ship and review
 
-- [ ] T021 Commit only scoped paths; push `feat/2-project-showcase`; open PR with evidence and `Closes #2`
+- [x] T021 Commit only scoped paths; push `feat/2-project-showcase`; open PR with evidence and `Closes #2`
 - [ ] T040 Independent review of the PR diff against this spec (reviewer ≠ author)
 - [ ] T041 Merge after review (squash only; coordinator/reviewer, not the author)
 - [ ] T042 Replace `hero-redacted.png` with a licensed capture before public distribution
@@ -83,9 +83,9 @@
 
 | Bucket | Count |
 |---|---|
-| Done | 35 |
+| Done | 36 |
 | Superseded | 1 (T024) |
-| Pending before review | 1 (T021) |
+| Pending before review | 0 |
 | Pending review/merge | 2 (T040, T041) |
 | Pending release/licensing | 1 (T042) |
 
