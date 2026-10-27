@@ -8,3 +8,7 @@
 *.pk4 binary
 *.pk3 binary
 *.wasm binary
+
+# Patches against CRLF sources must keep their CRs byte-for-byte, or git apply fails
+targets/*/patches/*.patch binary
+targets/*/patches/*.manifest.txt -text

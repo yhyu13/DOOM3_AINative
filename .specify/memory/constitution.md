@@ -1,50 +1,44 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+# DOOM3_AINative Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Pristine Source Is Read-Only
+`doom3_orig/doom3` is never edited, built in, or formatted. Work happens in `targets/<name>/doom3`
+and is exported as patches under `targets/<name>/patches/`. Engine changes land on a fork branch
+and arrive here as a reviewed submodule bump.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### II. Evidence Before Victory (NON-NEGOTIABLE)
+A task is done only when a command result, file listing, byte count, or screenshot proves it.
+Acceptance criteria that cannot be checked mechanically are rewritten until they can. Data-dependent
+checks without data are reported SKIPPED, never PASS.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### III. Spec-Driven, One Issue One Worktree One PR
+Changes follow spec -> plan -> tasks -> implement -> independent review. One issue, one branch,
+one worktree, one PR. No direct commits to `main`, no `git stash`.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### IV. Legal Hygiene
+Repository content is GPL-3.0-or-later. Game data, binaries, and build output are never committed.
+Only legally obtained data (official demo or user-owned install) is used for tests.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### V. Portable Fallbacks Over Silent Removal
+Code disabled for a platform needs a documented fallback or a recorded reason and an open task.
+Reproducibility beats cleverness: scripted builds, derived paths, no machine-specific absolute paths in tracked files.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+## Constraints
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+- Docs, code, comments, and commit messages in English.
+- Toolchain facts live in `AGENTS.md`; new tool requirements are recorded there by PR.
+- No secrets in tracked files.
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+## Workflow and Quality Gates
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+- Parallel agents own disjoint files (one writer per file).
+- A reviewer who is not the author reruns the verification command before merge.
+- Submodule bumps and build-system changes require an independent reviewer.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This constitution supersedes ad hoc practice. Amendments are made by PR with a rationale and a
+version bump. PR reviews verify compliance with `AGENTS.md` and `docs/GIT_WORKFLOW.md`.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.0.0 | **Ratified**: 2026-10-26 | **Last Amended**: 2026-10-26

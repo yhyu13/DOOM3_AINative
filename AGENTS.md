@@ -98,6 +98,10 @@ Project skills live at `.kilo/skills/<name>/SKILL.md`. They mirror the user's gl
 `~/.kilo/skills`; the project copy is authoritative inside this repository. The stage map, source
 paths, pinned upstream commits, and the "not installed and why" list are in `docs/SKILLS.md`.
 
+Port know-how lives in `.claude/skills/<name>/SKILL.md` (currently `win64-port-playbook`: Windows x64 bring-up,
+debugging loop, bug catalogue). `kilo.json` lists that directory under `skills.paths` so Kilo agents see it;
+other harnesses read `.claude/skills` natively. Contributor rules for humans and agents: `CONTRIBUTING.md`.
+
 Do not add a skill that duplicates an installed one. If a vendored skill needs local changes, copy
 it to a new name and document the diff instead of editing it in place.
 

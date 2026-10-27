@@ -1,0 +1,113 @@
+{
+  "voice": "zh-CN-YunxiNeural",
+  "rate": "+8%",
+  "volume": "+0%",
+  "pitch": "+0Hz",
+  "pages": [
+    {
+      "id": "target",
+      "name": "PLAY / 产品",
+      "label": "TARGET",
+      "chunks": [
+        {
+          "zh": "想象一下，打开一个网页，DOOM 3 将在里面跑。",
+          "en": "Imagine opening a web page, and DOOM 3 running inside it."
+        },
+        {
+          "zh": "不用安装，不用云游戏，不用模拟器。",
+          "en": "No install. No cloud. No emulator."
+        },
+        {
+          "zh": "WebAssembly 和 WebGL2，将把二〇〇四年的 idTech4 引擎，直接搬进浏览器。",
+          "en": "WebAssembly and WebGL2 will bring the 2004 idTech4 engine straight into the browser."
+        },
+        {
+          "zh": "鼠标锁定，手柄，改键，Mod，全部在网页里。",
+          "en": "Pointer lock, gamepad, rebinding, mods — all in the page."
+        },
+        {
+          "zh": "这，就是 DOOM3_AINative。",
+          "en": "This is DOOM3_AINative."
+        },
+        {
+          "zh": "我们正在把它变成现实。",
+          "en": "We are building it."
+        }
+      ]
+    },
+    {
+      "id": "reality",
+      "name": "THE DREAM / 想象力",
+      "label": "REALITY",
+      "chunks": [
+        {
+          "zh": "忘掉源码有多难。",
+          "en": "Forget how hard the source is."
+        },
+        {
+          "zh": "左边是 2004 年的存档画面，已经脱敏。",
+          "en": "On the left, the 2004 archival frame — redacted."
+        },
+        {
+          "zh": "右边是 2026 年的现代渲染。",
+          "en": "On the right, the 2026 modern render."
+        },
+        {
+          "zh": "拖动这个圆点，看同一座火星基地能变成什么样。",
+          "en": "Drag the knob. See what the same Mars base becomes."
+        },
+        {
+          "zh": "PBR、HDR、体积光、4K、120 帧。",
+          "en": "PBR. HDR. Volumetric light. 4K. 120 frames."
+        },
+        {
+          "zh": "然后，AI 接管导演。它读懂你的玩法，重写节奏、恐惧和敌人。",
+          "en": "Then the AI directs: it reads your playstyle and rewrites pacing, fear and enemies."
+        },
+        {
+          "zh": "每一局，都是为你生成的。同一座基地，不同的地狱。",
+          "en": "Every run is generated for you. Same base, a different hell."
+        },
+        {
+          "zh": "这不是重制，这是重生。",
+          "en": "Not a remaster. A rebirth."
+        }
+      ]
+    },
+    {
+      "id": "loop",
+      "name": "VISION / 愿景",
+      "label": "LOOP",
+      "chunks": [
+        {
+          "zh": "改键，Mod，AI 一句话生成 Rogue 模式。",
+          "en": "Rebind anything. Drop in a mod. Describe a run."
+        },
+        {
+          "zh": "一句话，生成地图、规则和敌人。",
+          "en": "One sentence generates the map, the rules, the enemies."
+        },
+        {
+          "zh": "这不是一个启动器，而是一个 AI 原生的游戏平台。",
+          "en": "Not a launcher. An AI-native game platform."
+        },
+        {
+          "zh": "一个议题，一个分支，一个工作树，一个 PR。",
+          "en": "One issue, one branch, one worktree, one PR."
+        },
+        {
+          "zh": "规格、实现、独立审查、证据门禁。",
+          "en": "Spec, implementation, independent review, evidence gates."
+        },
+        {
+          "zh": "从 M0 到 M7，每一步都由证据推进。",
+          "en": "From M0 to M7, every step is driven by evidence."
+        },
+        {
+          "zh": "目标，是让 DOOM 3 在浏览器里重生。",
+          "en": "The goal: DOOM 3, reborn in the browser."
+        }
+      ]
+    }
+  ]
+}

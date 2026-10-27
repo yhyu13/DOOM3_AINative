@@ -1,0 +1,291 @@
+<body>
+<div id="viewport">
+  <div id="stage" data-page="1" data-mode="boot" data-state="playing">
+
+    <header class="topbar">
+      <div class="brand">
+        <span class="mark" aria-hidden="true">D3</span>
+        <span class="brand-t"><b>DOOM3_AINative</b><em>AN AI-NATIVE WEB PORT</em></span>
+      </div>
+      <div class="flow">PLAY <i>→</i> REMAP <i>→</i> MOD <i>→</i> GENERATE</div>
+      <div class="topmeta">
+        <span class="live"><i></i> OFFLINE READY</span>
+        <span>2026.10.26</span>
+        <span>03 POSTERS / <b id="totalSec" style="color:var(--dim);font-weight:500">—</b></span>
+      </div>
+    </header>
+
+    <!-- ================= POSTER 1 · PLAY ================= -->
+    <section class="poster p1 is-active" data-poster="1" aria-label="Poster 1 — Play DOOM 3 in the browser">
+      <canvas class="fx" id="fx1" width="1920" height="1080" aria-hidden="true"></canvas>
+      <div class="shade"></div>
+
+      <div class="p1-copy">
+        <div class="kicker reveal" style="--d:.04s">
+          <span class="k-no">01</span><span class="k-line"></span><span>PLAY / 产品</span>
+        </div>
+        <h1 class="p1-title" aria-label="DOOM 3 in the browser">
+          <span class="t1 reveal" style="--d:.10s">DOOM <span class="ember">3</span></span>
+          <span class="t2 reveal" style="--d:.18s">IN THE</span>
+          <span class="t3 reveal" style="--d:.26s">BROWSER</span>
+        </h1>
+        <p class="p1-lead reveal" style="--d:.34s">The target: open a URL, and the full idTech4 engine will run in the tab — no install, no cloud, no emulator.</p>
+        <p class="p1-zh reveal" style="--d:.40s">打开一个网页，DOOM 3 将在里面跑。</p>
+        <div class="spec-strip reveal" style="--d:.46s">
+          <span>idTech4</span><span>WASM32</span><span>WEBGL2</span><span>GPLv3</span>
+        </div>
+        <div class="status reveal" style="--d:.52s">
+          <span class="pulse-dot" aria-hidden="true"></span>
+          <b>M0 · SCAFFOLD</b>
+          <span>Port work starts at M1. The target, not a shipped build.</span>
+          <em>NO GAME DATA</em>
+        </div>
+        <div class="p1-vision reveal" style="--d:.58s">
+          <span>PLAY</span><i>·</i><span>REMAP</span><i>·</i><span>MOD</span><i>·</i><span>GENERATE</span>
+        </div>
+      </div>
+
+      <div class="monitor reveal" style="--d:.24s">
+        <div class="browser">
+          <div class="browser-bar">
+            <div class="traffic" aria-hidden="true"><i></i><i></i><i></i></div>
+            <div class="tab"><span class="tab-dot"></span>DOOM 3 — PLAY</div>
+            <div class="browser-url"><span>doom3.ai/play</span><b>↵</b></div>
+            <div class="live-badge"><i></i>LIVE CONCEPT</div>
+          </div>
+          <div class="browser-view" id="browserView">
+            <canvas id="fxFrame" width="1920" height="1080" aria-hidden="true"></canvas>
+            <video class="hero-video" id="heroVideo" muted loop playsinline preload="metadata" aria-hidden="true"></video>
+            <img class="hero-video" id="heroImage" alt="" hidden draggable="false">
+            <div class="game-hud" aria-hidden="true">
+              <div class="hud-shade"></div>
+              <div class="hud-top"><span>SECTOR 03 / MARS CITY</span><span>MARINE / 01</span></div>
+              <div class="hud-bottom">
+                <span>HEALTH <b>87</b><i><em style="width:87%"></em></i></span>
+                <span>ARMOR <b>42</b><i><em style="width:42%"></em></i></span>
+                <span>AMMO <b>12 / 48</b></span>
+              </div>
+              <div class="hud-hint">WASD / MOUSE · ESC TO REMAP</div>
+            </div>
+            <div class="media-badge" id="mediaBadge"><b>CONCEPT PREVIEW</b>PROCEDURAL · NOT A GAME CAPTURE</div>
+            <div class="browser-glare"></div>
+            <div class="browser-scan"></div>
+          </div>
+        </div>
+        <div class="monitor-base"></div>
+      </div>
+
+      <div class="feature-row">
+        <article class="feature reveal" style="--d:.46s" tabindex="0">
+          <span class="f-no">01</span><h2>PLAY</h2><p>Zero install. WASM + WebGL2.</p><span class="f-tag">CORE</span>
+        </article>
+        <article class="feature reveal" style="--d:.50s" tabindex="0">
+          <span class="f-no">02</span><h2>REMAP</h2><p>Every key. Every pad.</p><span class="f-tag">M5</span>
+        </article>
+        <article class="feature reveal" style="--d:.54s" tabindex="0">
+          <span class="f-no">03</span><h2>MOD</h2><p>Drop in. Hot reload.</p><span class="f-tag">M7</span>
+        </article>
+        <article class="feature is-ai reveal" style="--d:.58s" tabindex="0">
+          <span class="f-no">04</span><h2>AI ROGUE</h2><p>One sentence → a run.</p><span class="f-tag is-concept">CONCEPT</span>
+        </article>
+      </div>
+
+      <div class="side-mark">THE PORT / 01</div>
+      <div class="poster-tag">POSTER 01 / PLAY</div>
+    </section>
+
+    <!-- ================= POSTER 2 · 2004 → 2026 ================= -->
+    <section class="poster p2" data-poster="2" data-split="46" aria-label="Poster 2 — 2004 versus 2026">
+      <canvas class="fx" id="fx2" width="1920" height="1080" aria-hidden="true"></canvas>
+      <img class="p2-old" id="p2Old" alt="Redacted 2004 archival DOOM 3 frame" draggable="false">
+      <div class="shade"></div>
+
+      <div class="p2-divider" id="p2Divider" aria-hidden="true">
+        <svg class="p2-split-svg" viewBox="0 0 1920 1080" preserveAspectRatio="none">
+          <line id="p2SplitLine" x1="883" y1="0" x2="623" y2="1080"/>
+        </svg>
+      </div>
+      <div class="p2-handle" id="p2Handle" role="slider" tabindex="0"
+           aria-label="Drag to compare 2004 and 2026" aria-valuemin="18" aria-valuemax="82" aria-valuenow="46">
+        <span>DRAG</span>
+      </div>
+
+      <div class="p2-copy">
+        <div class="kicker reveal" style="--d:.04s">
+          <span class="k-no">02</span><span class="k-line"></span><span>THE DREAM / 想象力</span>
+        </div>
+        <h1 class="p2-title" aria-label="Modern FPS. Personal hell.">
+          <span class="t1 reveal" style="--d:.10s">MODERN FPS.</span>
+          <span class="t2 reveal" style="--d:.18s">PERSONAL HELL.</span>
+        </h1>
+        <p class="p2-lead reveal" style="--d:.28s">Same base. Two eras. Drag the knob.</p>
+        <p class="p2-zh reveal" style="--d:.34s">同一座火星基地，两个时代。拖动圆点。</p>
+      </div>
+
+      <div class="p2-labels reveal" style="--d:.38s">
+        <span class="p2-old-label">2004 / ARCHIVE · REDACTED</span>
+        <span class="p2-new-label">2026 / MODERN RENDER</span>
+      </div>
+
+      <div class="p2-compare-actions reveal" style="--d:.42s">
+        <span class="p2-vision-label">PROCEDURAL MODERN RENDER · NOT A GAME CAPTURE</span>
+        <button class="p2-reveal" id="p2Reveal">BACK TO 2004</button>
+      </div>
+
+      <div class="p2-features">
+        <article class="p2-feature reveal" style="--d:.46s">
+          <span class="pf-no">01 / LOOK</span>
+          <h2>NEXT-GEN LOOK</h2>
+          <p>PBR. HDR. Volumetric light. 4K / 120.</p>
+          <span class="pf-tag">VISION</span>
+        </article>
+        <article class="p2-feature reveal" style="--d:.50s">
+          <span class="pf-no">02 / DIRECTOR</span>
+          <h2>AI DIRECTOR</h2>
+          <p>Reads your style. Rewrites routes, pacing, scares, encounters.</p>
+          <span class="pf-tag is-ai">AI NATIVE</span>
+        </article>
+        <article class="p2-feature reveal" style="--d:.54s">
+          <span class="pf-no">03 / RUN</span>
+          <h2>PERSONAL RUN</h2>
+          <p>One sentence. A run shaped around you.</p>
+          <span class="pf-tag is-concept">CONCEPT</span>
+        </article>
+      </div>
+
+      <div class="p2-proof reveal" style="--d:.58s">
+        <span>REAL 2011 SOURCE · 1,387 FILES · 734,180 LINES · 0 GAME DATA IN REPO</span>
+        <b>THE PORT IS REAL. THE VISION IS BIGGER.</b>
+      </div>
+
+      <div class="poster-tag">POSTER 02 / 2004 → 2026</div>
+    </section>
+
+    <!-- ================= POSTER 3 · VISION ================= -->
+    <section class="poster p3" data-poster="3" aria-label="Poster 3 — Your DOOM, your rules">
+      <canvas class="fx" id="fx3" width="1920" height="1080" aria-hidden="true"></canvas>
+      <div class="shade"></div>
+
+      <div class="p3-head">
+        <div class="kicker reveal" style="--d:.04s">
+          <span class="k-no">03</span><span class="k-line"></span><span>VISION / 愿景</span>
+        </div>
+        <h1 class="p3-title reveal" style="--d:.10s">
+          <span>YOUR DOOM.</span><span class="outline">YOUR RULES.</span>
+        </h1>
+        <p class="p3-lead reveal" style="--d:.18s">The engine is the platform. Remap it, mod it, or describe a run and let the agent build it.</p>
+        <p class="p3-zh reveal" style="--d:.24s">改键、装 Mod，或者一句话生成一局 Rogue。</p>
+      </div>
+
+      <aside class="p3-meta reveal" style="--d:.26s">
+        <b>CONCEPT ROADMAP / 2026</b>
+        <span>EVIDENCE BEFORE VICTORY · AGENTS.md #5</span>
+        <span class="url">github.com/yhyu13/DOOM3_AINative</span>
+      </aside>
+
+      <div class="vision-grid">
+        <article class="vision-card reveal" style="--d:.30s" tabindex="0">
+          <div class="v-no">01 / INPUT</div>
+          <h2>REMAP</h2>
+          <p>Every key. Every pad. Profiles that travel.</p>
+          <div class="v-detail">Keyboard, mouse and gamepad bindings, stored per profile.</div>
+          <div class="v-visual keys" aria-hidden="true"><span>W</span><span>A</span><span>S</span><span>D</span><i>+</i><span class="wide">PAD</span><i>+</i><span class="wide">PROFILE 01</span></div>
+          <div class="v-tag">M5 / PLANNED</div>
+        </article>
+        <article class="vision-card reveal" style="--d:.34s" tabindex="0">
+          <div class="v-no">02 / CONTENT</div>
+          <h2>MOD</h2>
+          <p>Drop in. Hot reload. Sandboxed.</p>
+          <div class="v-detail">A pak becomes a module; the engine reloads without losing the run.</div>
+          <div class="v-visual mods" aria-hidden="true">
+            <div class="pak"><b>pak0.pk4</b><i>BASE</i></div>
+            <div class="pak"><b>rogue.pk4</b><i>+</i></div>
+            <div class="reload">↻ HOT RELOAD</div>
+          </div>
+          <div class="v-tag">M7 / PLANNED</div>
+        </article>
+        <article class="vision-card is-ai reveal" style="--d:.38s">
+          <div class="v-no">03 / GENERATIVE</div>
+          <h2>AI ROGUE</h2>
+          <p>One sentence → a seed, a map, a run.</p>
+          <div class="prompt-console">
+            <div class="prompt-line"><span>&gt;</span><b id="promptText">a flooded Mars base with one shotgun</b><i class="caret" aria-hidden="true"></i></div>
+            <button class="generate-btn" id="generateBtn">GENERATE RUN</button>
+            <div class="prompt-out" id="promptOut">
+              <span>SEED 7F3A</span><span>MAP / FLOODED BASE</span><span>MOD / ONE SHOTGUN</span>
+            </div>
+            <div class="prompt-note">CONCEPT DEMO · NOT A SHIPPED FEATURE</div>
+          </div>
+          <div class="v-tag is-concept">CONCEPT</div>
+        </article>
+      </div>
+
+      <div class="loop-ribbon reveal" style="--d:.44s">
+        <div class="loop-label"><b>THE LOOP</b><span>HOW IT SHIPS</span></div>
+        <div class="loop-step"><b>01</b>ISSUE</div><i>→</i>
+        <div class="loop-step"><b>02</b>WORKTREE</div><i>→</i>
+        <div class="loop-step"><b>03</b>SPEC</div><i>→</i>
+        <div class="loop-step"><b>04</b>BUILD</div><i>→</i>
+        <div class="loop-step"><b>05</b>VERIFY</div><i>→</i>
+        <div class="loop-step"><b>06</b>REVIEW</div><i>→</i>
+        <div class="loop-step"><b>07</b>MERGE</div>
+      </div>
+
+      <div class="roadmap reveal" style="--d:.50s">
+        <div class="rm-label">ROADMAP<b>M0 → M7</b></div>
+        <div class="rm-cells" id="rmCells">
+          <button class="rm-cell is-now" data-m="M0" data-detail="Skills verified · submodule clean · asset check"><b>M0</b>SCAFFOLD</button>
+          <button class="rm-cell is-next" data-m="M1" data-detail="Reproduce the 2011 native Windows binaries, or document exactly why not"><b>M1</b>NATIVE</button>
+          <button class="rm-cell" data-m="M2" data-detail="Link the dedicated server path to WASM with no GL or audio"><b>M2</b>DEDICATED</button>
+          <button class="rm-cell" data-m="M3" data-detail="Load legally supplied data through a deterministic virtual filesystem"><b>M3</b>VFS</button>
+          <button class="rm-cell" data-m="M4" data-detail="Translate ARB and fixed-function paths to WebGL2"><b>M4</b>RENDER</button>
+          <button class="rm-cell" data-m="M5" data-detail="Pointer lock, keyboard, gamepad, Web Audio and menus"><b>M5</b>INPUT</button>
+          <button class="rm-cell" data-m="M6" data-detail="Measure first, then threads, SIMD and memory budgets"><b>M6</b>PERF</button>
+          <button class="rm-cell" data-m="M7" data-detail="Build, headless smoke, demo diff and perf gates block bad merges"><b>M7</b>HARNESS</button>
+        </div>
+        <div class="rm-detail" id="rmDetail"><b>M0 · NOW</b> — the repository proves its own baseline before it claims a port.</div>
+      </div>
+
+      <div class="poster-tag">POSTER 03 / VISION</div>
+    </section>
+
+    <!-- ================= SHARED UI ================= -->
+    <aside class="caption" id="caption" aria-live="polite" aria-atomic="true" aria-hidden="false">
+      <div class="cc-label"><b>VOICE / 中文</b><span id="ccCount">01 / 01</span></div>
+      <div class="cc-zh" id="ccZh"></div>
+      <div class="cc-en" id="ccEn" lang="en"></div>
+    </aside>
+
+    <button class="sound-gate" id="soundGate" hidden aria-label="Click to start the voice-over">
+      <span class="sg-icon" aria-hidden="true">▶</span>
+      <span><b>CLICK FOR SOUND</b><em>点击开启口播</em></span>
+    </button>
+
+    <div class="toast" id="toast" role="status"></div>
+
+    <footer class="bottombar">
+      <div class="bb-left">
+        <span class="bb-index" id="posterNo">01</span>
+        <span class="bb-slash">/</span><span class="bb-total">03</span>
+        <span class="bb-name" id="posterName">PLAY / 产品</span>
+      </div>
+      <div class="progress" id="progress" aria-hidden="true">
+        <div class="seg" data-seg="1"><i></i></div>
+        <div class="seg" data-seg="2"><i></i></div>
+        <div class="seg" data-seg="3"><i></i></div>
+      </div>
+      <div class="bb-right">
+        <span class="tc" id="timecode">00:00 / 00:00</span>
+        <button class="ctl" data-act="prev" title="Previous poster (Left arrow)">← PREV</button>
+        <button class="ctl" data-act="toggle" id="playBtn" title="Play or pause (Space)">PAUSE</button>
+        <button class="ctl" data-act="next" title="Next poster (Right arrow)">NEXT →</button>
+        <button class="ctl is-on" data-act="mute" id="muteBtn" title="Toggle sound (M)">SOUND</button>
+        <button class="ctl is-on" data-act="cc" id="ccBtn" title="Toggle captions (C)">CC</button>
+        <button class="ctl icon" data-act="full" title="Fullscreen (F)" aria-label="Fullscreen">⛶</button>
+      </div>
+    </footer>
+
+  </div>
+</div>
+
+<div id="audioBank" hidden></div>
