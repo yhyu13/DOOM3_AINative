@@ -95,7 +95,8 @@ The two shims exist because the 2011 GPL code expects `guis/mainmenu.gui` and a
 - Save games: `sound/snd_world.cpp` `WriteInt((int)ch->soundShader)` style pointer writes and other
   pointer-to-int serialisation are not x64-safe; saving/loading is untested.
 - `Sys_GetCallStack`, x87 FPU state queries and the crash dialog are x64 stubs.
-- Sound output, networking, multiplayer, and the retail `d3xp` expansion were not exercised.
+- Networking/multiplayer and the retail `d3xp` expansion were not exercised (see `doom3_orig/doc/07_*` and `08_*`).
+- Sound: DirectSound stereo output verified audible with `scripts/audio-peak.ps1`; it only plays while the window has focus.
 - Fonts/GUI cache (`.gui` binary cache) round-trip of 8-byte `wexpOp_t` is untested.
 - Demo recording/playback (`recordDemo`/`playDemo`): `renderer/RenderWorld_demo.cpp` and `renderer/GuiModel.cpp`
   serialise pointers as 32-bit and read them into 8-byte members; playback will corrupt them. Not exercised.

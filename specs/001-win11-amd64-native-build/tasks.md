@@ -42,3 +42,6 @@ Legend: [P] parallel-safe (disjoint files). Status: TODO / DOING / DONE / BLOCKE
 - [x] T061 Review fixes: apply-target-patches.ps1, client-area 1280x720 capture, menu+map smoke with log assertions, ulVal VRAM, round-to-nearest FtoiFast/FtolFast
 - [ ] T062 Demo record/playback pointer serialisation (follow-up spec)
 - [ ] T063 Save-game pointer serialisation and version bump (follow-up spec)
+- [x] T064 Sound: DirectSound path verified audible (audio-session peak 0.92-1.21 while focused); smoke now asserts audio. Silence seen earlier was an unfocused window, not an engine bug
+- [ ] T065 Networking: loopback 2-instance join (see doom3_orig/doc/07_networking_assessment.md)
+- [ ] T066 d3xp executable (see doom3_orig/doc/08_expansion_resurrection_of_evil.md); needs retail data to verify

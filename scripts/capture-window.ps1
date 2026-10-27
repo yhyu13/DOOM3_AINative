@@ -17,6 +17,19 @@ using System; using System.Runtime.InteropServices;
 public static class CapW {
   [StructLayout(LayoutKind.Sequential)] public struct RECT { public int L,T,R,B; }
   [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
+  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+  [DllImport("user32.dll")] public static extern void keybd_event(byte vk, byte sc, uint fl, UIntPtr ex);
+  [DllImport("user32.dll")] public static extern bool AttachThreadInput(uint a, uint b, bool f);
+  [DllImport("kernel32.dll")] public static extern uint GetCurrentThreadId();
+  [DllImport("user32.dll")] public static extern bool BringWindowToTop(IntPtr h);
+  [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int c);
+  public static bool Focus(IntPtr h) {
+    uint pid; uint ft = GetWindowThreadProcessId(GetForegroundWindow(), out pid); uint me = GetCurrentThreadId();
+    keybd_event(0x12, 0, 0, UIntPtr.Zero); keybd_event(0x12, 0, 2, UIntPtr.Zero);   // Alt tap unlocks SetForegroundWindow
+    AttachThreadInput(me, ft, true); ShowWindow(h, 9); BringWindowToTop(h); bool ok = SetForegroundWindow(h); AttachThreadInput(me, ft, false); return ok;
+  }
   [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
   [StructLayout(LayoutKind.Sequential)] public struct POINT { public int X, Y; }
   [DllImport("user32.dll")] public static extern bool GetClientRect(IntPtr h, out RECT r);
@@ -29,6 +42,7 @@ $proc = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue | Where-Obj
 if (-not $proc) { Write-Host "CAPTURE no window for process '$ProcessName'"; exit 5 }
 $h = $proc.MainWindowHandle
 [void][CapW]::SetWindowPos($h, [IntPtr](-1), 0, 0, 0, 0, 0x0043)   # HWND_TOPMOST | NOSIZE | NOMOVE | SHOWWINDOW
+[void][CapW]::Focus($h)   # DirectSound mutes unfocused windows, so audio checks need real focus
 Start-Sleep -Milliseconds 1500
 $cr = New-Object CapW+RECT
 [void][CapW]::GetClientRect($h, [ref]$cr)
