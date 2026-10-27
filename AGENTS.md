@@ -68,6 +68,17 @@ are in `THIRD_PARTY_NOTICES.md`. Game data is not covered and must not be commit
    and paths relative to the repository root.
 7. **One writer per file.** Parallel agents must not edit the same file; split by ownership
    (see `docs/GIT_WORKFLOW.md`).
+8. **Merge only into a clean, current `main`.** Before merging a PR, check the target mainline
+   itself, not just the remote verdict. `git fetch origin`, then `gh pr view <N> --json
+   mergeable,mergeStateStatus` must report `MERGEABLE` / `CLEAN`, **and** `git status
+   --porcelain` in the main worktree must show no modified (unstaged), staged or untracked file
+   that the PR touches — the mergeability flag is computed from the remote head and cannot see
+   local dirt. Prove the merge offline with
+   `git merge-tree $(git merge-base origin/main origin/<head>) origin/main origin/<head>` and
+   grep for a header line starting with `changed in both` (`grep '^changed in both'` — the command
+   exits 0 even on a conflict, and an unanchored grep also matches the phrase inside patched file
+   content). Clear the overlap first: a dirty main worktree is a merge blocker, not something to
+   work around.
 
 ## Spec-driven flow
 
