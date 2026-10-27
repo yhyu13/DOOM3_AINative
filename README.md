@@ -64,9 +64,9 @@ Milestones and exit criteria live in [`docs/ROADMAP.md`](docs/ROADMAP.md).
 | `targets/<name>/doom3/` | One working **copy** per migration target (ignored scratch tree; see `targets/README.md`) |
 | `.specify/` | GitHub spec-kit infrastructure (templates, PowerShell scripts, constitution) |
 | `.kilo/command/` | `/speckit.*` slash commands (constitution, specify, clarify, plan, tasks, analyze, implement, converge, checklist, taskstoissues) |
-| `.kilo/skills/` | 14 project-local skills (game dev, debugging, review, browser testing, C++→WASM) |
-| `.claude/skills/` | Port know-how: `win64-port-playbook` (Windows x64 bring-up, debugging loop, bug catalogue) |
-| `.kilo/setup-script.ps1` | Initialises the submodule in every Agent Manager worktree |
+| `.claude/skills/` | 15 tracked skills (game dev, debugging, review, browser testing, C++→WASM, Win64 port) — the source of truth in git |
+| `.kilo/skills/` | Generated, git-ignored byte-identical mirror of `.claude/skills` that Kilo reads |
+| `.kilo/setup-script.ps1` | Initialises the submodule and rebuilds the skill mirror in every Agent Manager worktree |
 | `docs/` | Workflow, skills inventory, roadmap |
 | `scripts/` | Worktree helpers, target copies, win11-amd64 build/verify/smoke/capture scripts, skill verifier |
 | `targets/win11-amd64/` | CMake build, patch set and README for the native Windows 11 x64 port |
@@ -87,7 +87,10 @@ git submodule update --init --recursive
 # see how far a target has drifted from the pristine source
 .\scripts\diff-target.ps1 -Name web
 
-# verify the local skill install
+# rebuild the local Kilo skill mirror from the tracked .claude/skills tree
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\sync-skills.ps1
+
+# verify skill format and mirror parity (exit 0/1)
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-skills.ps1
 
 # spec-kit (no global install needed)
@@ -108,6 +111,10 @@ mechanics, scripts, and red lines: [`docs/GIT_WORKFLOW.md`](docs/GIT_WORKFLOW.md
 
 The project ships real copies of the skills it depends on, so a fresh worktree or a CI agent gets
 the same behaviour without the user's global vault. Each skill is a directory with a `SKILL.md`.
+
+`.claude/skills/` is tracked in git and is the source of truth (Claude Code reads it natively).
+`scripts/sync-skills.ps1` mirrors it byte-for-byte into the git-ignored `.kilo/skills/`, which Kilo
+discovers as a project config directory; `scripts/verify-skills.ps1` fails when the two differ.
 
 - Migration: `cross-platform-guide`, `wasm-emscripten`, `win64-port-playbook` (in `.claude/skills`)
 - Game loop: `game-dev-loop`, `game-gdd-writing`, `game-build-verification`, `game-debug`

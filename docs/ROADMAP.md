@@ -24,7 +24,7 @@ Evidence captured 2026-10-26 from this working tree. Facts are in §1–§2; mil
 | Toolchain (environment, not repo) | git 2.25.0, node 24.19.0, uv 0.12.13, bare python 2.7.16 (`py` launcher 3.14.4); `emcc`, `em++`, `scons`, `cmake` missing; `gh` present; VS2022 Professional and MSBuild present; VS2010 and DirectX SDK June 2010 not found at the checked/default locations | `Get-Command`; `vswhere` |
 | Root repo state | scaffold committed on `main`; pristine submodule recorded at `doom3_orig/doom3`; per-target copies live under `targets/` and are git-ignored | `git log --oneline`; `git submodule status` |
 | CI | `.github/` absent; no workflow files; `gh` installed but no workflow to list | listing |
-| Spec-kit / skills | 14 skills in `.kilo/skills/`; 10 `/speckit.*` commands in `.kilo/command/`; `.specify/memory/constitution.md` is still the unfilled template | `docs/SKILLS.md`; listing |
+| Spec-kit / skills | 25 skills in `.claude/skills/` (tracked: 14 project skills, `win64-port-playbook`, 10 generated `speckit-*`), mirrored into the git-ignored `.kilo/skills/`; 10 `/speckit.*` commands in `.kilo/command/` (`generic`) and the same flow as `/speckit-*` skills (`claude`); `.specify/memory/constitution.md` is filled | `docs/SKILLS.md`; `scripts/verify-skills.ps1`; `specify integration status` |
 | Engine analysis notes | `doom3_orig/doc/*.md` (6 files, ~264 KB: overview/metrics, platform, renderer, scripting, AI, build/deps), read-only analysis of the pristine tree; paths normalised to `doom3_orig/doom3/` | directory listing |
 
 **Unknowns, not facts:** peak engine memory and working set in WASM; browser/GPU performance envelope; whether the 2011 VS2010 solution builds under modern MSVC; the exact retail asset/pak layout relative to `fs_basepath`; the current Emscripten GL/Asyncify/pthread support matrix (emcc is not installed); which demo files retail data contains and how deterministic they are across builds.
@@ -124,7 +124,7 @@ Paths below point at the pristine submodule (`doom3_orig/doom3`) because that is
 | Goal | Make the browser client operable: keyboard, mouse look, gamepad, audio, and menus. |
 | Exit criteria | Pointer Lock acquires and releases cleanly; keyboard/mouse mappings match the native defaults; gamepad polling works; audio resumes after a user gesture and plays a known cue; menus navigate by keyboard and mouse; a Playwright end-to-end test passes with no console errors. |
 | Main risks | DirectInput mapping; browser gesture/autoplay rules; EAX has no Web Audio equivalent; latency; focus loss; DPI/scaling; pointer-lock UX. |
-| First command | `uv run --python 3.12 .kilo/skills/webapp-testing/scripts/with_server.py --help` |
+| First command | `uv run --python 3.12 .claude/skills/webapp-testing/scripts/with_server.py --help` |
 | Spec-kit driver | `/speckit.tasks` → `/speckit.implement` |
 | Installed skill | `webapp-testing`; supporting `cross-platform-guide`, `game-debug` |
 | Owner | worker |

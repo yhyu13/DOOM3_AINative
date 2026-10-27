@@ -42,6 +42,10 @@ git check-ignore -q .kilo/worktrees; if (-not $?) { Add-Content .git\info\exclud
 - Specification artifacts come from spec-kit: `/speckit.specify` → `/speckit.plan` →
   `/speckit.tasks`, with `/speckit.clarify`, `/speckit.analyze`, `/speckit.checklist`
   as optional gates. `/speckit.taskstoissues` turns `tasks.md` into the issue set.
+- Two integrations are installed and both drive the same `.specify/scripts/powershell/*.ps1`:
+  `generic` writes `.kilo/command/speckit.*.md` (Kilo, `/speckit.specify`), `claude` writes
+  `.claude/skills/speckit-*/SKILL.md` (Claude Code, `/speckit-specify`). `generic` stays the
+  default; installing or updating the Claude side does not touch the Kilo commands.
 
 ## 2. Roles and handoff artifacts
 
