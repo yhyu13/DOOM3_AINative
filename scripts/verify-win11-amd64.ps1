@@ -8,10 +8,12 @@
   .\scripts\verify-win11-amd64.ps1 -DataDir <data-root>\run
 #>
 [CmdletBinding()]
-param([string]$DataDir = $env:D3_DATA_DIR, [switch]$SkipSmoke)
+param([string]$DataDir = $env:D3_DATA_DIR, [string]$Exe, [switch]$SkipSmoke)
 $ErrorActionPreference = 'Continue'
 $repo = Split-Path -Parent $PSScriptRoot
-$exe = Join-Path $repo 'targets\win11-amd64\build\Release\DOOM3.exe'
+. (Join-Path $PSScriptRoot '_common.ps1')
+if (-not $Exe) { $Exe = Resolve-Doom3Exe -Repo $repo }
+$exe = $Exe
 $results = New-Object System.Collections.Generic.List[object]
 function Add-Result($id, $status, $detail) { $results.Add([pscustomobject]@{ Id = $id; Status = $status; Detail = $detail }); Write-Host ("{0,-8} {1,-8} {2}" -f $id, $status, $detail) }
 
@@ -69,7 +71,7 @@ elseif (-not (Test-Path -LiteralPath $exe)) { Add-Result 'SC-003' 'FAIL' 'no exe
 elseif (-not $DataDir -or -not (Test-Path -LiteralPath $DataDir)) { Add-Result 'SC-003' 'SKIPPED' 'no game data dir (set -DataDir or D3_DATA_DIR)' }
 else {
     $out = Join-Path $repo 'targets\win11-amd64\build\smoke'
-    & (Join-Path $repo 'scripts\smoke-win11-amd64.ps1') -DataDir $DataDir -OutDir $out
+    & (Join-Path $repo 'scripts\smoke-win11-amd64.ps1') -DataDir $DataDir -Exe $exe -OutDir $out
     $code = $LASTEXITCODE
     Add-Result 'SC-003' ($(if ($code -eq 0) { 'PASS' } else { 'FAIL' })) "smoke exit $code, shot $out\screenshot.png"
 }

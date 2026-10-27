@@ -57,11 +57,20 @@ Do not rewrite the global credential helper; never put a token in a tracked file
    `fix`, `chore`, `docs`), branching from `origin/main` into `.kilo/worktrees/<kind>-<N>-<slug>`.
    Exit `2` = submodule init failed; run `git -C <worktree> submodule update --init --recursive`.
 3. **Enter it:** `git status --short` and `git rev-parse --show-toplevel` must agree on the worktree.
-4. **Create the target copy:** `.\scripts\new-target.ps1 -Name win11-amd64` (git-ignored, never shared).
-5. **Apply the tracked patch:** `.\scripts\apply-target-patches.ps1 -Name win11-amd64`. A fresh copy
-   is pristine and will not build for x64 until this runs.
-6. **Build** from `targets/win11-amd64` with the CMake preset: `cmake --preset win11-amd64 .` then
-   `cmake --build build --config Release`; output is `build/Release/DOOM3.exe`.
+4. **Configure from the repository root:** `cmake --preset win11-amd64`. When the git-ignored target copy
+   is missing, configure creates it (`new-target.ps1`) and applies the tracked patch
+   (`apply-target-patches.ps1`), so a fresh worktree needs no separate copy step. Both scripts still
+   work by hand, and `-DDOOM3_BOOTSTRAP_TARGET=OFF` disables the automation.
+5. **Build:** `cmake --build --preset win11-amd64-release`; output is `build/bin/Release/DOOM3.exe`
+   (per worktree, git-ignored). The stand-alone build in `targets/win11-amd64` (`cmake --preset
+   win11-amd64 .`, output `build/Release/DOOM3.exe` under it) keeps working; the scripts find either
+   one, or take `-Exe` / `$env:D3_EXE`.
+   MSBuild passthrough is `-- -m` (Git Bash rewrites `-- /m` into a path). The same build also yields
+   `DOOM3XP.exe` (d3xp game code; needs retail RoE data to play, retail gameplay unverified; base game only
+   via `DOOM3.exe`). `run-win11-amd64.ps1` takes `-Game` (and defaults `fs_game` to `d3xp` for
+   `DOOM3XP.exe`).
+6. **Test targets:** `cmake --build build --target verify` and `--target smoke` run the evidence scripts
+   against the exe just built (they need `D3_DATA_DIR`).
 7. **Run and check:** `run-win11-amd64.ps1 -DataDir <data-root>\run -Build`,
    `smoke-win11-amd64.ps1 -DataDir <data-root>\run`, `verify-win11-amd64.ps1 -DataDir <data-root>\run`
    (all under `.\scripts\`). Supporting probes: `capture-window.ps1 -ProcessName DOOM3 -Out <file>.png`,

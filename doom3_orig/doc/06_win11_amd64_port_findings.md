@@ -22,7 +22,7 @@ Target toolchain (verified on this host):
   `sound/OggVorbis`, `openal` where noted: **1,340 engine files**.
 * Every count below comes from a script (§13), not from memory.
 * A **disposable copy** of `neo/` was made under
-  `C:\Users\1\AppData\Local\Temp\kilo\d3x64\` and patched there; the repository and the pristine
+  `<TEMP>\kilo\d3x64\` and patched there; the repository and the pristine
   submodule were not modified. The probe compiled with the real `cl.exe` above.
 * Probe flags mirror the project: `/EHsc /MT /W3 /DWIN32 /D_WINDOWS /D_CRT_SECURE_NO_DEPRECATE
   /D_CRT_NONSTDC_NO_DEPRECATE /DNDEBUG`, plus `__DOOM__ __DOOM_DLL__ ID_ENABLE_CURL=0`.
@@ -585,7 +585,7 @@ cl /nologo /c /EHsc /MT /DWIN32 /D_WINDOWS /D__DOOM__ /D__DOOM_DLL__ /DID_ENABLE
 ```
 
 Probe result logs (temp, not committed):
-`C:\Users\1\AppData\Local\Temp\kilo\d3x64\idlib_build4.log` (44 TUs, 0 errors) and
+`<TEMP>\kilo\d3x64\idlib_build4.log` (44 TUs, 0 errors) and
 `doomdll_build2.log` (197 TUs; 60 errors, all `win_input.cpp` before edit #7).
 
 ---

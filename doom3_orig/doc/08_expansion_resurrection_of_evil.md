@@ -274,7 +274,8 @@ add_executable(DOOM3
   `idGameLocal gameLocal; idGame *game = &gameLocal;` (`neo/game/Game_local.cpp:64-65`).
   This matches the README statement `targets/win11-amd64/README.md:47-48` ("statically linked
   (no `gamex86.dll` lookup)").
-* There is **no** `neo/d3xp` file in the build, and no `DOOM3XP` target.
+* (Historical, at the time of analysis.) There was no `neo/d3xp` file in the build and no `DOOM3XP` target.
+  **Update:** the root build now also produces `DOOM3XP.exe` - see section 8.
 
 ### 4.2 Why a runtime switch is not available in this build
 
@@ -329,7 +330,7 @@ Therefore the realistic choices are:
 5. **What you get.** With `d3xp/pak000.pk4` present, `HasD3XP()` is true, `fs_game=d3xp` makes
    `d3xp/` the first search path, `RunningD3XP()` is true, and the `DOOM3XP.exe` game module is
    the RoE one. The base `DOOM3.exe` is unchanged.
-6. **Compile risk.** The shared 64 files already carry the port's x64 edits: the patch manifest
+6. **Compile risk.** The shared files (see `targets/win11-amd64/patches/all-changes.manifest.txt`) already carry the port's x64 edits: the patch manifest
    lists `neo/d3xp/Game_local.cpp`, `gamesys/Event.{h,cpp}`, `gamesys/Class.cpp`,
    `script/*.cpp`, etc., and e.g. `neo/d3xp/gamesys/Event.h` in the target copy uses
    `intptr_t` for event args (`E_EVENT_SIZEOF_VEC`, `CopyArgs`, x64 comment). The two d3xp-only
@@ -519,3 +520,23 @@ Select-String -Path "$neo\d3xp\*.cpp","$neo\d3xp\*.h" -Pattern 'weapon_bloodston
 ```
 
 No game data, binaries or build output were written. This document is the only repository change.
+
+---
+
+## 8. Update: `DOOM3XP.exe` now exists (option A implemented)
+
+Status after the follow-up build work (observed with the free demo; no retail data available):
+
+* The root build (`cmake --build --preset win11-amd64-release`) produces `build/bin/Release/DOOM3.exe` and
+  `DOOM3XP.exe`. The 71 `neo/d3xp` TUs (`D3XP_SOURCES`, `_D3XP;CTF`, no `GAME_DLL`) are statically linked;
+  engine objects are compiled once and shared by both executables. All 71 TUs compiled and linked on the
+  first attempt; no engine or d3xp source change was needed.
+* d3xp code is really in the exe: cvars `g_grabberHoldSeconds` / `g_enableSlowmo` exist in `DOOM3XP.exe` and
+  are `Unknown command` in `DOOM3.exe`. `DOOM3.exe` still runs the base game only.
+* **Verified [V]:** build and link; start-up with `+set fs_game d3xp` and no d3xp data (the d3xp directory is
+  first in the search path; `+devmap d3xp/erebus1` falls back to the main menu with "Can't find map", no crash);
+  the demo map loads and the player spawns under the d3xp game code.
+* **Not verified [U]:** every retail Resurrection of Evil behaviour - menu, first map, save/load, the
+  grabber/artifact/new monsters, multiplayer CTF. It needs `d3xp/pak000.pk4` from a retail install.
+* `scripts/run-win11-amd64.ps1 -Exe <DOOM3XP.exe>` adds `+set fs_game d3xp` (override with `-Game`);
+  `scripts/test-d3xp.ps1 -Exe -DataDir -OutDir` automates the checks above.

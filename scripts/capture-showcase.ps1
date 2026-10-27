@@ -15,6 +15,7 @@
 param(
     [string]$DataDir = $env:D3_DATA_DIR,
     [string]$OutDir,
+    [string]$Exe,
     [string[]]$Scenes,
     [int]$Width = 1280,
     [int]$Height = 720
@@ -22,7 +23,8 @@ param(
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
 $repo = Split-Path -Parent $PSScriptRoot
-$exe = Join-Path $repo 'targets\win11-amd64\build\Release\DOOM3.exe'
+. (Join-Path $PSScriptRoot '_common.ps1')
+$exe = if ($Exe) { $Exe } else { Resolve-Doom3Exe -Repo $repo }
 if (-not $OutDir) { $OutDir = Join-Path $repo 'docs\media' }
 if (-not $DataDir -or -not (Test-Path $DataDir)) { Write-Host 'CAPTURE no data dir'; exit 9 }
 if (-not (Test-Path $exe)) { Write-Host "CAPTURE exe missing: $exe"; exit 3 }

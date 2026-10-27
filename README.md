@@ -24,7 +24,9 @@
 | Main menu, 3D levels, cinematics, HUD, stencil shadows | working (OpenGL ARB2 path) |
 | Sound | working (DirectSound stereo; verified audible) |
 | Free demo levels: Mars City 1 / 2, Mars City Underground | load and run |
-| Save games, demo recording, multiplayer, *Resurrection of Evil* | not yet — see [`targets/win11-amd64/README.md`](targets/win11-amd64/README.md) |
+| Save games, demo recording/playback | pointer serialisation fixed (`SAVEGAME_VERSION` 18; older saves are rejected with a warning); save/load round trip and a demo record observed with the free demo — details in [`targets/win11-amd64/README.md`](targets/win11-amd64/README.md) |
+| Multiplayer | a two-instance loopback join (listen server + `connect 127.0.0.1`) reached in-game and survived a map restart; real MP gameplay, x86 interop, >2 clients and internet play are **not** verified |
+| `DOOM3XP.exe` (*Resurrection of Evil* game code, built by the same root build, statically linked) | builds, boots and runs the demo map; it needs the **retail** d3xp data (`d3xp/pak000.pk4`) to play the expansion and start it with `+set fs_game d3xp` (`run-win11-amd64.ps1` does that for you). **Retail RoE gameplay is unverified.** `DOOM3.exe` runs the base game only |
 | Web (WebAssembly / WebGL2) port, AI modding layer | planned — [`docs/ROADMAP.md`](docs/ROADMAP.md) |
 
 ## Play it yourself
@@ -35,14 +37,15 @@ redistribution). Game data is never stored in this repository.
 
 ```powershell
 git clone --recurse-submodules <repo-url> DOOM3_AINative; cd DOOM3_AINative
-.\scripts\new-target.ps1 -Name win11-amd64              # copy of the pristine source
-.\scripts\apply-target-patches.ps1 -Name win11-amd64    # the x64 port (59 files, hash-verified)
-cd targets\win11-amd64; cmake --preset win11-amd64 .; cmake --build build --config Release -- /m
+cmake --preset win11-amd64                              # first run copies the pristine source and applies the x64 port (file list: targets/win11-amd64/patches/all-changes.manifest.txt; hash-verified)
+cmake --build --preset win11-amd64-release              # -> build\bin\Release\DOOM3.exe
 # extract demo00.pk4 from D3Demo.exe yourself, then:
 .\scripts\prepare-demo-data.ps1 -Pk4 <path>\demo00.pk4 -RunDir <data-root>\run
 .\scripts\run-win11-amd64.ps1 -DataDir <data-root>\run  # loads Mars City, takes a screenshot
 .\scripts\verify-win11-amd64.ps1 -DataDir <data-root>\run   # 6 checks: PE, size, patches, menu+map smoke, audio
 ```
+
+Notes: MSBuild switches passed after `--` must use a dash (`-- -m`, not `-- /m`): Git Bash rewrites `/m` into a path. New engine console commands for diagnosis: `sys_cpuInfo`, `sys_fpuState`, `sys_stackTrace`. Engine tests (each takes `-Exe -DataDir -OutDir`; the net test also `-Port`): `scripts/test-cpu-fpu-trace.ps1`, `test-savegame-demo.ps1`, `test-net-loopback.ps1`, `test-d3xp.ps1`. To run the expansion binary: `.\scripts\run-win11-amd64.ps1 -Exe build\bin\Release\DOOM3XP.exe -DataDir <data-root>\run` (adds `+set fs_game d3xp`; override with `-Game`).
 
 Contributing (humans and AI agents): read [`CONTRIBUTING.md`](CONTRIBUTING.md) first.
 

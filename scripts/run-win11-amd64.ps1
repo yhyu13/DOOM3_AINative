@@ -15,24 +15,32 @@ param(
     [string]$Map = 'game/demo_mars_city1',
     [int]$WaitSec = 80,
     [string]$OutDir,
+    [string]$Exe,
+    [string]$Game = '',   # optional +set fs_game <Game>; DOOM3XP.exe defaults to d3xp
     [switch]$Build
 )
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
 $tgt = Join-Path $repo 'targets\win11-amd64'
-$exe = Join-Path $tgt 'build\Release\DOOM3.exe'
+. (Join-Path $PSScriptRoot '_common.ps1')
+$exe = $Exe
 if (-not $OutDir) { $OutDir = Join-Path $tgt 'build\run' }
 Get-Process DOOM3 -ErrorAction SilentlyContinue | Stop-Process -Force
 if ($Build) {
     $cmake = Join-Path ${env:ProgramFiles} 'Microsoft Visual Studio\2022\Professional\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe'
     if (-not (Test-Path $cmake)) { $cmake = 'cmake' }
-    & $cmake --build (Join-Path $tgt 'build') --config Release -- /m /v:q /clp:ErrorsOnly
+    $buildDir = if (Test-Path (Join-Path $repo 'build\CMakeCache.txt')) { Join-Path $repo 'build' } else { Join-Path $tgt 'build' }
+    if (-not $Exe) { $exe = if ($buildDir -eq (Join-Path $repo 'build')) { Join-Path $buildDir 'bin\Release\DOOM3.exe' } else { Join-Path $buildDir 'Release\DOOM3.exe' } }
+    & $cmake --build $buildDir --config Release -- -m -v:q -clp:ErrorsOnly
     if ($LASTEXITCODE -ne 0) { Write-Host "RUN build failed ($LASTEXITCODE)"; exit 1 }
 }
+if (-not $exe) { $exe = Resolve-Doom3Exe -Repo $repo }
 if (-not (Test-Path -LiteralPath $exe)) { Write-Host "RUN exe missing: $exe"; exit 3 }
 if (Test-Path $OutDir) { Remove-Item $OutDir -Recurse -Force }
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 $a = @('+set', 'logFile', '2', '+set', 'r_fullscreen', '0', '+set', 'fs_savepath', (Join-Path $OutDir 'save'))
+if (-not $Game -and $exe -and (Split-Path -Leaf $exe) -ieq 'DOOM3XP.exe') { $Game = 'd3xp' }
+if ($Game) { $a += @('+set', 'fs_game', $Game) }
 if ($DataDir) { $a += @('+set', 'fs_basepath', $DataDir) }
 if ($Map) { $a += @('+devmap', $Map) }
 $p = Start-Process -FilePath $exe -ArgumentList $a -PassThru

@@ -33,6 +33,16 @@ are in `THIRD_PARTY_NOTICES.md`. Game data is not covered and must not be commit
   integration and PowerShell scripts.
 - `.kilo/skills/` — 14 project-local skills (12 from the user's skill vault, 2 vendored from
   upstream MIT repositories). Real files, not junctions, so worktrees and CI get the same skills.
+- `CMakeLists.txt`, `CMakePresets.json` — root build entry: `cmake --preset win11-amd64` (creates and
+  patches the git-ignored target copy on first run) then `cmake --build --preset win11-amd64-release`;
+  output `build/bin/Release/DOOM3.exe` and `build/bin/Release/DOOM3XP.exe` (d3xp game code statically
+  linked; needs retail RoE data to play, runs the base game only via `DOOM3.exe`; retail RoE gameplay is
+  unverified). `build/` is per worktree and git-ignored. Pass MSBuild switches as `-- -m` (Git Bash
+  mangles `-- /m`).
+- Engine diagnostics added by the port: console commands `sys_cpuInfo`, `sys_fpuState`, `sys_stackTrace`;
+  `SAVEGAME_VERSION` is 18 (older saves are rejected with a warning). Tests (`-Exe -DataDir -OutDir`,
+  net test also `-Port`): `scripts/test-cpu-fpu-trace.ps1`, `test-savegame-demo.ps1`,
+  `test-net-loopback.ps1`, `test-d3xp.ps1`.
 - `scripts/` — workflow helpers (worktrees, target copies, skill verification).
 
 ## Non-negotiables
@@ -93,6 +103,9 @@ with `scripts/new-target.ps1 -Name <target>` instead of copying them between wor
 directories, caches, and ports must be derived from `WORKTREE_PATH`; never share them.
 
 ## Skills
+
+Note: this branch predates the `.claude/skills` single-tree layout on `main` (14 skills in `.kilo/skills`
+plus `win64-port-playbook` in `.claude/skills`); the statements below describe this branch.
 
 Project skills live at `.kilo/skills/<name>/SKILL.md`. They mirror the user's global vault at
 `~/.kilo/skills`; the project copy is authoritative inside this repository. The stage map, source

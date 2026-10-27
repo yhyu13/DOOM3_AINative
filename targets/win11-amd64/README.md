@@ -15,16 +15,39 @@ directory and the patch files are tracked.
 
 ## Configure and build
 
+Most developers should build from the repository root instead (`cmake --preset win11-amd64`,
+then `cmake --build --preset win11-amd64-release`; output `build/bin/Release/DOOM3.exe`). The
+root configure creates and patches the target copy for you. The stand-alone flow below remains
+supported.
+
 From this directory, with the bundled CMake (or any CMake >= 3.20 on `PATH`):
 
 ```powershell
-$cmake = 'C:\Program Files\Microsoft Visual Studio\2022\Professional\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe'
+$cmake = Join-Path $env:ProgramFiles 'Microsoft Visual Studio\2022\Professional\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe'
 & $cmake --preset win11-amd64 .
-& $cmake --build build --config Release -- /m
+& $cmake --build build --config Release -- -m
 ```
+
+MSBuild switches after `--` use a dash (`-m`): Git Bash rewrites `/m` into a path, so `-- /m` is silently mangled there.
 
 Output: `build/Release/DOOM3.exe` (x64, `/MT`, 16 MB stack). The build directory is
 git-ignored by the repository-level `.gitignore` (`targets/*/build/`).
+
+## DOOM3XP.exe (Resurrection of Evil game code)
+
+The same build also produces `DOOM3XP.exe`: the 71 `neo/d3xp` game TUs (`D3XP_SOURCES` in
+`sources.cmake`, compiled with `_D3XP;CTF`) are statically linked, with the engine objects shared with
+`DOOM3.exe` (OBJECT libraries `doom3_engine`, `doom3_game_base`, `doom3_game_d3xp`). No engine or game
+source change was needed for it. Both executables are x64 (PE machine `0x8664`).
+
+- `DOOM3.exe` runs the base game only; the d3xp code is only in `DOOM3XP.exe`
+  (`g_grabberHoldSeconds` exists only there).
+- Playing the expansion needs the **retail** d3xp data (`d3xp/pak000.pk4`) and `+set fs_game d3xp`;
+  `scripts/run-win11-amd64.ps1` adds that automatically for `-Exe ...DOOM3XP.exe` (or use `-Game`).
+- Verified: it builds and links; it boots with the free demo data; with `+set fs_game d3xp` and no d3xp
+  data the engine falls back to the main menu without a crash; the demo map loads and spawns the player
+  under the d3xp game code. **Not verified:** any retail RoE content (menu, first map, save/load,
+  expansion-only monsters/weapons) - no retail data was available.
 
 ## Source lists
 
@@ -90,16 +113,30 @@ The two shims exist because the 2011 GPL code expects `guis/mainmenu.gui` and a
 `git apply -p2`-able patch against the pristine tree) and `all-changes.manifest.txt`
 (status, path, SHA-256). `verify-win11-amd64.ps1` re-applies it to a fresh copy and compares hashes.
 
-## Known open defects (x64 port is a baseline, not finished)
+## Known state and open items (x64 port is a baseline, not finished)
 
-- Save games: `sound/snd_world.cpp` `WriteInt((int)ch->soundShader)` style pointer writes and other
-  pointer-to-int serialisation are not x64-safe; saving/loading is untested.
-- `Sys_GetCallStack`, x87 FPU state queries and the crash dialog are x64 stubs.
-- Networking/multiplayer and the retail `d3xp` expansion were not exercised (see `doom3_orig/doc/07_*` and `08_*`).
-- Sound: DirectSound stereo output verified audible with `scripts/audio-peak.ps1`; it only plays while the window has focus.
-- Fonts/GUI cache (`.gui` binary cache) round-trip of 8-byte `wexpOp_t` is untested.
-- Demo recording/playback (`recordDemo`/`playDemo`): `renderer/RenderWorld_demo.cpp` and `renderer/GuiModel.cpp`
-  serialise pointers as 32-bit and read them into 8-byte members; playback will corrupt them. Not exercised.
-- Event save format: `idEventArg` slots widened to pointer size without a save-game version bump; x64 saves are
-  incompatible with 32-bit saves.
+Fixed in this round (observed with the free demo unless noted):
+
+- Save games / demos: `(int)ptr` serialisation in `sound/snd_world.cpp` and
+  `renderer/RenderWorld_demo.cpp` replaced by an explicit 32-bit presence flag. `SAVEGAME_VERSION` is now
+  **18**; an older save is rejected with a "Savegame Version mismatch" warning (no crash). Save then
+  `loadgame` in a new process, and `recordDemo`, were exercised (`scripts/test-savegame-demo.ps1`).
+- CPU / FPU / stack traces: new console commands `sys_cpuInfo`, `sys_fpuState`, `sys_stackTrace`;
+  `Sys_GetCallStack` and the FPU state functions are real x64 implementations, and fatal errors log a
+  stack trace (`scripts/test-cpu-fpu-trace.ps1`).
+- Networking: SOCKET widths widened, and `idPlayer::ExitCinematic` no longer crashes on a map restart.
+  A two-instance loopback join (listen server + `connect 127.0.0.1:<port>`, `si_pure 0`) reached the
+  in-game state and a clean restart (`scripts/test-net-loopback.ps1 -Port`).
+
+Tests (each takes `-Exe -DataDir -OutDir`; the net test also `-Port`; they exist as delivered):
+`scripts/test-cpu-fpu-trace.ps1`, `test-savegame-demo.ps1`, `test-net-loopback.ps1`, `test-d3xp.ps1`.
+
+Still open:
+
+- Multiplayer gameplay on a real MP map, x64<->x86 interop, more than 2 clients, internet/master path,
+  `si_pure 1`, packet loss: not verified. Retail `d3xp` gameplay: not verified.
+- Event save format: `idEventArg` slots widened to pointer size; x64 saves are not compatible with
+  32-bit saves (the version bump makes the loader refuse older files rather than misread them).
+- Sound: DirectSound stereo output verified audible with `scripts/audio-peak.ps1`; it only plays while
+  the window has focus.
 - Cached binary `.gui` expression ops (`wexpOp_t.a`) are read as 32-bit and re-fixed after load; untested.

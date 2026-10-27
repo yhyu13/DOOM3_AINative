@@ -2,9 +2,9 @@
 
 - **Reviewer role**: independent (did not write this change). Read-only: no file in the worktree was
   edited; the only write is this report.
-- **Worktree**: `D:\git-repo-ai\DOOM3_AINative\.kilo\worktrees\feat-1-win11-amd64-native-build`
+- **Worktree**: `<worktree>`
   (branch `feat/1-win11-amd64-native-build`, HEAD `09b6e7d docs: x64 port findings (#1)`).
-- **Pristine**: `D:\git-repo-ai\DOOM3_AINative\doom3_orig\doom3`
+- **Pristine**: `<repo-root>\doom3_orig\doom3`
 - **Target copy**: `targets\win11-amd64\doom3` (git-ignored, created by `scripts/new-target.ps1`)
 - **Date**: 2026-10-26
 
@@ -229,3 +229,38 @@ does), or add demo playback to the open-defect list with a one-line rationale.
 - No rebuild was performed (per instructions); `run`/`smoke` evidence was taken as-is.
 - Save/load and demo paths were analysed statically (no savegame was produced in the worktree).
 - `Sys_FPU_SetRounding` relies on `_controlfp_s` also updating MXCSR on x64; not probed at runtime.
+
+## Re-review (2026-10-27, after the setup stage and the engine follow-ups)
+
+Run by a multi-agent workflow (implementers in sandboxes, an integrator, per-feature verifiers
+that ran alone, and three reviewers with different lenses). Not a substitute for a fresh review of
+the committed diff (T043).
+
+Corrections to this report's earlier claims:
+- Item 6 above ("`git grep` for `D:\` / `C:\Users` -> none") was wrong at the time: this file and
+  `doom3_orig/doc/06_win11_amd64_port_findings.md` held machine paths. They are now replaced by
+  placeholders (`<repo-root>`, `<worktree>`, `<TEMP>`).
+- The patch no longer touches 59 files: it touches 66 (see `patches/all-changes.manifest.txt`).
+
+Findings from the re-review and their disposition:
+
+| # | Finding | Disposition |
+|---|---|---|
+| 1 | Sound save read left the placeholder pointer 1 in `leadinSample/soundShader/decoder` | fixed: `PtrFlag_Read` returns a bool, pointers stay NULL; restored channels get a decoder (the first fix guarded the allocation with the wrong condition, corrected afterwards) |
+| 2 | `Sym_Lock` not re-entrant (an Error raised while symbolising would spin) | fixed: owner thread id, raw-address fallback, thread-local buffers |
+| 3 | AVX reported without an OSXSAVE/XGETBV check; FIP/FDP truncated in `sys_fpuState` | fixed |
+| 4 | `GuiModel.cpp` still wrote a truncated material pointer | fixed (presence flag, same 4-byte slot) |
+| 5 | T062 playback check was vacuous (frame was the main menu) | fixed: shots must be taken while the log shows playback running, must have >2000 colours, differ from the menu and from each other |
+| 6 | T065 baseline negative control unverified | run: the pre-fix exe crashes after "Game Map Restart" (0xC0000005), the fixed exe does not |
+| 7 | `apply-target-patches.ps1` exited 0 when the patch was missing | fixed (exit 2) |
+| 8 | Docs said "no DOOM3XP target", "59 files", `-- /m` | fixed |
+| 9 | Test scripts lived only in a scratch directory | moved to `scripts/test-*.ps1` |
+| 10 | Mixed line endings in 3 engine files (LF-only inserted lines) | open, cosmetic (adds noise to the patch) |
+| 11 | `smoke`, `run`, `capture-showcase` still kill `DOOM3` by name | open: unsafe if two engines run at once; documented |
+| 12 | Default exe lookup in a worktree can pick a stale stand-alone build when the root build is elsewhere | open: use `-Exe` / `$env:D3_EXE`; a stale exe produced a misleading failure during this session |
+| 13 | Branch is behind `main` (skills layout changed in PR #7) | open: T078 |
+| 14 | Interrupted-copy replacement path in the root CMake was never executed | open: T077 |
+
+A/B evidence worth keeping: with sound enabled, the pre-fix exe fails demo playback with
+`ERROR: Bad render demo token` and writes save version 17; the fixed exe passes the full
+save/load/record/play cycle (`scripts/test-savegame-demo.ps1 -Sound`).
