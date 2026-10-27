@@ -1,12 +1,57 @@
 # DOOM3_AINative
 
-An AI-native workspace for migrating **DOOM 3** (idTech4, C++, OpenGL) to the web, and for running
-the port as an agent-driven engineering loop: spec → worktree → PR → independent review → evidence.
+**DOOM 3 running natively on Windows 11 x64, built from the 2011 GPL source — and a workspace for taking it to the web and making it moddable by AI agents.**
 
-**Status: scaffold.** No port code yet. The engine source is a pristine submodule; each migration
-target works on its own copy under `targets/`. Milestones and exit criteria live in
-[`docs/ROADMAP.md`](docs/ROADMAP.md).
+![Mars City control room, rendered by the x64 engine](docs/media/01-mars-city-control-room.jpg)
 
+<sub>Frames below are real output of this repository's x64 build (`DOOM3.exe`, 1280×720) running the free official demo — captured by the engine's own `screenshot` command (`scripts/capture-showcase.ps1`).
+<br><sub>Screenshots show artwork from the DOOM 3 demo, © id Software / ZeniMax Media, included here only to document this port's output. They are not covered by this repository's GPL licence; if you are a rights holder and object, open an issue and they will be removed.</sub>
+
+| | |
+|---|---|
+| ![Dropship briefing terminal](docs/media/02-dropship-briefing-terminal.jpg) | ![Marines in the briefing room](docs/media/03-marines-closeup.jpg) |
+| *Opening: the dropship briefing terminal* | *Cinematic: Sergeant Kelly's squad* |
+| ![First-person view with objective HUD](docs/media/04-first-person-hud-objective.jpg) | ![Underground hangar](docs/media/05-underground-hangar.jpg) |
+| *In game: HUD and "New Objective" overlay* | *Mars City Underground: the hangar* |
+
+![Underground pipes](docs/media/06-underground-pipes.jpg)
+
+## What works today
+
+| | State |
+|---|---|
+| Native x64 build (VS2022, CMake, no MFC / DirectX SDK) | working, `DOOM3.exe` ≈ 16 MB |
+| Main menu, 3D levels, cinematics, HUD, stencil shadows | working (OpenGL ARB2 path) |
+| Sound | working (DirectSound stereo; verified audible) |
+| Free demo levels: Mars City 1 / 2, Mars City Underground | load and run |
+| Save games, demo recording, multiplayer, *Resurrection of Evil* | not yet — see [`targets/win11-amd64/README.md`](targets/win11-amd64/README.md) |
+| Web (WebAssembly / WebGL2) port, AI modding layer | planned — [`docs/ROADMAP.md`](docs/ROADMAP.md) |
+
+## Play it yourself
+
+You need Windows 11, Visual Studio 2022 (C++ workload, Windows SDK 10.0.26100) and the **free** official
+DOOM 3 demo installer (`D3Demo.exe`, id Software 2004 — licence: free non-commercial use, no modification or
+redistribution). Game data is never stored in this repository.
+
+```powershell
+git clone --recurse-submodules <repo-url> DOOM3_AINative; cd DOOM3_AINative
+.\scripts\new-target.ps1 -Name win11-amd64              # copy of the pristine source
+.\scripts\apply-target-patches.ps1 -Name win11-amd64    # the x64 port (59 files, hash-verified)
+cd targets\win11-amd64; cmake --preset win11-amd64 .; cmake --build build --config Release -- /m
+# extract demo00.pk4 from D3Demo.exe yourself, then:
+.\scripts\prepare-demo-data.ps1 -Pk4 <path>\demo00.pk4 -RunDir <data-root>\run
+.\scripts\run-win11-amd64.ps1 -DataDir <data-root>\run  # loads Mars City, takes a screenshot
+.\scripts\verify-win11-amd64.ps1 -DataDir <data-root>\run   # 6 checks: PE, size, patches, menu+map smoke, audio
+```
+
+Contributing (humans and AI agents): read [`CONTRIBUTING.md`](CONTRIBUTING.md) first.
+
+## About this workspace
+
+An AI-native workspace for migrating **DOOM 3** (idTech4, C++, OpenGL) to the web, and for running the
+port as an agent-driven engineering loop: spec → worktree → PR → independent review → evidence.
+The engine source is a pristine submodule; each migration target works on its own copy under `targets/`.
+Milestones and exit criteria live in [`docs/ROADMAP.md`](docs/ROADMAP.md).
 ## What is in the box
 
 | Path | Contents |
@@ -17,9 +62,12 @@ target works on its own copy under `targets/`. Milestones and exit criteria live
 | `.specify/` | GitHub spec-kit infrastructure (templates, PowerShell scripts, constitution) |
 | `.kilo/command/` | `/speckit.*` slash commands (constitution, specify, clarify, plan, tasks, analyze, implement, converge, checklist, taskstoissues) |
 | `.kilo/skills/` | 14 project-local skills (game dev, debugging, review, browser testing, C++→WASM) |
+| `.claude/skills/` | Port know-how: `win64-port-playbook` (Windows x64 bring-up, debugging loop, bug catalogue) |
 | `.kilo/setup-script.ps1` | Initialises the submodule in every Agent Manager worktree |
 | `docs/` | Workflow, skills inventory, roadmap |
-| `scripts/` | Worktree helpers, target copies, skill verifier |
+| `scripts/` | Worktree helpers, target copies, win11-amd64 build/verify/smoke/capture scripts, skill verifier |
+| `targets/win11-amd64/` | CMake build, patch set and README for the native Windows 11 x64 port |
+| `docs/media/` | Screenshots rendered by the x64 engine (see above) |
 
 ## Quick start
 
@@ -58,7 +106,7 @@ mechanics, scripts, and red lines: [`docs/GIT_WORKFLOW.md`](docs/GIT_WORKFLOW.md
 The project ships real copies of the skills it depends on, so a fresh worktree or a CI agent gets
 the same behaviour without the user's global vault. Each skill is a directory with a `SKILL.md`.
 
-- Migration: `cross-platform-guide`, `wasm-emscripten`
+- Migration: `cross-platform-guide`, `wasm-emscripten`, `win64-port-playbook` (in `.claude/skills`)
 - Game loop: `game-dev-loop`, `game-gdd-writing`, `game-build-verification`, `game-debug`
 - Engineering: `software-dev-loop`, `tdd`, `systematic-debugging`, `code-review`, `prompt-pro`
 - Verification and delivery: `verification-before-completion`, `webapp-testing`, `using-git-worktrees`

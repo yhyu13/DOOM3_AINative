@@ -32,7 +32,7 @@ Legend: [P] parallel-safe (disjoint files). Status: TODO / DOING / DONE / BLOCKE
 ## Phase 4 - Review and ship
 - [x] T040 Self-review of spec/plan/tasks consistency
 - [x] T041 Independent code-review (subagent, `code-review` skill pinned origin/main...HEAD)
-- [ ] T042 PR (draft -> ready) with evidence block
+- [x] T042 PR #4 opened as draft with evidence block
 
 ## Deferred (P2, optional)
 - [ ] T050 Real x64 CPUID/FPU flags and stack traces (doc06 T14)
@@ -45,3 +45,4 @@ Legend: [P] parallel-safe (disjoint files). Status: TODO / DOING / DONE / BLOCKE
 - [x] T064 Sound: DirectSound path verified audible (audio-session peak 0.92-1.21 while focused); smoke now asserts audio. Silence seen earlier was an unfocused window, not an engine bug
 - [ ] T065 Networking: loopback 2-instance join (see doom3_orig/doc/07_networking_assessment.md)
 - [ ] T066 d3xp executable (see doom3_orig/doc/08_expansion_resurrection_of_evil.md); needs retail data to verify
+- [x] T067 Root README with in-game showcase (docs/media), CONTRIBUTING.md, .claude/skills/win64-port-playbook (+ kilo.json skills.paths)
