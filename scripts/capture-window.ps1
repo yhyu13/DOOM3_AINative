@@ -4,10 +4,13 @@
   Screenshot the main window of a running process (topmost, DPI-aware).
 .EXAMPLE
   .\scripts\capture-window.ps1 -ProcessName DOOM3 -Out targets\win11-amd64\build\shot.png
+.EXAMPLE
+  .\scripts\capture-window.ps1 -ProcessId 1234 -Out targets\win11-amd64\build\shot.png
 #>
 [CmdletBinding()]
 param(
     [string]$ProcessName = 'DOOM3',
+    [int]$ProcessId = 0,
     [Parameter(Mandatory = $true)][string]$Out
 )
 $ErrorActionPreference = 'Stop'
@@ -38,8 +41,20 @@ public static class CapW {
 }
 "@
 [void][CapW]::SetProcessDPIAware()
-$proc = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
-if (-not $proc) { Write-Host "CAPTURE no window for process '$ProcessName'"; exit 5 }
+$label = if ($ProcessId -gt 0) { "pid $ProcessId" } else { "process '$ProcessName'" }
+$proc = $null
+$deadline = [DateTime]::UtcNow.AddSeconds(15)
+while ([DateTime]::UtcNow -lt $deadline) {
+    if ($ProcessId -gt 0) {
+        $proc = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
+    } else {
+        $proc = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
+    }
+    if ($proc) { break }
+    if ($ProcessId -gt 0 -and -not (Get-Process -Id $ProcessId -ErrorAction SilentlyContinue)) { break }
+    Start-Sleep -Milliseconds 500
+}
+if (-not $proc) { Write-Host "CAPTURE no window for $label"; exit 5 }
 $h = $proc.MainWindowHandle
 [void][CapW]::SetWindowPos($h, [IntPtr](-1), 0, 0, 0, 0, 0x0043)   # HWND_TOPMOST | NOSIZE | NOMOVE | SHOWWINDOW
 [void][CapW]::Focus($h)   # DirectSound mutes unfocused windows, so audio checks need real focus

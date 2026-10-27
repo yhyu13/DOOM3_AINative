@@ -5,17 +5,23 @@
 .DESCRIPTION
   Writes targets/<Name>/patches/all-changes.patch (git diff --no-index per changed file, a/ b/ paths
   relative to neo/..) and all-changes.manifest.txt (status, path, SHA-256). Reviewable form of FR-007.
+  -OutDir writes both files elsewhere, so a verifier can avoid overwriting the tracked copies.
+  The patch reproduces modified files only; added and deleted files are manifest rows, warned about
+  here and refused by apply-target-patches.ps1 unless the caller accepts an incomplete copy.
   Exit 0 = exported, 2 = environment error.
 .EXAMPLE
   .\scripts\export-target-patches.ps1 -Name win11-amd64
+.EXAMPLE
+  .\scripts\export-target-patches.ps1 -Name win11-amd64 -OutDir $env:TEMP\d3patches
 #>
 [CmdletBinding()]
-param([Parameter(Mandatory = $true)][string]$Name)
+param([Parameter(Mandatory = $true)][string]$Name, [string]$OutDir)
 $ErrorActionPreference = 'Stop'
+trap { Write-Host "ERROR $($_.Exception.Message)" -ForegroundColor Red; exit 2 }
 $repo = Split-Path -Parent $PSScriptRoot
 $src = Join-Path $repo 'doom3_orig\doom3'
 $dst = Join-Path $repo "targets\$Name\doom3"
-$out = Join-Path $repo "targets\$Name\patches"
+$out = if ($OutDir) { $OutDir } else { Join-Path $repo "targets\$Name\patches" }
 if (-not (Test-Path -LiteralPath (Join-Path $src 'neo'))) { Write-Host 'ERROR: pristine missing' -ForegroundColor Red; exit 2 }
 if (-not (Test-Path -LiteralPath (Join-Path $dst 'neo'))) { Write-Host 'ERROR: target missing' -ForegroundColor Red; exit 2 }
 New-Item -ItemType Directory -Force -Path $out | Out-Null
@@ -48,8 +54,12 @@ function Invoke-GitBytes([string]$WorkDir, [string[]]$GitArgs) {
     $proc = [System.Diagnostics.Process]::Start($psi)
     $ms = New-Object System.IO.MemoryStream
     $proc.StandardOutput.BaseStream.CopyTo($ms)
-    [void]$proc.StandardError.ReadToEnd()
+    $err = $proc.StandardError.ReadToEnd()
     $proc.WaitForExit()
+    # git diff --no-index exits 1 when the files differ (expected) and >1 on error.
+    if ($proc.ExitCode -ne 0 -and $proc.ExitCode -ne 1) {
+        throw ("git diff failed (exit {0}): {1}" -f $proc.ExitCode, $err.Trim())
+    }
     , $ms.ToArray()
 }
 $patchStream = New-Object System.IO.MemoryStream
@@ -70,5 +80,8 @@ foreach ($f in $removed) { $manifest.Add("D`t$f`t") }
 [System.IO.File]::WriteAllBytes((Join-Path $out 'all-changes.patch'), $patchStream.ToArray())
 [System.IO.File]::WriteAllLines((Join-Path $out 'all-changes.manifest.txt'), $manifest, (New-Object System.Text.UTF8Encoding($false)))
 Write-Host ("Modified {0}, Added {1}, Removed {2}" -f @($changed).Count, @($added).Count, @($removed).Count)
+if (@($added).Count -gt 0 -or @($removed).Count -gt 0) {
+    Write-Warning ("The patch reproduces modified files only; {0} added and {1} removed file(s) are manifest rows. Deliver those through the engine fork/submodule path, or treat this export as incomplete." -f @($added).Count, @($removed).Count)
+}
 Write-Host "Wrote $out\all-changes.patch ($((Get-Item (Join-Path $out 'all-changes.patch')).Length) bytes) and manifest"
 exit 0

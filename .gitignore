@@ -62,6 +62,11 @@ node_modules/
 *.pak
 *.resources
 
+# ---- local demo/run data (derived shims; never commit) ----
+_data/
+**/base/guis/mainmenu.gui
+**/base/script/weapon_base.script
+
 # ---- logs / temp ----
 *.log
 logs/

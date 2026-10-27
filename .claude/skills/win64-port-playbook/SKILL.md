@@ -85,8 +85,10 @@ Later round (savegame/demo, net, d3xp): the savegame and demo pointer writes are
 - `scripts/audio-peak.ps1` - Windows audio-session peak meter for the process: separates "engine silent" from "window muted".
 - `scripts/capture-showcase.ps1` - engine-rendered shots via a generated cfg (`devmap`, `wait`, `god`, `notarget`,
   `setviewpos x y z yaw`, `screenshot name.tga`, `quit`) - no synthetic keystrokes.
-- `scripts/export-target-patches.ps1` / `apply-target-patches.ps1` - the whole port as one patch + SHA-256 manifest;
-  the verify script reapplies it to a fresh copy and compares hashes.
+- `scripts/export-target-patches.ps1` / `apply-target-patches.ps1` - the modified files as one patch + SHA-256
+  manifest. Added/deleted files are manifest rows with no hunks, so apply and verify fail closed on them;
+  deliver those through the engine fork/submodule path. The verifier exports to a temp directory and compares
+  hashes on a fresh copy.
 
 ## 6. Traps (each cost real time)
 
