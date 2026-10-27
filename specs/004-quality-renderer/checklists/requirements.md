@@ -34,7 +34,7 @@
 - This is an architecture-constrained feature: the user's explicit RHI/D3D12 direction is a documented exception to the generic technology-free specification rule.
 - Numeric image/performance thresholds, named hardware and the legal availability of optional SDKs are not known. The spec requires thresholds to be recorded before each relevant review rather than inventing them here.
 - Checked boxes assess requirements quality only; they do not mark renderer implementation or validation complete.
-- The earlier 003 spec and checklist retain their original content with added historical-status notices; their conflicting decisions are superseded by this specification. The linked research remains unchanged.
+- The earlier 003 spec and checklist are retained for provenance; both carry historical-status corrections, and their decisions are superseded by this specification. The 003 research remains the evidence record and is not superseded by this specification.
 
 ## Result
 

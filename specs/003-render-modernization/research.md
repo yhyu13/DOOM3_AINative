@@ -8,8 +8,9 @@ modern DOOM 3 renderer, when development time is not the deciding constraint? Ca
 D3D12 backend be the foundation for motion vectors, deferred shading, and DLSS 5?
 
 **Status**: Research recommendation, not an implementation plan or approval to modify the engine.
-The accompanying `spec.md` still mandates GL-first and explicitly excludes DX12-first. Section 11 lists the
-changes needed before `/speckit.plan`; this review changes only `research.md`.
+The accompanying historical `spec.md` mandated GL-first and explicitly excluded DX12-first; that
+draft is superseded by the 004 specification. Section 11 lists the changes that were needed before
+`/speckit.plan`; this record is retained as evidence and is not rewritten by 004.
 
 ## Evidence convention
 

@@ -21,7 +21,7 @@ Evidence files: `evidence-q0.md`, `evidence-q1a.md`, `evidence-q1.md`, `evidence
 | FR-011 | T038, T047, T086 | `evidence-q3.md`, `evidence-q4.md` | Planned; provider ordering in T086 |
 | FR-012 | T050–T053 | `evidence-q4.md` | Planned |
 | FR-013 | T049, T054, T056 | `quality-rubric.md`, `evidence-q4.md` | Planned; budgets follow T056 measurements |
-| FR-014 | T058–T061 | `provider-clearance.md`, `evidence-q5.md` | Planned; T059 includes the observed default build |
+| FR-014 | T055, T058–T061 | `provider-clearance.md`, `evidence-q5.md` | Planned; **partial** — T055 supplies the non-proprietary off path, T059 includes the observed default build |
 | FR-015 | T060–T062 | `provider-clearance.md`, `evidence-q5.md` | Planned; NOT RUN until access and clearance exist |
 | FR-016 | T063–T070 | `path-tracing-rubric.md`, `evidence-q6.md` | Planned |
 | FR-017 | T071–T075 | `portable-profile-contract.md`, `evidence-q7.md` | Planned; per claimed target only |

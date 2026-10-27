@@ -1,6 +1,6 @@
 # Implementation Plan: Quality-first rendering
 
-**Branch**: Not yet created (current checkout is `main`) | **Date**: 2026-10-27 | **Spec**: [spec.md](./spec.md)
+**Branch**: None (planning artifact; implementation branches are created per issue, starting with #11) | **Date**: 2026-10-27 | **Spec**: [spec.md](./spec.md)
 
 **Input**: `specs/004-quality-renderer/spec.md`; evidence and alternatives in [research.md](./research.md).
 
@@ -26,7 +26,7 @@ The first implementation is **Q1a**, a standalone synthetic offscreen clear/read
 
 The installed environment was probed during planning: Visual Studio 2022 and Windows SDK are available, but CMake, `cl` and DXC are not on the ordinary shell PATH. The VS-bundled CMake and SDK DXC are discoverable without downloading them. A capability probe reported D3D12-capable Intel hardware and a software adapter, but did not run a draw, compute dispatch, readback or presentation. `D3D12GetDebugInterface` reported `0x887A002D` (SDK component missing); GPU-based validation has **not** run. These observations are environment-specific and must be re-probed when executing.
 
-The root checkout's existing `build/` cache was found to refer to a different worktree; it is not this feature's fresh baseline and must not be reused. The current target copy is absent, and legally supplied game data was not established. Historical demo captures and later save/demo fixes exist, but neither a fresh deterministic timedemo nor current parity/performance has been established. The verifier/smoke/run scripts were hardened to export to a temporary directory, refuse a non-empty output directory, and scope process handling to the resolved executable; their flags and exit codes are in [quickstart.md](./quickstart.md). Do not invoke them blindly.
+The root checkout's existing `build/` cache was found to refer to a different worktree; it is not this feature's fresh baseline and must not be reused. The current target copy is absent, and legally supplied game data was not established. Historical demo captures and later save/demo fixes exist, but neither a fresh deterministic timedemo nor current parity/performance has been established. The verifier exports patches to a temporary directory and fails closed on added/deleted rows; `smoke-win11-amd64.ps1` and `run-win11-amd64.ps1` refuse a non-empty output directory without `-Clean`, and the smoke/run/capture scripts stop only processes whose executable path matches the resolved executable. Their flags and exit codes are in [quickstart.md](./quickstart.md). Do not invoke them blindly.
 
 ## Constitution Check
 
