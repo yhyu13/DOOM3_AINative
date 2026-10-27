@@ -113,6 +113,20 @@ Notes:
 The mappings below connect spec-kit commands to skills. Spec-kit has no skill hooks, so these are
 **suggested** hand-offs to apply while running each command, not automation.
 
+Both spec-kit integrations are installed; they read the same `.specify/` state and differ only in
+where the command text lives:
+
+| Harness | Command form | Source | Managed by |
+|---|---|---|---|
+| Kilo | `/speckit.specify` | `.kilo/command/speckit.*.md` | `generic` integration (default) |
+| Claude Code | `/speckit-specify` | `.claude/skills/speckit-*/SKILL.md` | `claude` integration |
+
+The generated `speckit-*` skills are spec-kit output, not vault or vendored skills: do not
+hand-edit them. Reinstall with
+`uvx --from git+https://github.com/github/spec-kit.git specify integration install claude --force`
+and keep both integrations on the same CLI version. The table below uses the Kilo spelling;
+Claude Code substitutes `-` for `.`.
+
 | Stage | Skills | Confidence |
 |---|---|---|
 | `/speckit.specify` | `prompt-pro` (sharpen the request before writing `spec.md`) | suggested |
