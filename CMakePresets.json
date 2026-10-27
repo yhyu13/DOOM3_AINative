@@ -1,0 +1,25 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": { "major": 3, "minor": 21, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "win11-amd64",
+      "displayName": "Windows 11 x64 (VS2022 v143, static CRT)",
+      "description": "Native x64 DOOM 3 from the target copy; creates and patches the copy on first configure.",
+      "generator": "Visual Studio 17 2022",
+      "architecture": { "value": "x64", "strategy": "set" },
+      "toolset": { "value": "v143", "strategy": "set" },
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_SYSTEM_VERSION": "10.0.26100.0",
+        "CMAKE_CONFIGURATION_TYPES": "Release;Debug",
+        "DOOM3_TARGET": "win11-amd64"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "win11-amd64-release", "displayName": "Release", "configurePreset": "win11-amd64", "configuration": "Release" },
+    { "name": "win11-amd64-xp-release", "displayName": "DOOM3XP only (Release)", "configurePreset": "win11-amd64", "configuration": "Release", "targets": ["DOOM3XP"] },
+    { "name": "win11-amd64-debug", "displayName": "Debug", "configurePreset": "win11-amd64", "configuration": "Debug" }
+  ]
+}

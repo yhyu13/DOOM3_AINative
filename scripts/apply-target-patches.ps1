@@ -6,10 +6,13 @@
   Fresh-clone workflow: new-target.ps1 -Name <n>  ->  apply-target-patches.ps1 -Name <n>  ->  cmake build.
   Refuses to run when the copy already differs from pristine unless -Force (then patch may fail loudly).
   Verifies every 'M' row of the manifest by SHA-256 afterwards. Exit 0 = copy now equals the patched tree.
+  Exit 2 = target copy, patch or manifest missing (or an unexpected error before the apply); 1 = apply failed or mismatches.
+  Note: 'powershell -Command .\script.ps1' collapses a nonzero script exit to 1; use -File to see the real code.
 #>
 [CmdletBinding()]
 param([Parameter(Mandatory = $true)][string]$Name, [switch]$Force)
 $ErrorActionPreference = 'Stop'
+trap { Write-Host "ERROR $($_.Exception.Message)" -ForegroundColor Red; exit 2 }
 $repo = Split-Path -Parent $PSScriptRoot
 $dst = Join-Path $repo "targets\$Name\doom3"
 $patch = Join-Path $repo "targets\$Name\patches\all-changes.patch"

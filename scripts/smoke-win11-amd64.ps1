@@ -26,7 +26,8 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
-if (-not $Exe) { $Exe = Join-Path $repo 'targets\win11-amd64\build\Release\DOOM3.exe' }
+. (Join-Path $PSScriptRoot '_common.ps1')
+if (-not $Exe) { $Exe = Resolve-Doom3Exe -Repo $repo }
 if (-not $OutDir) { $OutDir = Join-Path $repo 'targets\win11-amd64\build\smoke' }
 if (-not (Test-Path -LiteralPath $Exe)) { Write-Host "SMOKE exe missing: $Exe"; exit 3 }
 if (-not $DataDir -or -not (Test-Path -LiteralPath $DataDir)) { Write-Host 'SMOKE no game data dir'; exit 9 }

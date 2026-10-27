@@ -3670,6 +3670,34 @@ index 20214b9..e8bcecd 100644
  }
  
  /*
+diff --git a/a/neo/framework/async/AsyncClient.cpp b/b/neo/framework/async/AsyncClient.cpp
+index e77a56a..3c2bcc9 100644
+--- a/a/neo/framework/async/AsyncClient.cpp
++++ b/b/neo/framework/async/AsyncClient.cpp
+@@ -211,7 +211,7 @@ void idAsyncClient::ConnectToServer( const netadr_t adr ) {
+ 	active = true;
+ 
+ 	guiNetMenu = uiManager->FindGui( "guis/netmenu.gui", true, false, true );
+-	guiNetMenu->SetStateString( "status", va( common->GetLanguageDict()->GetString( "#str_06749" ), Sys_NetAdrToString( adr ) ) );
++	if ( guiNetMenu ) guiNetMenu->SetStateString( "status", va( common->GetLanguageDict()->GetString( "#str_06749" ), Sys_NetAdrToString( adr ) ) );
+ 	session->SetGUI( guiNetMenu, HandleGuiCommand );
+ }
+ 
+@@ -1220,12 +1220,12 @@ void idAsyncClient::ProcessPrintMessage( const netadr_t from, const idBitMsg &ms
+ 	}
+ 	ReadLocalizedServerString( msg, string, MAX_STRING_CHARS );
+ 	common->Printf( "%s\n", string );
+-	guiNetMenu->SetStateString( "status", string );
++	if ( guiNetMenu ) guiNetMenu->SetStateString( "status", string );
+ 	if ( opcode == SERVER_PRINT_GAMEDENY ) {
+ 		if ( game_opcode == ALLOW_BADPASS ) {
+ 			retpass = session->MessageBox( MSG_PROMPT, common->GetLanguageDict()->GetString ( "#str_04321" ), string, true, "passprompt_ok" );
+ 			ClearPendingPackets();
+-			guiNetMenu->SetStateString( "status",  common->GetLanguageDict()->GetString ( "#str_04322" ));
++			if ( guiNetMenu ) guiNetMenu->SetStateString( "status",  common->GetLanguageDict()->GetString ( "#str_04322" ));
+ 			if ( retpass ) {
+ 				// #790
+ 				cvarSystem->SetCVarString( "password", "" );
 diff --git a/a/neo/framework/BuildDefines.h b/b/neo/framework/BuildDefines.h
 index b211315..1fd844b 100644
 --- a/a/neo/framework/BuildDefines.h
@@ -3684,7 +3712,7 @@ index b211315..1fd844b 100644
  #endif
  
 diff --git a/a/neo/framework/Common.cpp b/b/neo/framework/Common.cpp
-index dfc4f5f..871641b 100644
+index dfc4f5f..7d434a1 100644
 --- a/a/neo/framework/Common.cpp
 +++ b/b/neo/framework/Common.cpp
 @@ -193,7 +193,7 @@ private:
@@ -3696,6 +3724,42 @@ index dfc4f5f..871641b 100644
  
  	idLangDict					languageDict;
  
+@@ -714,6 +714,11 @@ void idCommonLocal::Error( const char *fmt, ... ) {
+ 		cmdSystem->BufferCommandText( CMD_EXEC_NOW, "vid_restart partial windowed\n" );
+ 	}
+ 
++#if defined(_M_X64)
++	// x64: log where the error was raised while the log file is still open
++	Printf( "Stack trace at fatal error:%s\n", Sys_GetCallStackCurStr( 24 ) );
++#endif
++
+ 	Shutdown();
+ 
+ 	Sys_Error( "%s", errorMessage );
+@@ -762,6 +767,11 @@ void idCommonLocal::FatalError( const char *fmt, ... ) {
+ 
+ 	Sys_SetFatalError( errorMessage );
+ 
++#if defined(_M_X64)
++	// x64: log where the fatal error was raised while the log file is still open
++	Printf( "Stack trace at fatal error:%s\n", Sys_GetCallStackCurStr( 24 ) );
++#endif
++
+ 	Shutdown();
+ 
+ 	Sys_Error( "%s", errorMessage );
+@@ -2738,6 +2748,11 @@ void idCommonLocal::SetMachineSpec( void ) {
+ 
+ 	renderSystem->GetCardCaps( oldCard, nv10or20 );
+ 
++#if defined(_M_X64)
++	// x64: the Sys_Init CPU line is printed before the log file is open, repeat it where it is recorded
++	Printf( "CPU: %s\n", Sys_GetProcessorString() );
++#endif
++
+ 	Printf( "Detected\n \t%.2f GHz CPU\n\t%i MB of System memory\n\t%i MB of Video memory on %s\n\n", ghz, sysRam, vidRam, ( oldCard ) ? "a less than optimal video architecture" : "an optimal video architecture" );
+ 
+ 	if ( ghz >= 2.75f && vidRam >= 512 && sysRam >= 1024 && !oldCard ) {
 diff --git a/a/neo/framework/FileSystem.cpp b/b/neo/framework/FileSystem.cpp
 index f78e6c1..eeadef1 100644
 --- a/a/neo/framework/FileSystem.cpp
@@ -3718,6 +3782,35 @@ index f78e6c1..eeadef1 100644
  			#else
  				fread(  bgl->file.buffer, bgl->file.length, 1, static_cast<idFile_Permanent*>(bgl->f)->GetFilePtr() );
  			#endif
+diff --git a/a/neo/framework/Licensee.h b/b/neo/framework/Licensee.h
+index e1a0bb1..2bd8a60 100644
+--- a/a/neo/framework/Licensee.h
++++ b/b/neo/framework/Licensee.h
+@@ -81,7 +81,9 @@ If you have questions concerning this license or the applicable additional terms
+ // NOTE: a seperate core savegame version and game savegame version could be useful
+ // 16: Doom v1.1
+ // 17: Doom v1.2 / D3XP. Can still read old v16 with defaults for new data
+-#define SAVEGAME_VERSION				17
++// 18: Win64 port. Pointer-typed fields (sound channels) are archived as presence flags, and the
++//     x64 build's save layout is not compatible with 32-bit v16/v17 files, which are rejected.
++#define SAVEGAME_VERSION				18
+ 
+ // <= Doom v1.1: 1. no DS_VERSION token ( default )
+ // Doom v1.2: 2
+diff --git a/a/neo/framework/Session.cpp b/b/neo/framework/Session.cpp
+index 7a42669..0b966d1 100644
+--- a/a/neo/framework/Session.cpp
++++ b/b/neo/framework/Session.cpp
+@@ -2102,8 +2102,7 @@ bool idSessionLocal::LoadGame( const char *saveName ) {
+ 	// check the version, if it doesn't match, cancel the loadgame,
+ 	// but still load the map with the persistant playerInfo from the header
+ 	// so that the player doesn't lose too much progress.
+-	if ( savegameVersion != SAVEGAME_VERSION &&
+-		 !( savegameVersion == 16 && SAVEGAME_VERSION == 17 ) ) {	// handle savegame v16 in v17
++	if ( savegameVersion != SAVEGAME_VERSION ) {	/* x64: v16/v17 (32-bit layout) files are rejected */
+ 		common->Warning( "Savegame Version mismatch: aborting loadgame and starting level with persistent data" );
+ 		loadingSaveGame = false;
+ 		fileSystem->CloseFile( savegameFile );
 diff --git a/a/neo/game/Game_local.cpp b/b/neo/game/Game_local.cpp
 index 61b0a7f..5e45145 100644
 --- a/a/neo/game/Game_local.cpp
@@ -7184,6 +7277,23 @@ index 9f2eb81..7a9e414 100644
  	}
  }
  
+diff --git a/a/neo/game/Player.cpp b/b/neo/game/Player.cpp
+index 41a3905..06961a4 100644
+--- a/a/neo/game/Player.cpp
++++ b/b/neo/game/Player.cpp
+@@ -2681,6 +2681,12 @@ void idPlayer::ExitCinematic( void ) {
+ 		weapon.GetEntity()->ExitCinematic();
+ 	}
+ 
++	// t065: during a multiplayer map restart PrepareForRestart() has already shut the script thread down,
++	// and deleting the active map camera then calls ExitCinematic() on every player.
++	if ( !scriptThread ) {
++		return;
++	}
++
+ 	SetState( "ExitCinematic" );
+ 	UpdateScript();
+ }
 diff --git a/a/neo/game/script/Script_Compiler.cpp b/b/neo/game/script/Script_Compiler.cpp
 index 59088e5..711c49d 100644
 --- a/a/neo/game/script/Script_Compiler.cpp
@@ -7761,6 +7871,29 @@ index 552b816..33a30b7 100644
  	byte **					qStatus[2];
  	idStr					fileName;
  	int						CIN_WIDTH, CIN_HEIGHT;
+diff --git a/a/neo/renderer/GuiModel.cpp b/b/neo/renderer/GuiModel.cpp
+index c59e3ea..cced93e 100644
+--- a/a/neo/renderer/GuiModel.cpp
++++ b/b/neo/renderer/GuiModel.cpp
+@@ -90,7 +90,7 @@ void idGuiModel::WriteToDemo( idDemoFile *demo ) {
+ 	for ( j = 0 ; j < i ; j++ ) {
+ 		guiModelSurface_t	*surf = &surfaces[j];
+ 		
+-		demo->WriteInt( (int&)surf->material );
++		demo->WriteInt( surf->material != NULL ? 1 : 0 );	// x64: presence flag only (same 32-bit slot)
+ 		demo->WriteFloat( surf->color[0] );
+ 		demo->WriteFloat( surf->color[1] );
+ 		demo->WriteFloat( surf->color[2] );
+@@ -140,7 +140,8 @@ void idGuiModel::ReadFromDemo( idDemoFile *demo ) {
+ 	for ( j = 0 ; j < i ; j++ ) {
+ 		guiModelSurface_t	*surf = &surfaces[j];
+ 		
+-		demo->ReadInt( (int&)surf->material );
++		{ int materialFlag; demo->ReadInt( materialFlag ); }	// x64: flag only; material is resolved by name below
++		surf->material = NULL;
+ 		demo->ReadFloat( surf->color[0] );
+ 		demo->ReadFloat( surf->color[1] );
+ 		demo->ReadFloat( surf->color[2] );
 diff --git a/a/neo/renderer/RenderSystem.h b/b/neo/renderer/RenderSystem.h
 index 5d3edbc..976436a 100644
 --- a/a/neo/renderer/RenderSystem.h
@@ -7790,6 +7923,213 @@ index feb2d8f..f967520 100644
  				break;
  		}
  
+diff --git a/a/neo/renderer/RenderWorld_demo.cpp b/b/neo/renderer/RenderWorld_demo.cpp
+index 76f292d..ba4fd82 100644
+--- a/a/neo/renderer/RenderWorld_demo.cpp
++++ b/b/neo/renderer/RenderWorld_demo.cpp
+@@ -30,6 +30,18 @@ If you have questions concerning this license or the applicable additional terms
+ 
+ #include "tr_local.h"
+ 
++/* x64: pointer-typed fields are archived as a 32-bit present/absent flag. The old code
++   wrote/read the low 32 bits of the pointer (truncation, and a read into a 64-bit
++   field left the upper half uninitialised). */
++static ID_INLINE int PtrFlag_Write( const void *p ) { return p != NULL ? 1 : 0; }
++/* Returns the present flag; the placeholder value 1 is never stored in a pointer. */
++static ID_INLINE bool PtrFlag_Read( idFile *f ) {
++	int v = 0;
++	f->ReadInt( v );
++	return v != 0;
++}
++
++
+ //#define WRITE_GUIS
+ 
+ typedef struct {
+@@ -140,9 +152,9 @@ bool		idRenderWorldLocal::ProcessDemoCommand( idDemoFile *readDemo, renderView_t
+ 		for ( int i = 0; i < MAX_GLOBAL_SHADER_PARMS; i++ )
+ 			readDemo->ReadFloat( renderView->shaderParms[i] );
+ 
+-		if ( !readDemo->ReadInt( (int&)renderView->globalMaterial ) ) {
+-			 return false;
+-		 }
++		PtrFlag_Read( readDemo );
++		// x64: only a presence flag is stored; the material itself is never serialized
++		renderView->globalMaterial = NULL;
+ 												 
+ 		if ( r_showDemo.GetBool() ) {
+ 			common->Printf( "DC_RENDERVIEW: %i\n", renderView->time );
+@@ -355,7 +367,7 @@ void	idRenderWorldLocal::WriteRenderView( const renderView_t *renderView ) {
+ 	session->writeDemo->WriteInt( renderView->time );
+ 	for ( i = 0; i < MAX_GLOBAL_SHADER_PARMS; i++ )
+ 		session->writeDemo->WriteFloat( renderView->shaderParms[i] );
+-	session->writeDemo->WriteInt( (int&)renderView->globalMaterial );
++	session->writeDemo->WriteInt( PtrFlag_Write( renderView->globalMaterial ) );
+ 	
+ 	if ( r_showDemo.GetBool() ) {
+ 		common->Printf( "write DC_RENDERVIEW: %i\n", renderView->time );
+@@ -438,12 +450,12 @@ void	idRenderWorldLocal::WriteRenderLight( qhandle_t handle, const renderLight_t
+ 	session->writeDemo->WriteVec3( light->up );
+ 	session->writeDemo->WriteVec3( light->start );
+ 	session->writeDemo->WriteVec3( light->end );
+-	session->writeDemo->WriteInt( (int&)light->prelightModel );
++	session->writeDemo->WriteInt( PtrFlag_Write( light->prelightModel ) );
+ 	session->writeDemo->WriteInt( light->lightId );
+-	session->writeDemo->WriteInt( (int&)light->shader );
++	session->writeDemo->WriteInt( PtrFlag_Write( light->shader ) );
+ 	for ( int i = 0; i < MAX_ENTITY_SHADER_PARMS; i++)
+ 		session->writeDemo->WriteFloat( light->shaderParms[i] );
+-	session->writeDemo->WriteInt( (int&)light->referenceSound );
++	session->writeDemo->WriteInt( PtrFlag_Write( light->referenceSound ) );
+ 
+ 	if ( light->prelightModel ) {
+ 		session->writeDemo->WriteHashString( light->prelightModel->Name() );
+@@ -490,19 +502,19 @@ void	idRenderWorldLocal::ReadRenderLight( ) {
+ 	session->readDemo->ReadVec3( light.up );
+ 	session->readDemo->ReadVec3( light.start );
+ 	session->readDemo->ReadVec3( light.end );
+-	session->readDemo->ReadInt( (int&)light.prelightModel );
++	bool has_light_prelightModel = PtrFlag_Read( session->readDemo ); light.prelightModel = NULL;
+ 	session->readDemo->ReadInt( light.lightId );
+-	session->readDemo->ReadInt( (int&)light.shader );
++	bool has_light_shader = PtrFlag_Read( session->readDemo ); light.shader = NULL;
+ 	for ( int i = 0; i < MAX_ENTITY_SHADER_PARMS; i++)
+ 		session->readDemo->ReadFloat( light.shaderParms[i] );
+-	session->readDemo->ReadInt( (int&)light.referenceSound );
+-	if ( light.prelightModel ) {
++	bool has_light_referenceSound = PtrFlag_Read( session->readDemo ); light.referenceSound = NULL;
++	if ( has_light_prelightModel ) {
+ 		light.prelightModel = renderModelManager->FindModel( session->readDemo->ReadHashString() );
+ 	}
+-	if ( light.shader ) {
++	if ( has_light_shader ) {
+ 		light.shader = declManager->FindMaterial( session->readDemo->ReadHashString() );
+ 	}
+-	if ( light.referenceSound ) {
++	if ( has_light_referenceSound ) {
+ 		int	index;
+ 		session->readDemo->ReadInt( index );
+ 		light.referenceSound = session->sw->EmitterForIndex( index );
+@@ -532,30 +544,30 @@ void	idRenderWorldLocal::WriteRenderEntity( qhandle_t handle, const renderEntity
+ 	session->writeDemo->WriteInt( DC_UPDATE_ENTITYDEF );
+ 	session->writeDemo->WriteInt( handle );
+ 	
+-	session->writeDemo->WriteInt( (int&)ent->hModel );
++	session->writeDemo->WriteInt( PtrFlag_Write( ent->hModel ) );
+ 	session->writeDemo->WriteInt( ent->entityNum );
+ 	session->writeDemo->WriteInt( ent->bodyId );
+ 	session->writeDemo->WriteVec3( ent->bounds[0] );
+ 	session->writeDemo->WriteVec3( ent->bounds[1] );
+-	session->writeDemo->WriteInt( (int&)ent->callback );
+-	session->writeDemo->WriteInt( (int&)ent->callbackData );
++	session->writeDemo->WriteInt( PtrFlag_Write( ent->callback ) );
++	session->writeDemo->WriteInt( PtrFlag_Write( ent->callbackData ) );
+ 	session->writeDemo->WriteInt( ent->suppressSurfaceInViewID );
+ 	session->writeDemo->WriteInt( ent->suppressShadowInViewID );
+ 	session->writeDemo->WriteInt( ent->suppressShadowInLightID );
+ 	session->writeDemo->WriteInt( ent->allowSurfaceInViewID );
+ 	session->writeDemo->WriteVec3( ent->origin );
+ 	session->writeDemo->WriteMat3( ent->axis );
+-	session->writeDemo->WriteInt( (int&)ent->customShader );
+-	session->writeDemo->WriteInt( (int&)ent->referenceShader );
+-	session->writeDemo->WriteInt( (int&)ent->customSkin );
+-	session->writeDemo->WriteInt( (int&)ent->referenceSound );
++	session->writeDemo->WriteInt( PtrFlag_Write( ent->customShader ) );
++	session->writeDemo->WriteInt( PtrFlag_Write( ent->referenceShader ) );
++	session->writeDemo->WriteInt( PtrFlag_Write( ent->customSkin ) );
++	session->writeDemo->WriteInt( PtrFlag_Write( ent->referenceSound ) );
+ 	for ( int i = 0; i < MAX_ENTITY_SHADER_PARMS; i++ )
+ 		session->writeDemo->WriteFloat( ent->shaderParms[i] );
+ 	for ( int i = 0; i < MAX_RENDERENTITY_GUI; i++ )
+-		session->writeDemo->WriteInt( (int&)ent->gui[i] );
+-	session->writeDemo->WriteInt( (int&)ent->remoteRenderView );
++		session->writeDemo->WriteInt( PtrFlag_Write( ent->gui[i] ) );
++	session->writeDemo->WriteInt( PtrFlag_Write( ent->remoteRenderView ) );
+ 	session->writeDemo->WriteInt( ent->numJoints );
+-	session->writeDemo->WriteInt( (int&)ent->joints );
++	session->writeDemo->WriteInt( PtrFlag_Write( ent->joints ) );
+ 	session->writeDemo->WriteFloat( ent->modelDepthHack );
+ 	session->writeDemo->WriteBool( ent->noSelfShadow );
+ 	session->writeDemo->WriteBool( ent->noShadow );
+@@ -631,32 +643,32 @@ void	idRenderWorldLocal::ReadRenderEntity() {
+ 		common->Error( "ReadRenderEntity: index < 0" );
+ 	}
+ 
+-	session->readDemo->ReadInt( (int&)ent.hModel );
++	bool has_ent_hModel = PtrFlag_Read( session->readDemo ); ent.hModel = NULL;
+ 	session->readDemo->ReadInt( ent.entityNum );
+ 	session->readDemo->ReadInt( ent.bodyId );
+ 	session->readDemo->ReadVec3( ent.bounds[0] );
+ 	session->readDemo->ReadVec3( ent.bounds[1] );
+-	session->readDemo->ReadInt( (int&)ent.callback );
+-	session->readDemo->ReadInt( (int&)ent.callbackData );
++	bool has_ent_callback = PtrFlag_Read( session->readDemo ); ent.callback = NULL;
++	bool has_ent_callbackData = PtrFlag_Read( session->readDemo ); ent.callbackData = NULL;
+ 	session->readDemo->ReadInt( ent.suppressSurfaceInViewID );
+ 	session->readDemo->ReadInt( ent.suppressShadowInViewID );
+ 	session->readDemo->ReadInt( ent.suppressShadowInLightID );
+ 	session->readDemo->ReadInt( ent.allowSurfaceInViewID );
+ 	session->readDemo->ReadVec3( ent.origin );
+ 	session->readDemo->ReadMat3( ent.axis );
+-	session->readDemo->ReadInt( (int&)ent.customShader );
+-	session->readDemo->ReadInt( (int&)ent.referenceShader );
+-	session->readDemo->ReadInt( (int&)ent.customSkin );
+-	session->readDemo->ReadInt( (int&)ent.referenceSound );
++	bool has_ent_customShader = PtrFlag_Read( session->readDemo ); ent.customShader = NULL;
++	bool has_ent_referenceShader = PtrFlag_Read( session->readDemo ); ent.referenceShader = NULL;
++	bool has_ent_customSkin = PtrFlag_Read( session->readDemo ); ent.customSkin = NULL;
++	bool has_ent_referenceSound = PtrFlag_Read( session->readDemo ); ent.referenceSound = NULL;
+ 	for ( i = 0; i < MAX_ENTITY_SHADER_PARMS; i++ ) {
+ 		session->readDemo->ReadFloat( ent.shaderParms[i] );
+ 	}
+ 	for ( i = 0; i < MAX_RENDERENTITY_GUI; i++ ) {
+-		session->readDemo->ReadInt( (int&)ent.gui[i] );
++		PtrFlag_Read( session->readDemo ); ent.gui[i] = NULL;
+ 	}
+-	session->readDemo->ReadInt( (int&)ent.remoteRenderView );
++	bool has_ent_remoteRenderView = PtrFlag_Read( session->readDemo ); ent.remoteRenderView = NULL;
+ 	session->readDemo->ReadInt( ent.numJoints );
+-	session->readDemo->ReadInt( (int&)ent.joints );
++	bool has_ent_joints = PtrFlag_Read( session->readDemo ); ent.joints = NULL;
+ 	session->readDemo->ReadFloat( ent.modelDepthHack );
+ 	session->readDemo->ReadBool( ent.noSelfShadow );
+ 	session->readDemo->ReadBool( ent.noShadow );
+@@ -664,19 +676,19 @@ void	idRenderWorldLocal::ReadRenderEntity() {
+ 	session->readDemo->ReadBool( ent.weaponDepthHack );
+ 	session->readDemo->ReadInt( ent.forceUpdate );
+ 	ent.callback = NULL;
+-	if ( ent.customShader ) {
++	if ( has_ent_customShader ) {
+ 		ent.customShader = declManager->FindMaterial( session->readDemo->ReadHashString() );
+ 	}
+-	if ( ent.customSkin ) {
++	if ( has_ent_customSkin ) {
+ 		ent.customSkin = declManager->FindSkin( session->readDemo->ReadHashString() );
+ 	}
+-	if ( ent.hModel ) {
++	if ( has_ent_hModel ) {
+ 		ent.hModel = renderModelManager->FindModel( session->readDemo->ReadHashString() );
+ 	}
+-	if ( ent.referenceShader ) {
++	if ( has_ent_referenceShader ) {
+ 		ent.referenceShader = declManager->FindMaterial( session->readDemo->ReadHashString() );
+ 	}
+-	if ( ent.referenceSound ) {
++	if ( has_ent_referenceSound ) {
+ 		int	index;
+ 		session->readDemo->ReadInt( index );
+ 		ent.referenceSound = session->sw->EmitterForIndex( index );
+@@ -691,6 +703,10 @@ void	idRenderWorldLocal::ReadRenderEntity() {
+ 	}
+ 
+ 	ent.callbackData = NULL;
++	ent.remoteRenderView = NULL;	// x64: the flag was read, not a real pointer
++	if ( !ent.numJoints ) {
++		ent.joints = NULL;
++	}
+ 
+ 	/*
+ 	if ( ent.decals ) {
 diff --git a/a/neo/renderer/tr_font.cpp b/b/neo/renderer/tr_font.cpp
 index bedf264..a83101e 100644
 --- a/a/neo/renderer/tr_font.cpp
@@ -7854,10 +8194,32 @@ index 5b2bbc1..8904309 100644
  	graph = NULL;
  
 diff --git a/a/neo/sound/snd_world.cpp b/b/neo/sound/snd_world.cpp
-index ab9d765..dbcbc2d 100644
+index ab9d765..04860ab 100644
 --- a/a/neo/sound/snd_world.cpp
 +++ b/b/neo/sound/snd_world.cpp
-@@ -588,7 +588,7 @@ void idSoundWorldLocal::AVIUpdate() {
+@@ -29,7 +29,20 @@ If you have questions concerning this license or the applicable additional terms
+ #include "../idlib/precompiled.h"
+ #pragma hdrstop
+ 
+-#include "snd_local.h"
++#include "snd_local.h"
++
++/* x64: pointer-typed fields are archived as a 32-bit present/absent flag. The old code
++   wrote/read the low 32 bits of the pointer (truncation, and a read into a 64-bit
++   field left the upper half uninitialised). */
++static ID_INLINE int PtrFlag_Write( const void *p ) { return p != NULL ? 1 : 0; }
++/* Returns the present flag. Callers keep the struct pointer NULL (or resolve it by name);
++   the placeholder value 1 is never stored in a pointer. */
++static ID_INLINE bool PtrFlag_Read( idFile *f ) {
++	int v = 0;
++	f->ReadInt( v );
++	return v != 0;
++}
++
+ 
+ /*
+ ==================
+@@ -588,7 +601,7 @@ void idSoundWorldLocal::AVIUpdate() {
  	}
  
  	float	mix[MIXBUFFER_SAMPLES*6+16];
@@ -7866,7 +8228,50 @@ index ab9d765..dbcbc2d 100644
  
  	SIMDProcessor->Memset( mix_p, 0, MIXBUFFER_SAMPLES*sizeof(float)*numSpeakers );
  
-@@ -1713,7 +1713,7 @@ void idSoundWorldLocal::AddChannelContribution( idSoundEmitterLocal *sound, idSo
+@@ -1197,10 +1210,10 @@ void idSoundWorldLocal::WriteToSaveGameSoundChannel( idFile *saveGame, idSoundCh
+ 	saveGame->WriteInt( ch->trigger44kHzTime );
+ 	saveGame->WriteInt( ch->triggerGame44kHzTime );
+ 	WriteToSaveGameSoundShaderParams( saveGame, &ch->parms );
+-	saveGame->WriteInt( (int)ch->leadinSample );
++	saveGame->WriteInt( PtrFlag_Write( ch->leadinSample ) );
+ 	saveGame->WriteInt( ch->triggerChannel );
+-	saveGame->WriteInt( (int)ch->soundShader );
+-	saveGame->WriteInt( (int)ch->decoder );
++	saveGame->WriteInt( PtrFlag_Write( ch->soundShader ) );
++	saveGame->WriteInt( PtrFlag_Write( ch->decoder ) );
+ 	saveGame->WriteFloat(ch->diversity );
+ 	saveGame->WriteFloat(ch->lastVolume );
+ 	for (int m = 0; m < 6; m++)
+@@ -1295,8 +1308,9 @@ void idSoundWorldLocal::ReadFromSaveGame( idFile *savefile ) {
+ 
+ 			idSoundChannel *chan = &def->channels[channel];
+ 
+-			if ( chan->decoder != NULL ) {
+-				// The pointer in the save file is not valid, so we grab a new one
++			// the pointer in the save file is not valid, so we grab a new one; every channel in this
++			// list was triggered, and idSoundChannel::Start would have allocated its decoder
++			if ( chan->decoder == NULL ) {
+ 				chan->decoder = idSampleDecoder::Alloc();
+ 			}
+ 
+@@ -1368,10 +1382,13 @@ void idSoundWorldLocal::ReadFromSaveGameSoundChannel( idFile *saveGame, idSoundC
+ 	saveGame->ReadInt( ch->trigger44kHzTime );
+ 	saveGame->ReadInt( ch->triggerGame44kHzTime );
+ 	ReadFromSaveGameSoundShaderParams( saveGame, &ch->parms );
+-	saveGame->ReadInt( (int&)ch->leadinSample );
++	PtrFlag_Read( saveGame );
++	ch->leadinSample = NULL;
+ 	saveGame->ReadInt( ch->triggerChannel );
+-	saveGame->ReadInt( (int&)ch->soundShader );
+-	saveGame->ReadInt( (int&)ch->decoder );
++	PtrFlag_Read( saveGame );
++	ch->soundShader = NULL;
++	PtrFlag_Read( saveGame );
++	ch->decoder = NULL;	// allocated when the channel is restored from the per-channel list
+ 	saveGame->ReadFloat(ch->diversity );
+ 	saveGame->ReadFloat(ch->lastVolume );
+ 	for (int m = 0; m < 6; m++)
+@@ -1713,7 +1730,7 @@ void idSoundWorldLocal::AddChannelContribution( idSoundEmitterLocal *sound, idSo
  	//
  	int offset = current44kHz - chan->trigger44kHzTime;
  	float inputSamples[MIXBUFFER_SAMPLES*2+16];
@@ -7916,7 +8321,7 @@ index 17d1a50..48c8706 100644
  
  	virtual sysEvent_t		GenerateMouseButtonEvent( int button, bool down );
 diff --git a/a/neo/sys/sys_public.h b/b/neo/sys/sys_public.h
-index 6917a0f..df7b4b8 100644
+index 6917a0f..2e5e359 100644
 --- a/a/neo/sys/sys_public.h
 +++ b/b/neo/sys/sys_public.h
 @@ -29,6 +29,8 @@ If you have questions concerning this license or the applicable additional terms
@@ -8000,6 +8405,24 @@ index 6917a0f..df7b4b8 100644
  
  // event generation
  void			Sys_GenerateEvents( void );
+@@ -432,7 +452,7 @@ public:
+ 
+ private:
+ 	netadr_t	bound_to;		// interface and port
+-	int			netSocket;		// OS specific socket
++	uintptr_t	netSocket;		// OS specific socket (SOCKET is 64-bit on Win64)
+ };
+ 
+ class idTCP {
+@@ -453,7 +473,7 @@ public:
+ 
+ private:
+ 	netadr_t	address;		// remote address
+-	int			fd;				// OS specific socket
++	uintptr_t	fd;				// OS specific socket (SOCKET is 64-bit on Win64)
+ };
+ 
+ 				// parses the port number
 @@ -487,7 +507,7 @@ typedef enum {
  
  typedef struct {
@@ -8023,147 +8446,1481 @@ index 6917a0f..df7b4b8 100644
  
  	virtual sysEvent_t		GenerateMouseButtonEvent( int button, bool down ) = 0;
 diff --git a/a/neo/sys/win32/win_cpu.cpp b/b/neo/sys/win32/win_cpu.cpp
-index 77c1957..958828d 100644
+index 77c1957..bb11237 100644
 --- a/a/neo/sys/win32/win_cpu.cpp
 +++ b/b/neo/sys/win32/win_cpu.cpp
-@@ -31,6 +31,12 @@ If you have questions concerning this license or the applicable additional terms
- 
- #include "win_local.h"
- 
+@@ -1,930 +1,1189 @@
+-/*
+-===========================================================================
+-
+-Doom 3 GPL Source Code
+-Copyright (C) 1999-2011 id Software LLC, a ZeniMax Media company. 
+-
+-This file is part of the Doom 3 GPL Source Code (?Doom 3 Source Code?).  
+-
+-Doom 3 Source Code is free software: you can redistribute it and/or modify
+-it under the terms of the GNU General Public License as published by
+-the Free Software Foundation, either version 3 of the License, or
+-(at your option) any later version.
+-
+-Doom 3 Source Code is distributed in the hope that it will be useful,
+-but WITHOUT ANY WARRANTY; without even the implied warranty of
+-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-GNU General Public License for more details.
+-
+-You should have received a copy of the GNU General Public License
+-along with Doom 3 Source Code.  If not, see <http://www.gnu.org/licenses/>.
+-
+-In addition, the Doom 3 Source Code is also subject to certain additional terms. You should have received a copy of these additional terms immediately following the terms and conditions of the GNU General Public License which accompanied the Doom 3 Source Code.  If not, please request a copy in writing from id Software at the address below.
+-
+-If you have questions concerning this license or the applicable additional terms, you may contact in writing id Software LLC, c/o ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
+-
+-===========================================================================
+-*/
+-
+-#include "../../idlib/precompiled.h"
+-#pragma hdrstop
+-
+-#include "win_local.h"
+-
+-
+-/*
+-==============================================================
+-
+-	Clock ticks
+-
+-==============================================================
+-*/
+-
+-/*
+-================
+-Sys_GetClockTicks
+-================
+-*/
+-double Sys_GetClockTicks( void ) {
+-#if 0
+-
+-	LARGE_INTEGER li;
+-
+-	QueryPerformanceCounter( &li );
+-	return = (double ) li.LowPart + (double) 0xFFFFFFFF * li.HighPart;
+-
+-#else
+-
+-	unsigned long lo, hi;
+-
+-	__asm {
+-		push ebx
+-		xor eax, eax
+-		cpuid
+-		rdtsc
+-		mov lo, eax
+-		mov hi, edx
+-		pop ebx
+-	}
+-	return (double ) lo + (double) 0xFFFFFFFF * hi;
+-
+-#endif
+-}
+-
+-/*
+-================
+-Sys_ClockTicksPerSecond
+-================
+-*/
+-double Sys_ClockTicksPerSecond( void ) {
+-	static double ticks = 0;
+-#if 0
+-
+-	if ( !ticks ) {
+-		LARGE_INTEGER li;
+-		QueryPerformanceFrequency( &li );
+-		ticks = li.QuadPart;
+-	}
+-
+-#else
+-
+-	if ( !ticks ) {
+-		HKEY hKey;
+-		LPBYTE ProcSpeed;
+-		DWORD buflen, ret;
+-
+-		if ( !RegOpenKeyEx( HKEY_LOCAL_MACHINE, "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0", 0, KEY_READ, &hKey ) ) {
+-			ProcSpeed = 0;
+-			buflen = sizeof( ProcSpeed );
+-			ret = RegQueryValueEx( hKey, "~MHz", NULL, NULL, (LPBYTE) &ProcSpeed, &buflen );
+-			// If we don't succeed, try some other spellings.
+-			if ( ret != ERROR_SUCCESS ) {
+-				ret = RegQueryValueEx( hKey, "~Mhz", NULL, NULL, (LPBYTE) &ProcSpeed, &buflen );
+-			}
+-			if ( ret != ERROR_SUCCESS ) {
+-				ret = RegQueryValueEx( hKey, "~mhz", NULL, NULL, (LPBYTE) &ProcSpeed, &buflen );
+-			}
+-			RegCloseKey( hKey );
+-			if ( ret == ERROR_SUCCESS ) {
+-				ticks = (double) ((unsigned long)ProcSpeed) * 1000000;
+-			}
+-		}
+-	}
+-
+-#endif
+-	return ticks;
+-}
+-
+-
+-/*
+-==============================================================
+-
+-	CPU
+-
+-==============================================================
+-*/
+-
+-/*
+-================
+-HasCPUID
+-================
+-*/
+-static bool HasCPUID( void ) {
+-	__asm 
+-	{
+-		pushfd						// save eflags
+-		pop		eax
+-		test	eax, 0x00200000		// check ID bit
+-		jz		set21				// bit 21 is not set, so jump to set_21
+-		and		eax, 0xffdfffff		// clear bit 21
+-		push	eax					// save new value in register
+-		popfd						// store new value in flags
+-		pushfd
+-		pop		eax
+-		test	eax, 0x00200000		// check ID bit
+-		jz		good
+-		jmp		err					// cpuid not supported
+-set21:
+-		or		eax, 0x00200000		// set ID bit
+-		push	eax					// store new value
+-		popfd						// store new value in EFLAGS
+-		pushfd
+-		pop		eax
+-		test	eax, 0x00200000		// if bit 21 is on
+-		jnz		good
+-		jmp		err
+-	}
+-
+-err:
+-	return false;
+-good:
+-	return true;
+-}
+-
+-#define _REG_EAX		0
+-#define _REG_EBX		1
+-#define _REG_ECX		2
+-#define _REG_EDX		3
+-
+-/*
+-================
+-CPUID
+-================
+-*/
+-static void CPUID( int func, unsigned regs[4] ) {
+-	unsigned regEAX, regEBX, regECX, regEDX;
+-
+-	__asm pusha
+-	__asm mov eax, func
+-	__asm __emit 00fh
+-	__asm __emit 0a2h
+-	__asm mov regEAX, eax
+-	__asm mov regEBX, ebx
+-	__asm mov regECX, ecx
+-	__asm mov regEDX, edx
+-	__asm popa
+-
+-	regs[_REG_EAX] = regEAX;
+-	regs[_REG_EBX] = regEBX;
+-	regs[_REG_ECX] = regECX;
+-	regs[_REG_EDX] = regEDX;
+-}
+-
+-
+-/*
+-================
+-IsAMD
+-================
+-*/
+-static bool IsAMD( void ) {
+-	char pstring[16];
+-	char processorString[13];
+-
+-	// get name of processor
+-	CPUID( 0, ( unsigned int * ) pstring );
+-	processorString[0] = pstring[4];
+-	processorString[1] = pstring[5];
+-	processorString[2] = pstring[6];
+-	processorString[3] = pstring[7];
+-	processorString[4] = pstring[12];
+-	processorString[5] = pstring[13];
+-	processorString[6] = pstring[14];
+-	processorString[7] = pstring[15];
+-	processorString[8] = pstring[8];
+-	processorString[9] = pstring[9];
+-	processorString[10] = pstring[10];
+-	processorString[11] = pstring[11];
+-	processorString[12] = 0;
+-
+-	if ( strcmp( processorString, "AuthenticAMD" ) == 0 ) {
+-		return true;
+-	}
+-	return false;
+-}
+-
+-/*
+-================
+-HasCMOV
+-================
+-*/
+-static bool HasCMOV( void ) {
+-	unsigned regs[4];
+-
+-	// get CPU feature bits
+-	CPUID( 1, regs );
+-
+-	// bit 15 of EDX denotes CMOV existence
+-	if ( regs[_REG_EDX] & ( 1 << 15 ) ) {
+-		return true;
+-	}
+-	return false;
+-}
+-
+-/*
+-================
+-Has3DNow
+-================
+-*/
+-static bool Has3DNow( void ) {
+-	unsigned regs[4];
+-
+-	// check AMD-specific functions
+-	CPUID( 0x80000000, regs );
+-	if ( regs[_REG_EAX] < 0x80000000 ) {
+-		return false;
+-	}
+-
+-	// bit 31 of EDX denotes 3DNow! support
+-	CPUID( 0x80000001, regs );
+-	if ( regs[_REG_EDX] & ( 1 << 31 ) ) {
+-		return true;
+-	}
+-
+-	return false;
+-}
+-
+-/*
+-================
+-HasMMX
+-================
+-*/
+-static bool HasMMX( void ) {
+-	unsigned regs[4];
+-
+-	// get CPU feature bits
+-	CPUID( 1, regs );
+-
+-	// bit 23 of EDX denotes MMX existence
+-	if ( regs[_REG_EDX] & ( 1 << 23 ) ) {
+-		return true;
+-	}
+-	return false;
+-}
+-
+-/*
+-================
+-HasSSE
+-================
+-*/
+-static bool HasSSE( void ) {
+-	unsigned regs[4];
+-
+-	// get CPU feature bits
+-	CPUID( 1, regs );
+-
+-	// bit 25 of EDX denotes SSE existence
+-	if ( regs[_REG_EDX] & ( 1 << 25 ) ) {
+-		return true;
+-	}
+-	return false;
+-}
+-
+-/*
+-================
+-HasSSE2
+-================
+-*/
+-static bool HasSSE2( void ) {
+-	unsigned regs[4];
+-
+-	// get CPU feature bits
+-	CPUID( 1, regs );
+-
+-	// bit 26 of EDX denotes SSE2 existence
+-	if ( regs[_REG_EDX] & ( 1 << 26 ) ) {
+-		return true;
+-	}
+-	return false;
+-}
+-
+-/*
+-================
+-HasSSE3
+-================
+-*/
+-static bool HasSSE3( void ) {
+-	unsigned regs[4];
+-
+-	// get CPU feature bits
+-	CPUID( 1, regs );
+-
+-	// bit 0 of ECX denotes SSE3 existence
+-	if ( regs[_REG_ECX] & ( 1 << 0 ) ) {
+-		return true;
+-	}
+-	return false;
+-}
+-
+-/*
+-================
+-LogicalProcPerPhysicalProc
+-================
+-*/
+-#define NUM_LOGICAL_BITS   0x00FF0000     // EBX[23:16] Bit 16-23 in ebx contains the number of logical
+-                                          // processors per physical processor when execute cpuid with 
+-                                          // eax set to 1
+-static unsigned char LogicalProcPerPhysicalProc( void ) {
+-	unsigned int regebx = 0;
+-	__asm {
+-		mov eax, 1
+-		cpuid
+-		mov regebx, ebx
+-	}
+-	return (unsigned char) ((regebx & NUM_LOGICAL_BITS) >> 16);
+-}
+-
+-/*
+-================
+-GetAPIC_ID
+-================
+-*/
+-#define INITIAL_APIC_ID_BITS  0xFF000000  // EBX[31:24] Bits 24-31 (8 bits) return the 8-bit unique 
+-                                          // initial APIC ID for the processor this code is running on.
+-                                          // Default value = 0xff if HT is not supported
+-static unsigned char GetAPIC_ID( void ) {
+-	unsigned int regebx = 0;
+-	__asm {
+-		mov eax, 1
+-		cpuid
+-		mov regebx, ebx
+-	}
+-	return (unsigned char) ((regebx & INITIAL_APIC_ID_BITS) >> 24);
+-}
+-
+-/*
+-================
+-CPUCount
+-
+-	logicalNum is the number of logical CPU per physical CPU
+-    physicalNum is the total number of physical processor
+-	returns one of the HT_* flags
+-================
+-*/
+-#define HT_NOT_CAPABLE				0
+-#define HT_ENABLED					1
+-#define HT_DISABLED					2
+-#define HT_SUPPORTED_NOT_ENABLED	3
+-#define HT_CANNOT_DETECT			4
+-
+-int CPUCount( int &logicalNum, int &physicalNum ) {
+-	int statusFlag;
+-	SYSTEM_INFO info;
+-
+-	physicalNum = 1;
+-	logicalNum = 1;
+-	statusFlag = HT_NOT_CAPABLE;
+-
+-	info.dwNumberOfProcessors = 0;
+-	GetSystemInfo (&info);
+-
+-	// Number of physical processors in a non-Intel system
+-	// or in a 32-bit Intel system with Hyper-Threading technology disabled
+-	physicalNum = info.dwNumberOfProcessors;  
+-
+-	unsigned char HT_Enabled = 0;
+-
+-	logicalNum = LogicalProcPerPhysicalProc();
+-
+-	if ( logicalNum >= 1 ) {	// > 1 doesn't mean HT is enabled in the BIOS
+-		HANDLE hCurrentProcessHandle;
+-		DWORD  dwProcessAffinity;
+-		DWORD  dwSystemAffinity;
+-		DWORD  dwAffinityMask;
+-
+-		// Calculate the appropriate  shifts and mask based on the 
+-		// number of logical processors.
+-
+-		unsigned char i = 1, PHY_ID_MASK  = 0xFF, PHY_ID_SHIFT = 0;
+-
+-		while( i < logicalNum ) {
+-			i *= 2;
+- 			PHY_ID_MASK  <<= 1;
+-			PHY_ID_SHIFT++;
+-		}
+-		
+-		hCurrentProcessHandle = GetCurrentProcess();
+-		GetProcessAffinityMask( hCurrentProcessHandle, &dwProcessAffinity, &dwSystemAffinity );
+-
+-		// Check if available process affinity mask is equal to the
+-		// available system affinity mask
+-		if ( dwProcessAffinity != dwSystemAffinity ) {
+-			statusFlag = HT_CANNOT_DETECT;
+-			physicalNum = -1;
+-			return statusFlag;
+-		}
+-
+-		dwAffinityMask = 1;
+-		while ( dwAffinityMask != 0 && dwAffinityMask <= dwProcessAffinity ) {
+-			// Check if this CPU is available
+-			if ( dwAffinityMask & dwProcessAffinity ) {
+-				if ( SetProcessAffinityMask( hCurrentProcessHandle, dwAffinityMask ) ) {
+-					unsigned char APIC_ID, LOG_ID, PHY_ID;
+-
+-					Sleep( 0 ); // Give OS time to switch CPU
+-
+-					APIC_ID = GetAPIC_ID();
+-					LOG_ID  = APIC_ID & ~PHY_ID_MASK;
+-					PHY_ID  = APIC_ID >> PHY_ID_SHIFT;
+-
+-					if ( LOG_ID != 0 ) {
+-						HT_Enabled = 1;
+-					}
+-				}
+-			}
+-			dwAffinityMask = dwAffinityMask << 1;
+-		}
+-	        
+-		// Reset the processor affinity
+-		SetProcessAffinityMask( hCurrentProcessHandle, dwProcessAffinity );
+-	    
+-		if ( logicalNum == 1 ) {  // Normal P4 : HT is disabled in hardware
+-			statusFlag = HT_DISABLED;
+-		} else {
+-			if ( HT_Enabled ) {
+-				// Total physical processors in a Hyper-Threading enabled system.
+-				physicalNum /= logicalNum;
+-				statusFlag = HT_ENABLED;
+-			} else {
+-				statusFlag = HT_SUPPORTED_NOT_ENABLED;
+-			}
+-		}
+-	}
+-	return statusFlag;
+-}
+-
+-/*
+-================
+-HasHTT
+-================
+-*/
+-static bool HasHTT( void ) {
+-	unsigned regs[4];
+-	int logicalNum, physicalNum, HTStatusFlag;
+-
+-	// get CPU feature bits
+-	CPUID( 1, regs );
+-
+-	// bit 28 of EDX denotes HTT existence
+-	if ( !( regs[_REG_EDX] & ( 1 << 28 ) ) ) {
+-		return false;
+-	}
+-
+-	HTStatusFlag = CPUCount( logicalNum, physicalNum );
+-	if ( HTStatusFlag != HT_ENABLED ) {
+-		return false;
+-	}
+-	return true;
+-}
+-
+-/*
+-================
+-HasHTT
+-================
+-*/
+-static bool HasDAZ( void ) {
+-	__declspec(align(16)) unsigned char FXSaveArea[512];
+-	unsigned char *FXArea = FXSaveArea;
+-	DWORD dwMask = 0;
+-	unsigned regs[4];
+-
+-	// get CPU feature bits
+-	CPUID( 1, regs );
+-
+-	// bit 24 of EDX denotes support for FXSAVE
+-	if ( !( regs[_REG_EDX] & ( 1 << 24 ) ) ) {
+-		return false;
+-	}
+-
+-	memset( FXArea, 0, sizeof( FXSaveArea ) );
+-
+-	__asm {
+-		mov		eax, FXArea
+-		FXSAVE	[eax]
+-	}
+-
+-	dwMask = *(DWORD *)&FXArea[28];						// Read the MXCSR Mask
+-	return ( ( dwMask & ( 1 << 6 ) ) == ( 1 << 6 ) );	// Return if the DAZ bit is set
+-}
+-
+-/*
+-================
+-Sys_GetCPUId
+-================
+-*/
+-cpuid_t Sys_GetCPUId( void ) {
+-	int flags;
+-
+-	// verify we're at least a Pentium or 486 with CPUID support
+-	if ( !HasCPUID() ) {
+-		return CPUID_UNSUPPORTED;
+-	}
+-
+-	// check for an AMD
+-	if ( IsAMD() ) {
+-		flags = CPUID_AMD;
+-	} else {
+-		flags = CPUID_INTEL;
+-	}
+-
+-	// check for Multi Media Extensions
+-	if ( HasMMX() ) {
+-		flags |= CPUID_MMX;
+-	}
+-
+-	// check for 3DNow!
+-	if ( Has3DNow() ) {
+-		flags |= CPUID_3DNOW;
+-	}
+-
+-	// check for Streaming SIMD Extensions
+-	if ( HasSSE() ) {
+-		flags |= CPUID_SSE | CPUID_FTZ;
+-	}
+-
+-	// check for Streaming SIMD Extensions 2
+-	if ( HasSSE2() ) {
+-		flags |= CPUID_SSE2;
+-	}
+-
+-	// check for Streaming SIMD Extensions 3 aka Prescott's New Instructions
+-	if ( HasSSE3() ) {
+-		flags |= CPUID_SSE3;
+-	}
+-
+-	// check for Hyper-Threading Technology
+-	if ( HasHTT() ) {
+-		flags |= CPUID_HTT;
+-	}
+-
+-	// check for Conditional Move (CMOV) and fast floating point comparison (FCOMI) instructions
+-	if ( HasCMOV() ) {
+-		flags |= CPUID_CMOV;
+-	}
+-
+-	// check for Denormals-Are-Zero mode
+-	if ( HasDAZ() ) {
+-		flags |= CPUID_DAZ;
+-	}
+-
+-	return (cpuid_t)flags;
+-}
+-
+-
+-/*
+-===============================================================================
+-
+-	FPU
+-
+-===============================================================================
+-*/
+-
+-typedef struct bitFlag_s {
+-	char *		name;
+-	int			bit;
+-} bitFlag_t;
+-
+-static byte fpuState[128], *statePtr = fpuState;
+-static char fpuString[2048];
+-static bitFlag_t controlWordFlags[] = {
+-	{ "Invalid operation", 0 },
+-	{ "Denormalized operand", 1 },
+-	{ "Divide-by-zero", 2 },
+-	{ "Numeric overflow", 3 },
+-	{ "Numeric underflow", 4 },
+-	{ "Inexact result (precision)", 5 },
+-	{ "Infinity control", 12 },
+-	{ "", 0 }
+-};
+-static char *precisionControlField[] = {
+-	"Single Precision (24-bits)",
+-	"Reserved",
+-	"Double Precision (53-bits)",
+-	"Double Extended Precision (64-bits)"
+-};
+-static char *roundingControlField[] = {
+-	"Round to nearest",
+-	"Round down",
+-	"Round up",
+-	"Round toward zero"
+-};
+-static bitFlag_t statusWordFlags[] = {
+-	{ "Invalid operation", 0 },
+-	{ "Denormalized operand", 1 },
+-	{ "Divide-by-zero", 2 },
+-	{ "Numeric overflow", 3 },
+-	{ "Numeric underflow", 4 },
+-	{ "Inexact result (precision)", 5 },
+-	{ "Stack fault", 6 },
+-	{ "Error summary status", 7 },
+-	{ "FPU busy", 15 },
+-	{ "", 0 }
+-};
+-
+-/*
+-===============
+-Sys_FPU_PrintStateFlags
+-===============
+-*/
+-int Sys_FPU_PrintStateFlags( char *ptr, int ctrl, int stat, int tags, int inof, int inse, int opof, int opse ) {
+-	int i, length = 0;
+-
+-	length += sprintf( ptr+length,	"CTRL = %08x\n"
+-									"STAT = %08x\n"
+-									"TAGS = %08x\n"
+-									"INOF = %08x\n"
+-									"INSE = %08x\n"
+-									"OPOF = %08x\n"
+-									"OPSE = %08x\n"
+-									"\n",
+-									ctrl, stat, tags, inof, inse, opof, opse );
+-
+-	length += sprintf( ptr+length, "Control Word:\n" );
+-	for ( i = 0; controlWordFlags[i].name[0]; i++ ) {
+-		length += sprintf( ptr+length, "  %-30s = %s\n", controlWordFlags[i].name, ( ctrl & ( 1 << controlWordFlags[i].bit ) ) ? "true" : "false" );
+-	}
+-	length += sprintf( ptr+length, "  %-30s = %s\n", "Precision control", precisionControlField[(ctrl>>8)&3] );
+-	length += sprintf( ptr+length, "  %-30s = %s\n", "Rounding control", roundingControlField[(ctrl>>10)&3] );
+-
+-	length += sprintf( ptr+length, "Status Word:\n" );
+-	for ( i = 0; statusWordFlags[i].name[0]; i++ ) {
+-		ptr += sprintf( ptr+length, "  %-30s = %s\n", statusWordFlags[i].name, ( stat & ( 1 << statusWordFlags[i].bit ) ) ? "true" : "false" );
+-	}
+-	length += sprintf( ptr+length, "  %-30s = %d%d%d%d\n", "Condition code", (stat>>8)&1, (stat>>9)&1, (stat>>10)&1, (stat>>14)&1 );
+-	length += sprintf( ptr+length, "  %-30s = %d\n", "Top of stack pointer", (stat>>11)&7 );
+-
+-	return length;
+-}
+-
+-/*
+-===============
+-Sys_FPU_StackIsEmpty
+-===============
+-*/
+-bool Sys_FPU_StackIsEmpty( void ) {
+-	__asm {
+-		mov			eax, statePtr
+-		fnstenv		[eax]
+-		mov			eax, [eax+8]
+-		xor			eax, 0xFFFFFFFF
+-		and			eax, 0x0000FFFF
+-		jz			empty
+-	}
+-	return false;
+-empty:
+-	return true;
+-}
+-
+-/*
+-===============
+-Sys_FPU_ClearStack
+-===============
+-*/
+-void Sys_FPU_ClearStack( void ) {
+-	__asm {
+-		mov			eax, statePtr
+-		fnstenv		[eax]
+-		mov			eax, [eax+8]
+-		xor			eax, 0xFFFFFFFF
+-		mov			edx, (3<<14)
+-	emptyStack:
+-		mov			ecx, eax
+-		and			ecx, edx
+-		jz			done
+-		fstp		st
+-		shr			edx, 2
+-		jmp			emptyStack
+-	done:
+-	}
+-}
+-
+-/*
+-===============
+-Sys_FPU_GetState
+-
+-  gets the FPU state without changing the state
+-===============
+-*/
+-const char *Sys_FPU_GetState( void ) {
+-	double fpuStack[8] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+-	double *fpuStackPtr = fpuStack;
+-	int i, numValues;
+-	char *ptr;
+-
+-	__asm {
+-		mov			esi, statePtr
+-		mov			edi, fpuStackPtr
+-		fnstenv		[esi]
+-		mov			esi, [esi+8]
+-		xor			esi, 0xFFFFFFFF
+-		mov			edx, (3<<14)
+-		xor			eax, eax
+-		mov			ecx, esi
+-		and			ecx, edx
+-		jz			done
+-		fst			qword ptr [edi+0]
+-		inc			eax
+-		shr			edx, 2
+-		mov			ecx, esi
+-		and			ecx, edx
+-		jz			done
+-		fxch		st(1)
+-		fst			qword ptr [edi+8]
+-		inc			eax
+-		fxch		st(1)
+-		shr			edx, 2
+-		mov			ecx, esi
+-		and			ecx, edx
+-		jz			done
+-		fxch		st(2)
+-		fst			qword ptr [edi+16]
+-		inc			eax
+-		fxch		st(2)
+-		shr			edx, 2
+-		mov			ecx, esi
+-		and			ecx, edx
+-		jz			done
+-		fxch		st(3)
+-		fst			qword ptr [edi+24]
+-		inc			eax
+-		fxch		st(3)
+-		shr			edx, 2
+-		mov			ecx, esi
+-		and			ecx, edx
+-		jz			done
+-		fxch		st(4)
+-		fst			qword ptr [edi+32]
+-		inc			eax
+-		fxch		st(4)
+-		shr			edx, 2
+-		mov			ecx, esi
+-		and			ecx, edx
+-		jz			done
+-		fxch		st(5)
+-		fst			qword ptr [edi+40]
+-		inc			eax
+-		fxch		st(5)
+-		shr			edx, 2
+-		mov			ecx, esi
+-		and			ecx, edx
+-		jz			done
+-		fxch		st(6)
+-		fst			qword ptr [edi+48]
+-		inc			eax
+-		fxch		st(6)
+-		shr			edx, 2
+-		mov			ecx, esi
+-		and			ecx, edx
+-		jz			done
+-		fxch		st(7)
+-		fst			qword ptr [edi+56]
+-		inc			eax
+-		fxch		st(7)
+-	done:
+-		mov			numValues, eax
+-	}
+-
+-	int ctrl = *(int *)&fpuState[0];
+-	int stat = *(int *)&fpuState[4];
+-	int tags = *(int *)&fpuState[8];
+-	int inof = *(int *)&fpuState[12];
+-	int inse = *(int *)&fpuState[16];
+-	int opof = *(int *)&fpuState[20];
+-	int opse = *(int *)&fpuState[24];
+-
+-	ptr = fpuString;
+-	ptr += sprintf( ptr,"FPU State:\n"
+-						"num values on stack = %d\n", numValues );
+-	for ( i = 0; i < 8; i++ ) {
+-		ptr += sprintf( ptr, "ST%d = %1.10e\n", i, fpuStack[i] );
+-	}
+-
+-	Sys_FPU_PrintStateFlags( ptr, ctrl, stat, tags, inof, inse, opof, opse );
+-
+-	return fpuString;
+-}
+-
+-/*
+-===============
+-Sys_FPU_EnableExceptions
+-===============
+-*/
+-void Sys_FPU_EnableExceptions( int exceptions ) {
+-	__asm {
+-		mov			eax, statePtr
+-		mov			ecx, exceptions
+-		and			cx, 63
+-		not			cx
+-		fnstcw		word ptr [eax]
+-		mov			bx, word ptr [eax]
+-		or			bx, 63
+-		and			bx, cx
+-		mov			word ptr [eax], bx
+-		fldcw		word ptr [eax]
+-	}
+-}
+-
+-/*
+-===============
+-Sys_FPU_SetPrecision
+-===============
+-*/
+-void Sys_FPU_SetPrecision( int precision ) {
+-	short precisionBitTable[4] = { 0, 1, 3, 0 };
+-	short precisionBits = precisionBitTable[precision & 3] << 8;
+-	short precisionMask = ~( ( 1 << 9 ) | ( 1 << 8 ) );
+-
+-	__asm {
+-		mov			eax, statePtr
+-		mov			cx, precisionBits
+-		fnstcw		word ptr [eax]
+-		mov			bx, word ptr [eax]
+-		and			bx, precisionMask
+-		or			bx, cx
+-		mov			word ptr [eax], bx
+-		fldcw		word ptr [eax]
+-	}
+-}
+-
+-/*
+-================
+-Sys_FPU_SetRounding
+-================
+-*/
+-void Sys_FPU_SetRounding( int rounding ) {
+-	short roundingBitTable[4] = { 0, 1, 2, 3 };
+-	short roundingBits = roundingBitTable[rounding & 3] << 10;
+-	short roundingMask = ~( ( 1 << 11 ) | ( 1 << 10 ) );
+-
+-	__asm {
+-		mov			eax, statePtr
+-		mov			cx, roundingBits
+-		fnstcw		word ptr [eax]
+-		mov			bx, word ptr [eax]
+-		and			bx, roundingMask
+-		or			bx, cx
+-		mov			word ptr [eax], bx
+-		fldcw		word ptr [eax]
+-	}
+-}
+-
+-/*
+-================
+-Sys_FPU_SetDAZ
+-================
+-*/
+-void Sys_FPU_SetDAZ( bool enable ) {
+-	DWORD dwData;
+-
+-	_asm {
+-		movzx	ecx, byte ptr enable
+-		and		ecx, 1
+-		shl		ecx, 6
+-		STMXCSR	dword ptr dwData
+-		mov		eax, dwData
+-		and		eax, ~(1<<6)	// clear DAX bit
+-		or		eax, ecx		// set the DAZ bit
+-		mov		dwData, eax
+-		LDMXCSR	dword ptr dwData
+-	}
+-}
+-
+-/*
+-================
+-Sys_FPU_SetFTZ
+-================
+-*/
+-void Sys_FPU_SetFTZ( bool enable ) {
+-	DWORD dwData;
+-
+-	_asm {
+-		movzx	ecx, byte ptr enable
+-		and		ecx, 1
+-		shl		ecx, 15
+-		STMXCSR	dword ptr dwData
+-		mov		eax, dwData
+-		and		eax, ~(1<<15)	// clear FTZ bit
+-		or		eax, ecx		// set the FTZ bit
+-		mov		dwData, eax
+-		LDMXCSR	dword ptr dwData
+-	}
+-}
++/*
++===========================================================================
++
++Doom 3 GPL Source Code
++Copyright (C) 1999-2011 id Software LLC, a ZeniMax Media company. 
++
++This file is part of the Doom 3 GPL Source Code (?Doom 3 Source Code?).  
++
++Doom 3 Source Code is free software: you can redistribute it and/or modify
++it under the terms of the GNU General Public License as published by
++the Free Software Foundation, either version 3 of the License, or
++(at your option) any later version.
++
++Doom 3 Source Code is distributed in the hope that it will be useful,
++but WITHOUT ANY WARRANTY; without even the implied warranty of
++MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++GNU General Public License for more details.
++
++You should have received a copy of the GNU General Public License
++along with Doom 3 Source Code.  If not, see <http://www.gnu.org/licenses/>.
++
++In addition, the Doom 3 Source Code is also subject to certain additional terms. You should have received a copy of these additional terms immediately following the terms and conditions of the GNU General Public License which accompanied the Doom 3 Source Code.  If not, please request a copy in writing from id Software at the address below.
++
++If you have questions concerning this license or the applicable additional terms, you may contact in writing id Software LLC, c/o ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
++
++===========================================================================
++*/
++
++#include "../../idlib/precompiled.h"
++#pragma hdrstop
++
++#include "win_local.h"
++
 +#if defined(_M_X64)
 +#include <intrin.h>			// x64: __rdtsc / __cpuidex replace the inline asm
 +#include <xmmintrin.h>		// x64: _mm_getcsr / _mm_setcsr for MXCSR
-+#include <float.h>			// x64: _controlfp_s rounding control
++#include <immintrin.h>		// x64: _fxsave64 / _fxrstor64 read and write the x87 + MXCSR state
++#include <float.h>			// x64: _controlfp_s / _clearfp
++#include <math.h>			// x64: ldexp, used to decode 80-bit ST registers
 +#endif
 +
- 
- /*
- ==============================================================
-@@ -46,7 +52,12 @@ Sys_GetClockTicks
- ================
- */
- double Sys_GetClockTicks( void ) {
--#if 0
++
++/*
++==============================================================
++
++	Clock ticks
++
++==============================================================
++*/
++
++/*
++================
++Sys_GetClockTicks
++================
++*/
++double Sys_GetClockTicks( void ) {
 +#if defined(_M_X64)
 +
 +	// x64: inline asm is unsupported, use the rdtsc intrinsic
 +	return (double)__rdtsc();
 +
 +#elif 0
- 
- 	LARGE_INTEGER li;
- 
-@@ -90,7 +101,7 @@ double Sys_ClockTicksPerSecond( void ) {
- 
- 	if ( !ticks ) {
- 		HKEY hKey;
--		LPBYTE ProcSpeed;
++
++	LARGE_INTEGER li;
++
++	QueryPerformanceCounter( &li );
++	return = (double ) li.LowPart + (double) 0xFFFFFFFF * li.HighPart;
++
++#else
++
++	unsigned long lo, hi;
++
++	__asm {
++		push ebx
++		xor eax, eax
++		cpuid
++		rdtsc
++		mov lo, eax
++		mov hi, edx
++		pop ebx
++	}
++	return (double ) lo + (double) 0xFFFFFFFF * hi;
++
++#endif
++}
++
++/*
++================
++Sys_ClockTicksPerSecond
++================
++*/
++double Sys_ClockTicksPerSecond( void ) {
++	static double ticks = 0;
++#if 0
++
++	if ( !ticks ) {
++		LARGE_INTEGER li;
++		QueryPerformanceFrequency( &li );
++		ticks = li.QuadPart;
++	}
++
++#else
++
++	if ( !ticks ) {
++		HKEY hKey;
 +		DWORD ProcSpeed;		// x64: the registry value is a 4-byte DWORD, not a pointer
- 		DWORD buflen, ret;
- 
- 		if ( !RegOpenKeyEx( HKEY_LOCAL_MACHINE, "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0", 0, KEY_READ, &hKey ) ) {
-@@ -106,7 +117,7 @@ double Sys_ClockTicksPerSecond( void ) {
- 			}
- 			RegCloseKey( hKey );
- 			if ( ret == ERROR_SUCCESS ) {
--				ticks = (double) ((unsigned long)ProcSpeed) * 1000000;
++		DWORD buflen, ret;
++
++		if ( !RegOpenKeyEx( HKEY_LOCAL_MACHINE, "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0", 0, KEY_READ, &hKey ) ) {
++			ProcSpeed = 0;
++			buflen = sizeof( ProcSpeed );
++			ret = RegQueryValueEx( hKey, "~MHz", NULL, NULL, (LPBYTE) &ProcSpeed, &buflen );
++			// If we don't succeed, try some other spellings.
++			if ( ret != ERROR_SUCCESS ) {
++				ret = RegQueryValueEx( hKey, "~Mhz", NULL, NULL, (LPBYTE) &ProcSpeed, &buflen );
++			}
++			if ( ret != ERROR_SUCCESS ) {
++				ret = RegQueryValueEx( hKey, "~mhz", NULL, NULL, (LPBYTE) &ProcSpeed, &buflen );
++			}
++			RegCloseKey( hKey );
++			if ( ret == ERROR_SUCCESS ) {
 +				ticks = (double) ProcSpeed * 1000000;
- 			}
- 		}
- 	}
-@@ -130,6 +141,11 @@ HasCPUID
- ================
- */
- static bool HasCPUID( void ) {
++			}
++		}
++	}
++
++#endif
++	return ticks;
++}
++
++
++/*
++==============================================================
++
++	CPU
++
++==============================================================
++*/
++
++/*
++================
++HasCPUID
++================
++*/
++static bool HasCPUID( void ) {
 +#if defined(_M_X64)
 +
 +	return true;		// x64: CPUID is an architectural requirement
 +
 +#else
- 	__asm 
- 	{
- 		pushfd						// save eflags
-@@ -159,6 +175,7 @@ err:
- 	return false;
- good:
- 	return true;
++	__asm 
++	{
++		pushfd						// save eflags
++		pop		eax
++		test	eax, 0x00200000		// check ID bit
++		jz		set21				// bit 21 is not set, so jump to set_21
++		and		eax, 0xffdfffff		// clear bit 21
++		push	eax					// save new value in register
++		popfd						// store new value in flags
++		pushfd
++		pop		eax
++		test	eax, 0x00200000		// check ID bit
++		jz		good
++		jmp		err					// cpuid not supported
++set21:
++		or		eax, 0x00200000		// set ID bit
++		push	eax					// store new value
++		popfd						// store new value in EFLAGS
++		pushfd
++		pop		eax
++		test	eax, 0x00200000		// if bit 21 is on
++		jnz		good
++		jmp		err
++	}
++
++err:
++	return false;
++good:
++	return true;
 +#endif
- }
- 
- #define _REG_EAX		0
-@@ -172,6 +189,11 @@ CPUID
- ================
- */
- static void CPUID( int func, unsigned regs[4] ) {
++}
++
++#define _REG_EAX		0
++#define _REG_EBX		1
++#define _REG_ECX		2
++#define _REG_EDX		3
++
++/*
++================
++CPUID
++================
++*/
++static void CPUID( int func, unsigned regs[4] ) {
 +#if defined(_M_X64)
 +
 +	__cpuidex( (int *)regs, func, 0 );		// x64: intrinsic replacement for the cpuid asm
 +
 +#else
- 	unsigned regEAX, regEBX, regECX, regEDX;
- 
- 	__asm pusha
-@@ -188,6 +210,7 @@ static void CPUID( int func, unsigned regs[4] ) {
- 	regs[_REG_EBX] = regEBX;
- 	regs[_REG_ECX] = regECX;
- 	regs[_REG_EDX] = regEDX;
++	unsigned regEAX, regEBX, regECX, regEDX;
++
++	__asm pusha
++	__asm mov eax, func
++	__asm __emit 00fh
++	__asm __emit 0a2h
++	__asm mov regEAX, eax
++	__asm mov regEBX, ebx
++	__asm mov regECX, ecx
++	__asm mov regEDX, edx
++	__asm popa
++
++	regs[_REG_EAX] = regEAX;
++	regs[_REG_EBX] = regEBX;
++	regs[_REG_ECX] = regECX;
++	regs[_REG_EDX] = regEDX;
 +#endif
- }
- 
- 
-@@ -345,11 +368,17 @@ LogicalProcPerPhysicalProc
-                                           // eax set to 1
- static unsigned char LogicalProcPerPhysicalProc( void ) {
- 	unsigned int regebx = 0;
++}
++
++
++/*
++================
++IsAMD
++================
++*/
++static bool IsAMD( void ) {
++	char pstring[16];
++	char processorString[13];
++
++	// get name of processor
++	CPUID( 0, ( unsigned int * ) pstring );
++	processorString[0] = pstring[4];
++	processorString[1] = pstring[5];
++	processorString[2] = pstring[6];
++	processorString[3] = pstring[7];
++	processorString[4] = pstring[12];
++	processorString[5] = pstring[13];
++	processorString[6] = pstring[14];
++	processorString[7] = pstring[15];
++	processorString[8] = pstring[8];
++	processorString[9] = pstring[9];
++	processorString[10] = pstring[10];
++	processorString[11] = pstring[11];
++	processorString[12] = 0;
++
++	if ( strcmp( processorString, "AuthenticAMD" ) == 0 ) {
++		return true;
++	}
++	return false;
++}
++
++/*
++================
++HasCMOV
++================
++*/
++static bool HasCMOV( void ) {
++	unsigned regs[4];
++
++	// get CPU feature bits
++	CPUID( 1, regs );
++
++	// bit 15 of EDX denotes CMOV existence
++	if ( regs[_REG_EDX] & ( 1 << 15 ) ) {
++		return true;
++	}
++	return false;
++}
++
++/*
++================
++Has3DNow
++================
++*/
++static bool Has3DNow( void ) {
++	unsigned regs[4];
++
++	// check AMD-specific functions
++	CPUID( 0x80000000, regs );
++	if ( regs[_REG_EAX] < 0x80000000 ) {
++		return false;
++	}
++
++	// bit 31 of EDX denotes 3DNow! support
++	CPUID( 0x80000001, regs );
++	if ( regs[_REG_EDX] & ( 1 << 31 ) ) {
++		return true;
++	}
++
++	return false;
++}
++
++/*
++================
++HasMMX
++================
++*/
++static bool HasMMX( void ) {
++	unsigned regs[4];
++
++	// get CPU feature bits
++	CPUID( 1, regs );
++
++	// bit 23 of EDX denotes MMX existence
++	if ( regs[_REG_EDX] & ( 1 << 23 ) ) {
++		return true;
++	}
++	return false;
++}
++
++/*
++================
++HasSSE
++================
++*/
++static bool HasSSE( void ) {
++	unsigned regs[4];
++
++	// get CPU feature bits
++	CPUID( 1, regs );
++
++	// bit 25 of EDX denotes SSE existence
++	if ( regs[_REG_EDX] & ( 1 << 25 ) ) {
++		return true;
++	}
++	return false;
++}
++
++/*
++================
++HasSSE2
++================
++*/
++static bool HasSSE2( void ) {
++	unsigned regs[4];
++
++	// get CPU feature bits
++	CPUID( 1, regs );
++
++	// bit 26 of EDX denotes SSE2 existence
++	if ( regs[_REG_EDX] & ( 1 << 26 ) ) {
++		return true;
++	}
++	return false;
++}
++
++/*
++================
++HasSSE3
++================
++*/
++static bool HasSSE3( void ) {
++	unsigned regs[4];
++
++	// get CPU feature bits
++	CPUID( 1, regs );
++
++	// bit 0 of ECX denotes SSE3 existence
++	if ( regs[_REG_ECX] & ( 1 << 0 ) ) {
++		return true;
++	}
++	return false;
++}
++
++/*
++================
++LogicalProcPerPhysicalProc
++================
++*/
++#define NUM_LOGICAL_BITS   0x00FF0000     // EBX[23:16] Bit 16-23 in ebx contains the number of logical
++                                          // processors per physical processor when execute cpuid with 
++                                          // eax set to 1
++static unsigned char LogicalProcPerPhysicalProc( void ) {
++	unsigned int regebx = 0;
 +#if defined(_M_X64)
 +	unsigned regs[4];
 +	CPUID( 1, regs );
 +	regebx = regs[_REG_EBX];			// x64: same EBX[23:16] field, fetched via intrinsic
 +#else
- 	__asm {
- 		mov eax, 1
- 		cpuid
- 		mov regebx, ebx
- 	}
++	__asm {
++		mov eax, 1
++		cpuid
++		mov regebx, ebx
++	}
 +#endif
- 	return (unsigned char) ((regebx & NUM_LOGICAL_BITS) >> 16);
- }
- 
-@@ -363,11 +392,17 @@ GetAPIC_ID
-                                           // Default value = 0xff if HT is not supported
- static unsigned char GetAPIC_ID( void ) {
- 	unsigned int regebx = 0;
++	return (unsigned char) ((regebx & NUM_LOGICAL_BITS) >> 16);
++}
++
++/*
++================
++GetAPIC_ID
++================
++*/
++#define INITIAL_APIC_ID_BITS  0xFF000000  // EBX[31:24] Bits 24-31 (8 bits) return the 8-bit unique 
++                                          // initial APIC ID for the processor this code is running on.
++                                          // Default value = 0xff if HT is not supported
++static unsigned char GetAPIC_ID( void ) {
++	unsigned int regebx = 0;
 +#if defined(_M_X64)
 +	unsigned regs[4];
 +	CPUID( 1, regs );
 +	regebx = regs[_REG_EBX];			// x64: same EBX[31:24] field, fetched via intrinsic
 +#else
- 	__asm {
- 		mov eax, 1
- 		cpuid
- 		mov regebx, ebx
- 	}
++	__asm {
++		mov eax, 1
++		cpuid
++		mov regebx, ebx
++	}
 +#endif
- 	return (unsigned char) ((regebx & INITIAL_APIC_ID_BITS) >> 24);
- }
- 
-@@ -407,9 +442,9 @@ int CPUCount( int &logicalNum, int &physicalNum ) {
- 
- 	if ( logicalNum >= 1 ) {	// > 1 doesn't mean HT is enabled in the BIOS
- 		HANDLE hCurrentProcessHandle;
--		DWORD  dwProcessAffinity;
--		DWORD  dwSystemAffinity;
--		DWORD  dwAffinityMask;
++	return (unsigned char) ((regebx & INITIAL_APIC_ID_BITS) >> 24);
++}
++
++/*
++================
++CPUCount
++
++	logicalNum is the number of logical CPU per physical CPU
++    physicalNum is the total number of physical processor
++	returns one of the HT_* flags
++================
++*/
++#define HT_NOT_CAPABLE				0
++#define HT_ENABLED					1
++#define HT_DISABLED					2
++#define HT_SUPPORTED_NOT_ENABLED	3
++#define HT_CANNOT_DETECT			4
++
++int CPUCount( int &logicalNum, int &physicalNum ) {
++	int statusFlag;
++	SYSTEM_INFO info;
++
++	physicalNum = 1;
++	logicalNum = 1;
++	statusFlag = HT_NOT_CAPABLE;
++
++	info.dwNumberOfProcessors = 0;
++	GetSystemInfo (&info);
++
++	// Number of physical processors in a non-Intel system
++	// or in a 32-bit Intel system with Hyper-Threading technology disabled
++	physicalNum = info.dwNumberOfProcessors;  
++
++	unsigned char HT_Enabled = 0;
++
++	logicalNum = LogicalProcPerPhysicalProc();
++
++	if ( logicalNum >= 1 ) {	// > 1 doesn't mean HT is enabled in the BIOS
++		HANDLE hCurrentProcessHandle;
 +		DWORD_PTR dwProcessAffinity;		// x64: affinity masks are DWORD_PTR
 +		DWORD_PTR dwSystemAffinity;
 +		DWORD_PTR dwAffinityMask;
- 
- 		// Calculate the appropriate  shifts and mask based on the 
- 		// number of logical processors.
-@@ -502,6 +537,16 @@ HasHTT
- ================
- */
- static bool HasDAZ( void ) {
++
++		// Calculate the appropriate  shifts and mask based on the 
++		// number of logical processors.
++
++		unsigned char i = 1, PHY_ID_MASK  = 0xFF, PHY_ID_SHIFT = 0;
++
++		while( i < logicalNum ) {
++			i *= 2;
++ 			PHY_ID_MASK  <<= 1;
++			PHY_ID_SHIFT++;
++		}
++		
++		hCurrentProcessHandle = GetCurrentProcess();
++		GetProcessAffinityMask( hCurrentProcessHandle, &dwProcessAffinity, &dwSystemAffinity );
++
++		// Check if available process affinity mask is equal to the
++		// available system affinity mask
++		if ( dwProcessAffinity != dwSystemAffinity ) {
++			statusFlag = HT_CANNOT_DETECT;
++			physicalNum = -1;
++			return statusFlag;
++		}
++
++		dwAffinityMask = 1;
++		while ( dwAffinityMask != 0 && dwAffinityMask <= dwProcessAffinity ) {
++			// Check if this CPU is available
++			if ( dwAffinityMask & dwProcessAffinity ) {
++				if ( SetProcessAffinityMask( hCurrentProcessHandle, dwAffinityMask ) ) {
++					unsigned char APIC_ID, LOG_ID, PHY_ID;
++
++					Sleep( 0 ); // Give OS time to switch CPU
++
++					APIC_ID = GetAPIC_ID();
++					LOG_ID  = APIC_ID & ~PHY_ID_MASK;
++					PHY_ID  = APIC_ID >> PHY_ID_SHIFT;
++
++					if ( LOG_ID != 0 ) {
++						HT_Enabled = 1;
++					}
++				}
++			}
++			dwAffinityMask = dwAffinityMask << 1;
++		}
++	        
++		// Reset the processor affinity
++		SetProcessAffinityMask( hCurrentProcessHandle, dwProcessAffinity );
++	    
++		if ( logicalNum == 1 ) {  // Normal P4 : HT is disabled in hardware
++			statusFlag = HT_DISABLED;
++		} else {
++			if ( HT_Enabled ) {
++				// Total physical processors in a Hyper-Threading enabled system.
++				physicalNum /= logicalNum;
++				statusFlag = HT_ENABLED;
++			} else {
++				statusFlag = HT_SUPPORTED_NOT_ENABLED;
++			}
++		}
++	}
++	return statusFlag;
++}
++
++/*
++================
++HasHTT
++================
++*/
++static bool HasHTT( void ) {
++	unsigned regs[4];
++	int logicalNum, physicalNum, HTStatusFlag;
++
++	// get CPU feature bits
++	CPUID( 1, regs );
++
++	// bit 28 of EDX denotes HTT existence
++	if ( !( regs[_REG_EDX] & ( 1 << 28 ) ) ) {
++		return false;
++	}
++
++	HTStatusFlag = CPUCount( logicalNum, physicalNum );
++	if ( HTStatusFlag != HT_ENABLED ) {
++		return false;
++	}
++	return true;
++}
++
++/*
++================
++HasHTT
++================
++*/
++static bool HasDAZ( void ) {
 +#if defined(_M_X64)
 +
 +	// x64: probe MXCSR bit 6 through intrinsics instead of FXSAVE
@@ -8174,139 +9931,585 @@ index 77c1957..958828d 100644
 +	return ( newCsr & ( 1 << 6 ) ) != 0;
 +
 +#else
- 	__declspec(align(16)) unsigned char FXSaveArea[512];
- 	unsigned char *FXArea = FXSaveArea;
- 	DWORD dwMask = 0;
-@@ -524,6 +569,7 @@ static bool HasDAZ( void ) {
- 
- 	dwMask = *(DWORD *)&FXArea[28];						// Read the MXCSR Mask
- 	return ( ( dwMask & ( 1 << 6 ) ) == ( 1 << 6 ) );	// Return if the DAZ bit is set
++	__declspec(align(16)) unsigned char FXSaveArea[512];
++	unsigned char *FXArea = FXSaveArea;
++	DWORD dwMask = 0;
++	unsigned regs[4];
++
++	// get CPU feature bits
++	CPUID( 1, regs );
++
++	// bit 24 of EDX denotes support for FXSAVE
++	if ( !( regs[_REG_EDX] & ( 1 << 24 ) ) ) {
++		return false;
++	}
++
++	memset( FXArea, 0, sizeof( FXSaveArea ) );
++
++	__asm {
++		mov		eax, FXArea
++		FXSAVE	[eax]
++	}
++
++	dwMask = *(DWORD *)&FXArea[28];						// Read the MXCSR Mask
++	return ( ( dwMask & ( 1 << 6 ) ) == ( 1 << 6 ) );	// Return if the DAZ bit is set
 +#endif
- }
- 
- /*
-@@ -681,6 +727,11 @@ Sys_FPU_StackIsEmpty
- ===============
- */
- bool Sys_FPU_StackIsEmpty( void ) {
++}
++
++#if defined(_M_X64)
++/*
++================
++Sys_GetCPUInfoString
++
++  x64: vendor id, brand string and raw CPUID leaf 1 / 7 feature words, for the sys_cpuInfo command
++================
++*/
++const char *Sys_GetCPUInfoString( void ) {
++	static char info[1024];
++	int regs[4], maxLeaf, i;
++	char vendor[13], brand[49];
++
++	__cpuid( regs, 0 );
++	maxLeaf = regs[0];
++	memcpy( vendor + 0, &regs[1], 4 );
++	memcpy( vendor + 4, &regs[3], 4 );
++	memcpy( vendor + 8, &regs[2], 4 );
++	vendor[12] = 0;
++
++	memset( brand, 0, sizeof( brand ) );
++	__cpuid( regs, (int)0x80000000 );
++	if ( (unsigned)regs[0] >= 0x80000004u ) {
++		for ( i = 0; i < 3; i++ ) {
++			__cpuid( regs, (int)0x80000002 + i );
++			memcpy( brand + i * 16, regs, 16 );
++		}
++	}
++
++	__cpuid( regs, 1 );
++	int leaf1[4] = { regs[0], regs[1], regs[2], regs[3] };
++	int leaf7[4] = { 0, 0, 0, 0 };
++	if ( maxLeaf >= 7 ) {
++		__cpuidex( leaf7, 7, 0 );
++	}
++	// AVX/AVX2 are usable only when the OS saves YMM state: OSXSAVE (leaf1 ecx bit 27) and
++	// XCR0 bits 1 (SSE) and 2 (YMM) set. The raw CPUID bits alone are not enough.
++	int osYmm = 0;
++	if ( ( leaf1[2] >> 27 ) & 1 ) {
++		osYmm = ( ( _xgetbv( 0 ) & 6 ) == 6 ) ? 1 : 0;
++	}
++	int avx = osYmm && ( ( leaf1[2] >> 28 ) & 1 );
++	int avx2 = osYmm && ( ( leaf7[1] >> 5 ) & 1 );
++	// "HTT flag" is CPUID leaf1 EDX bit 28; "addressable logical IDs" is EBX[23:16]. Both only say the
++	// package can hold several logical processors and are set on many CPUs without Hyper-Threading
++	// (e.g. multi-core parts), so neither is a count of actual hardware threads.
++	sprintf( info, "CPU vendor = %s, brand = %s, family %d model %d stepping %d, HTT flag (CPUID bit 28) = %d, "
++				"addressable logical IDs per package (EBX[23:16], not an HT proof) = %d, "
++				"leaf1 ecx=%08x edx=%08x, leaf7 ebx=%08x, SSE4.2=%d AVX=%d AVX2=%d (OS YMM state %s)\n",
++				vendor, brand, ( leaf1[0] >> 8 ) & 15, ( leaf1[0] >> 4 ) & 15, leaf1[0] & 15, ( leaf1[3] >> 28 ) & 1, ( leaf1[1] >> 16 ) & 255,
++				leaf1[2], leaf1[3], leaf7[1], ( leaf1[2] >> 20 ) & 1, avx, avx2, osYmm ? "enabled" : "not enabled" );
++	return info;
++}
++#endif
++
++/*
++================
++Sys_GetCPUId
++================
++*/
++cpuid_t Sys_GetCPUId( void ) {
++	int flags;
++
++	// verify we're at least a Pentium or 486 with CPUID support
++	if ( !HasCPUID() ) {
++		return CPUID_UNSUPPORTED;
++	}
++
++	// check for an AMD
++	if ( IsAMD() ) {
++		flags = CPUID_AMD;
++	} else {
++		flags = CPUID_INTEL;
++	}
++
++	// check for Multi Media Extensions
++	if ( HasMMX() ) {
++		flags |= CPUID_MMX;
++	}
++
++	// check for 3DNow!
++	if ( Has3DNow() ) {
++		flags |= CPUID_3DNOW;
++	}
++
++	// check for Streaming SIMD Extensions
++	if ( HasSSE() ) {
++		flags |= CPUID_SSE | CPUID_FTZ;
++	}
++
++	// check for Streaming SIMD Extensions 2
++	if ( HasSSE2() ) {
++		flags |= CPUID_SSE2;
++	}
++
++	// check for Streaming SIMD Extensions 3 aka Prescott's New Instructions
++	if ( HasSSE3() ) {
++		flags |= CPUID_SSE3;
++	}
++
++	// check for Hyper-Threading Technology
++	if ( HasHTT() ) {
++		flags |= CPUID_HTT;
++	}
++
++	// check for Conditional Move (CMOV) and fast floating point comparison (FCOMI) instructions
++	if ( HasCMOV() ) {
++		flags |= CPUID_CMOV;
++	}
++
++	// check for Denormals-Are-Zero mode
++	if ( HasDAZ() ) {
++		flags |= CPUID_DAZ;
++	}
++
++	return (cpuid_t)flags;
++}
++
++
++/*
++===============================================================================
++
++	FPU
++
++===============================================================================
++*/
++
++typedef struct bitFlag_s {
++	char *		name;
++	int			bit;
++} bitFlag_t;
++
++static byte fpuState[128], *statePtr = fpuState;
++static char fpuString[2048];
++static bitFlag_t controlWordFlags[] = {
++	{ "Invalid operation", 0 },
++	{ "Denormalized operand", 1 },
++	{ "Divide-by-zero", 2 },
++	{ "Numeric overflow", 3 },
++	{ "Numeric underflow", 4 },
++	{ "Inexact result (precision)", 5 },
++	{ "Infinity control", 12 },
++	{ "", 0 }
++};
++static char *precisionControlField[] = {
++	"Single Precision (24-bits)",
++	"Reserved",
++	"Double Precision (53-bits)",
++	"Double Extended Precision (64-bits)"
++};
++static char *roundingControlField[] = {
++	"Round to nearest",
++	"Round down",
++	"Round up",
++	"Round toward zero"
++};
++static bitFlag_t statusWordFlags[] = {
++	{ "Invalid operation", 0 },
++	{ "Denormalized operand", 1 },
++	{ "Divide-by-zero", 2 },
++	{ "Numeric overflow", 3 },
++	{ "Numeric underflow", 4 },
++	{ "Inexact result (precision)", 5 },
++	{ "Stack fault", 6 },
++	{ "Error summary status", 7 },
++	{ "FPU busy", 15 },
++	{ "", 0 }
++};
++
++/*
++===============
++Sys_FPU_PrintStateFlags
++===============
++*/
++int Sys_FPU_PrintStateFlags( char *ptr, int ctrl, int stat, int tags, int inof, int inse, int opof, int opse ) {
++	int i, length = 0;
++
++	length += sprintf( ptr+length,	"CTRL = %08x\n"
++									"STAT = %08x\n"
++									"TAGS = %08x\n"
++									"INOF = %08x\n"
++									"INSE = %08x\n"
++									"OPOF = %08x\n"
++									"OPSE = %08x\n"
++									"\n",
++									ctrl, stat, tags, inof, inse, opof, opse );
++
++	length += sprintf( ptr+length, "Control Word:\n" );
++	for ( i = 0; controlWordFlags[i].name[0]; i++ ) {
++		length += sprintf( ptr+length, "  %-30s = %s\n", controlWordFlags[i].name, ( ctrl & ( 1 << controlWordFlags[i].bit ) ) ? "true" : "false" );
++	}
++	length += sprintf( ptr+length, "  %-30s = %s\n", "Precision control", precisionControlField[(ctrl>>8)&3] );
++	length += sprintf( ptr+length, "  %-30s = %s\n", "Rounding control", roundingControlField[(ctrl>>10)&3] );
++
++	length += sprintf( ptr+length, "Status Word:\n" );
++	for ( i = 0; statusWordFlags[i].name[0]; i++ ) {
++		length += sprintf( ptr+length, "  %-30s = %s\n", statusWordFlags[i].name, ( stat & ( 1 << statusWordFlags[i].bit ) ) ? "true" : "false" );
++	}
++	length += sprintf( ptr+length, "  %-30s = %d%d%d%d\n", "Condition code", (stat>>8)&1, (stat>>9)&1, (stat>>10)&1, (stat>>14)&1 );
++	length += sprintf( ptr+length, "  %-30s = %d\n", "Top of stack pointer", (stat>>11)&7 );
++
++	return length;
++}
++
++#if defined(_M_X64)
++/*
++===============
++x64 FPU state
++
++  FXSAVE layout: FCW @0, FSW @2, abridged FTW @4, FIP @8, FDP @16, MXCSR @24, ST0-7 @32 (16 bytes each, in stack order)
++===============
++*/
++typedef struct fxState_s {
++	unsigned short	fcw, fsw;
++	unsigned char	ftw;
++	unsigned int	mxcsr;
++	unsigned long long	fip, fdp;		// FXSAVE64: full 64-bit pointers
++	unsigned int	numValues;
++	double			st[8];
++} fxState_t;
++
++static void Sys_FPU_ReadState( fxState_t *out ) {
++	__declspec(align(16)) unsigned char area[512];
++	int i;
++
++	_fxsave64( area );
++	out->fcw = *(unsigned short *)&area[0];
++	out->fsw = *(unsigned short *)&area[2];
++	out->ftw = area[4];
++	out->fip = *(unsigned long long *)&area[8];
++	out->fdp = *(unsigned long long *)&area[16];
++	out->mxcsr = *(unsigned int *)&area[24];
++	out->numValues = 0;
++	for ( i = 0; i < 8; i++ ) {
++		out->st[i] = 0.0;
++		if ( out->ftw & ( 1 << i ) ) {
++			out->numValues++;		// abridged tag: bit n set = physical register n holds a value
++		}
++	}
++	for ( i = 0; i < 8 && i < (int)out->numValues; i++ ) {
++		// decode the 80-bit extended value by hand so reading the state never touches the x87 stack
++		const unsigned char *r = &area[32 + i * 16];
++		unsigned long long mant = *(const unsigned long long *)r;
++		int se = *(const unsigned short *)( r + 8 );
++		int e = se & 0x7fff;
++		double v;
++		if ( e == 0 && mant == 0 ) {
++			v = 0.0;
++		} else if ( e == 0x7fff ) {
++			v = ( ( mant << 1 ) != 0 ) ? 0.0 : ldexp( 1.0, 1100 );	// NaN is reported as 0, infinity as inf
++		} else {
++			v = ldexp( (double)mant, e - 16383 - 63 );
++		}
++		out->st[i] = ( se & 0x8000 ) ? -v : v;
++	}
++}
++#endif
++
++/*
++===============
++Sys_FPU_StackIsEmpty
++===============
++*/
++bool Sys_FPU_StackIsEmpty( void ) {
 +#if defined(_M_X64)
 +
-+	return true;		// x64: x87 stack is not used by generated code
++	fxState_t st;
++
++	Sys_FPU_ReadState( &st );		// x64: abridged tag word, 0 means all eight x87 registers are empty
++	return st.ftw == 0;
 +
 +#else
- 	__asm {
- 		mov			eax, statePtr
- 		fnstenv		[eax]
-@@ -692,6 +743,7 @@ bool Sys_FPU_StackIsEmpty( void ) {
- 	return false;
- empty:
- 	return true;
++	__asm {
++		mov			eax, statePtr
++		fnstenv		[eax]
++		mov			eax, [eax+8]
++		xor			eax, 0xFFFFFFFF
++		and			eax, 0x0000FFFF
++		jz			empty
++	}
++	return false;
++empty:
++	return true;
 +#endif
- }
- 
- /*
-@@ -700,6 +752,7 @@ Sys_FPU_ClearStack
- ===============
- */
- void Sys_FPU_ClearStack( void ) {
++}
++
++/*
++===============
++Sys_FPU_ClearStack
++===============
++*/
++void Sys_FPU_ClearStack( void ) {
 +#if !defined(_M_X64)		/* x64: FSTP-based stack clearing is x87 asm, SSE code leaves the stack empty */
- 	__asm {
- 		mov			eax, statePtr
- 		fnstenv		[eax]
-@@ -715,6 +768,7 @@ void Sys_FPU_ClearStack( void ) {
- 		jmp			emptyStack
- 	done:
- 	}
++	__asm {
++		mov			eax, statePtr
++		fnstenv		[eax]
++		mov			eax, [eax+8]
++		xor			eax, 0xFFFFFFFF
++		mov			edx, (3<<14)
++	emptyStack:
++		mov			ecx, eax
++		and			ecx, edx
++		jz			done
++		fstp		st
++		shr			edx, 2
++		jmp			emptyStack
++	done:
++	}
 +#endif
- }
- 
- /*
-@@ -725,6 +779,12 @@ Sys_FPU_GetState
- ===============
- */
- const char *Sys_FPU_GetState( void ) {
++}
++
++/*
++===============
++Sys_FPU_GetState
++
++  gets the FPU state without changing the state
++===============
++*/
++const char *Sys_FPU_GetState( void ) {
 +#if defined(_M_X64)
 +
-+	// x64: no fnstenv/FST asm; report an empty x87 stack
-+	return "FPU State:\nnum values on stack = 0\n";
++	fxState_t st;
++	char *ptr;
++	int i, tags = 0;
++
++	// x64: real state through FXSAVE, same text layout as the x86 version plus the SSE control word
++	Sys_FPU_ReadState( &st );
++	ptr = fpuString;
++	ptr += sprintf( ptr,"FPU State:\n"
++						"num values on stack = %d\n", (int)st.numValues );
++	for ( i = 0; i < 8; i++ ) {
++		ptr += sprintf( ptr, "ST%d = %1.10e\n", i, st.st[i] );
++	}
++	// expand the abridged tag word to the 2-bit x87 form (00 valid, 11 empty)
++	for ( i = 0; i < 8; i++ ) {
++		tags |= ( ( st.ftw & ( 1 << i ) ) ? 0 : 3 ) << ( i * 2 );
++	}
++	ptr += Sys_FPU_PrintStateFlags( ptr, st.fcw, st.fsw, tags, (int)(unsigned int)st.fip, 0, (int)(unsigned int)st.fdp, 0 );
++	ptr += sprintf( ptr, "FIP64 = %016llx\nFDP64 = %016llx\n", st.fip, st.fdp );
++	sprintf( ptr, "MXCSR = %08x (DAZ=%d FTZ=%d rounding=%s)\n", st.mxcsr, ( st.mxcsr >> 6 ) & 1, ( st.mxcsr >> 15 ) & 1,
++					roundingControlField[( st.mxcsr >> 13 ) & 3] );
++	return fpuString;
 +
 +#else
- 	double fpuStack[8] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
- 	double *fpuStackPtr = fpuStack;
- 	int i, numValues;
-@@ -821,6 +881,7 @@ const char *Sys_FPU_GetState( void ) {
- 	Sys_FPU_PrintStateFlags( ptr, ctrl, stat, tags, inof, inse, opof, opse );
- 
- 	return fpuString;
++	double fpuStack[8] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
++	double *fpuStackPtr = fpuStack;
++	int i, numValues;
++	char *ptr;
++
++	__asm {
++		mov			esi, statePtr
++		mov			edi, fpuStackPtr
++		fnstenv		[esi]
++		mov			esi, [esi+8]
++		xor			esi, 0xFFFFFFFF
++		mov			edx, (3<<14)
++		xor			eax, eax
++		mov			ecx, esi
++		and			ecx, edx
++		jz			done
++		fst			qword ptr [edi+0]
++		inc			eax
++		shr			edx, 2
++		mov			ecx, esi
++		and			ecx, edx
++		jz			done
++		fxch		st(1)
++		fst			qword ptr [edi+8]
++		inc			eax
++		fxch		st(1)
++		shr			edx, 2
++		mov			ecx, esi
++		and			ecx, edx
++		jz			done
++		fxch		st(2)
++		fst			qword ptr [edi+16]
++		inc			eax
++		fxch		st(2)
++		shr			edx, 2
++		mov			ecx, esi
++		and			ecx, edx
++		jz			done
++		fxch		st(3)
++		fst			qword ptr [edi+24]
++		inc			eax
++		fxch		st(3)
++		shr			edx, 2
++		mov			ecx, esi
++		and			ecx, edx
++		jz			done
++		fxch		st(4)
++		fst			qword ptr [edi+32]
++		inc			eax
++		fxch		st(4)
++		shr			edx, 2
++		mov			ecx, esi
++		and			ecx, edx
++		jz			done
++		fxch		st(5)
++		fst			qword ptr [edi+40]
++		inc			eax
++		fxch		st(5)
++		shr			edx, 2
++		mov			ecx, esi
++		and			ecx, edx
++		jz			done
++		fxch		st(6)
++		fst			qword ptr [edi+48]
++		inc			eax
++		fxch		st(6)
++		shr			edx, 2
++		mov			ecx, esi
++		and			ecx, edx
++		jz			done
++		fxch		st(7)
++		fst			qword ptr [edi+56]
++		inc			eax
++		fxch		st(7)
++	done:
++		mov			numValues, eax
++	}
++
++	int ctrl = *(int *)&fpuState[0];
++	int stat = *(int *)&fpuState[4];
++	int tags = *(int *)&fpuState[8];
++	int inof = *(int *)&fpuState[12];
++	int inse = *(int *)&fpuState[16];
++	int opof = *(int *)&fpuState[20];
++	int opse = *(int *)&fpuState[24];
++
++	ptr = fpuString;
++	ptr += sprintf( ptr,"FPU State:\n"
++						"num values on stack = %d\n", numValues );
++	for ( i = 0; i < 8; i++ ) {
++		ptr += sprintf( ptr, "ST%d = %1.10e\n", i, fpuStack[i] );
++	}
++
++	Sys_FPU_PrintStateFlags( ptr, ctrl, stat, tags, inof, inse, opof, opse );
++
++	return fpuString;
 +#endif
- }
- 
- /*
-@@ -829,6 +890,11 @@ Sys_FPU_EnableExceptions
- ===============
- */
- void Sys_FPU_EnableExceptions( int exceptions ) {
++}
++
++/*
++===============
++Sys_FPU_EnableExceptions
++===============
++*/
++void Sys_FPU_EnableExceptions( int exceptions ) {
 +#if defined(_M_X64)
 +
-+	(void)exceptions;		// x64: SSE exception masking is left at the CRT default
++	// x64: bit set in 'exceptions' = unmask that exception, as on x86. _controlfp_s writes both the
++	// x87 control word and MXCSR, which is what SSE code actually uses.
++	unsigned int mask = 0, cw;
++
++	if ( exceptions & FPU_EXCEPTION_INVALID_OPERATION )		mask |= _EM_INVALID;
++	if ( exceptions & FPU_EXCEPTION_DENORMALIZED_OPERAND )	mask |= _EM_DENORMAL;
++	if ( exceptions & FPU_EXCEPTION_DIVIDE_BY_ZERO )		mask |= _EM_ZERODIVIDE;
++	if ( exceptions & FPU_EXCEPTION_NUMERIC_OVERFLOW )		mask |= _EM_OVERFLOW;
++	if ( exceptions & FPU_EXCEPTION_NUMERIC_UNDERFLOW )		mask |= _EM_UNDERFLOW;
++	if ( exceptions & FPU_EXCEPTION_INEXACT_RESULT )		mask |= _EM_INEXACT;
++
++	// clear sticky status first so a stale flag cannot trap the instant an exception is unmasked
++	_clearfp();
++	_controlfp_s( &cw, ~mask & _MCW_EM, _MCW_EM );
 +
 +#else
- 	__asm {
- 		mov			eax, statePtr
- 		mov			ecx, exceptions
-@@ -841,6 +907,7 @@ void Sys_FPU_EnableExceptions( int exceptions ) {
- 		mov			word ptr [eax], bx
- 		fldcw		word ptr [eax]
- 	}
++	__asm {
++		mov			eax, statePtr
++		mov			ecx, exceptions
++		and			cx, 63
++		not			cx
++		fnstcw		word ptr [eax]
++		mov			bx, word ptr [eax]
++		or			bx, 63
++		and			bx, cx
++		mov			word ptr [eax], bx
++		fldcw		word ptr [eax]
++	}
 +#endif
- }
- 
- /*
-@@ -849,6 +916,11 @@ Sys_FPU_SetPrecision
- ===============
- */
- void Sys_FPU_SetPrecision( int precision ) {
++}
++
++/*
++===============
++Sys_FPU_SetPrecision
++===============
++*/
++void Sys_FPU_SetPrecision( int precision ) {
 +#if defined(_M_X64)
 +
-+	(void)precision;		// x64: SSE has no x87 precision control register
++	// x64: _controlfp_s rejects _MCW_PC, so patch the x87 control word through FXSAVE/FXRSTOR.
++	// SSE arithmetic has no precision control; this only affects any remaining x87 code.
++	static const unsigned short precisionBitTable[4] = { 0, 1, 3, 0 };
++	__declspec(align(16)) unsigned char area[512];
++
++	_fxsave64( area );
++	unsigned short fcw = *(unsigned short *)&area[0];
++	fcw = (unsigned short)( ( fcw & ~( ( 1 << 9 ) | ( 1 << 8 ) ) ) | ( precisionBitTable[precision & 3] << 8 ) );
++	*(unsigned short *)&area[0] = fcw;
++	_fxrstor64( area );
 +
 +#else
- 	short precisionBitTable[4] = { 0, 1, 3, 0 };
- 	short precisionBits = precisionBitTable[precision & 3] << 8;
- 	short precisionMask = ~( ( 1 << 9 ) | ( 1 << 8 ) );
-@@ -863,6 +935,7 @@ void Sys_FPU_SetPrecision( int precision ) {
- 		mov			word ptr [eax], bx
- 		fldcw		word ptr [eax]
- 	}
++	short precisionBitTable[4] = { 0, 1, 3, 0 };
++	short precisionBits = precisionBitTable[precision & 3] << 8;
++	short precisionMask = ~( ( 1 << 9 ) | ( 1 << 8 ) );
++
++	__asm {
++		mov			eax, statePtr
++		mov			cx, precisionBits
++		fnstcw		word ptr [eax]
++		mov			bx, word ptr [eax]
++		and			bx, precisionMask
++		or			bx, cx
++		mov			word ptr [eax], bx
++		fldcw		word ptr [eax]
++	}
 +#endif
- }
- 
- /*
-@@ -871,6 +944,12 @@ Sys_FPU_SetRounding
- ================
- */
- void Sys_FPU_SetRounding( int rounding ) {
++}
++
++/*
++================
++Sys_FPU_SetRounding
++================
++*/
++void Sys_FPU_SetRounding( int rounding ) {
 +#if defined(_M_X64)
 +	static const unsigned int roundMode[4] = { _RC_NEAR, _RC_DOWN, _RC_UP, _RC_CHOP };
 +	unsigned int cw;
 +
 +	_controlfp_s( &cw, roundMode[rounding & 3], _MCW_RC );	// x64: SSE rounding control lives in MXCSR
 +#else
- 	short roundingBitTable[4] = { 0, 1, 2, 3 };
- 	short roundingBits = roundingBitTable[rounding & 3] << 10;
- 	short roundingMask = ~( ( 1 << 11 ) | ( 1 << 10 ) );
-@@ -885,6 +964,7 @@ void Sys_FPU_SetRounding( int rounding ) {
- 		mov			word ptr [eax], bx
- 		fldcw		word ptr [eax]
- 	}
++	short roundingBitTable[4] = { 0, 1, 2, 3 };
++	short roundingBits = roundingBitTable[rounding & 3] << 10;
++	short roundingMask = ~( ( 1 << 11 ) | ( 1 << 10 ) );
++
++	__asm {
++		mov			eax, statePtr
++		mov			cx, roundingBits
++		fnstcw		word ptr [eax]
++		mov			bx, word ptr [eax]
++		and			bx, roundingMask
++		or			bx, cx
++		mov			word ptr [eax], bx
++		fldcw		word ptr [eax]
++	}
 +#endif
- }
- 
- /*
-@@ -893,6 +973,17 @@ Sys_FPU_SetDAZ
- ================
- */
- void Sys_FPU_SetDAZ( bool enable ) {
++}
++
++/*
++================
++Sys_FPU_SetDAZ
++================
++*/
++void Sys_FPU_SetDAZ( bool enable ) {
 +#if defined(_M_X64)
 +
 +	unsigned int csr = _mm_getcsr();		// x64: MXCSR via intrinsics, no STMXCSR asm
@@ -8318,21 +10521,28 @@ index 77c1957..958828d 100644
 +	_mm_setcsr( csr );
 +
 +#else
- 	DWORD dwData;
- 
- 	_asm {
-@@ -906,6 +997,7 @@ void Sys_FPU_SetDAZ( bool enable ) {
- 		mov		dwData, eax
- 		LDMXCSR	dword ptr dwData
- 	}
++	DWORD dwData;
++
++	_asm {
++		movzx	ecx, byte ptr enable
++		and		ecx, 1
++		shl		ecx, 6
++		STMXCSR	dword ptr dwData
++		mov		eax, dwData
++		and		eax, ~(1<<6)	// clear DAX bit
++		or		eax, ecx		// set the DAZ bit
++		mov		dwData, eax
++		LDMXCSR	dword ptr dwData
++	}
 +#endif
- }
- 
- /*
-@@ -914,6 +1006,17 @@ Sys_FPU_SetFTZ
- ================
- */
- void Sys_FPU_SetFTZ( bool enable ) {
++}
++
++/*
++================
++Sys_FPU_SetFTZ
++================
++*/
++void Sys_FPU_SetFTZ( bool enable ) {
 +#if defined(_M_X64)
 +
 +	unsigned int csr = _mm_getcsr();		// x64: MXCSR via intrinsics, no STMXCSR asm
@@ -8344,17 +10554,23 @@ index 77c1957..958828d 100644
 +	_mm_setcsr( csr );
 +
 +#else
- 	DWORD dwData;
- 
- 	_asm {
-@@ -927,4 +1030,5 @@ void Sys_FPU_SetFTZ( bool enable ) {
- 		mov		dwData, eax
- 		LDMXCSR	dword ptr dwData
- 	}
++	DWORD dwData;
++
++	_asm {
++		movzx	ecx, byte ptr enable
++		and		ecx, 1
++		shl		ecx, 15
++		STMXCSR	dword ptr dwData
++		mov		eax, dwData
++		and		eax, ~(1<<15)	// clear FTZ bit
++		or		eax, ecx		// set the FTZ bit
++		mov		dwData, eax
++		LDMXCSR	dword ptr dwData
++	}
 +#endif
- }
++}
 diff --git a/a/neo/sys/win32/win_main.cpp b/b/neo/sys/win32/win_main.cpp
-index cd15262..b6e0dd3 100644
+index cd15262..0be40b0 100644
 --- a/a/neo/sys/win32/win_main.cpp
 +++ b/b/neo/sys/win32/win_main.cpp
 @@ -97,7 +97,7 @@ void Sys_CreateThread(  xthread_t function, void *parms, xthreadPriority priorit
@@ -8366,7 +10582,24 @@ index cd15262..b6e0dd3 100644
  	if (priority == THREAD_HIGHEST) {
  		SetThreadPriority( (HANDLE)info.threadHandle, THREAD_PRIORITY_HIGHEST );		//  we better sleep enough to do this
  	} else if (priority == THREAD_ABOVE_NORMAL ) {
-@@ -479,7 +479,7 @@ Sys_FileTimeStamp
+@@ -344,6 +344,16 @@ void Sys_Error( const char *error, ... ) {
+ 	Conbuf_AppendText( text );
+ 	Conbuf_AppendText( "\n" );
+ 
++#if defined(_M_X64)
++	// x64: the log is already closed by the time we get here, so show where the error came from
++	// in the error console and the debugger instead (CaptureStackBackTrace + dbghelp)
++	{
++		idStr trace = va( "Stack trace:%s\n", Sys_GetCallStackCurStr( 24 ) );
++		Conbuf_AppendText( trace.c_str() );
++		OutputDebugStringA( trace.c_str() );
++	}
++#endif
++
+ 	Win_SetErrorText( text );
+ 	Sys_ShowConsole( 1, true );
+ 
+@@ -479,7 +489,7 @@ Sys_FileTimeStamp
  ID_TIME_T Sys_FileTimeStamp( FILE *fp ) {
  	struct _stat st;
  	_fstat( _fileno( fp ), &st );
@@ -8375,7 +10608,7 @@ index cd15262..b6e0dd3 100644
  }
  
  /*
-@@ -542,7 +542,7 @@ Sys_ListFiles
+@@ -542,7 +552,7 @@ Sys_ListFiles
  int Sys_ListFiles( const char *directory, const char *extension, idStrList &list ) {
  	idStr		search;
  	struct _finddata_t findinfo;
@@ -8384,7 +10617,7 @@ index cd15262..b6e0dd3 100644
  	int			flag;
  
  	if ( !extension) {
-@@ -655,7 +655,7 @@ DLL Loading
+@@ -655,7 +665,7 @@ DLL Loading
  Sys_DLL_Load
  =====================
  */
@@ -8393,7 +10626,7 @@ index cd15262..b6e0dd3 100644
  	HINSTANCE	libHandle;
  	libHandle = LoadLibrary( dllName );
  	if ( libHandle ) {
-@@ -664,11 +664,11 @@ int Sys_DLL_Load( const char *dllName ) {
+@@ -664,11 +674,11 @@ int Sys_DLL_Load( const char *dllName ) {
  		GetModuleFileName( libHandle, loadedPath, sizeof( loadedPath ) - 1 );
  		if ( idStr::IcmpPath( dllName, loadedPath ) ) {
  			Sys_Printf( "ERROR: LoadLibrary '%s' wants to load '%s'\n", dllName, loadedPath );
@@ -8407,7 +10640,7 @@ index cd15262..b6e0dd3 100644
  }
  
  /*
-@@ -676,7 +676,7 @@ int Sys_DLL_Load( const char *dllName ) {
+@@ -676,7 +686,7 @@ int Sys_DLL_Load( const char *dllName ) {
  Sys_DLL_GetProcAddress
  =====================
  */
@@ -8416,7 +10649,7 @@ index cd15262..b6e0dd3 100644
  	return GetProcAddress( (HINSTANCE)dllHandle, procName ); 
  }
  
-@@ -685,7 +685,7 @@ void *Sys_DLL_GetProcAddress( int dllHandle, const char *procName ) {
+@@ -685,7 +695,7 @@ void *Sys_DLL_GetProcAddress( int dllHandle, const char *procName ) {
  Sys_DLL_Unload
  =====================
  */
@@ -8425,7 +10658,57 @@ index cd15262..b6e0dd3 100644
  	if ( !dllHandle ) {
  		return;
  	}
-@@ -1170,6 +1170,8 @@ void Win_Frame( void ) {
+@@ -961,6 +971,37 @@ The cvar system must already be setup
+ #define OSR2_BUILD_NUMBER 1111
+ #define WIN98_BUILD_NUMBER 1998
+ 
++#if defined(_M_X64)
++/*
++==============
++Sys_StackTrace_f
++
++  prints the current call stack, resolved through dbghelp, to the console and log
++==============
++*/
++static void Sys_StackTrace_f( const idCmdArgs &args ) {
++	common->Printf( "Stack trace:%s\n", Sys_GetCallStackCurStr( 24 ) );
++}
++
++/*
++==============
++Sys_Fpu_f
++
++  prints the real FPU / MXCSR state
++==============
++*/
++const char *Sys_GetCPUInfoString( void );
++static void Sys_CpuInfo_f( const idCmdArgs &args ) {
++	common->Printf( "%s", Sys_GetCPUInfoString() );
++	common->Printf( "CPU flags: %s\n", Sys_GetProcessorString() );
++}
++
++static void Sys_Fpu_f( const idCmdArgs &args ) {
++	common->Printf( "%s", Sys_FPU_GetState() );
++	common->Printf( "x87 stack empty = %d\n", Sys_FPU_StackIsEmpty() ? 1 : 0 );
++}
++#endif
++
+ void Sys_Init( void ) {
+ 
+ 	CoInitialize( NULL );
+@@ -973,6 +1014,11 @@ void Sys_Init( void ) {
+ //	SetTimer( NULL, 0, 100, NULL );
+ 
+ 	cmdSystem->AddCommand( "in_restart", Sys_In_Restart_f, CMD_FL_SYSTEM, "restarts the input system" );
++#if defined(_M_X64)
++	cmdSystem->AddCommand( "sys_stackTrace", Sys_StackTrace_f, CMD_FL_SYSTEM, "prints the current call stack" );
++	cmdSystem->AddCommand( "sys_cpuInfo", Sys_CpuInfo_f, CMD_FL_SYSTEM, "prints CPUID vendor, brand and feature words" );
++	cmdSystem->AddCommand( "sys_fpuState", Sys_Fpu_f, CMD_FL_SYSTEM, "prints the FPU and MXCSR state" );
++#endif
+ #ifdef DEBUG
+ 	cmdSystem->AddCommand( "createResourceIDs", CreateResourceIDs_f, CMD_FL_TOOL, "assigns resource IDs in _resouce.h files" );
+ #endif
+@@ -1170,6 +1216,8 @@ void Win_Frame( void ) {
  extern "C" { void _chkstk( int size ); };
  void clrstk( void );
  
@@ -8434,7 +10717,7 @@ index cd15262..b6e0dd3 100644
  /*
  ====================
  TestChkStk
-@@ -1195,6 +1197,8 @@ void HackChkStk( void ) {
+@@ -1195,6 +1243,8 @@ void HackChkStk( void ) {
  	TestChkStk();
  }
  
@@ -8443,7 +10726,7 @@ index cd15262..b6e0dd3 100644
  /*
  ====================
  GetExceptionCodeInfo
-@@ -1283,6 +1287,7 @@ int Sys_FPU_PrintStateFlags( char *ptr, int ctrl, int stat, int tags, int inof,
+@@ -1283,6 +1333,7 @@ int Sys_FPU_PrintStateFlags( char *ptr, int ctrl, int stat, int tags, int inof,
  _except_handler
  ====================
  */
@@ -8451,7 +10734,7 @@ index cd15262..b6e0dd3 100644
  EXCEPTION_DISPOSITION __cdecl _except_handler( struct _EXCEPTION_RECORD *ExceptionRecord, void * EstablisherFrame,
  												struct _CONTEXT *ContextRecord, void * DispatcherContext ) {
  
-@@ -1348,6 +1353,7 @@ EXCEPTION_DISPOSITION __cdecl _except_handler( struct _EXCEPTION_RECORD *Excepti
+@@ -1348,6 +1399,7 @@ EXCEPTION_DISPOSITION __cdecl _except_handler( struct _EXCEPTION_RECORD *Excepti
      // Tell the OS to restart the faulting instruction
      return ExceptionContinueExecution;
  }
@@ -8459,7 +10742,7 @@ index cd15262..b6e0dd3 100644
  
  #define TEST_FPU_EXCEPTIONS	/*	FPU_EXCEPTION_INVALID_OPERATION |		*/	\
  							/*	FPU_EXCEPTION_DENORMALIZED_OPERAND |	*/	\
-@@ -1513,6 +1519,7 @@ I tried to get the run time to call this at every function entry, but
+@@ -1513,6 +1565,7 @@ I tried to get the run time to call this at every function entry, but
  ====================
  */
  static int	parmBytes;
@@ -8467,7 +10750,7 @@ index cd15262..b6e0dd3 100644
  __declspec( naked ) void clrstk( void ) {
  	// eax = bytes to add to stack
  	__asm {
-@@ -1540,6 +1547,7 @@ __declspec( naked ) void clrstk( void ) {
+@@ -1540,6 +1593,7 @@ __declspec( naked ) void clrstk( void ) {
          ret
  	}
  }
@@ -8475,17 +10758,961 @@ index cd15262..b6e0dd3 100644
  
  /*
  ==================
+diff --git a/a/neo/sys/win32/win_net.cpp b/b/neo/sys/win32/win_net.cpp
+index cf11544..a87b36a 100644
+--- a/a/neo/sys/win32/win_net.cpp
++++ b/b/neo/sys/win32/win_net.cpp
+@@ -240,7 +240,7 @@ static bool Net_StringToSockaddr( const char *s, struct sockaddr *sadr, bool doD
+ NET_IPSocket
+ ====================
+ */
+-int NET_IPSocket( const char *net_interface, int port, netadr_t *bound_to ) {
++uintptr_t NET_IPSocket( const char *net_interface, int port, netadr_t *bound_to ) {
+ 	SOCKET				newsocket;
+ 	struct sockaddr_in	address;
+ 	unsigned long		_true = 1;
+@@ -501,12 +501,12 @@ bool Net_WaitForUDPPacket( int netSocket, int timeout ) {
+ 	}
+ 
+ 	FD_ZERO( &set );
+-	FD_SET( netSocket, &set );
++	FD_SET( (SOCKET)netSocket, &set );
+ 
+ 	tv.tv_sec = 0;
+ 	tv.tv_usec = timeout * 1000;
+ 
+-	ret = select( netSocket + 1, &set, NULL, NULL, &tv );
++	ret = select( 0, &set, NULL, NULL, &tv );
+ 
+ 	if ( ret == -1 ) {
+ 		common->DPrintf( "Net_WaitForUPDPacket select(): %s\n", strerror( errno ) );
+@@ -526,7 +526,7 @@ bool Net_WaitForUDPPacket( int netSocket, int timeout ) {
+ Net_GetUDPPacket
+ ==================
+ */
+-bool Net_GetUDPPacket( int netSocket, netadr_t &net_from, char *data, int &size, int maxSize ) {
++bool Net_GetUDPPacket( uintptr_t netSocket, netadr_t &net_from, char *data, int &size, int maxSize ) {
+ 	int 			ret;
+ 	struct sockaddr	from;
+ 	int				fromlen;
+@@ -586,7 +586,7 @@ bool Net_GetUDPPacket( int netSocket, netadr_t &net_from, char *data, int &size,
+ Net_SendUDPPacket
+ ==================
+ */
+-void Net_SendUDPPacket( int netSocket, int length, const void *data, const netadr_t to ) {
++void Net_SendUDPPacket( uintptr_t netSocket, int length, const void *data, const netadr_t to ) {
+ 	int				ret;
+ 	struct sockaddr	addr;
+ 
+@@ -894,7 +894,7 @@ bool idPort::InitForPort( int portNumber ) {
+ 	int len = sizeof( struct sockaddr_in );
+ 
+ 	netSocket = NET_IPSocket( net_ip.GetString(), portNumber, &bound_to );
+-	if ( netSocket <= 0 ) {
++	if ( netSocket == 0 ) {
+ 		netSocket = 0;
+ 		memset( &bound_to, 0, sizeof( bound_to ) );
+ 		return false;
 diff --git a/a/neo/sys/win32/win_shared.cpp b/b/neo/sys/win32/win_shared.cpp
-index 0e6ad0d..7666456 100644
+index 0e6ad0d..31056f6 100644
 --- a/a/neo/sys/win32/win_shared.cpp
 +++ b/b/neo/sys/win32/win_shared.cpp
-@@ -115,49 +115,68 @@ int Sys_GetVideoRam( void ) {
- #else
- 	unsigned int retSize = 64;
- 
+@@ -1,778 +1,957 @@
+-/*
+-===========================================================================
+-
+-Doom 3 GPL Source Code
+-Copyright (C) 1999-2011 id Software LLC, a ZeniMax Media company. 
+-
+-This file is part of the Doom 3 GPL Source Code (?Doom 3 Source Code?).  
+-
+-Doom 3 Source Code is free software: you can redistribute it and/or modify
+-it under the terms of the GNU General Public License as published by
+-the Free Software Foundation, either version 3 of the License, or
+-(at your option) any later version.
+-
+-Doom 3 Source Code is distributed in the hope that it will be useful,
+-but WITHOUT ANY WARRANTY; without even the implied warranty of
+-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-GNU General Public License for more details.
+-
+-You should have received a copy of the GNU General Public License
+-along with Doom 3 Source Code.  If not, see <http://www.gnu.org/licenses/>.
+-
+-In addition, the Doom 3 Source Code is also subject to certain additional terms. You should have received a copy of these additional terms immediately following the terms and conditions of the GNU General Public License which accompanied the Doom 3 Source Code.  If not, please request a copy in writing from id Software at the address below.
+-
+-If you have questions concerning this license or the applicable additional terms, you may contact in writing id Software LLC, c/o ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
+-
+-===========================================================================
+-*/
+-
+-#include "../../idlib/precompiled.h"
+-#pragma hdrstop
+-
+-#include "win_local.h"
+-#include <lmerr.h>
+-#include <lmcons.h>
+-#include <lmwksta.h>
+-#include <errno.h>
+-#include <fcntl.h>
+-#include <direct.h>
+-#include <io.h>
+-#include <conio.h>
+-
+-#ifndef	ID_DEDICATED
+-#include <comdef.h>
+-#include <comutil.h>
+-#include <Wbemidl.h>
+-
+-#pragma comment (lib, "wbemuuid.lib")
+-#endif
+-
+-/*
+-================
+-Sys_Milliseconds
+-================
+-*/
+-int Sys_Milliseconds( void ) {
+-	int sys_curtime;
+-	static int sys_timeBase;
+-	static bool	initialized = false;
+-
+-	if ( !initialized ) {
+-		sys_timeBase = timeGetTime();
+-		initialized = true;
+-	}
+-	sys_curtime = timeGetTime() - sys_timeBase;
+-
+-	return sys_curtime;
+-}
+-
+-/*
+-================
+-Sys_GetSystemRam
+-
+-	returns amount of physical memory in MB
+-================
+-*/
+-int Sys_GetSystemRam( void ) {
+-	MEMORYSTATUSEX statex;
+-	statex.dwLength = sizeof ( statex );
+-	GlobalMemoryStatusEx (&statex);
+-	int physRam = statex.ullTotalPhys / ( 1024 * 1024 );
+-	// HACK: For some reason, ullTotalPhys is sometimes off by a meg or two, so we round up to the nearest 16 megs
+-	physRam = ( physRam + 8 ) & ~15;
+-	return physRam;
+-}
+-
+-
+-/*
+-================
+-Sys_GetDriveFreeSpace
+-returns in megabytes
+-================
+-*/
+-int Sys_GetDriveFreeSpace( const char *path ) {
+-	DWORDLONG lpFreeBytesAvailable;
+-	DWORDLONG lpTotalNumberOfBytes;
+-	DWORDLONG lpTotalNumberOfFreeBytes;
+-	int ret = 26;
+-	//FIXME: see why this is failing on some machines
+-	if ( ::GetDiskFreeSpaceEx( path, (PULARGE_INTEGER)&lpFreeBytesAvailable, (PULARGE_INTEGER)&lpTotalNumberOfBytes, (PULARGE_INTEGER)&lpTotalNumberOfFreeBytes ) ) {
+-		ret = ( double )( lpFreeBytesAvailable ) / ( 1024.0 * 1024.0 );
+-	}
+-	return ret;
+-}
+-
+-
+-/*
+-================
+-Sys_GetVideoRam
+-returns in megabytes
+-================
+-*/
+-int Sys_GetVideoRam( void ) {
+-#ifdef	ID_DEDICATED
+-	return 0;
+-#else
+-	unsigned int retSize = 64;
+-
 -	CComPtr<IWbemLocator> spLoc = NULL;
 -	HRESULT hr = CoCreateInstance( CLSID_WbemLocator, 0, CLSCTX_SERVER, IID_IWbemLocator, ( LPVOID * ) &spLoc );
 -	if ( hr != S_OK || spLoc == NULL ) {
+-		return retSize;
+-	}
+-
+-	CComBSTR bstrNamespace( _T( "\\\\.\\root\\CIMV2" ) );
+-	CComPtr<IWbemServices> spServices;
+-
+-	// Connect to CIM
+-	hr = spLoc->ConnectServer( bstrNamespace, NULL, NULL, 0, NULL, 0, 0, &spServices );
+-	if ( hr != WBEM_S_NO_ERROR ) {
+-		return retSize;
+-	}
+-
+-	// Switch the security level to IMPERSONATE so that provider will grant access to system-level objects.  
+-	hr = CoSetProxyBlanket( spServices, RPC_C_AUTHN_WINNT, RPC_C_AUTHZ_NONE, NULL, RPC_C_AUTHN_LEVEL_CALL, RPC_C_IMP_LEVEL_IMPERSONATE, NULL, EOAC_NONE );
+-	if ( hr != S_OK ) {
+-		return retSize;
+-	}
+-
+-	// Get the vid controller
+-	CComPtr<IEnumWbemClassObject> spEnumInst = NULL;
+-	hr = spServices->CreateInstanceEnum( CComBSTR( "Win32_VideoController" ), WBEM_FLAG_SHALLOW, NULL, &spEnumInst ); 
+-	if ( hr != WBEM_S_NO_ERROR || spEnumInst == NULL ) {
+-		return retSize;
+-	}
+-
+-	ULONG uNumOfInstances = 0;
+-	CComPtr<IWbemClassObject> spInstance = NULL;
+-	hr = spEnumInst->Next( 10000, 1, &spInstance, &uNumOfInstances );
+-
+-	if ( hr == S_OK && spInstance ) {
+-		// Get properties from the object
+-		CComVariant varSize;
+-		hr = spInstance->Get( CComBSTR( _T( "AdapterRAM" ) ), 0, &varSize, 0, 0 );
+-		if ( hr == S_OK ) {
+-			retSize = varSize.intVal / ( 1024 * 1024 );
+-			if ( retSize == 0 ) {
+-				retSize = 64;
+-			}
+-		}
+-	}
+-	return retSize;
+-#endif
+-}
+-
+-/*
+-================
+-Sys_GetCurrentMemoryStatus
+-
+-	returns OS mem info
+-	all values are in kB except the memoryload
+-================
+-*/
+-void Sys_GetCurrentMemoryStatus( sysMemoryStats_t &stats ) {
+-	MEMORYSTATUSEX statex;
+-	unsigned __int64 work;
+-
+-	memset( &statex, sizeof( statex ), 0 );
+-	statex.dwLength = sizeof( statex );
+-	GlobalMemoryStatusEx( &statex );
+-
+-	memset( &stats, 0, sizeof( stats ) );
+-
+-	stats.memoryLoad = statex.dwMemoryLoad;
+-
+-	work = statex.ullTotalPhys >> 20;
+-	stats.totalPhysical = *(int*)&work;
+-
+-	work = statex.ullAvailPhys >> 20;
+-	stats.availPhysical = *(int*)&work;
+-
+-	work = statex.ullAvailPageFile >> 20;
+-	stats.availPageFile = *(int*)&work;
+-
+-	work = statex.ullTotalPageFile >> 20;
+-	stats.totalPageFile = *(int*)&work;
+-
+-	work = statex.ullTotalVirtual >> 20;
+-	stats.totalVirtual = *(int*)&work;
+-
+-	work = statex.ullAvailVirtual >> 20;
+-	stats.availVirtual = *(int*)&work;
+-
+-	work = statex.ullAvailExtendedVirtual >> 20;
+-	stats.availExtendedVirtual = *(int*)&work;
+-}
+-
+-/*
+-================
+-Sys_LockMemory
+-================
+-*/
+-bool Sys_LockMemory( void *ptr, int bytes ) {
+-	return ( VirtualLock( ptr, (SIZE_T)bytes ) != FALSE );
+-}
+-
+-/*
+-================
+-Sys_UnlockMemory
+-================
+-*/
+-bool Sys_UnlockMemory( void *ptr, int bytes ) {
+-	return ( VirtualUnlock( ptr, (SIZE_T)bytes ) != FALSE );
+-}
+-
+-/*
+-================
+-Sys_SetPhysicalWorkMemory
+-================
+-*/
+-void Sys_SetPhysicalWorkMemory( int minBytes, int maxBytes ) {
+-	::SetProcessWorkingSetSize( GetCurrentProcess(), minBytes, maxBytes );
+-}
+-
+-/*
+-================
+-Sys_GetCurrentUser
+-================
+-*/
+-char *Sys_GetCurrentUser( void ) {
+-	static char s_userName[1024];
+-	unsigned long size = sizeof( s_userName );
+-
+-
+-	if ( !GetUserName( s_userName, &size ) ) {
+-		strcpy( s_userName, "player" );
+-	}
+-
+-	if ( !s_userName[0] ) {
+-		strcpy( s_userName, "player" );
+-	}
+-
+-	return s_userName;
+-}	
+-
+-
+-/*
+-===============================================================================
+-
+-	Call stack
+-
+-===============================================================================
+-*/
+-
+-
+-#define PROLOGUE_SIGNATURE 0x00EC8B55
+-
+-#include <dbghelp.h>
+-
+-const int UNDECORATE_FLAGS =	UNDNAME_NO_MS_KEYWORDS |
+-								UNDNAME_NO_ACCESS_SPECIFIERS |
+-								UNDNAME_NO_FUNCTION_RETURNS |
+-								UNDNAME_NO_ALLOCATION_MODEL |
+-								UNDNAME_NO_ALLOCATION_LANGUAGE |
+-								UNDNAME_NO_MEMBER_TYPE;
+-
+-#if defined(_DEBUG) && 1
+-
+-typedef struct symbol_s {
+-	int					address;
+-	char *				name;
+-	struct symbol_s *	next;
+-} symbol_t;
+-
+-typedef struct module_s {
+-	int					address;
+-	char *				name;
+-	symbol_t *			symbols;
+-	struct module_s *	next;
+-} module_t;
+-
+-module_t *modules;
+-
+-/*
+-==================
+-SkipRestOfLine
+-==================
+-*/
+-void SkipRestOfLine( const char **ptr ) {
+-	while( (**ptr) != '\0' && (**ptr) != '\n' && (**ptr) != '\r' ) {
+-		(*ptr)++;
+-	}
+-	while( (**ptr) == '\n' || (**ptr) == '\r' ) {
+-		(*ptr)++;
+-	}
+-}
+-
+-/*
+-==================
+-SkipWhiteSpace
+-==================
+-*/
+-void SkipWhiteSpace( const char **ptr ) {
+-	while( (**ptr) == ' ' ) {
+-		(*ptr)++;
+-	}
+-}
+-
+-/*
+-==================
+-ParseHexNumber
+-==================
+-*/
+-int ParseHexNumber( const char **ptr ) {
+-	int n = 0;
+-	while( (**ptr) >= '0' && (**ptr) <= '9' || (**ptr) >= 'a' && (**ptr) <= 'f' ) {
+-		n <<= 4;
+-		if ( **ptr >= '0' && **ptr <= '9' ) {
+-			n |= ( (**ptr) - '0' );
+-		} else {
+-			n |= 10 + ( (**ptr) - 'a' );
+-		}
+-		(*ptr)++;
+-	}
+-	return n;
+-}
+-
+-/*
+-==================
+-Sym_Init
+-==================
+-*/
+-void Sym_Init( long addr ) {
+-	TCHAR moduleName[MAX_STRING_CHARS];
+-	MEMORY_BASIC_INFORMATION mbi;
+-
+-	VirtualQuery( (void*)addr, &mbi, sizeof(mbi) );
+-
+-	GetModuleFileName( (HMODULE)mbi.AllocationBase, moduleName, sizeof( moduleName ) );
+-
+-	char *ext = moduleName + strlen( moduleName );
+-	while( ext > moduleName && *ext != '.' ) {
+-		ext--;
+-	}
+-	if ( ext == moduleName ) {
+-		strcat( moduleName, ".map" );
+-	} else {
+-		strcpy( ext, ".map" );
+-	}
+-
+-	module_t *module = (module_t *) malloc( sizeof( module_t ) );
+-	module->name = (char *) malloc( strlen( moduleName ) + 1 );
+-	strcpy( module->name, moduleName );
+-	module->address = (int)mbi.AllocationBase;
+-	module->symbols = NULL;
+-	module->next = modules;
+-	modules = module;
+-
+-	FILE *fp = fopen( moduleName, "rb" );
+-	if ( fp == NULL ) {
+-		return;
+-	}
+-
+-	int pos = ftell( fp );
+-	fseek( fp, 0, SEEK_END );
+-	int length = ftell( fp );
+-	fseek( fp, pos, SEEK_SET );
+-
+-	char *text = (char *) malloc( length+1 );
+-	fread( text, 1, length, fp );
+-	text[length] = '\0';
+-	fclose( fp );
+-
+-	const char *ptr = text;
+-
+-	// skip up to " Address" on a new line
+-	while( *ptr != '\0' ) {
+-		SkipWhiteSpace( &ptr );
+-		if ( idStr::Cmpn( ptr, "Address", 7 ) == 0 ) {
+-			SkipRestOfLine( &ptr );
+-			break;
+-		}
+-		SkipRestOfLine( &ptr );
+-	}
+-
+-	int symbolAddress;
+-	int symbolLength;
+-	char symbolName[MAX_STRING_CHARS];
+-	symbol_t *symbol;
+-
+-	// parse symbols
+-	while( *ptr != '\0' ) {
+-
+-		SkipWhiteSpace( &ptr );
+-
+-		ParseHexNumber( &ptr );
+-		if ( *ptr == ':' ) {
+-			ptr++;
+-		} else {
+-			break;
+-		}
+-		ParseHexNumber( &ptr );
+-
+-		SkipWhiteSpace( &ptr );
+-
+-		// parse symbol name
+-		symbolLength = 0;
+-		while( *ptr != '\0' && *ptr != ' ' ) {
+-			symbolName[symbolLength++] = *ptr++;
+-			if ( symbolLength >= sizeof( symbolName ) - 1 ) {
+-				break;
+-			}
+-		}
+-		symbolName[symbolLength++] = '\0';
+-
+-		SkipWhiteSpace( &ptr );
+-
+-		// parse symbol address
+-		symbolAddress = ParseHexNumber( &ptr );
+-
+-		SkipRestOfLine( &ptr );
+-
+-		symbol = (symbol_t *) malloc( sizeof( symbol_t ) );
+-		symbol->name = (char *) malloc( symbolLength );
+-		strcpy( symbol->name, symbolName );
+-		symbol->address = symbolAddress;
+-		symbol->next = module->symbols;
+-		module->symbols = symbol;
+-	}
+-
+-	free( text );
+-}
+-
+-/*
+-==================
+-Sym_Shutdown
+-==================
+-*/
+-void Sym_Shutdown( void ) {
+-	module_t *m;
+-	symbol_t *s;
+-
+-	for ( m = modules; m != NULL; m = modules ) {
+-		modules = m->next;
+-		for ( s = m->symbols; s != NULL; s = m->symbols ) {
+-			m->symbols = s->next;
+-			free( s->name );
+-			free( s );
+-		}
+-		free( m->name );
+-		free( m );
+-	}
+-	modules = NULL;
+-}
+-
+-/*
+-==================
+-Sym_GetFuncInfo
+-==================
+-*/
+-void Sym_GetFuncInfo( long addr, idStr &module, idStr &funcName ) {
+-	MEMORY_BASIC_INFORMATION mbi;
+-	module_t *m;
+-	symbol_t *s;
+-
+-	VirtualQuery( (void*)addr, &mbi, sizeof(mbi) );
+-
+-	for ( m = modules; m != NULL; m = m->next ) {
+-		if ( m->address == (int) mbi.AllocationBase ) {
+-			break;
+-		}
+-	}
+-	if ( !m ) {
+-		Sym_Init( addr );
+-		m = modules;
+-	}
+-
+-	for ( s = m->symbols; s != NULL; s = s->next ) {
+-		if ( s->address == addr ) {
+-
+-			char undName[MAX_STRING_CHARS];
+-			if ( UnDecorateSymbolName( s->name, undName, sizeof(undName), UNDECORATE_FLAGS ) ) {
+-				funcName = undName;
+-			} else {
+-				funcName = s->name;
+-			}
+-			for ( int i = 0; i < funcName.Length(); i++ ) {
+-				if ( funcName[i] == '(' ) {
+-					funcName.CapLength( i );
+-					break;
+-				}
+-			}
+-			module = m->name;
+-			return;
+-		}
+-	}
+-
+-	sprintf( funcName, "0x%08x", addr );
+-	module = "";
+-}
+-
+-#elif defined(_DEBUG)
+-
+-DWORD lastAllocationBase = -1;
+-HANDLE processHandle;
+-idStr lastModule;
+-
+-/*
+-==================
+-Sym_Init
+-==================
+-*/
+-void Sym_Init( long addr ) {
+-	TCHAR moduleName[MAX_STRING_CHARS];
+-	TCHAR modShortNameBuf[MAX_STRING_CHARS];
+-	MEMORY_BASIC_INFORMATION mbi;
+-
+-	if ( lastAllocationBase != -1 ) {
+-		Sym_Shutdown();
+-	}
+-
+-	VirtualQuery( (void*)addr, &mbi, sizeof(mbi) );
+-
+-	GetModuleFileName( (HMODULE)mbi.AllocationBase, moduleName, sizeof( moduleName ) );
+-	_splitpath( moduleName, NULL, NULL, modShortNameBuf, NULL );
+-	lastModule = modShortNameBuf;
+-
+-	processHandle = GetCurrentProcess();
+-	if ( !SymInitialize( processHandle, NULL, FALSE ) ) {
+-		return;
+-	}
+-	if ( !SymLoadModule( processHandle, NULL, moduleName, NULL, (DWORD)mbi.AllocationBase, 0 ) ) {
+-		SymCleanup( processHandle );
+-		return;
+-	}
+-
+-	SymSetOptions( SymGetOptions() & ~SYMOPT_UNDNAME );
+-
+-	lastAllocationBase = (DWORD) mbi.AllocationBase;
+-}
+-
+-/*
+-==================
+-Sym_Shutdown
+-==================
+-*/
+-void Sym_Shutdown( void ) {
+-	SymUnloadModule( GetCurrentProcess(), lastAllocationBase );
+-	SymCleanup( GetCurrentProcess() );
+-	lastAllocationBase = -1;
+-}
+-
+-/*
+-==================
+-Sym_GetFuncInfo
+-==================
+-*/
+-void Sym_GetFuncInfo( long addr, idStr &module, idStr &funcName ) {
+-	MEMORY_BASIC_INFORMATION mbi;
+-
+-	VirtualQuery( (void*)addr, &mbi, sizeof(mbi) );
+-
+-	if ( (DWORD) mbi.AllocationBase != lastAllocationBase ) {
+-		Sym_Init( addr );
+-	}
+-
+-	BYTE symbolBuffer[ sizeof(IMAGEHLP_SYMBOL) + MAX_STRING_CHARS ];
+-	PIMAGEHLP_SYMBOL pSymbol = (PIMAGEHLP_SYMBOL)&symbolBuffer[0];
+-	pSymbol->SizeOfStruct = sizeof(symbolBuffer);
+-	pSymbol->MaxNameLength = 1023;
+-	pSymbol->Address = 0;
+-	pSymbol->Flags = 0;
+-	pSymbol->Size =0;
+-
+-	DWORD symDisplacement = 0;
+-	if ( SymGetSymFromAddr( processHandle, addr, &symDisplacement, pSymbol ) ) {
+-		// clean up name, throwing away decorations that don't affect uniqueness
+-	    char undName[MAX_STRING_CHARS];
+-		if ( UnDecorateSymbolName( pSymbol->Name, undName, sizeof(undName), UNDECORATE_FLAGS ) ) {
+-			funcName = undName;
+-		} else {
+-			funcName = pSymbol->Name;
+-		}
+-		module = lastModule;
+-	}
+-	else {
+-		LPVOID lpMsgBuf;
+-		FormatMessage( FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+-						NULL,
+-						GetLastError(),
+-						MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), // Default language
+-						(LPTSTR) &lpMsgBuf,
+-						0,
+-						NULL 
+-						);
+-		LocalFree( lpMsgBuf );
+-
+-		// Couldn't retrieve symbol (no debug info?, can't load dbghelp.dll?)
+-		sprintf( funcName, "0x%08x", addr );
+-		module = "";
+-    }
+-}
+-
+-#else
+-
+-/*
+-==================
+-Sym_Init
+-==================
+-*/
+-void Sym_Init( long addr ) {
+-}
+-
+-/*
+-==================
+-Sym_Shutdown
+-==================
+-*/
+-void Sym_Shutdown( void ) {
+-}
+-
+-/*
+-==================
+-Sym_GetFuncInfo
+-==================
+-*/
+-void Sym_GetFuncInfo( long addr, idStr &module, idStr &funcName ) {
+-	module = "";
+-	sprintf( funcName, "0x%08x", addr );
+-}
+-
+-#endif
+-
+-/*
+-==================
+-GetFuncAddr
+-==================
+-*/
+-address_t GetFuncAddr( address_t midPtPtr ) {
+-	long temp;
+-	do {
+-		temp = (long)(*(long*)midPtPtr);
+-		if ( (temp&0x00FFFFFF) == PROLOGUE_SIGNATURE ) {
+-			break;
+-		}
+-		midPtPtr--;
+-	} while(true);
+-
+-	return midPtPtr;
+-}
+-
+-/*
+-==================
+-GetCallerAddr
+-==================
+-*/
+-address_t GetCallerAddr( long _ebp ) {
+-	long midPtPtr;
+-	long res = 0;
+-
+-	__asm {
+-		mov		eax, _ebp
+-		mov		ecx, [eax]		// check for end of stack frames list
+-		test	ecx, ecx		// check for zero stack frame
+-		jz		label
+-		mov		eax, [eax+4]	// get the ret address
+-		test	eax, eax		// check for zero return address
+-		jz		label
+-		mov		midPtPtr, eax
+-	}
+-	res = GetFuncAddr( midPtPtr );
+-label:
+-	return res;
+-}
+-
+-/*
+-==================
+-Sys_GetCallStack
+-
+- use /Oy option
+-==================
+-*/
+-void Sys_GetCallStack( address_t *callStack, const int callStackSize ) {
+-#if 1 //def _DEBUG
+-	int i;
+-	long m_ebp;
+-
+-	__asm {
+-		mov eax, ebp
+-		mov m_ebp, eax
+-	}
+-	// skip last two functions
+-	m_ebp = *((long*)m_ebp);
+-	m_ebp = *((long*)m_ebp);
+-	// list functions
+-	for ( i = 0; i < callStackSize; i++ ) {
+-		callStack[i] = GetCallerAddr( m_ebp );
+-		if ( callStack[i] == 0 ) {
+-			break;
+-		}
+-		m_ebp = *((long*)m_ebp);
+-	}
+-#else
+-	int i = 0;
+-#endif
+-	while( i < callStackSize ) {
+-		callStack[i++] = 0;
+-	}
+-}
+-
+-/*
+-==================
+-Sys_GetCallStackStr
+-==================
+-*/
+-const char *Sys_GetCallStackStr( const address_t *callStack, const int callStackSize ) {
+-	static char string[MAX_STRING_CHARS*2];
+-	int index, i;
+-	idStr module, funcName;
+-
+-	index = 0;
+-	for ( i = callStackSize-1; i >= 0; i-- ) {
+-		Sym_GetFuncInfo( callStack[i], module, funcName );
+-		index += sprintf( string+index, " -> %s", funcName.c_str() );
+-	}
+-	return string;
+-}
+-
+-/*
+-==================
+-Sys_GetCallStackCurStr
+-==================
+-*/
+-const char *Sys_GetCallStackCurStr( int depth ) {
+-	address_t *callStack;
+-
+-	callStack = (address_t *) _alloca( depth * sizeof( address_t ) );
+-	Sys_GetCallStack( callStack, depth );
+-	return Sys_GetCallStackStr( callStack, depth );
+-}
+-
+-/*
+-==================
+-Sys_GetCallStackCurAddressStr
+-==================
+-*/
+-const char *Sys_GetCallStackCurAddressStr( int depth ) {
+-	static char string[MAX_STRING_CHARS*2];
+-	address_t *callStack;
+-	int index, i;
+-
+-	callStack = (address_t *) _alloca( depth * sizeof( address_t ) );
+-	Sys_GetCallStack( callStack, depth );
+-
+-	index = 0;
+-	for ( i = depth-1; i >= 0; i-- ) {
+-		index += sprintf( string+index, " -> 0x%08x", callStack[i] );
+-	}
+-	return string;
+-}
+-
+-/*
+-==================
+-Sys_ShutdownSymbols
+-==================
+-*/
+-void Sys_ShutdownSymbols( void ) {
+-	Sym_Shutdown();
+-}
++/*
++===========================================================================
++
++Doom 3 GPL Source Code
++Copyright (C) 1999-2011 id Software LLC, a ZeniMax Media company. 
++
++This file is part of the Doom 3 GPL Source Code (?Doom 3 Source Code?).  
++
++Doom 3 Source Code is free software: you can redistribute it and/or modify
++it under the terms of the GNU General Public License as published by
++the Free Software Foundation, either version 3 of the License, or
++(at your option) any later version.
++
++Doom 3 Source Code is distributed in the hope that it will be useful,
++but WITHOUT ANY WARRANTY; without even the implied warranty of
++MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++GNU General Public License for more details.
++
++You should have received a copy of the GNU General Public License
++along with Doom 3 Source Code.  If not, see <http://www.gnu.org/licenses/>.
++
++In addition, the Doom 3 Source Code is also subject to certain additional terms. You should have received a copy of these additional terms immediately following the terms and conditions of the GNU General Public License which accompanied the Doom 3 Source Code.  If not, please request a copy in writing from id Software at the address below.
++
++If you have questions concerning this license or the applicable additional terms, you may contact in writing id Software LLC, c/o ZeniMax Media Inc., Suite 120, Rockville, Maryland 20850 USA.
++
++===========================================================================
++*/
++
++#include "../../idlib/precompiled.h"
++#pragma hdrstop
++
++#include "win_local.h"
++#include <lmerr.h>
++#include <lmcons.h>
++#include <lmwksta.h>
++#include <errno.h>
++#include <fcntl.h>
++#include <direct.h>
++#include <io.h>
++#include <conio.h>
++
++#ifndef	ID_DEDICATED
++#include <comdef.h>
++#include <comutil.h>
++#include <Wbemidl.h>
++
++#pragma comment (lib, "wbemuuid.lib")
++#endif
++
++/*
++================
++Sys_Milliseconds
++================
++*/
++int Sys_Milliseconds( void ) {
++	int sys_curtime;
++	static int sys_timeBase;
++	static bool	initialized = false;
++
++	if ( !initialized ) {
++		sys_timeBase = timeGetTime();
++		initialized = true;
++	}
++	sys_curtime = timeGetTime() - sys_timeBase;
++
++	return sys_curtime;
++}
++
++/*
++================
++Sys_GetSystemRam
++
++	returns amount of physical memory in MB
++================
++*/
++int Sys_GetSystemRam( void ) {
++	MEMORYSTATUSEX statex;
++	statex.dwLength = sizeof ( statex );
++	GlobalMemoryStatusEx (&statex);
++	int physRam = statex.ullTotalPhys / ( 1024 * 1024 );
++	// HACK: For some reason, ullTotalPhys is sometimes off by a meg or two, so we round up to the nearest 16 megs
++	physRam = ( physRam + 8 ) & ~15;
++	return physRam;
++}
++
++
++/*
++================
++Sys_GetDriveFreeSpace
++returns in megabytes
++================
++*/
++int Sys_GetDriveFreeSpace( const char *path ) {
++	DWORDLONG lpFreeBytesAvailable;
++	DWORDLONG lpTotalNumberOfBytes;
++	DWORDLONG lpTotalNumberOfFreeBytes;
++	int ret = 26;
++	//FIXME: see why this is failing on some machines
++	if ( ::GetDiskFreeSpaceEx( path, (PULARGE_INTEGER)&lpFreeBytesAvailable, (PULARGE_INTEGER)&lpTotalNumberOfBytes, (PULARGE_INTEGER)&lpTotalNumberOfFreeBytes ) ) {
++		ret = ( double )( lpFreeBytesAvailable ) / ( 1024.0 * 1024.0 );
++	}
++	return ret;
++}
++
++
++/*
++================
++Sys_GetVideoRam
++returns in megabytes
++================
++*/
++int Sys_GetVideoRam( void ) {
++#ifdef	ID_DEDICATED
++	return 0;
++#else
++	unsigned int retSize = 64;
++
 +	// x64: ATL CComPtr/CComBSTR are not guaranteed with the MFC-free build; use raw COM
 +	IWbemLocator *pLoc = NULL;
 +	IWbemServices *pServices = NULL;
@@ -8495,311 +11722,837 @@ index 0e6ad0d..7666456 100644
 +
 +	HRESULT hr = CoCreateInstance( CLSID_WbemLocator, 0, CLSCTX_SERVER, IID_IWbemLocator, ( LPVOID * ) &pLoc );
 +	if ( hr != S_OK || pLoc == NULL ) {
- 		return retSize;
- 	}
- 
--	CComBSTR bstrNamespace( _T( "\\\\.\\root\\CIMV2" ) );
--	CComPtr<IWbemServices> spServices;
--
- 	// Connect to CIM
--	hr = spLoc->ConnectServer( bstrNamespace, NULL, NULL, 0, NULL, 0, 0, &spServices );
++		return retSize;
++	}
++
++	// Connect to CIM
 +	bstr = SysAllocString( L"\\\\.\\root\\CIMV2" );
 +	hr = pLoc->ConnectServer( bstr, NULL, NULL, 0, NULL, 0, 0, &pServices );
 +	SysFreeString( bstr );
- 	if ( hr != WBEM_S_NO_ERROR ) {
++	if ( hr != WBEM_S_NO_ERROR ) {
 +		pLoc->Release();
- 		return retSize;
- 	}
- 
- 	// Switch the security level to IMPERSONATE so that provider will grant access to system-level objects.  
--	hr = CoSetProxyBlanket( spServices, RPC_C_AUTHN_WINNT, RPC_C_AUTHZ_NONE, NULL, RPC_C_AUTHN_LEVEL_CALL, RPC_C_IMP_LEVEL_IMPERSONATE, NULL, EOAC_NONE );
++		return retSize;
++	}
++
++	// Switch the security level to IMPERSONATE so that provider will grant access to system-level objects.  
 +	hr = CoSetProxyBlanket( pServices, RPC_C_AUTHN_WINNT, RPC_C_AUTHZ_NONE, NULL, RPC_C_AUTHN_LEVEL_CALL, RPC_C_IMP_LEVEL_IMPERSONATE, NULL, EOAC_NONE );
- 	if ( hr != S_OK ) {
++	if ( hr != S_OK ) {
 +		pServices->Release();
 +		pLoc->Release();
- 		return retSize;
- 	}
- 
- 	// Get the vid controller
--	CComPtr<IEnumWbemClassObject> spEnumInst = NULL;
--	hr = spServices->CreateInstanceEnum( CComBSTR( "Win32_VideoController" ), WBEM_FLAG_SHALLOW, NULL, &spEnumInst ); 
--	if ( hr != WBEM_S_NO_ERROR || spEnumInst == NULL ) {
++		return retSize;
++	}
++
++	// Get the vid controller
 +	bstr = SysAllocString( L"Win32_VideoController" );
 +	hr = pServices->CreateInstanceEnum( bstr, WBEM_FLAG_SHALLOW, NULL, &pEnumInst );
 +	SysFreeString( bstr );
 +	if ( hr != WBEM_S_NO_ERROR || pEnumInst == NULL ) {
 +		pServices->Release();
 +		pLoc->Release();
- 		return retSize;
- 	}
- 
- 	ULONG uNumOfInstances = 0;
--	CComPtr<IWbemClassObject> spInstance = NULL;
--	hr = spEnumInst->Next( 10000, 1, &spInstance, &uNumOfInstances );
++		return retSize;
++	}
++
++	ULONG uNumOfInstances = 0;
 +	hr = pEnumInst->Next( 10000, 1, &pInstance, &uNumOfInstances );
- 
--	if ( hr == S_OK && spInstance ) {
++
 +	if ( hr == S_OK && pInstance ) {
- 		// Get properties from the object
--		CComVariant varSize;
--		hr = spInstance->Get( CComBSTR( _T( "AdapterRAM" ) ), 0, &varSize, 0, 0 );
++		// Get properties from the object
 +		VARIANT varSize;
 +		VariantInit( &varSize );
 +		bstr = SysAllocString( L"AdapterRAM" );
 +		hr = pInstance->Get( bstr, 0, &varSize, 0, 0 );
 +		SysFreeString( bstr );
- 		if ( hr == S_OK ) {
--			retSize = varSize.intVal / ( 1024 * 1024 );
++		if ( hr == S_OK ) {
 +			retSize = (int)( varSize.ulVal / ( 1024 * 1024 ) );	/* x64 review: AdapterRAM is VT_UI4; intVal went negative for >= 2 GB */
- 			if ( retSize == 0 ) {
- 				retSize = 64;
- 			}
- 		}
++			if ( retSize == 0 ) {
++				retSize = 64;
++			}
++		}
 +		VariantClear( &varSize );
 +		pInstance->Release();
- 	}
++	}
 +
 +	pEnumInst->Release();
 +	pServices->Release();
 +	pLoc->Release();
- 	return retSize;
- #endif
- }
-@@ -276,13 +295,13 @@ const int UNDECORATE_FLAGS =	UNDNAME_NO_MS_KEYWORDS |
- #if defined(_DEBUG) && 1
- 
- typedef struct symbol_s {
--	int					address;
++	return retSize;
++#endif
++}
++
++/*
++================
++Sys_GetCurrentMemoryStatus
++
++	returns OS mem info
++	all values are in kB except the memoryload
++================
++*/
++void Sys_GetCurrentMemoryStatus( sysMemoryStats_t &stats ) {
++	MEMORYSTATUSEX statex;
++	unsigned __int64 work;
++
++	memset( &statex, sizeof( statex ), 0 );
++	statex.dwLength = sizeof( statex );
++	GlobalMemoryStatusEx( &statex );
++
++	memset( &stats, 0, sizeof( stats ) );
++
++	stats.memoryLoad = statex.dwMemoryLoad;
++
++	work = statex.ullTotalPhys >> 20;
++	stats.totalPhysical = *(int*)&work;
++
++	work = statex.ullAvailPhys >> 20;
++	stats.availPhysical = *(int*)&work;
++
++	work = statex.ullAvailPageFile >> 20;
++	stats.availPageFile = *(int*)&work;
++
++	work = statex.ullTotalPageFile >> 20;
++	stats.totalPageFile = *(int*)&work;
++
++	work = statex.ullTotalVirtual >> 20;
++	stats.totalVirtual = *(int*)&work;
++
++	work = statex.ullAvailVirtual >> 20;
++	stats.availVirtual = *(int*)&work;
++
++	work = statex.ullAvailExtendedVirtual >> 20;
++	stats.availExtendedVirtual = *(int*)&work;
++}
++
++/*
++================
++Sys_LockMemory
++================
++*/
++bool Sys_LockMemory( void *ptr, int bytes ) {
++	return ( VirtualLock( ptr, (SIZE_T)bytes ) != FALSE );
++}
++
++/*
++================
++Sys_UnlockMemory
++================
++*/
++bool Sys_UnlockMemory( void *ptr, int bytes ) {
++	return ( VirtualUnlock( ptr, (SIZE_T)bytes ) != FALSE );
++}
++
++/*
++================
++Sys_SetPhysicalWorkMemory
++================
++*/
++void Sys_SetPhysicalWorkMemory( int minBytes, int maxBytes ) {
++	::SetProcessWorkingSetSize( GetCurrentProcess(), minBytes, maxBytes );
++}
++
++/*
++================
++Sys_GetCurrentUser
++================
++*/
++char *Sys_GetCurrentUser( void ) {
++	static char s_userName[1024];
++	unsigned long size = sizeof( s_userName );
++
++
++	if ( !GetUserName( s_userName, &size ) ) {
++		strcpy( s_userName, "player" );
++	}
++
++	if ( !s_userName[0] ) {
++		strcpy( s_userName, "player" );
++	}
++
++	return s_userName;
++}	
++
++
++/*
++===============================================================================
++
++	Call stack
++
++===============================================================================
++*/
++
++
++#define PROLOGUE_SIGNATURE 0x00EC8B55
++
++#include <dbghelp.h>
++
++const int UNDECORATE_FLAGS =	UNDNAME_NO_MS_KEYWORDS |
++								UNDNAME_NO_ACCESS_SPECIFIERS |
++								UNDNAME_NO_FUNCTION_RETURNS |
++								UNDNAME_NO_ALLOCATION_MODEL |
++								UNDNAME_NO_ALLOCATION_LANGUAGE |
++								UNDNAME_NO_MEMBER_TYPE;
++
++#if defined(_M_X64)
++
++/*
++x64: symbolication through dbghelp (SymInitialize with invadeProcess loads every module, PDBs are
++found next to the executable or through the path recorded in the image). Stack capture lives in
++Sys_GetCallStack. dbghelp is single threaded, so lookups are serialised with a tiny spin lock.
++*/
++static bool			symInitDone = false;
++static bool			symAvailable = false;
++static volatile LONG symLock = 0;			// 0 = free, otherwise the owning thread id
++static volatile LONG symLockOwner = 0;
++
++/*
++Returns false when the calling thread already owns the lock (an Error raised while symbolising,
++or a crash inside dbghelp): the caller must then skip symbolisation and print raw addresses
++instead of spinning forever. Never call Sym_Unlock after a false return.
++*/
++static bool Sym_Lock( void ) {
++	const LONG self = (LONG)GetCurrentThreadId();
++	if ( symLockOwner == self ) {
++		return false;
++	}
++	while ( InterlockedCompareExchange( &symLock, 1, 0 ) != 0 ) {
++		SwitchToThread();
++	}
++	symLockOwner = self;
++	return true;
++}
++
++static void Sym_Unlock( void ) {
++	symLockOwner = 0;
++	InterlockedExchange( &symLock, 0 );
++}
++
++/*
++==================
++Sym_Init
++==================
++*/
++void Sym_Init( address_t addr ) {
++	if ( symInitDone ) {
++		return;
++	}
++	symInitDone = true;
++	SymSetOptions( SYMOPT_UNDNAME | SYMOPT_DEFERRED_LOADS | SYMOPT_LOAD_LINES | SYMOPT_FAIL_CRITICAL_ERRORS | SYMOPT_NO_PROMPTS );
++	symAvailable = SymInitialize( GetCurrentProcess(), NULL, TRUE ) != FALSE;
++}
++
++/*
++==================
++Sym_Shutdown
++==================
++*/
++void Sym_Shutdown( void ) {
++	if ( !Sym_Lock() ) {
++		return;
++	}
++	if ( symAvailable ) {
++		SymCleanup( GetCurrentProcess() );
++	}
++	symAvailable = false;
++	symInitDone = false;
++	Sym_Unlock();
++}
++
++/*
++==================
++Sym_GetFuncInfo
++
++  module = short module name, funcName = "Function+0xdisp (file.cpp:line)" when the PDB is found,
++  otherwise "module+0xoffset" so an unresolved frame is still locatable.
++==================
++*/
++void Sym_GetFuncInfo( address_t addr, idStr &module, idStr &funcName ) {
++	HMODULE hMod = NULL;
++	char modPath[MAX_PATH];
++	char modShort[MAX_PATH];
++	DWORD64 modBase = 0;
++
++	module = "";
++	modPath[0] = '\0';
++	modShort[0] = '\0';
++	if ( GetModuleHandleExA( GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, (LPCSTR)addr, &hMod ) && hMod ) {
++		modBase = (DWORD64)(ULONG_PTR)hMod;
++		if ( GetModuleFileNameA( hMod, modPath, sizeof( modPath ) ) ) {
++			_splitpath( modPath, NULL, NULL, modShort, NULL );
++			module = modShort;
++		}
++	}
++
++	const bool locked = Sym_Lock();
++	if ( locked ) {
++		Sym_Init( addr );
++	}
++	if ( locked && symAvailable ) {
++		BYTE symbolBuffer[ sizeof( SYMBOL_INFO ) + 512 ];
++		PSYMBOL_INFO pSym = (PSYMBOL_INFO)symbolBuffer;
++		DWORD64 disp = 0;
++
++		memset( symbolBuffer, 0, sizeof( symbolBuffer ) );
++		pSym->SizeOfStruct = sizeof( SYMBOL_INFO );
++		pSym->MaxNameLen = 511;
++		if ( SymFromAddr( GetCurrentProcess(), (DWORD64)addr, &disp, pSym ) ) {
++			IMAGEHLP_LINE64 line;
++			DWORD lineDisp = 0;
++
++			memset( &line, 0, sizeof( line ) );
++			line.SizeOfStruct = sizeof( line );
++			sprintf( funcName, "%s+0x%x", pSym->Name, (unsigned int)disp );
++			if ( SymGetLineFromAddr64( GetCurrentProcess(), (DWORD64)addr, &lineDisp, &line ) && line.FileName ) {
++				const char *file = strrchr( line.FileName, '\\' );
++				file = file ? file + 1 : line.FileName;
++				funcName += va( " (%s:%u)", file, (unsigned int)line.LineNumber );
++			}
++			Sym_Unlock();
++			return;
++		}
++	}
++	if ( locked ) {
++		Sym_Unlock();
++	}
++
++	if ( modBase ) {
++		sprintf( funcName, "%s+0x%llx", modShort, (unsigned long long)( (DWORD64)addr - modBase ) );
++	} else {
++		sprintf( funcName, "0x%016llx", (unsigned long long)addr );
++	}
++}
++
++#elif defined(_DEBUG) && 1
++
++typedef struct symbol_s {
 +	int					address;		// map RVAs still fit in 32 bits
- 	char *				name;
- 	struct symbol_s *	next;
- } symbol_t;
- 
- typedef struct module_s {
--	int					address;
++	char *				name;
++	struct symbol_s *	next;
++} symbol_t;
++
++typedef struct module_s {
 +	address_t			address;		// x64: module base is pointer sized
- 	char *				name;
- 	symbol_t *			symbols;
- 	struct module_s *	next;
-@@ -339,7 +358,7 @@ int ParseHexNumber( const char **ptr ) {
- Sym_Init
- ==================
- */
--void Sym_Init( long addr ) {
++	char *				name;
++	symbol_t *			symbols;
++	struct module_s *	next;
++} module_t;
++
++module_t *modules;
++
++/*
++==================
++SkipRestOfLine
++==================
++*/
++void SkipRestOfLine( const char **ptr ) {
++	while( (**ptr) != '\0' && (**ptr) != '\n' && (**ptr) != '\r' ) {
++		(*ptr)++;
++	}
++	while( (**ptr) == '\n' || (**ptr) == '\r' ) {
++		(*ptr)++;
++	}
++}
++
++/*
++==================
++SkipWhiteSpace
++==================
++*/
++void SkipWhiteSpace( const char **ptr ) {
++	while( (**ptr) == ' ' ) {
++		(*ptr)++;
++	}
++}
++
++/*
++==================
++ParseHexNumber
++==================
++*/
++int ParseHexNumber( const char **ptr ) {
++	int n = 0;
++	while( (**ptr) >= '0' && (**ptr) <= '9' || (**ptr) >= 'a' && (**ptr) <= 'f' ) {
++		n <<= 4;
++		if ( **ptr >= '0' && **ptr <= '9' ) {
++			n |= ( (**ptr) - '0' );
++		} else {
++			n |= 10 + ( (**ptr) - 'a' );
++		}
++		(*ptr)++;
++	}
++	return n;
++}
++
++/*
++==================
++Sym_Init
++==================
++*/
 +void Sym_Init( address_t addr ) {
- 	TCHAR moduleName[MAX_STRING_CHARS];
- 	MEMORY_BASIC_INFORMATION mbi;
- 
-@@ -360,7 +379,7 @@ void Sym_Init( long addr ) {
- 	module_t *module = (module_t *) malloc( sizeof( module_t ) );
- 	module->name = (char *) malloc( strlen( moduleName ) + 1 );
- 	strcpy( module->name, moduleName );
--	module->address = (int)mbi.AllocationBase;
++	TCHAR moduleName[MAX_STRING_CHARS];
++	MEMORY_BASIC_INFORMATION mbi;
++
++	VirtualQuery( (void*)addr, &mbi, sizeof(mbi) );
++
++	GetModuleFileName( (HMODULE)mbi.AllocationBase, moduleName, sizeof( moduleName ) );
++
++	char *ext = moduleName + strlen( moduleName );
++	while( ext > moduleName && *ext != '.' ) {
++		ext--;
++	}
++	if ( ext == moduleName ) {
++		strcat( moduleName, ".map" );
++	} else {
++		strcpy( ext, ".map" );
++	}
++
++	module_t *module = (module_t *) malloc( sizeof( module_t ) );
++	module->name = (char *) malloc( strlen( moduleName ) + 1 );
++	strcpy( module->name, moduleName );
 +	module->address = (address_t)mbi.AllocationBase;	// x64: do not truncate to int
- 	module->symbols = NULL;
- 	module->next = modules;
- 	modules = module;
-@@ -467,7 +486,7 @@ void Sym_Shutdown( void ) {
- Sym_GetFuncInfo
- ==================
- */
--void Sym_GetFuncInfo( long addr, idStr &module, idStr &funcName ) {
++	module->symbols = NULL;
++	module->next = modules;
++	modules = module;
++
++	FILE *fp = fopen( moduleName, "rb" );
++	if ( fp == NULL ) {
++		return;
++	}
++
++	int pos = ftell( fp );
++	fseek( fp, 0, SEEK_END );
++	int length = ftell( fp );
++	fseek( fp, pos, SEEK_SET );
++
++	char *text = (char *) malloc( length+1 );
++	fread( text, 1, length, fp );
++	text[length] = '\0';
++	fclose( fp );
++
++	const char *ptr = text;
++
++	// skip up to " Address" on a new line
++	while( *ptr != '\0' ) {
++		SkipWhiteSpace( &ptr );
++		if ( idStr::Cmpn( ptr, "Address", 7 ) == 0 ) {
++			SkipRestOfLine( &ptr );
++			break;
++		}
++		SkipRestOfLine( &ptr );
++	}
++
++	int symbolAddress;
++	int symbolLength;
++	char symbolName[MAX_STRING_CHARS];
++	symbol_t *symbol;
++
++	// parse symbols
++	while( *ptr != '\0' ) {
++
++		SkipWhiteSpace( &ptr );
++
++		ParseHexNumber( &ptr );
++		if ( *ptr == ':' ) {
++			ptr++;
++		} else {
++			break;
++		}
++		ParseHexNumber( &ptr );
++
++		SkipWhiteSpace( &ptr );
++
++		// parse symbol name
++		symbolLength = 0;
++		while( *ptr != '\0' && *ptr != ' ' ) {
++			symbolName[symbolLength++] = *ptr++;
++			if ( symbolLength >= sizeof( symbolName ) - 1 ) {
++				break;
++			}
++		}
++		symbolName[symbolLength++] = '\0';
++
++		SkipWhiteSpace( &ptr );
++
++		// parse symbol address
++		symbolAddress = ParseHexNumber( &ptr );
++
++		SkipRestOfLine( &ptr );
++
++		symbol = (symbol_t *) malloc( sizeof( symbol_t ) );
++		symbol->name = (char *) malloc( symbolLength );
++		strcpy( symbol->name, symbolName );
++		symbol->address = symbolAddress;
++		symbol->next = module->symbols;
++		module->symbols = symbol;
++	}
++
++	free( text );
++}
++
++/*
++==================
++Sym_Shutdown
++==================
++*/
++void Sym_Shutdown( void ) {
++	module_t *m;
++	symbol_t *s;
++
++	for ( m = modules; m != NULL; m = modules ) {
++		modules = m->next;
++		for ( s = m->symbols; s != NULL; s = m->symbols ) {
++			m->symbols = s->next;
++			free( s->name );
++			free( s );
++		}
++		free( m->name );
++		free( m );
++	}
++	modules = NULL;
++}
++
++/*
++==================
++Sym_GetFuncInfo
++==================
++*/
 +void Sym_GetFuncInfo( address_t addr, idStr &module, idStr &funcName ) {
- 	MEMORY_BASIC_INFORMATION mbi;
- 	module_t *m;
- 	symbol_t *s;
-@@ -475,7 +494,7 @@ void Sym_GetFuncInfo( long addr, idStr &module, idStr &funcName ) {
- 	VirtualQuery( (void*)addr, &mbi, sizeof(mbi) );
- 
- 	for ( m = modules; m != NULL; m = m->next ) {
--		if ( m->address == (int) mbi.AllocationBase ) {
++	MEMORY_BASIC_INFORMATION mbi;
++	module_t *m;
++	symbol_t *s;
++
++	VirtualQuery( (void*)addr, &mbi, sizeof(mbi) );
++
++	for ( m = modules; m != NULL; m = m->next ) {
 +		if ( m->address == (address_t) mbi.AllocationBase ) {
- 			break;
- 		}
- 	}
-@@ -504,13 +523,13 @@ void Sym_GetFuncInfo( long addr, idStr &module, idStr &funcName ) {
- 		}
- 	}
- 
--	sprintf( funcName, "0x%08x", addr );
++			break;
++		}
++	}
++	if ( !m ) {
++		Sym_Init( addr );
++		m = modules;
++	}
++
++	for ( s = m->symbols; s != NULL; s = s->next ) {
++		if ( s->address == addr ) {
++
++			char undName[MAX_STRING_CHARS];
++			if ( UnDecorateSymbolName( s->name, undName, sizeof(undName), UNDECORATE_FLAGS ) ) {
++				funcName = undName;
++			} else {
++				funcName = s->name;
++			}
++			for ( int i = 0; i < funcName.Length(); i++ ) {
++				if ( funcName[i] == '(' ) {
++					funcName.CapLength( i );
++					break;
++				}
++			}
++			module = m->name;
++			return;
++		}
++	}
++
 +	sprintf( funcName, "0x%016llx", (unsigned long long)addr );	// x64: address is 64-bit
- 	module = "";
- }
- 
- #elif defined(_DEBUG)
- 
--DWORD lastAllocationBase = -1;
++	module = "";
++}
++
++#elif defined(_DEBUG)
++
 +address_t lastAllocationBase = (address_t)-1;		// x64: module base is pointer sized
- HANDLE processHandle;
- idStr lastModule;
- 
-@@ -519,12 +538,12 @@ idStr lastModule;
- Sym_Init
- ==================
- */
--void Sym_Init( long addr ) {
++HANDLE processHandle;
++idStr lastModule;
++
++/*
++==================
++Sym_Init
++==================
++*/
 +void Sym_Init( address_t addr ) {
- 	TCHAR moduleName[MAX_STRING_CHARS];
- 	TCHAR modShortNameBuf[MAX_STRING_CHARS];
- 	MEMORY_BASIC_INFORMATION mbi;
- 
--	if ( lastAllocationBase != -1 ) {
++	TCHAR moduleName[MAX_STRING_CHARS];
++	TCHAR modShortNameBuf[MAX_STRING_CHARS];
++	MEMORY_BASIC_INFORMATION mbi;
++
 +	if ( lastAllocationBase != (address_t)-1 ) {
- 		Sym_Shutdown();
- 	}
- 
-@@ -538,14 +557,14 @@ void Sym_Init( long addr ) {
- 	if ( !SymInitialize( processHandle, NULL, FALSE ) ) {
- 		return;
- 	}
--	if ( !SymLoadModule( processHandle, NULL, moduleName, NULL, (DWORD)mbi.AllocationBase, 0 ) ) {
++		Sym_Shutdown();
++	}
++
++	VirtualQuery( (void*)addr, &mbi, sizeof(mbi) );
++
++	GetModuleFileName( (HMODULE)mbi.AllocationBase, moduleName, sizeof( moduleName ) );
++	_splitpath( moduleName, NULL, NULL, modShortNameBuf, NULL );
++	lastModule = modShortNameBuf;
++
++	processHandle = GetCurrentProcess();
++	if ( !SymInitialize( processHandle, NULL, FALSE ) ) {
++		return;
++	}
 +	if ( !SymLoadModule64( processHandle, NULL, moduleName, NULL, (DWORD64)mbi.AllocationBase, 0 ) ) {
- 		SymCleanup( processHandle );
- 		return;
- 	}
- 
- 	SymSetOptions( SymGetOptions() & ~SYMOPT_UNDNAME );
- 
--	lastAllocationBase = (DWORD) mbi.AllocationBase;
++		SymCleanup( processHandle );
++		return;
++	}
++
++	SymSetOptions( SymGetOptions() & ~SYMOPT_UNDNAME );
++
 +	lastAllocationBase = (address_t) mbi.AllocationBase;
- }
- 
- /*
-@@ -554,9 +573,9 @@ Sym_Shutdown
- ==================
- */
- void Sym_Shutdown( void ) {
--	SymUnloadModule( GetCurrentProcess(), lastAllocationBase );
++}
++
++/*
++==================
++Sym_Shutdown
++==================
++*/
++void Sym_Shutdown( void ) {
 +	SymUnloadModule64( GetCurrentProcess(), (DWORD64)lastAllocationBase );
- 	SymCleanup( GetCurrentProcess() );
--	lastAllocationBase = -1;
++	SymCleanup( GetCurrentProcess() );
 +	lastAllocationBase = (address_t)-1;
- }
- 
- /*
-@@ -564,25 +583,25 @@ void Sym_Shutdown( void ) {
- Sym_GetFuncInfo
- ==================
- */
--void Sym_GetFuncInfo( long addr, idStr &module, idStr &funcName ) {
++}
++
++/*
++==================
++Sym_GetFuncInfo
++==================
++*/
 +void Sym_GetFuncInfo( address_t addr, idStr &module, idStr &funcName ) {
- 	MEMORY_BASIC_INFORMATION mbi;
- 
- 	VirtualQuery( (void*)addr, &mbi, sizeof(mbi) );
- 
--	if ( (DWORD) mbi.AllocationBase != lastAllocationBase ) {
++	MEMORY_BASIC_INFORMATION mbi;
++
++	VirtualQuery( (void*)addr, &mbi, sizeof(mbi) );
++
 +	if ( (address_t) mbi.AllocationBase != lastAllocationBase ) {
- 		Sym_Init( addr );
- 	}
- 
--	BYTE symbolBuffer[ sizeof(IMAGEHLP_SYMBOL) + MAX_STRING_CHARS ];
--	PIMAGEHLP_SYMBOL pSymbol = (PIMAGEHLP_SYMBOL)&symbolBuffer[0];
++		Sym_Init( addr );
++	}
++
 +	BYTE symbolBuffer[ sizeof(IMAGEHLP_SYMBOL64) + MAX_STRING_CHARS ];
 +	PIMAGEHLP_SYMBOL64 pSymbol = (PIMAGEHLP_SYMBOL64)&symbolBuffer[0];
- 	pSymbol->SizeOfStruct = sizeof(symbolBuffer);
- 	pSymbol->MaxNameLength = 1023;
- 	pSymbol->Address = 0;
- 	pSymbol->Flags = 0;
- 	pSymbol->Size =0;
- 
--	DWORD symDisplacement = 0;
--	if ( SymGetSymFromAddr( processHandle, addr, &symDisplacement, pSymbol ) ) {
++	pSymbol->SizeOfStruct = sizeof(symbolBuffer);
++	pSymbol->MaxNameLength = 1023;
++	pSymbol->Address = 0;
++	pSymbol->Flags = 0;
++	pSymbol->Size =0;
++
 +	DWORD64 symDisplacement = 0;
 +	if ( SymGetSymFromAddr64( processHandle, (DWORD64)addr, &symDisplacement, pSymbol ) ) {
- 		// clean up name, throwing away decorations that don't affect uniqueness
- 	    char undName[MAX_STRING_CHARS];
- 		if ( UnDecorateSymbolName( pSymbol->Name, undName, sizeof(undName), UNDECORATE_FLAGS ) ) {
-@@ -605,7 +624,7 @@ void Sym_GetFuncInfo( long addr, idStr &module, idStr &funcName ) {
- 		LocalFree( lpMsgBuf );
- 
- 		// Couldn't retrieve symbol (no debug info?, can't load dbghelp.dll?)
--		sprintf( funcName, "0x%08x", addr );
++		// clean up name, throwing away decorations that don't affect uniqueness
++	    char undName[MAX_STRING_CHARS];
++		if ( UnDecorateSymbolName( pSymbol->Name, undName, sizeof(undName), UNDECORATE_FLAGS ) ) {
++			funcName = undName;
++		} else {
++			funcName = pSymbol->Name;
++		}
++		module = lastModule;
++	}
++	else {
++		LPVOID lpMsgBuf;
++		FormatMessage( FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
++						NULL,
++						GetLastError(),
++						MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), // Default language
++						(LPTSTR) &lpMsgBuf,
++						0,
++						NULL 
++						);
++		LocalFree( lpMsgBuf );
++
++		// Couldn't retrieve symbol (no debug info?, can't load dbghelp.dll?)
 +		sprintf( funcName, "0x%016llx", (unsigned long long)addr );	// x64: address is 64-bit
- 		module = "";
-     }
- }
-@@ -617,7 +636,7 @@ void Sym_GetFuncInfo( long addr, idStr &module, idStr &funcName ) {
- Sym_Init
- ==================
- */
--void Sym_Init( long addr ) {
++		module = "";
++    }
++}
++
++#else
++
++/*
++==================
++Sym_Init
++==================
++*/
 +void Sym_Init( address_t addr ) {
- }
- 
- /*
-@@ -633,9 +652,9 @@ void Sym_Shutdown( void ) {
- Sym_GetFuncInfo
- ==================
- */
--void Sym_GetFuncInfo( long addr, idStr &module, idStr &funcName ) {
++}
++
++/*
++==================
++Sym_Shutdown
++==================
++*/
++void Sym_Shutdown( void ) {
++}
++
++/*
++==================
++Sym_GetFuncInfo
++==================
++*/
 +void Sym_GetFuncInfo( address_t addr, idStr &module, idStr &funcName ) {
- 	module = "";
--	sprintf( funcName, "0x%08x", addr );
++	module = "";
 +	sprintf( funcName, "0x%016llx", (unsigned long long)addr );	// x64: address is 64-bit
- }
- 
- #endif
-@@ -645,6 +664,8 @@ void Sym_GetFuncInfo( long addr, idStr &module, idStr &funcName ) {
- GetFuncAddr
- ==================
- */
++}
++
++#endif
++
++/*
++==================
++GetFuncAddr
++==================
++*/
 +#if !defined(_M_X64)	/* x64: prologue signature scan and ebp chain walk are x86-only */
 +
- address_t GetFuncAddr( address_t midPtPtr ) {
- 	long temp;
- 	do {
-@@ -682,15 +703,24 @@ label:
- 	return res;
- }
- 
++address_t GetFuncAddr( address_t midPtPtr ) {
++	long temp;
++	do {
++		temp = (long)(*(long*)midPtPtr);
++		if ( (temp&0x00FFFFFF) == PROLOGUE_SIGNATURE ) {
++			break;
++		}
++		midPtPtr--;
++	} while(true);
++
++	return midPtPtr;
++}
++
++/*
++==================
++GetCallerAddr
++==================
++*/
++address_t GetCallerAddr( long _ebp ) {
++	long midPtPtr;
++	long res = 0;
++
++	__asm {
++		mov		eax, _ebp
++		mov		ecx, [eax]		// check for end of stack frames list
++		test	ecx, ecx		// check for zero stack frame
++		jz		label
++		mov		eax, [eax+4]	// get the ret address
++		test	eax, eax		// check for zero return address
++		jz		label
++		mov		midPtPtr, eax
++	}
++	res = GetFuncAddr( midPtPtr );
++label:
++	return res;
++}
++
 +#endif	/* !_M_X64 */
 +
- /*
- ==================
- Sys_GetCallStack
- 
-- use /Oy option
-+  use /Oy option
- ==================
- */
- void Sys_GetCallStack( address_t *callStack, const int callStackSize ) {
--#if 1 //def _DEBUG
-+#if defined(_M_X64)
-+	int i;
++/*
++==================
++Sys_GetCallStack
 +
-+	// x64: no usable ebp chain, zero-fill until a real unwinder is wired up
-+	for ( i = 0; i < callStackSize; i++ ) {
++  use /Oy option
++==================
++*/
++void Sys_GetCallStack( address_t *callStack, const int callStackSize ) {
++#if defined(_M_X64)
++	// x64: the ebp chain does not exist, ask the OS unwinder (uses the .pdata unwind tables).
++	// Skip this function so frame 0 is the caller.
++	void *frames[64];
++	int i, n;
++
++	n = callStackSize < 64 ? callStackSize : 64;
++	n = (int)CaptureStackBackTrace( 1, (DWORD)n, frames, NULL );
++	for ( i = 0; i < n; i++ ) {
++		callStack[i] = (address_t)frames[i];
++	}
++	for ( ; i < callStackSize; i++ ) {
 +		callStack[i] = 0;
 +	}
 +#else
- 	int i;
- 	long m_ebp;
- 
-@@ -709,13 +739,11 @@ void Sys_GetCallStack( address_t *callStack, const int callStackSize ) {
- 		}
- 		m_ebp = *((long*)m_ebp);
- 	}
--#else
--	int i = 0;
--#endif
- 	while( i < callStackSize ) {
- 		callStack[i++] = 0;
- 	}
--}
++	int i;
++	long m_ebp;
++
++	__asm {
++		mov eax, ebp
++		mov m_ebp, eax
++	}
++	// skip last two functions
++	m_ebp = *((long*)m_ebp);
++	m_ebp = *((long*)m_ebp);
++	// list functions
++	for ( i = 0; i < callStackSize; i++ ) {
++		callStack[i] = GetCallerAddr( m_ebp );
++		if ( callStack[i] == 0 ) {
++			break;
++		}
++		m_ebp = *((long*)m_ebp);
++	}
++	while( i < callStackSize ) {
++		callStack[i++] = 0;
++	}
 +#endif
 +}
- 
- /*
- ==================
-@@ -763,7 +791,7 @@ const char *Sys_GetCallStackCurAddressStr( int depth ) {
- 
- 	index = 0;
- 	for ( i = depth-1; i >= 0; i-- ) {
--		index += sprintf( string+index, " -> 0x%08x", callStack[i] );
++
++/*
++==================
++Sys_GetCallStackStr
++==================
++*/
++const char *Sys_GetCallStackStr( const address_t *callStack, const int callStackSize ) {
++	static __declspec( thread ) char string[MAX_STRING_CHARS*8];	// per thread: two threads must not share the result buffer
++	int index, i, n;
++	idStr module, funcName;
++
++	index = 0;
++	for ( i = callStackSize-1; i >= 0; i-- ) {
++		if ( callStack[i] == 0 ) {
++			continue;
++		}
++#if defined(_M_X64)
++		// a return address points after the call, back up one byte to land inside the caller
++		Sym_GetFuncInfo( callStack[i] - 1, module, funcName );
++#else
++		Sym_GetFuncInfo( callStack[i], module, funcName );
++#endif
++		n = idStr::snPrintf( string+index, sizeof( string ) - index - 1, " -> %s", funcName.c_str() );
++		if ( n < 0 ) {
++			index = sizeof( string ) - 1;
++			break;
++		}
++		index += n;
++	}
++	string[index] = '\0';
++	return string;
++}
++
++/*
++==================
++Sys_GetCallStackCurStr
++==================
++*/
++const char *Sys_GetCallStackCurStr( int depth ) {
++	address_t *callStack;
++
++	callStack = (address_t *) _alloca( depth * sizeof( address_t ) );
++	Sys_GetCallStack( callStack, depth );
++	return Sys_GetCallStackStr( callStack, depth );
++}
++
++/*
++==================
++Sys_GetCallStackCurAddressStr
++==================
++*/
++const char *Sys_GetCallStackCurAddressStr( int depth ) {
++	static __declspec( thread ) char string[MAX_STRING_CHARS*2];
++	address_t *callStack;
++	int index, i;
++
++	callStack = (address_t *) _alloca( depth * sizeof( address_t ) );
++	Sys_GetCallStack( callStack, depth );
++
++	index = 0;
++	for ( i = depth-1; i >= 0; i-- ) {
 +		index += sprintf( string+index, " -> 0x%016llx", (unsigned long long)callStack[i] );	// x64: 64-bit address
- 	}
- 	return string;
- }
++	}
++	string[index] = '\0';
++	return string;
++}
++
++/*
++==================
++Sys_ShutdownSymbols
++==================
++*/
++void Sys_ShutdownSymbols( void ) {
++	Sym_Shutdown();
++}
 diff --git a/a/neo/sys/win32/win_snd.cpp b/b/neo/sys/win32/win_snd.cpp
 index 992b16c..a41018f 100644
 --- a/a/neo/sys/win32/win_snd.cpp

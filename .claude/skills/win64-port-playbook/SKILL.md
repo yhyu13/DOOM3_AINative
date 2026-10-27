@@ -14,7 +14,7 @@ Companion detail: `doom3_orig/doc/06_win11_amd64_port_findings.md`. Boundaries a
 |---|---|
 | 1 Probe the toolchain before planning | `cl.exe` x64 compiles a sample of real TUs; count `__asm`, `(int)ptr`, `sizeof(void*)` hits with a script |
 | 2 Generate the build from the original project files | `scripts/gen-sources-win11-amd64.ps1` reads `*.vcxproj`; CMake configure exits 0 |
-| 3 Get every TU to compile | keep-going build (`-- /m`; Ninja `-k 0` to list all errors at once) |
+| 3 Get every TU to compile | keep-going build (`-- -m`, never `-- /m` in Git Bash; Ninja `-k 0` to list all errors at once) |
 | 4 Link | exit 0, `dumpbin /headers` machine = `8664`, `dumpbin /dependents` has no MFC/ATL DLL |
 | 5 Boot with NO data | engine stops with a clean "missing data" error, not a crash |
 | 6 Boot with REAL data under a debugger | `cdb` stack at first access violation (section 3) |
@@ -73,8 +73,9 @@ link and a menu screenshot prove almost nothing.
 | `inline __asm` C4235 / C4980 | MSVC x64 has no inline asm | `#if defined(_M_IX86)` + intrinsics (`_mm_cvtss_si32` keeps round-to-nearest) |
 | VRAM reported negative | WMI `AdapterRAM` read as `intVal` | `ulVal` (`sys/win32/win_shared.cpp`) |
 
-Hazards deliberately left open and recorded (README "Known open defects"): savegame pointer writes
-(`sound/snd_world.cpp`), demo record/playback (`renderer/RenderWorld_demo.cpp`), event save format version.
+Later round (savegame/demo, net, d3xp): the savegame and demo pointer writes are now fixed (`(int)ptr` became a
+0/1 presence flag, `SAVEGAME_VERSION` 18); `idPlayer::ExitCinematic` crashed on map restart when
+`scriptThread` was NULL (guard in `game/Player.cpp`). Still open: see `targets/win11-amd64/README.md`.
 
 ## 5. Evidence tooling (scripted; no manual eyeballing as the only proof)
 
@@ -102,6 +103,20 @@ Hazards deliberately left open and recorded (README "Known open defects"): saveg
 - **`cd ..` drift** between tool calls: use absolute paths, or `Push-Location`/`Pop-Location` in one script.
 - **A restored `.bak` can revert an earlier fix.** Verify earlier fixes after any restore.
 - **Hard links** (`mklink /H`) make the demo pk4 visible as `base/demo00.pk4` without a 480 MB copy.
+
+- **Git Bash mangles MSBuild `/m`.** `cmake --build ... -- /m` becomes a path; write `-- -m` (also `-v:q`).
+- **Long `+wait` command lines crash the engine** (0xC0000005). Put the commands in a cfg and use `+exec <cfg>`.
+- **A second instance exits at once** unless `+set win_allowMultipleInstances 1`. Give each instance its own
+  `fs_savepath` and, for loopback tests, `+set si_pure 0`. Kill by PID, never by process name, while other
+  runs are active.
+- **Restart crash after a cinematic camera:** `MapClear` deletes the camera, its dtor calls `SetCamera(NULL)`
+  -> `ExitCinematic()` after `ShutdownThreads()` NULLed `scriptThread` (`game/Player.cpp`).
+- **Save/demo pointer bug pattern:** `WriteInt((int)ptr)` / `ReadInt((int&)ptr)` truncates on write and leaves
+  the upper half of an 8-byte field uninitialised on read. Write a 32-bit presence flag (0/1) and rebuild the
+  pointer from the real data that follows; bump `SAVEGAME_VERSION` when the meaning of a field changes.
+- **Sound channel placeholders:** `leadinSample` / `soundShader` / `decoder` are saved as presence flags and are
+  re-created on load; testing `chan->decoder != NULL` on a half-garbage pointer was the original crash source.
+- **DOOM3XP.exe** is the same build plus the d3xp game code (`+set fs_game d3xp`, retail data required).
 
 ## 7. When NOT to use this skill
 

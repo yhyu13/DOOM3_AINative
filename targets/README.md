@@ -46,3 +46,10 @@ because a copy is tens of megabytes and diverges immediately.
 | Target | Copy | Notes |
 |---|---|---|
 | _(none yet)_ | — | create one with `scripts/new-target.ps1 -Name web` |
+
+## The win11-amd64 target
+
+`targets/win11-amd64/` holds the tracked CMake files, the patch (`patches/all-changes.patch`, file list in
+`patches/all-changes.manifest.txt`) and its README. Its root build produces both `DOOM3.exe` and
+`DOOM3XP.exe` (d3xp game code, needs retail RoE data to play; base game only via `DOOM3.exe`). MSBuild
+passthrough must be written `-- -m` (Git Bash mangles `-- /m`). See `targets/win11-amd64/README.md`.
