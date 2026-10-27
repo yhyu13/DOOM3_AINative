@@ -15,11 +15,27 @@
         "CMAKE_CONFIGURATION_TYPES": "Release;Debug",
         "DOOM3_TARGET": "win11-amd64"
       }
+    },
+    {
+      "name": "win11-amd64-hd",
+      "displayName": "Windows 11 x64 + HD assets (VS2022 v143, static CRT)",
+      "description": "Same 2011 OpenGL engine as win11-amd64, built from targets/win11-amd64-hd; HD textures are runtime pk4 overrides, not a renderer change.",
+      "generator": "Visual Studio 17 2022",
+      "architecture": { "value": "x64", "strategy": "set" },
+      "toolset": { "value": "v143", "strategy": "set" },
+      "binaryDir": "${sourceDir}/build-hd",
+      "cacheVariables": {
+        "CMAKE_SYSTEM_VERSION": "10.0.26100.0",
+        "CMAKE_CONFIGURATION_TYPES": "Release;Debug",
+        "DOOM3_TARGET": "win11-amd64-hd"
+      }
     }
   ],
   "buildPresets": [
     { "name": "win11-amd64-release", "displayName": "Release", "configurePreset": "win11-amd64", "configuration": "Release" },
     { "name": "win11-amd64-xp-release", "displayName": "DOOM3XP only (Release)", "configurePreset": "win11-amd64", "configuration": "Release", "targets": ["DOOM3XP"] },
-    { "name": "win11-amd64-debug", "displayName": "Debug", "configurePreset": "win11-amd64", "configuration": "Debug" }
+    { "name": "win11-amd64-debug", "displayName": "Debug", "configurePreset": "win11-amd64", "configuration": "Debug" },
+    { "name": "win11-amd64-hd-release", "displayName": "HD Release", "configurePreset": "win11-amd64-hd", "configuration": "Release" },
+    { "name": "win11-amd64-hd-debug", "displayName": "HD Debug", "configurePreset": "win11-amd64-hd", "configuration": "Debug" }
   ]
 }
