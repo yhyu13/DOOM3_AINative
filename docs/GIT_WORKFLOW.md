@@ -59,7 +59,7 @@ Handoffs are files/artifacts, not chat:
 
 1. **Issue brief** — the contract in §3, written by the coordinator before any branch exists.
 2. **Branch** — created by `scripts/new-worktree.ps1`; body of work ends with `git push -u origin <branch>`.
-3. **PR body** — §8 template: `Closes #N`, evidence block, risk/rollback. Draft until verification passes.
+3. **PR body** — §8 template: `Refs #N` (never `Closes #N` without the user's approval), evidence block, risk/rollback. Draft until verification passes.
 4. **Verification log** — exact commands, exit codes, counts, screenshot paths, pasted into the PR body.
    Machine-specific artifacts stay untracked; the log is text.
 
@@ -184,7 +184,10 @@ $env:D3_BUILD = Join-Path $env:WORKTREE_PATH 'build'
 
 ## 8. Merge policy
 
-- Squash merge only. PR body must contain `Closes #N`, the evidence block, and risk/rollback.
+- Squash merge only. PR body must contain `Refs #N`, the evidence block, and risk/rollback.
+- Never close an issue on your own: no `gh issue close`, and no `Closes`/`Fixes`/`Resolves #N`
+  in the PR body or commit message unless the user approved closing that issue. The user closes
+  the issue after checking the result.
 - Every PR gets a coordinator review. `doom3_orig/doom3/` submodule bumps and build-system changes also require
   one **independent** reviewer (never the author) who reruns the verification command.
 - Reviewer runs the `code-review` skill pinned at `origin/main...HEAD`; comments cite file:line.
@@ -200,7 +203,7 @@ $env:D3_BUILD = Join-Path $env:WORKTREE_PATH 'build'
 ## Risk / rollback
 Risk: <what breaks if wrong>
 Rollback: revert this squash commit on main; no data migration
-Closes #42
+Refs #42
 ```
 
 ## 9. Loop
@@ -215,7 +218,7 @@ flowchart LR
   E -- yes --> F[push + gh pr create]
   F --> G{Reviewer: code-review}
   G -- changes --> D
-  G -- approve --> H[Squash merge + Closes #N]
+  G -- approve --> H[Squash merge + Refs #N]
   H --> I[remove-worktree.ps1 + prune]
   I --> J[Next issue]
 ```
@@ -246,5 +249,5 @@ Finish (before merge):
 
 - [ ] Verification command rerun in the worktree, output pasted into the PR body.
 - [ ] `git fetch origin` + rebase done; `git status` clean; no submodule dirt.
-- [ ] PR has `Closes #N`, evidence, risk/rollback; reviewer approved.
+- [ ] PR has `Refs #N` (no closing keyword unless approved), evidence, risk/rollback; reviewer approved.
 - [ ] After merge: `remove-worktree.ps1`, then `git worktree prune`; branch deleted only if merged.

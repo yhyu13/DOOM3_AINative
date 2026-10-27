@@ -97,9 +97,11 @@ verbatim, and for visual claims the screenshot path. `docs/GIT_WORKFLOW.md` §8 
 untracked, the evidence block is text.
 
 - **Squash merge only.** No merge commits, no direct commits to `main`.
-- Write **`Closes #N`** only when the issue is genuinely finished. GitHub closes an issue on merge
-  whenever the PR body or a commit message contains `Closes`, `Fixes`, or `Resolves` with the issue
-  reference, and a squash commit inherits those messages. For partial work use **`Refs #N`**.
+- **Never close an issue yourself.** GitHub closes an issue on merge whenever the PR body or a
+  commit message contains `Closes`, `Fixes` or `Resolves` with the issue reference, and a squash
+  commit inherits those messages — so those keywords are the same act as `gh issue close`. Use
+  **`Refs #N`** and let the user close the issue; only write a closing keyword when the user
+  explicitly asked to close that issue.
 - Merge only when verification is green, review is approved, no out-of-scope path was touched, and
   no uncommitted submodule dirt remains.
 
