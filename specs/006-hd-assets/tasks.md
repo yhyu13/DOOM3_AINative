@@ -66,7 +66,8 @@ committed.
 - [x] **T019** Write `targets/win11-amd64-hd/README.md` and the staging/verification scripts.
 - [x] **T020** Update this file with final evidence and report the RHI verdict to the user.
   - Verdict: **no new RHI**; the build is the 2011 classic OpenGL engine and the run used ARB2.
-- [ ] **T021** If the user authorizes a commit: branch, commit, PR; never commit `_data/`, `build-hd/`, or the pack.
+- [x] **T021** If the user authorizes a commit: branch, commit, PR; never commit `_data/`, `build-hd/`, or the pack.
+  - Evidence: branch `feat/hd-assets`, commit `714fab8`, PR #19 (<https://github.com/yhyu13/DOOM3_AINative/pull/19>). The 15 committed paths exclude `_data/`, `build-hd/`, `targets/win11-amd64-hd/doom3/`, and every `.pk4`.
 
 ## Dependencies
 
