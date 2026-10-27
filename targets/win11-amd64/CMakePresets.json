@@ -1,0 +1,44 @@
+{
+  "version": 2,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 20,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "win11-amd64",
+      "displayName": "Windows 11 x64 (VS2022 v143, static CRT)",
+      "description": "Native x64 build of the target copy with the Windows SDK 10.0.26100, MFC tools disabled and the game statically linked.",
+      "generator": "Visual Studio 17 2022",
+      "architecture": {
+        "value": "x64",
+        "strategy": "set"
+      },
+      "toolset": {
+        "value": "v143",
+        "strategy": "set"
+      },
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_SYSTEM_VERSION": "10.0.26100.0",
+        "CMAKE_CONFIGURATION_TYPES": "Release;Debug",
+        "NEO_DIR": "${sourceDir}/doom3/neo"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "win11-amd64-release",
+      "displayName": "Release",
+      "configurePreset": "win11-amd64",
+      "configuration": "Release"
+    },
+    {
+      "name": "win11-amd64-debug",
+      "displayName": "Debug",
+      "configurePreset": "win11-amd64",
+      "configuration": "Debug"
+    }
+  ]
+}

@@ -153,3 +153,11 @@ Checks every directory under `.kilo/skills` for a non-empty `SKILL.md` with YAML
 containing a non-empty `name` equal to the directory name and a non-empty `description` of at most
 1024 characters. Prints skill, file count, size in KB, and status; exits `1` on any failure and `0`
 when all skills pass.
+
+## Port skills in `.claude/skills`  (added with PR #4)
+
+| Skill | Use when |
+|---|---|
+| `win64-port-playbook` | Porting or debugging a 32-bit-era engine on Windows x64: build bring-up, pointer-truncation hunts, crashes that only appear with real data, scripted screenshot/log/audio evidence. Source: this repo's own work (`specs/001-win11-amd64-native-build`). |
+
+Visibility: `kilo.json` -> `skills.paths: ["./.claude/skills"]`. Validate with `scripts/verify-skills.ps1 -SkillsPath .claude\skills`.

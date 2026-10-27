@@ -1,11 +1,16 @@
-{
-  "$schema": "https://app.kilo.ai/config.json",
-  "permission": {
-    "edit": {
-      ".git/**": "deny",
-      "doom3_orig/**": "ask",
-      "*.pk4": "deny",
-      "*.pk3": "deny"
-    }
-  }
+﻿{
+    "$schema":  "https://app.kilo.ai/config.json",
+    "permission":  {
+                       "edit":  {
+                                    ".git/**":  "deny",
+                                    "doom3_orig/**":  "ask",
+                                    "*.pk4":  "deny",
+                                    "*.pk3":  "deny"
+                                }
+                   },
+    "skills":  {
+                   "paths":  [
+                                 "./.claude/skills"
+                             ]
+               }
 }
