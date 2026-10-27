@@ -79,6 +79,17 @@ are in `THIRD_PARTY_NOTICES.md`. Game data is not covered and must not be commit
    exits 0 even on a conflict, and an unanchored grep also matches the phrase inside patched file
    content). Clear the overlap first: a dirty main worktree is a merge blocker, not something to
    work around.
+9. **Start from `main`, or stop.** New work starts on `main`. Before touching a file, check
+   `git branch --show-current` (and `git worktree list` when the path is under `.kilo/worktrees/`).
+   If the checkout is not `main` and the user did not name a branch or a worktree, stop
+   immediately and ask which one to use. A task description is not permission to continue on
+   whatever branch happens to be checked out, and not permission to commit to it. A detached
+   HEAD counts as "not `main`".
+10. **Never close an issue without the user's permission.** Do not run `gh issue close`, and do
+    not write `Closes #N`, `Fixes #N` or `Resolves #N` in a PR body or commit message, unless the
+    user explicitly approved closing that issue. Link with `Refs #N`. A merged PR proves the work,
+    not the decision to close the issue; say the work looks finished and let the user decide.
+    This supersedes the `Closes #N` wording in `docs/GIT_WORKFLOW.md` and `CONTRIBUTING.md`.
 
 ## Spec-driven flow
 
