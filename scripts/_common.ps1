@@ -17,3 +17,30 @@ function Resolve-Doom3Exe {
     if ($found.Count -gt 0) { return $found[0] }
     return $candidates[0]
 }
+
+function Get-ProcessesUsingExe {
+    <#
+      Return processes whose loaded executable path resolves to exactly $Path.
+      Unlike Get-Process -Name, this cannot match a different build, a different
+      executable (e.g. DOOM3XP.exe) or an unrelated copy of the game.
+      Access-denied processes are skipped rather than treated as matches.
+    #>
+    param([Parameter(Mandatory = $true)][string]$Path)
+    $full = [IO.Path]::GetFullPath($Path)
+    @(Get-Process -ErrorAction SilentlyContinue | Where-Object {
+        try { $candidate = $_.Path; $candidate -and ([IO.Path]::GetFullPath($candidate) -ieq $full) } catch { $false }
+    })
+}
+
+function Stop-ProcessesUsingExe {
+    <#
+      Stop only the processes whose executable path matches $Path, then wait (bounded)
+      for them to exit. Never stops every process with the same image name.
+    #>
+    param([Parameter(Mandatory = $true)][string]$Path, [int]$WaitSec = 10)
+    $running = @(Get-ProcessesUsingExe -Path $Path)
+    if ($running.Count -eq 0) { return }
+    $running | Stop-Process -Force -ErrorAction SilentlyContinue
+    $deadline = [DateTime]::UtcNow.AddSeconds($WaitSec)
+    while ((Get-ProcessesUsingExe -Path $Path).Count -gt 0 -and [DateTime]::UtcNow -lt $deadline) { Start-Sleep -Milliseconds 200 }
+}

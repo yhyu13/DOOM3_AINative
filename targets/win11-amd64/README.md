@@ -92,26 +92,41 @@ build reports their files and they are listed in the PR instead of being patched
 ## Run and verify
 
 Game data is never committed. The only data used for tests is the official free DOOM 3 demo
-(`D3Demo.exe`, id Software, 2004; licence: free non-commercial use, no modification or
-redistribution of the demo data). Extract `demo00.pk4` from the installer yourself, then:
+(`D3Demo.exe`, id Software, 2004). Its exact redistribution terms have **not** been verified in
+this repository; treat the demo data as non-redistributable regardless. Extract `demo00.pk4` from
+the installer yourself, then:
 
 ```powershell
 # builds a run directory outside git: base/demo00.pk4 (hard link) + 2 local compatibility shims
 powershell -ExecutionPolicy Bypass -File scripts/prepare-demo-data.ps1 -Pk4 <path>\demo00.pk4 -RunDir <path>\run
 # build + start the demo's first map + screenshot
-powershell -ExecutionPolicy Bypass -File scripts/run-win11-amd64.ps1 -DataDir <path>\run -Build
+powershell -ExecutionPolicy Bypass -File scripts/run-win11-amd64.ps1 -DataDir <path>\run -Build -Clean
 # all success criteria (PASS / FAIL / SKIPPED)
 powershell -ExecutionPolicy Bypass -File scripts/verify-win11-amd64.ps1 -DataDir <path>\run
 ```
 
+`run-win11-amd64.ps1` refuses a non-empty `-OutDir` unless `-Clean` is passed, and refuses to stop
+an already-running instance of the resolved executable unless `-StopExisting` is passed. It matches
+processes by executable path, so `DOOM3XP.exe` and unrelated copies are not touched. `smoke-win11-amd64.ps1`
+takes the same two switches and reports exit 11/12 when either refusal fires.
+
 The two shims exist because the 2011 GPL code expects `guis/mainmenu.gui` and a
-`WEAPON_NETFIRING` script field that the 2004 demo does not ship. They are local test files.
+`WEAPON_NETFIRING` script field that the 2004 demo does not ship. They are local test files. The
+run directory and loose shim paths are git-ignored (`_data/`, `**/base/guis/mainmenu.gui`,
+`**/base/script/weapon_base.script`); never commit them.
 
 ## Patches
 
 `scripts/export-target-patches.ps1 -Name win11-amd64` writes `patches/all-changes.patch` (one
 `git apply -p2`-able patch against the pristine tree) and `all-changes.manifest.txt`
-(status, path, SHA-256). `verify-win11-amd64.ps1` re-applies it to a fresh copy and compares hashes.
+(status, path, SHA-256). `-OutDir` writes both elsewhere.
+
+The patch reproduces **modified files only**. Added (`A`) and deleted (`D`) files are manifest rows
+with no patch hunks. `apply-target-patches.ps1` fails closed when such rows exist (use
+`-AllowIncomplete` only to apply the modified rows for inspection; it still exits non-zero), and
+`verify-win11-amd64.ps1` reports `SC-006b` FAIL rather than reconstructing an incomplete copy.
+Deliver added/deleted engine files through the reviewed fork/submodule path. The verifier exports to
+a fresh temporary directory and never overwrites the tracked `patches/` files.
 
 ## Known state and open items (x64 port is a baseline, not finished)
 

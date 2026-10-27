@@ -70,10 +70,13 @@ Do not rewrite the global credential helper; never put a token in a tracked file
    via `DOOM3.exe`). `run-win11-amd64.ps1` takes `-Game` (and defaults `fs_game` to `d3xp` for
    `DOOM3XP.exe`).
 6. **Test targets:** `cmake --build build --target verify` and `--target smoke` run the evidence scripts
-   against the exe just built (they need `D3_DATA_DIR`).
-7. **Run and check:** `run-win11-amd64.ps1 -DataDir <data-root>\run -Build`,
-   `smoke-win11-amd64.ps1 -DataDir <data-root>\run`, `verify-win11-amd64.ps1 -DataDir <data-root>\run`
-   (all under `.\scripts\`). Supporting probes: `capture-window.ps1 -ProcessName DOOM3 -Out <file>.png`,
+   against the exe just built (they need `D3_DATA_DIR`). `smoke` passes `-Clean` because it reuses its
+   generated output directory. Patch-apply negative controls: `.\scripts\test-target-patches.ps1`
+   (synthetic target, self-cleaning; 5/5 expected).
+7. **Run and check:** `run-win11-amd64.ps1 -DataDir <data-root>\run -Build -Clean`,
+   `smoke-win11-amd64.ps1 -DataDir <data-root>\run -Clean`, `verify-win11-amd64.ps1 -DataDir <data-root>\run`
+   (all under `.\scripts\`). `-Clean` replaces the generated output directory; add `-StopExisting` only
+   when you intend to stop an already-running copy of the same executable. Supporting probes: `capture-window.ps1 -ProcessName DOOM3 -Out <file>.png`,
    `audio-peak.ps1 -ProcessName DOOM3`, `capture-showcase.ps1 -DataDir <data-root>\run -OutDir docs\media`.
 8. **Export the source change:** `.\scripts\export-target-patches.ps1 -Name win11-amd64` rewrites
    `targets/win11-amd64/patches/all-changes.patch` and `all-changes.manifest.txt`.

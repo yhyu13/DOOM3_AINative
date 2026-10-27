@@ -92,7 +92,7 @@ add_custom_target(verify
     COMMENT "scripts/verify-win11-amd64.ps1 (PASS/FAIL/SKIPPED per criterion)"
     USES_TERMINAL VERBATIM)
 add_custom_target(smoke
-    COMMAND "${DOOM3_POWERSHELL}" -NoProfile -ExecutionPolicy Bypass -File "${_script_dir}/smoke-win11-amd64.ps1" -Exe "$<TARGET_FILE:DOOM3>"
+    COMMAND "${DOOM3_POWERSHELL}" -NoProfile -ExecutionPolicy Bypass -File "${_script_dir}/smoke-win11-amd64.ps1" -Exe "$<TARGET_FILE:DOOM3>" -Clean
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     DEPENDS DOOM3
     COMMENT "scripts/smoke-win11-amd64.ps1 (needs D3_DATA_DIR)"

@@ -13,8 +13,8 @@ Skills keep their own licences; the repository's GPL-3.0-or-later does not relic
   `git submodule update --init --recursive` is enough; nothing has to be installed under
   `~/.kilo/skills` or `~/.claude/skills` on the machine first. Worktrees created by Agent Manager
   inherit the same skills because they share the tracked files.
-- **Cost:** duplicated content. At 2026-10-27 the tracked tree holds **51 files, 333,189 bytes
-  (325.4 KiB / 0.32 MiB)**, and `.kilo/skills/` holds an identical local copy that git ignores.
+- **Cost:** duplicated content. At 2026-10-27 the tracked tree holds **51 files, 334,817 bytes
+  (327.0 KiB / 0.32 MiB)**, and `.kilo/skills/` holds an identical local copy that git ignores.
   Every change must be made in the source (the vault, the pinned upstream repo, or the spec-kit
   installer for `speckit-*`) and re-copied, or the copy silently drifts. Two vendored skills also
   need their upstream SHA and license tracked here.

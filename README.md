@@ -41,11 +41,13 @@ cmake --preset win11-amd64                              # first run copies the p
 cmake --build --preset win11-amd64-release              # -> build\bin\Release\DOOM3.exe
 # extract demo00.pk4 from D3Demo.exe yourself, then:
 .\scripts\prepare-demo-data.ps1 -Pk4 <path>\demo00.pk4 -RunDir <data-root>\run
-.\scripts\run-win11-amd64.ps1 -DataDir <data-root>\run  # loads Mars City, takes a screenshot
+.\scripts\run-win11-amd64.ps1 -DataDir <data-root>\run -Clean  # loads Mars City, replaces targets\win11-amd64\build\run, takes a screenshot
 .\scripts\verify-win11-amd64.ps1 -DataDir <data-root>\run   # 6 checks: PE, size, patches, menu+map smoke, audio
 ```
 
-Notes: MSBuild switches passed after `--` must use a dash (`-- -m`, not `-- /m`): Git Bash rewrites `/m` into a path. New engine console commands for diagnosis: `sys_cpuInfo`, `sys_fpuState`, `sys_stackTrace`. Engine tests (each takes `-Exe -DataDir -OutDir`; the net test also `-Port`): `scripts/test-cpu-fpu-trace.ps1`, `test-savegame-demo.ps1`, `test-net-loopback.ps1`, `test-d3xp.ps1`. To run the expansion binary: `.\scripts\run-win11-amd64.ps1 -Exe build\bin\Release\DOOM3XP.exe -DataDir <data-root>\run` (adds `+set fs_game d3xp`; override with `-Game`).
+Run/smoke output is refusal-first: pass `-Clean` to replace a non-empty output directory, and `-StopExisting` only when you intend to stop an already-running copy of the same executable path.
+
+Notes: MSBuild switches passed after `--` must use a dash (`-- -m`, not `-- /m`): Git Bash rewrites `/m` into a path. New engine console commands for diagnosis: `sys_cpuInfo`, `sys_fpuState`, `sys_stackTrace`. Engine tests (each takes `-Exe -DataDir -OutDir`; the net test also `-Port`): `scripts/test-cpu-fpu-trace.ps1`, `test-savegame-demo.ps1`, `test-net-loopback.ps1`, `test-d3xp.ps1`. To run the expansion binary: `.\scripts\run-win11-amd64.ps1 -Exe build\bin\Release\DOOM3XP.exe -DataDir <data-root>\run -Clean` (adds `+set fs_game d3xp`; override with `-Game`).
 
 Contributing (humans and AI agents): read [`CONTRIBUTING.md`](CONTRIBUTING.md) first.
 
@@ -64,7 +66,7 @@ Milestones and exit criteria live in [`docs/ROADMAP.md`](docs/ROADMAP.md).
 | `targets/<name>/doom3/` | One working **copy** per migration target (ignored scratch tree; see `targets/README.md`) |
 | `.specify/` | GitHub spec-kit infrastructure (templates, PowerShell scripts, constitution) |
 | `.kilo/command/` | `/speckit.*` slash commands (constitution, specify, clarify, plan, tasks, analyze, implement, converge, checklist, taskstoissues) |
-| `.claude/skills/` | 15 tracked skills (game dev, debugging, review, browser testing, C++→WASM, Win64 port) — the source of truth in git |
+| `.claude/skills/` | 25 tracked skills (game dev, debugging, review, browser testing, C++→WASM, Win64 port, 10 spec-kit commands) — the source of truth in git |
 | `.kilo/skills/` | Generated, git-ignored byte-identical mirror of `.claude/skills` that Kilo reads |
 | `.kilo/setup-script.ps1` | Initialises the submodule and rebuilds the skill mirror in every Agent Manager worktree |
 | `docs/` | Workflow, skills inventory, roadmap |

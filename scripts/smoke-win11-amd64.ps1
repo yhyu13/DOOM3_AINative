@@ -1,17 +1,24 @@
 ﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
-  Start the win11-amd64 engine twice (main menu, then the demo map), assert log lines, capture 1280x720 screenshots.
+  Start the win11-amd64 engine twice (main menu, then the demo map), assert log lines, capture screenshots at -Width x -Height (default 1280x720).
 .DESCRIPTION
   Phase MENU: engine boots with game data, no startup map; log must show the ARB2 renderer, game init, session init and
-              no "Couldn't load gui"; screenshot of the client area (1280x720) must not be flat.
+              no "Couldn't load gui"; screenshot of the client area (default 1280x720) must not be flat.
   Phase MAP : engine boots with +devmap <Map>; log must show "entities spawned" and "SpawnPlayer"; process must still be
               alive after SettleSec; screenshot must not be flat.
   Each phase uses its own save/log directory, so logs and screenshots always belong to the same run.
   Exit codes: 0 pass; 3 exe missing; 4 process died; 5 no window; 6 flat screenshot; 7 log assertion failed;
-  8 client size is not 1280x720; 10 map phase produced no audible output (peak 0). Without -DataDir the script exits 9 (SKIPPED by the caller; never a PASS).
+  8 the capture was unreadable or the client size is not the requested -Width x -Height; 10 the map-phase audio check failed
+  (audio-peak.ps1's printed code is the detail; a silent session is one cause). Without -DataDir the
+  script exits 9 (SKIPPED by the caller; never a PASS).
+  11 = -OutDir is non-empty and -Clean was not supplied; 12 = an instance of the resolved executable is
+  already running and -StopExisting was not supplied. Only processes whose executable path matches the
+  resolved executable are stopped.
 .EXAMPLE
   .\scripts\smoke-win11-amd64.ps1 -DataDir <data-root>\run -OutDir targets\win11-amd64\build\smoke
+.EXAMPLE
+  .\scripts\smoke-win11-amd64.ps1 -DataDir <data-root>\run -Clean -StopExisting
 #>
 [CmdletBinding()]
 param(
@@ -22,7 +29,9 @@ param(
     [int]$TimeoutSec = 90,
     [int]$SettleSec = 40,
     [int]$Width = 1280,
-    [int]$Height = 720
+    [int]$Height = 720,
+    [switch]$Clean,        # allow replacing a non-empty -OutDir
+    [switch]$StopExisting  # allow stopping instances of the same resolved executable
 )
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
@@ -30,11 +39,28 @@ $repo = Split-Path -Parent $PSScriptRoot
 if (-not $Exe) { $Exe = Resolve-Doom3Exe -Repo $repo }
 if (-not $OutDir) { $OutDir = Join-Path $repo 'targets\win11-amd64\build\smoke' }
 if (-not (Test-Path -LiteralPath $Exe)) { Write-Host "SMOKE exe missing: $Exe"; exit 3 }
+$Exe = [IO.Path]::GetFullPath($Exe)
 if (-not $DataDir -or -not (Test-Path -LiteralPath $DataDir)) { Write-Host 'SMOKE no game data dir'; exit 9 }
 $capture = Join-Path $PSScriptRoot 'capture-window.ps1'
 
+$running = @(Get-ProcessesUsingExe -Path $Exe)
+if ($running.Count -gt 0) {
+    if (-not $StopExisting) {
+        Write-Host ("SMOKE {0} instance(s) of {1} already running; pass -StopExisting to stop them" -f $running.Count, $Exe)
+        exit 12
+    }
+    Stop-ProcessesUsingExe -Path $Exe
+}
+
+if (Test-Path -LiteralPath $OutDir) {
+    $existing = @(Get-ChildItem -LiteralPath $OutDir -Force -ErrorAction SilentlyContinue)
+    if ($existing.Count -gt 0) {
+        if (-not $Clean) { Write-Host "SMOKE refusing to overwrite non-empty OutDir: $OutDir (pass -Clean)"; exit 11 }
+        Remove-Item -LiteralPath $OutDir -Recurse -Force
+    }
+}
+
 function Invoke-Phase([string]$Name, [string[]]$Extra, [string[]]$MustMatch, [string[]]$MustNotMatch, [bool]$CheckAudio = $false) {
-    Get-Process DOOM3 -ErrorAction SilentlyContinue | Stop-Process -Force
     $dir = Join-Path $OutDir $Name
     if (Test-Path $dir) { Remove-Item $dir -Recurse -Force }
     New-Item -ItemType Directory -Force -Path $dir | Out-Null
@@ -51,10 +77,10 @@ function Invoke-Phase([string]$Name, [string[]]$Extra, [string[]]$MustMatch, [st
     Start-Sleep -Seconds $SettleSec
     if ($p.HasExited) { Write-Host ("SMOKE[{0}] process died during settle, exit 0x{1:X}" -f $Name, $p.ExitCode); return 4 }
     $shot = Join-Path $dir 'screenshot.png'
-    $cap = & $capture -ProcessName DOOM3 -Out $shot
+    $cap = & $capture -ProcessId $p.Id -Out $shot
     $audioCode = 0
     if ($CheckAudio) {
-        $au = & (Join-Path $PSScriptRoot 'audio-peak.ps1') -ProcessName DOOM3 -Ms 6000
+        $au = & (Join-Path $PSScriptRoot 'audio-peak.ps1') -ProcessId $p.Id -Ms 6000
         $audioCode = $LASTEXITCODE
         Write-Host ("SMOKE[{0}] {1}" -f $Name, $au)
     }

@@ -7,9 +7,11 @@
   5 = process not running, 6 = no audio session for the process (it never opened an audio stream), 7 = session exists but silent.
 .EXAMPLE
   .\scripts\audio-peak.ps1 -ProcessName DOOM3 -Ms 5000
+.EXAMPLE
+  .\scripts\audio-peak.ps1 -ProcessId 1234 -Ms 5000
 #>
 [CmdletBinding()]
-param([string]$ProcessName = 'DOOM3', [int]$Ms = 5000)
+param([string]$ProcessName = 'DOOM3', [int]$ProcessId = 0, [int]$Ms = 5000)
 
 $src = @"
 using System; using System.Runtime.InteropServices; using System.Diagnostics;
@@ -37,8 +39,13 @@ public static class AudioPeak {
 }
 "@
 Add-Type -TypeDefinition $src
-$p = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue | Select-Object -First 1
-if (-not $p) { Write-Host "AUDIO no process '$ProcessName'"; exit 5 }
+if ($ProcessId -gt 0) {
+    $p = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
+    if (-not $p) { Write-Host "AUDIO no process with pid $ProcessId"; exit 5 }
+} else {
+    $p = Get-Process -Name $ProcessName -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $p) { Write-Host "AUDIO no process '$ProcessName'"; exit 5 }
+}
 $r = [AudioPeak]::Sample($p.Id, $Ms)
 Write-Host "AUDIO $r"
 if ($r -match 'sessionForPid=False') { exit 6 }
