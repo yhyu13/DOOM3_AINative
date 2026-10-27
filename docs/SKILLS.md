@@ -1,26 +1,47 @@
 # Project skills
 
-Fourteen agent skills live in `.kilo/skills/<name>/SKILL.md` as real files — not junctions or
-symlinks — so that every agent session, every Agent Manager worktree, and CI sees exactly the
-same instructions without depending on the operator's global skill vault.
+Twenty-five agent skills live in `.claude/skills/<name>/SKILL.md` as real files — not junctions or
+symlinks — and are mirrored byte-for-byte into the git-ignored `.kilo/skills/` tree that Kilo
+reads. A fresh clone tracks only `.claude/skills` and rebuilds the mirror with
+`scripts/sync-skills.ps1`, so no session depends on the operator's global skill vault. The set is
+14 project skills, `win64-port-playbook`, and the 10 generated `speckit-*` skills.
 
 Skills keep their own licences; the repository's GPL-3.0-or-later does not relicense them. See
 [`THIRD_PARTY_NOTICES.md`](../THIRD_PARTY_NOTICES.md).
 
 - **Why local copies:** reproducible for any agent or CI runner. A fresh clone plus
   `git submodule update --init --recursive` is enough; nothing has to be installed under
-  `~/.kilo/skills` on the machine first. Worktrees created by Agent Manager inherit the same
-  skills because they share the tracked files.
-- **Cost:** duplicated content and repo size. At 2026-10-26 the tree holds **40 files,
-  181,540 bytes (177.3 KiB / 0.17 MiB)** of skills. Every change must be made in the source (the
-  vault or the pinned upstream repo) and re-copied, or the copy silently drifts. Two vendored
-  skills also need their upstream SHA and license tracked here.
+  `~/.kilo/skills` or `~/.claude/skills` on the machine first. Worktrees created by Agent Manager
+  inherit the same skills because they share the tracked files.
+- **Cost:** duplicated content. At 2026-10-27 the tracked tree holds **51 files, 333,189 bytes
+  (325.4 KiB / 0.32 MiB)**, and `.kilo/skills/` holds an identical local copy that git ignores.
+  Every change must be made in the source (the vault, the pinned upstream repo, or the spec-kit
+  installer for `speckit-*`) and re-copied, or the copy silently drifts. Two vendored skills also
+  need their upstream SHA and license tracked here.
 
-The project copy is authoritative: the same vault skills also exist globally at
-`~/.kilo/skills`, and that global set is a convenience copy. **Policy:** if a harness
+**Why `.claude/skills` is the tracked path:** Claude Code discovers skills from `.claude/skills/` in
+the project, `~/.claude/skills/` for the user, and a directory passed with `--add-dir` (which looks
+for `<dir>/.claude/skills/`, not `<dir>/skills/`); it has no settings key for extra skill
+directories, and `permissions.additionalDirectories` grants file access only. Tracking that path is
+the only way a fresh clone reproduces Claude Code's skill set.
+
+**Why Kilo gets a generated second tree:** Kilo discovers project skills inside a `.kilo/` config
+directory and also honours `kilo.json -> skills.paths`. In this workspace the config path was
+observed **not** to take effect — one session whose workspace root was a parent directory above the
+repository (not the repository itself) loaded none of the project skills whether they lived in
+`.kilo/skills` or `.claude/skills`, and saw only the global vault at `~/.kilo/skills`. `.kilo/skills`
+therefore exists as a local, git-ignored mirror that does not depend on `kilo.json` being applied. It is a copy, never a second source of
+truth: edit `.claude/skills`, then run `scripts/sync-skills.ps1`.
+
+The project copy is authoritative: the same vault skills also exist globally at `~/.kilo/skills`
+(and, for the 12 vault skills, byte-identically at `~/.claude/skills`). **Policy:** if a harness
 lists both a global and a project copy of the same skill name, treat the project copy as the one
-that governs work in this repository. (This is a stated policy, not a tested claim about how any
-particular harness resolves duplicate names.)
+that governs work in this repository.
+
+**Caveat, verified against the harness docs:** Claude Code resolves name clashes by precedence
+enterprise > personal > project, so for those 12 duplicated names it loads the personal
+`~/.claude/skills` copy, not this one. They are byte-identical today, so nothing differs until one
+side is edited; when that happens, update both or delete the personal copy.
 
 ## What is installed
 
@@ -146,32 +167,41 @@ skills for the actual port.
 
 ## Update policy
 
-- **Vault skills:** edit the vault first, then re-copy the skill directory into `.kilo/skills/`
+- **Vault skills:** edit the vault first, then re-copy the skill directory into `.claude/skills/`
   and record the new vault commit here. Do not hand-edit the project copy: the two would drift and
-  the next re-copy would silently discard the change. After copying, run the verifier.
+  the next re-copy would silently discard the change. After copying, run `scripts/sync-skills.ps1`
+  and then the verifier.
+- **Never edit `.kilo/skills/`:** it is generated and git-ignored. A change there is overwritten by
+  the next sync and is invisible to everyone else.
 - **Vendored skills:** re-download at the pinned SHA. Never edit a vendored copy in place. If local
   behavior must change, copy it to a separate local namespace (for example
   `<name>-local`), record the diff and the reason here, and leave the vendored original intact.
 - **Bump a vendored SHA deliberately:** review the upstream diff, re-download, update the commit
   in this file, and re-run the verifier. Never track a branch head.
 - **Add or remove a skill:** update the table, the source section, and this policy if needed, then
-  run the verifier.
+  run the sync and the verifier.
 
 ## Verification
 
 ```powershell
-powershell -NoProfile -File scripts/verify-skills.ps1
+powershell -NoProfile -File scripts/sync-skills.ps1          # rebuild .kilo/skills from .claude/skills
+powershell -NoProfile -File scripts/verify-skills.ps1        # format + mirror parity, exits 0/1
+powershell -NoProfile -File scripts/sync-skills.ps1 -Check   # CI: exit 1 if the mirror is stale
 ```
 
-Checks every directory under `.kilo/skills` for a non-empty `SKILL.md` with YAML frontmatter
-containing a non-empty `name` equal to the directory name and a non-empty `description` of at most
-1024 characters. Prints skill, file count, size in KB, and status; exits `1` on any failure and `0`
-when all skills pass.
+`verify-skills.ps1` checks every directory under `.claude/skills` for a non-empty `SKILL.md` whose
+YAML frontmatter holds a `name` equal to the directory name, lowercase kebab-case and at most 64
+characters, plus a non-empty `description` of at most 1024 characters — the format Claude Code and
+Kilo both require. It then compares `.claude/skills` with `.kilo/skills`: same skill names, and
+byte-identical files (SHA-256 per file). It prints skill, file count, size in KB, status, then the
+mirror summary; exits `1` on any failure and `0` when both trees pass. Pass `-NoMirror` to run the
+format checks alone.
 
-## Port skills in `.claude/skills`  (added with PR #4)
+## Written in this repository (added with PR #4)
 
 | Skill | Use when |
 |---|---|
 | `win64-port-playbook` | Porting or debugging a 32-bit-era engine on Windows x64: build bring-up, pointer-truncation hunts, crashes that only appear with real data, scripted screenshot/log/audio evidence. Source: this repo's own work (`specs/001-win11-amd64-native-build`). |
 
-Visibility: `kilo.json` -> `skills.paths: ["./.claude/skills"]`. Validate with `scripts/verify-skills.ps1 -SkillsPath .claude\skills`.
+It lives in the tracked `.claude/skills/` tree with everything else, and reaches Kilo through the
+generated `.kilo/skills/` mirror like every other skill.

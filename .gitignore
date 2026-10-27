@@ -9,6 +9,9 @@ Desktop.ini
 # ---- Kilo / agent harness local state ----
 .kilo/agent-manager.json
 .kilo/worktrees/
+# generated skill mirror: .claude/skills is the tracked source of truth, .kilo/skills is local
+# (scripts/sync-skills.ps1 writes it; scripts/verify-skills.ps1 fails when the two differ)
+.kilo/skills/
 .kilocode/
 .opencode/
 
