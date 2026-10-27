@@ -122,8 +122,10 @@ untracked, the evidence block is text.
 ## For AI agents
 
 1. Read `AGENTS.md`, then this file, then the stage of `docs/GIT_WORKFLOW.md` you are in.
-2. Load skills from `.kilo/skills/<name>/SKILL.md` (the project copy governs). `.claude/skills/` also
-   holds skills, including `win64-port-playbook`; load that one from there by name when it matches.
+2. Load skills from `.kilo/skills/<name>/SKILL.md` (the tree Kilo reads) or from
+   `.claude/skills/<name>/SKILL.md` (the tree Claude Code reads). They are byte-identical mirrors and
+   only `.claude/skills` is tracked in git: change a skill there, then run
+   `scripts/sync-skills.ps1` and `scripts/verify-skills.ps1`.
 3. Use subagents only with **disjoint file ownership** agreed before dispatch. One writer per file;
    if two agents need the same file, split the file or serialise the work.
 4. Use the shared board for material findings that change another agent's decisions — not for
@@ -156,6 +158,7 @@ untracked, the evidence block is text.
 | `targets/<name>/doom3/` | Git-ignored working copy; never shared, never committed |
 | `scripts/` | Worktree, target, patch, build/run/verify, capture helpers |
 | `specs/<feature>/`, `.specify/` | `spec.md`, `plan.md`, `tasks.md`, `review.md`; spec-kit templates, scripts, constitution |
-| `.kilo/`, `.claude/` | Slash commands, project skills, setup script, worktrees (ignored); extra agent skills |
+| `.claude/` | Tracked project skills — the source of truth for every harness |
+| `.kilo/` | Slash commands, setup script, generated skill mirror (ignored), worktrees (ignored) |
 | `showcase/` | Static showcase page built from captured media |
 | `LICENSE`, `THIRD_PARTY_NOTICES.md` | GPL-3.0-or-later here; third-party notices |

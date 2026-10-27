@@ -23,7 +23,8 @@ included or referenced under their own licences, which this repository does not 
 
 ## Agent skills
 
-- Paths: `.kilo/skills/<name>/`
+- Paths: `.claude/skills/<name>/` (tracked; mirrored byte-for-byte into the git-ignored
+  `.kilo/skills/` by `scripts/sync-skills.ps1`)
 - Licences:
   - `cross-platform-guide` — MIT, `xonovex/platform` (pinned in [`docs/SKILLS.md`](docs/SKILLS.md))
   - `wasm-emscripten` — MIT, `mohitmishra786/low-level-dev-skills` (pinned there)

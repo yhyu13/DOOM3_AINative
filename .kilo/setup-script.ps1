@@ -25,6 +25,17 @@ try {
         Write-Host '--- no .gitmodules, skipping submodule init'
     }
 
+    Write-Host '--- skills'
+    # .claude/skills is tracked; .kilo/skills is a git-ignored mirror that Kilo discovers as a
+    # project config directory. Build it here so every worktree gets the same skills.
+    $syncScript = Join-Path $PSScriptRoot '..\scripts\sync-skills.ps1'
+    if (Test-Path -LiteralPath $syncScript) {
+        & powershell -NoProfile -ExecutionPolicy Bypass -File $syncScript
+        if ($LASTEXITCODE -ne 0) { throw "skill mirror sync failed (exit $LASTEXITCODE)" }
+    } else {
+        Write-Host 'scripts/sync-skills.ps1 missing, skill mirror not created'
+    }
+
     Write-Host '--- toolchain'
     $tools = @('git', 'node', 'uv', 'py', 'emcc')
     foreach ($tool in $tools) {
