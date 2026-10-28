@@ -1,6 +1,6 @@
 # Review: three-tier RHI contract and evidence template (T004, T005)
 
-**Status**: Review record for issue #20. It records six agent reviews and one sign-off round (two non-author reviewers), their findings and resolution. The sign-off is an **agent** review, not a human reviewer; that caveat is carried into the decision. The final sign-off block is appended only after the reviewer approves the frozen commit.
+**Status**: Review record for issue #20. It records six agent reviews and one sign-off round (two non-author reviewers), their findings and resolution. The sign-off is an **agent** review, not a human reviewer; that caveat is carried into the decision. The final sign-off block was appended on 2026-10-28 after the reviewer approved `5c9af34`; it is an agent sign-off, not a human review.
 
 **Revision reviewed**: branch `docs/20-t004-t005-signoff`, based on `origin/main` `8638db8` (the merged Q1a change), at the gate-broadening commit named in the sign-off block. The merged Q1a header and public tests are present and scanned.
 
@@ -112,6 +112,19 @@
 4. **Q7a conformance spike is not built.** The plan now names it (T088); no Dawn/pinned-browser fixture, shader compile or browser frame exists.
 5. **A final re-check by a reviewer who did not write the fixes is pending.** The six reviews and the one sign-off round returned changes-requested; their findings are addressed above. This record is not complete until a non-author reviewer approves the frozen commit and a human/owner sign-off is recorded.
 
+### Sign-off: T004/T005 (issue #20)
+- **Reviewer identity**: Final sign-off reviewer (fresh-context agent, non-author)
+- **Date**: 2026-10-28
+- **Revision reviewed**: 5c9af3427ed0aabcca63562e617ef2df50643cad (5c9af34), base origin/main 8638db8
+- **Independence**: did not author; agent review, not a human review
+- **Scope**: three-tier contract, 11-row capability/fallback matrix, shader source/build/validation contract, public boundary and amended Q1a seam, header/test lexical gate (roots, d3d12/ext exclusions, .h/.hh/.hpp/.hxx/.inl and .cpp/.cc/.cxx suffixes, identifier-embedded forms), T013 expected-row/digest/tolerance policy, evidence template and required fields, validator, 40-test suite, 11-mutant suite, refreshed evidence and review records, and an independent re-run of every claimed command and artifact at this commit.
+- **Commands and results**: validator --self-test exit 0, 17/17 controls; 40 tests OK; 11/11 mutants rejected, restored passes 40; real header scan 1 header + 3 public tests; git diff --check origin/main...HEAD exit 0; 36 tables/0 malformed, 19 links/0 missing; submodule a9c49da clean; validator SHA-256 C3B4C162C4E695462D8BC6027CB1467D96C046193BE352F795721354CFE642A3.
+- **Decision**: APPROVED
+- **T013 decision**: APPROVED — canonical expected bytes derived from the pattern, per-row published digests bind the expected data, acceptance per byte at |actual-expected| <= 1 UNORM step, actual raw hashes diagnostic only, controls split correctly between the public test and the D3D12-private companion, and no Q1a implementation is presumed to satisfy it.
+- **Unresolved items**: (1) the agent sign-off is recorded; a human/owner sign-off is not recorded and remains a caveat — T004/T005 are checked on the agent sign-off, not on a human review; (2) Q7a/T088 conformance spike and the semantic field-to-WebGPU mapping review remain NOT RUN; (3) no GPU/build/engine/browser execution is claimed here — Q1a execution evidence is separate; (4) the live issue #11 body is updated after sign-off and the mirror `issue-q1a.md` is reverted to origin/main; (5) lexical-gate residuals (transitive includes, unlisted native synonyms, a header outside src/renderer/) are disclosed and controlled by the semantic review.
+- **T004**: signed off
+- **T005**: signed off
+
 ## Decision
 
-**CHANGES REQUESTED → re-review pending.** The blocking findings above are addressed in the reviewed tree; the outstanding items are the non-author sign-off and the human/owner caveat.
+**APPROVED on `5c9af34`.** T004 and T005 are signed off by the non-author reviewer above, and T013 is approved. The human/owner caveat and the Q7a/T088 conformance work remain; they are not defects in this package.

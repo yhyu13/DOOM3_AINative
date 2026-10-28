@@ -5,7 +5,7 @@
 ## Identity and scope
 
 - **Stage and claim**: Spec 004 Q0/Q1 prerequisites — the three-tier RHI contract (T004) and the reusable evidence record (T005). Claim: the portable core, D3D12-private tier, native extensions, capability/fallback matrix, shader contract, header/test gate, amended Q1a seam and evidence fields are defined, and their structure and lexical boundaries are validated. No renderer operation is claimed by this evidence.
-- **Source identity**: worktree `docs-20-t004-t005-signoff`, branch `docs/20-t004-t005-signoff`, base `origin/main` `8638db8` (the merged Q1a change). The content under review is the commit named in the sign-off block; this evidence-only edit follows that commit. Submodule `doom3_orig/doom3` is initialized at `a9c49da5afb18201d31e3f0a429a037e56ce2b9a` (`heads/master`); its porcelain is empty.
+- **Source identity**: worktree `docs-20-t004-t005-signoff`, branch `docs/20-t004-t005-signoff`, base `origin/main` `8638db8` (the merged Q1a change). The content under review is `5c9af34` (`5c9af3427ed0aabcca63562e617ef2df50643cad`); the sign-off block and this record follow that commit. Submodule `doom3_orig/doom3` is initialized at `a9c49da5afb18201d31e3f0a429a037e56ce2b9a` (`heads/master`); its porcelain is empty.
 - **Data identity and rights**: no game data used. Inputs are tracked Markdown and Python sources plus the merged Q1a public header and tests.
 - **Scene and inputs**: none; this stage has no renderer, device or scene.
 - **Exclusions and limitations**: no GPU, build, engine integration or browser run. The validator checks document structure and a lexical vocabulary boundary only — not technical truth, permissions, whether any matrix row is implementable, or whether a noun list is complete for a future API. A renamed private concept can still pass, and a core header placed outside `src/renderer/` is outside the scan roots; the contract requires core headers under `src/renderer/`, and the semantic field mapping review is the control. Q1a execution evidence is `evidence-q1a.md`.
@@ -62,11 +62,11 @@
 | Empty header directory | RUN | PASS | An existing `src/renderer/rhi/` with no header → exit 1, `contains no scannable header` | `build-t004-evidence/empty-header-dir.log` |
 | Pristine submodule | RUN | PASS | Initialized at `a9c49da`; porcelain empty | command table above |
 | GitHub issue #11 body sync | RUN | PASS | Amended body applied with the owner account; the blocking edge still names the T004/T005 sign-off and is removed after it | issue #11 |
-| Adversarial reviews | RUN | — | Six agent reviews returned changes-requested; findings resolved. Two sign-off reviewers also returned CHANGES REQUESTED; the final sign-off is pending | `review-rhi-contract.md` |
+| Adversarial reviews | RUN | PASS | Six agent reviews plus one sign-off round returned changes-requested; findings resolved. The final non-author sign-off on `5c9af34` APPROVED T004, T005 and the T013 policy | `review-rhi-contract.md` |
 | GPU, build, engine or browser execution | NOT RUN | — | Out of scope for T004/T005; Q1a evidence is separate | `evidence-q1a.md` |
 
 ## Independent review
 
-- **Independent reviewer**: see `review-rhi-contract.md`; the sign-off must be by a reviewer who did not author this change.
+- **Independent reviewer**: final sign-off reviewer (fresh-context agent, non-author), 2026-10-28, on `5c9af34`; see `review-rhi-contract.md`. This is an agent sign-off, not a human review.
 - **Review scope and commands**: contract, matrix, shader contract, Q1a seam, evidence, validator and the commands above, including an explicit decision on the T013 expected-row/digest/tolerance policy.
-- **Review decision and unresolved items**: recorded in `review-rhi-contract.md`; a structural pass is not this review.
+- **Review decision and unresolved items**: APPROVED for T004, T005 and T013; the human/owner caveat, Q7a/T088 and downstream stage evidence remain open. Recorded in `review-rhi-contract.md`.
