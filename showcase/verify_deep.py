@@ -17,6 +17,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import html5lib
+import io
 import re
 import subprocess
 import sys
@@ -103,6 +104,35 @@ def audit_console(errors: list[str], label: str) -> None:
 def audit_requests(requests: list[str], label: str) -> None:
     bad = [u for u in requests if not re.match(r"^(file:|data:|blob:|about:)", u)]
     check(not bad, f"{label} :: local-only requests ({len(requests)} total, bad={bad[:2]})")
+
+
+VISIBLE_JS = """(sel) => {
+    const el = document.querySelector(sel);
+    if (!el || el.hidden) return false;
+    const r = el.getBoundingClientRect();
+    if (r.width < 10 || r.height < 10) return false;
+    if (r.right <= 0 || r.bottom <= 0 || r.left >= innerWidth || r.top >= innerHeight) return false;
+    for (let n = el; n; n = n.parentElement) {
+        const s = getComputedStyle(n);
+        if (s.display === 'none' || s.visibility === 'hidden' || parseFloat(s.opacity) < 0.1) return false;
+    }
+    return true;
+}"""
+
+
+def crop_corr(page, asset: Path, box: tuple[int, int, int, int]) -> float:
+    shot = page.screenshot(clip={"x": box[0], "y": box[1], "width": box[2] - box[0], "height": box[3] - box[1]})
+    a = Image.open(io.BytesIO(shot)).convert("L").resize((160, 160), Image.LANCZOS)
+    b = Image.open(asset).convert("L").resize((1920, 1080), Image.LANCZOS).crop(box).resize((160, 160), Image.LANCZOS)
+    xa, xb = list(a.getdata()), list(b.getdata())
+    n = len(xa)
+    ma, mb = sum(xa) / n, sum(xb) / n
+    va = sum((x - ma) ** 2 for x in xa)
+    vb = sum((x - mb) ** 2 for x in xb)
+    if va <= 0 or vb <= 0:
+        return 0.0
+    cov = sum((x - ma) * (y - mb) for x, y in zip(xa, xb))
+    return cov / ((va * vb) ** 0.5)
 
 
 def shot(page, name: str) -> tuple[Path, str]:
@@ -323,7 +353,10 @@ def main() -> int:
             check(page.evaluate("(u) => document.querySelector('#p2New').src === u", PAGE2_URI), "compare :: #p2New is exactly page2-modern.jpg")
             check(page.evaluate("""() => {const i=document.querySelector('#p2New');
                 return !i.hidden && i.complete && i.naturalWidth===1600 && i.naturalHeight===900;}"""),
-                  "compare :: AIGC modern vision decoded 1600x900 and visible")
+                  "compare :: AIGC modern vision decoded 1600x900")
+            check(page.evaluate(VISIBLE_JS, "#p2New"), "compare :: AIGC modern vision is actually visible")
+            corr2 = crop_corr(page, ROOT / "assets" / "aigc" / "page2-modern.jpg", (1500, 250, 1850, 620))
+            check(corr2 > 0.9, f"compare :: rendered pixels match page2 asset (corr {corr2:.3f})")
             check(page.locator("#p2VisionLabel").inner_text().strip() == "AI-GENERATED VISION · NOT A GAME CAPTURE", "compare :: exact AIGC vision label")
             check("734,180" in page.locator(".p2-proof").inner_text(), "compare :: proof strip carries the reality check")
             check(page.locator(".claim,.claims").count() == 0, "compare :: no source-card wall")
@@ -354,7 +387,10 @@ def main() -> int:
             check(page.evaluate("(u) => document.querySelector('#p3Bg').src === u", PAGE3_URI), "vision :: #p3Bg is exactly page3-vision.jpg")
             check(page.evaluate("""() => {const i=document.querySelector('#p3Bg');
                 return !i.hidden && i.complete && i.naturalWidth===1600 && i.naturalHeight===900;}"""),
-                  "vision :: AIGC background decoded 1600x900 and visible")
+                  "vision :: AIGC background decoded 1600x900")
+            check(page.evaluate(VISIBLE_JS, "#p3Bg"), "vision :: AIGC background is actually visible")
+            corr3 = crop_corr(page, ROOT / "assets" / "aigc" / "page3-vision.jpg", (1000, 100, 1500, 300))
+            check(corr3 > 0.85, f"vision :: rendered pixels match page3 asset (corr {corr3:.3f})")
             check(page.locator("#p3AiLabel").inner_text().strip() == "AI VISION · GPT IMAGE 2.5", "vision :: exact AI vision label")
             check(page.locator("#p3Truth").inner_text().strip() == "AI-GENERATED VISION · NOT A GAME CAPTURE", "vision :: page 3 truth label")
             check(page.locator(".vision-card").count() == 3, "vision :: three vision cards")

@@ -1,4 +1,4 @@
-﻿# Tasks: AIGC Modern Vision
+# Tasks: AIGC Modern Vision
 
 **Input**: `specs/007-aigc-vision/spec.md`, `plan.md`
 
@@ -13,7 +13,9 @@
 - [x] T009 Update `verify.py` / `verify_deep.py` for images, labels, page 2 controls, page 3 content
 - [x] T010 Run build, contract, deep, axe, reproducibility, 1920/4K screenshots
 - [x] T011 Update `showcase/README.md` (AIGC, provenance, `--no-aigc`, licensing)
-- [ ] T012 Commit, push, open PR with `Refs #2`, merge after review, comment on issue #2 (keep OPEN)
+- [x] T012 Commit, push, open PR with `Refs #2`, merge (owner-directed), comment on issue #2
+  (keep OPEN). A formal GitHub approving review was not recorded; two subagent audits informed
+  the work.
 - [x] T013 Add the missing page-3 `AI-GENERATED VISION · NOT A GAME CAPTURE` truth label and
   assert the exact labels on both pages (self-review finding; FR-004)
 - [x] T014 Harden the verifiers: exact data URI, decoded 1600×900, visual clip vs `aria-valuenow`,
@@ -23,14 +25,18 @@
 - [x] T016 Commit the repeatable gates and finish the self-review fixes: `verify_variants.py`,
   `verify_axe.py`, build-time procedural labels for `--no-aigc`, static `hidden` on both AIGC
   images, clarified `--no-hero` help, page-3 truth-label contrast plate, regenerated `preview.png`
+- [x] T017 Address the independent post-merge review: computed-style visibility predicates plus
+  screenshot/asset correlation and negative controls in `verify.py` / `verify_deep.py` /
+  `verify_variants.py`; FR-005 base URL/input; README BOM; 60.4–60.5 fps; `--no-aigc` archival
+  check; owner-accepted licensing wording
 
 ## Completion
 
 | Bucket | Count |
 |---|---|
-| Done | 15 |
+| Done | 17 |
 | Pending before review | 0 |
-| Pending review/merge (T012) | 1 |
+| Pending review/merge | 0 |
 | Pending release/licensing (T042, issue #2) | 1 |
 
 ## Acceptance mapping

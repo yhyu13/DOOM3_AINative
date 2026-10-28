@@ -1,4 +1,4 @@
-﻿# DOOM3_AINative — three-poster product concept
+# DOOM3_AINative — three-poster product concept
 
 **One offline HTML file. Three posters. A browser-monitor product hero, a real (redacted) DOOM 3 frame, and a one-sentence Rogue-mode concept.**
 
@@ -65,11 +65,13 @@ labels them **`AI-GENERATED VISION · NOT A GAME CAPTURE`**; page 3 also carries
 [`assets/aigc/README.md`](assets/aigc/README.md).
 
 - Page 2 is a **derivative** of the official promo screenshot. The original and the unredacted input
-  are **not** in this repository; licensing is **pending** (T042 / issue #2). Replace it with a
-  licensed capture before public distribution.
+  are **not** in this repository; licensing is **pending** (T042 / issue #2). The owner accepted
+  this risk when the showcase was merged: it is a concept vision, **not** a licensed capture.
+  Replace it if a cleared distribution is required.
 - Page 3 is **text-to-image** with no game-art input; it is original AI-generated concept art.
-- `--no-aigc` restores the procedural corridor/network fallback. The page-2 left side reuses the
-  embedded redacted hero, so the PNG is stored once.
+- `--no-aigc` restores the procedural vision fallback. It does **not** remove the redacted hero:
+  poster 1 and the page-2 archival inset still use it, so the PNG is stored once. It is not a
+  licensing-clean build.
 
 ## Controls
 
@@ -187,17 +189,19 @@ uv run --python 3.12 showcase/verify_axe.py
 
 Current evidence (2026-10-28):
 
-- `verify.py` — **157 passed, 0 failed**. Single file 2,741,798 bytes (2.61 MiB), zero external
+- `verify.py` — **171 passed, 0 failed**. Single file 2,741,798 bytes (2.61 MiB), zero external
   requests, three posters, zero console/page errors, three distinct screenshots, embedded narration,
   six claim literals, redacted-hero label, four capability cards, AI Rogue concept,
   keyboard/pause/captions, autoplay-blocked fallback, `?autoplay=0`, 1366 scaling. It also asserts
-  the exact data URI and decoded 1600×900 size of each AIGC image, the exact truth labels on pages 2
+  the exact data URI and decoded 1600×900 size of each AIGC image, that each image is **actually
+  visible** (computed style/rect, not only `!hidden`), that the rendered crop **correlates with the
+  asset** (negative control: a hidden image must correlate <0.3), the exact truth labels on pages 2
   and 3, the single embedded redacted PNG, the visual split/clip (not just `aria-valuenow`), real
   pointer drag, and both sides of the auto-sweep (72 → 40).
-- `verify_deep.py` — **182 passed, 0 failed, 1 skipped**. Edge + Chrome, offline `file://`, reduced
+- `verify_deep.py` — **186 passed, 0 failed, 1 skipped**. Edge + Chrome, offline `file://`, reduced
   motion, `cc=0`, **real CDP touch swipe (no `pointercancel`)**, 3→1 loop, caption + word sync at all
   21 chunks, Space-on-control, page visibility, canvas-unavailable fallback, evidence hovers, mute,
-  fullscreen, **4K posters 1/2/3**, DPR2, portrait, animation, **49–59 fps measured in this run**
+  fullscreen, **4K posters 1/2/3**, DPR2, portrait, animation, **60.4–60.5 fps measured in this run**
   (gate ≥30), accessible button names, HTML parse, and the `start.cmd` contract. The one skip is
   Firefox: not installed.
 - **axe-core 4.10.3, WCAG 2.1 A/AA** — **0 violations** on all three posters after a 900 ms settle;
@@ -207,7 +211,7 @@ Current evidence (2026-10-28):
 - **Variant gate** — `verify_variants.py` rebuilds the default twice plus `--no-aigc`, `--no-hero`
   and a licensed `--hero` deck and checks exact assets/labels, the 46→80→32 visual clip, pointer
   drag, static and runtime fallback labels, procedural canvases, licensed-hero isolation, local-only
-  requests and reproducibility. Last run: **58 passed, 0 failed**.
+  requests and reproducibility. Last run: **63 passed, 0 failed**.
 - **Reproducibility** — two consecutive default builds are byte-identical and match the committed
   artifact: 2,741,798 bytes, SHA-256
   `b758b90a9cd2bc1a98af0b6cae853a9f21348156d2a2281e30032f043e864afc`.
@@ -240,8 +244,9 @@ verifier: it asserts the README literals and the poster proof strip.
   screenshot is not in this repository.
 - `assets/aigc/page2-modern.jpg` is a **GPT Image 2.5 derivative** of the official 2004 promo frame
   (image-to-image). Rights in the underlying art remain with id/Bethesda; it is a concept vision, not
-  a game capture, and **licensing is pending** (T042 / issue #2). The original input is not in this
-  repository.
+  a game capture, and **licensing is pending** (T042 / issue #2). The owner accepted this risk when
+  the showcase was merged; it must not be represented as a licensed capture. The original input is
+  not in this repository.
 - `assets/aigc/page3-vision.jpg` is **text-to-image** with no game-art input; it is original
   AI-generated concept art for this deck.
 - The procedural reference frame, procedural 2026 corridor/network fallback, portal, code rain,
