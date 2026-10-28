@@ -1,9 +1,8 @@
 # Issue #11: D3D12 RHI clear/readback foundation
 
-**Status**: GitHub issue [#11](https://github.com/yhyu13/DOOM3_AINative/issues/11). The specification was published by [#10](https://github.com/yhyu13/DOOM3_AINative/issues/10); the three-tier contract, header gate and amended Q1a seam are published by the S0 contract change (Refs [#20](https://github.com/yhyu13/DOOM3_AINative/issues/20)). No implementation worktree, commit or PR has been created yet.
+**Status**: GitHub issue [#11](https://github.com/yhyu13/DOOM3_AINative/issues/11). The specification was published by [#10](https://github.com/yhyu13/DOOM3_AINative/issues/10); the three-tier contract and header gate were published by [#26](https://github.com/yhyu13/DOOM3_AINative/pull/26); Q1a merged in [#18](https://github.com/yhyu13/DOOM3_AINative/pull/18) (8638db8); T004/T005 signed off in [#27](https://github.com/yhyu13/DOOM3_AINative/pull/27).
 
-**Mirror note (2026-10-28)**: this file is updated for the amended contract. The GitHub issue body has **not** been updated because the current authenticated account could not execute `UpdateIssue` (permission denied). Apply the text below to #11 when that permission is available; until then the live issue body still describes the pre-amendment Q1a seam — **do not implement from the live body**, use this file.
-
+**Mirror note**: this file mirrors the live issue body. The amended body was applied on 2026-10-28; the acceptance boxes remain the live tracker.
 ## Context
 
 The quality-first rendering programme chooses a small custom RHI and a D3D12-first backend. The first deliverable is an isolated, synthetic GPU foundation, not game integration or the complete graphics/compute/MRT/depth gate.
@@ -56,7 +55,7 @@ and retain the header-scan line; a scan over zero headers is not a pass.
 
 ## Blocking edges and ownership
 
-- Blocked by #20 (the three-tier contract and header gate must merge before implementation starts) and #10 (already merged).
+- None. #20 (contract) merged in #26; T004/T005 signed off on 2026-10-28 in #27; #10 merged; Q1a merged in #18 (`8638db8`).
 - The public first-slice contract must be reviewed and agreed before implementation starts.
 - One issue, one branch, one worktree and one writer. Do not run two agents on the same branch or worktree. Split into separate issues/worktrees if the work needs parallel writers.
 - Independent reviewer is not the implementer.
