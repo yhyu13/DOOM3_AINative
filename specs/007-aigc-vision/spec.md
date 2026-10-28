@@ -1,4 +1,4 @@
-﻿# Feature Specification: AIGC Modern Vision for Posters 2 and 3
+# Feature Specification: AIGC Modern Vision for Posters 2 and 3
 
 **Feature Branch**: `feat/2-aigc-vision`
 
@@ -6,9 +6,11 @@
 
 **Created**: 2026-10-28
 
-**Status**: Implemented and self-verified 2026-10-28 — `verify.py` 157/0, `verify_deep.py` 182/0/1,
-axe 0 violations, `verify_variants.py` 58/0, two byte-identical builds. Independent PR review and
-merge (T012) plus the page-2 licensing gate (T042) remain.
+**Status**: Merged into `main` via PR #23/#24. A post-merge independent review found the visibility
+evidence too weak; the follow-up hardening gives `verify.py` 171/0, `verify_deep.py` 186/0/1,
+`verify_variants.py` 63/0, axe 0 violations and a computed-style + pixel-correlation visibility gate
+with negative controls. The page-2 licensing gate (T042) remains; no formal GitHub approving review
+is recorded.
 
 ## Context
 

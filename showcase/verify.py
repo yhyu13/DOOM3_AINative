@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import base64
 import hashlib
+import io
 import json
 import re
 import statistics
@@ -89,6 +90,42 @@ def audit_console(errors: list[str], label: str) -> None:
     check(not errors, f"{label} :: zero console/page errors ({errors[:2]})")
 
 
+# A rendered <img> can be complete yet display:none, visibility:hidden, opacity:0
+# or covered by an opaque layer. Check the computed style and the visible rect.
+VISIBLE_JS = """(sel) => {
+    const el = document.querySelector(sel);
+    if (!el || el.hidden) return false;
+    const r = el.getBoundingClientRect();
+    if (r.width < 10 || r.height < 10) return false;
+    if (r.right <= 0 || r.bottom <= 0 || r.left >= innerWidth || r.top >= innerHeight) return false;
+    for (let n = el; n; n = n.parentElement) {
+        const s = getComputedStyle(n);
+        if (s.display === 'none' || s.visibility === 'hidden' || parseFloat(s.opacity) < 0.1) return false;
+    }
+    return true;
+}"""
+
+
+def crop_corr(page, asset: Path, box: tuple[int, int, int, int]) -> float:
+    """Pearson correlation between a screenshot crop and the asset at the same box.
+
+    This catches a complete image that is hidden, fully covered, or replaced by a
+    different image; it is robust to the deck's shade gradients and JPEG scaling.
+    """
+    shot = page.screenshot(clip={"x": box[0], "y": box[1], "width": box[2] - box[0], "height": box[3] - box[1]})
+    a = Image.open(io.BytesIO(shot)).convert("L").resize((160, 160), Image.LANCZOS)
+    b = Image.open(asset).convert("L").resize((1920, 1080), Image.LANCZOS).crop(box).resize((160, 160), Image.LANCZOS)
+    xa, xb = list(a.getdata()), list(b.getdata())
+    n = len(xa)
+    ma, mb = sum(xa) / n, sum(xb) / n
+    va = sum((x - ma) ** 2 for x in xa)
+    vb = sum((x - mb) ** 2 for x in xb)
+    if va <= 0 or vb <= 0:
+        return 0.0
+    cov = sum((x - ma) * (y - mb) for x, y in zip(xa, xb))
+    return cov / ((va * vb) ** 0.5)
+
+
 def screenshot_check(page, n: int) -> tuple[Path, str]:
     EVIDENCE.mkdir(parents=True, exist_ok=True)
     path = EVIDENCE / f"poster-{n}.png"
@@ -133,8 +170,10 @@ def main() -> int:
     aigc_note = ROOT / "assets" / "aigc" / "README.md"
     check(aigc_note.exists(), "asset :: AIGC provenance note exists")
     note = aigc_note.read_text(encoding="utf-8") if aigc_note.exists() else ""
-    check(all(x in note for x in ("gpt-image-2.5", "images/edits", "images/generations", "Prompt", "licensing pending")),
-          "asset :: AIGC note records model, endpoints, prompt and licensing")
+    check(all(x in note for x in ("gpt-image-2.5", "llm-proxy.tapsvc.com", "images/edits", "images/generations",
+                                  "image-to-image", "Input:", "Prompt", "licensing pending")),
+          "asset :: AIGC note records model, base URL, input, endpoints, prompt and licensing")
+    check(not (ROOT / "README.md").read_bytes().startswith(b"\xef\xbb\xbf"), "artifact :: README has no UTF-8 BOM")
     check("data:image/png;base64," in html, "artifact :: redacted hero image embedded")
     check(html.count("data:image/png;base64,") == 1, "artifact :: hero PNG embedded exactly once (not duplicated for page 2)")
     check(html.count("data:image/jpeg;base64,") == 2, "artifact :: exactly two AIGC JPEG assets embedded")
@@ -180,7 +219,10 @@ def main() -> int:
                       "poster 2 :: #p2New is exactly page2-modern.jpg")
                 check(page.evaluate("""() => {const i=document.querySelector('#p2New');
                     return !i.hidden && i.complete && i.naturalWidth===1600 && i.naturalHeight===900;}"""),
-                      "poster 2 :: AIGC image decoded 1600x900 and visible")
+                      "poster 2 :: AIGC image decoded 1600x900")
+                check(page.evaluate(VISIBLE_JS, "#p2New"), "poster 2 :: AIGC image is actually visible (computed style/rect)")
+                p2_corr = crop_corr(page, ROOT / "assets" / "aigc" / "page2-modern.jpg", (1500, 250, 1850, 620))
+                check(p2_corr > 0.9, f"poster 2 :: rendered pixels match page2 asset (corr {p2_corr:.3f})")
                 check(page.evaluate("document.querySelector('#p2New').hidden === false && document.querySelector('.p2').dataset.aigc === '1'"),
                       "poster 2 :: AIGC mode is active")
                 check(page.evaluate("getComputedStyle(document.querySelector('#fx2')).display === 'none'"),
@@ -202,7 +244,10 @@ def main() -> int:
                       "poster 3 :: #p3Bg is exactly page3-vision.jpg")
                 check(page.evaluate("""() => {const i=document.querySelector('#p3Bg');
                     return !i.hidden && i.complete && i.naturalWidth===1600 && i.naturalHeight===900;}"""),
-                      "poster 3 :: AIGC background decoded 1600x900 and visible")
+                      "poster 3 :: AIGC background decoded 1600x900")
+                check(page.evaluate(VISIBLE_JS, "#p3Bg"), "poster 3 :: AIGC background is actually visible (computed style/rect)")
+                p3_corr = crop_corr(page, ROOT / "assets" / "aigc" / "page3-vision.jpg", (1000, 100, 1500, 300))
+                check(p3_corr > 0.85, f"poster 3 :: rendered pixels match page3 asset (corr {p3_corr:.3f})")
                 check(page.evaluate("document.querySelector('.p3').dataset.aigc === '1'"), "poster 3 :: AIGC mode is active")
                 check(page.evaluate("getComputedStyle(document.querySelector('#fx3')).display === 'none'"),
                       "poster 3 :: procedural network canvas is hidden when AIGC is active")
@@ -260,6 +305,31 @@ def main() -> int:
             check(all(d >= 12 for d in durations), f"narration :: every poster at least 12s ({[round(d,1) for d in durations]})")
             check(50 <= total <= 85, f"narration :: total {total:.1f}s within 50–85s")
         check(len(chunk_counts) == 3 and all(n >= 5 for n in chunk_counts), f"narration :: at least five caption chunks per poster ({chunk_counts})")
+
+        # ---- negative control: the visibility gate must reject hidden images
+        ctx, page, errors, requests = new_page(browser)
+        page.goto(page_url(2), wait_until="load")
+        wait_ready(page)
+        check(page.evaluate(VISIBLE_JS, "#p2New"), "visibility :: page 2 image starts visible")
+        for prop, value in (("display", "none"), ("visibility", "hidden"), ("opacity", "0")):
+            page.evaluate("([p, v]) => { document.querySelector('#p2New').style[p] = v; }", [prop, value])
+            check(not page.evaluate(VISIBLE_JS, "#p2New"), f"visibility :: page 2 rejects {prop}:{value}")
+            page.evaluate("([p]) => { document.querySelector('#p2New').style[p] = ''; }", [prop])
+        page.evaluate("document.querySelector('#p2New').style.display = 'none'")
+        hidden_corr = crop_corr(page, ROOT / "assets" / "aigc" / "page2-modern.jpg", (1500, 250, 1850, 620))
+        check(hidden_corr < 0.3, f"visibility :: hidden page 2 image does not match the asset (corr {hidden_corr:.3f})")
+        audit_console(errors, "visibility p2")
+        ctx.close()
+
+        ctx, page, errors, requests = new_page(browser)
+        page.goto(page_url(3), wait_until="load")
+        wait_ready(page)
+        check(page.evaluate(VISIBLE_JS, "#p3Bg"), "visibility :: page 3 background starts visible")
+        page.evaluate("document.querySelector('#p3Bg').style.display = 'none'")
+        hidden_corr = crop_corr(page, ROOT / "assets" / "aigc" / "page3-vision.jpg", (1000, 100, 1500, 300))
+        check(hidden_corr < 0.4, f"visibility :: hidden page 3 background does not match the asset (corr {hidden_corr:.3f})")
+        audit_console(errors, "visibility p3")
+        ctx.close()
 
         # ---- evidence lives in README + a one-line proof strip on poster 2
         ctx, page, errors, requests = new_page(browser)

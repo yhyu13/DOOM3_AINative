@@ -27,8 +27,8 @@ edit; **neither the original nor the unredacted input is in this repository.**
 > No text, no logos, no watermark, no HUD overlay, no extra UI, no menu.
 
 **Status:** derivative of the official promo art; **licensing pending**, not a licensed release.
-It is a concept vision, not a game capture. Replace it with a licensed/cleared asset before public
-distribution (T042 / issue #2).
+It is in the public repository at the owner's direction. It is a concept vision, not a game capture;
+replace it with a licensed/cleared asset if a cleared distribution is required (T042 / issue #2).
 
 ## Page 3 — `page3-vision.jpg` (text-to-image)
 

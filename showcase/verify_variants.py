@@ -78,6 +78,20 @@ def open_page(browser, path: Path, n: int):
     return ctx, page, errors, requests
 
 
+VISIBLE_JS = """(sel) => {
+    const el = document.querySelector(sel);
+    if (!el || el.hidden) return false;
+    const r = el.getBoundingClientRect();
+    if (r.width < 10 || r.height < 10) return false;
+    if (r.right <= 0 || r.bottom <= 0 || r.left >= innerWidth || r.top >= innerHeight) return false;
+    for (let n = el; n; n = n.parentElement) {
+        const s = getComputedStyle(n);
+        if (s.display === 'none' || s.visibility === 'hidden' || parseFloat(s.opacity) < 0.1) return false;
+    }
+    return true;
+}"""
+
+
 def split(page):
     return page.evaluate("""() => {
         const p = document.querySelector('.p2');
@@ -143,6 +157,7 @@ def main() -> int:
             check(page.evaluate("(u) => document.querySelector('#p2New').src === u", P2_URI), "default :: page 2 uses page2-modern.jpg")
             check(page.evaluate("(u) => document.querySelector('#p2Old').src === u", HERO_URI), "default :: page 2 archival reuses the redacted hero")
             check(page.evaluate("() => {const i=document.querySelector('#p2New'); return !i.hidden && i.complete && i.naturalWidth===1600 && i.naturalHeight===900;}"), "default :: page 2 image decodes 1600x900")
+            check(page.evaluate(VISIBLE_JS, "#p2New"), "default :: page 2 image is actually visible")
             check(page.locator("#p2VisionLabel").inner_text().strip() == "AI-GENERATED VISION · NOT A GAME CAPTURE", "default :: exact page 2 label")
             s0 = split(page)
             page.locator("#p2Reveal").click()
@@ -167,6 +182,7 @@ def main() -> int:
             ctx, page, errors, requests = open_page(browser, default_a, 3)
             check(page.evaluate("(u) => document.querySelector('#p3Bg').src === u", P3_URI), "default :: page 3 uses page3-vision.jpg")
             check(page.evaluate("() => {const i=document.querySelector('#p3Bg'); return !i.hidden && i.complete && i.naturalWidth===1600 && i.naturalHeight===900;}"), "default :: page 3 image decodes 1600x900")
+            check(page.evaluate(VISIBLE_JS, "#p3Bg"), "default :: page 3 image is actually visible")
             check(page.locator("#p3AiLabel").inner_text().strip() == "AI VISION · GPT IMAGE 2.5", "default :: exact page 3 AI label")
             check(page.locator("#p3Truth").inner_text().strip() == "AI-GENERATED VISION · NOT A GAME CAPTURE", "default :: page 3 truth label")
             check(page.evaluate("""() => Array.from(document.querySelectorAll('.vision-card')).every(el => {
@@ -187,6 +203,10 @@ def main() -> int:
             ctx, page, errors, requests = open_page(browser, no_aigc, 2)
             check(page.evaluate("document.querySelector('.p2').dataset.aigc === '0'"), "no-aigc :: page 2 data-aigc=0")
             check(page.evaluate("document.querySelector('#p2New').hidden === true"), "no-aigc :: page 2 image hidden")
+            check(page.evaluate("(u) => document.querySelector('#p2Old').src === u", HERO_URI), "no-aigc :: page 2 archival stays redacted")
+            check(page.evaluate("""() => {const i=document.querySelector('#p2Old');
+                return i.complete && i.naturalWidth > 0 && i.naturalHeight > 0;}"""), "no-aigc :: page 2 archival decoded")
+            check(page.evaluate(VISIBLE_JS, "#p2Old"), "no-aigc :: page 2 archival is actually visible")
             check(page.evaluate("getComputedStyle(document.querySelector('#fx2')).display !== 'none'"), "no-aigc :: page 2 canvas visible")
             check(page.locator("#p2VisionLabel").inner_text().strip() == "PROCEDURAL MODERN RENDER · NOT A GAME CAPTURE", "no-aigc :: page 2 procedural label")
             s0 = split(page)

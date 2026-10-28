@@ -1,8 +1,9 @@
-﻿# Self-review — AIGC Modern Vision (007)
+# Self-review — AIGC Modern Vision (007)
 
 **Date**: 2026-10-28
-**Reviewer**: author self-review + one independent read-only subagent audit of verifier coverage.
-This is **not** the independent PR review required by T012.
+**Reviewer**: author self-review + two independent read-only subagent audits (verifier coverage and
+spec-vs-code), plus a post-merge independent review of PR #23. The post-merge review returned FAIL
+on evidence strength, not on the deck; its findings are fixed below.
 **Artifact**: `showcase/index.html`, 2,741,798 bytes, SHA-256
 `b758b90a9cd2bc1a98af0b6cae853a9f21348156d2a2281e30032f043e864afc`.
 
@@ -14,7 +15,8 @@ This is **not** the independent PR review required by T012.
 4. Added `verify_variants.py`, which rebuilds the default twice plus `--no-aigc`, `--no-hero` and
    `--hero`, then checks them with Playwright.
 5. Built twice to temp and compared SHA-256; captured 1920 and 4K screenshots and inspected them.
-6. Ran an independent read-only subagent audit of the verifier suite against the spec.
+6. Ran two independent read-only subagent audits (verifier coverage and spec-vs-code).
+7. Merged #23/#24, then ran the independent post-merge review; fixed the evidence gaps it found.
 
 ## Result matrix
 
@@ -52,29 +54,43 @@ This is **not** the independent PR review required by T012.
 6. **The axe claim had no runner.** Added `verify_axe.py` (axe-core not vendored; `AXE_PATH`) and
    saved `evidence/axe.json`.
 7. **`preview.png` was stale.** Regenerated the 3-up from the current poster screenshots.
+8. **The post-merge review found the visibility gate was not a visibility check.** `!hidden`,
+   `complete` and 1600×900 still pass `display:none`, `visibility:hidden`, `opacity:0` or an opaque
+   cover. Added a computed-style/rect predicate, a screenshot/asset Pearson correlation, and
+   negative controls (`display:none`, `visibility:hidden`, `opacity:0`; hidden correlation must be
+   <0.3). Measured: page 2 corr 0.998, page 3 corr 0.970; hidden 0.05/0.00.
+9. **Licensing wording contradicted the public merge.** The deck is public at the owner's direction;
+   the docs now say the owner accepted the risk, licensing is still pending, and it is not a
+   licensed capture—instead of claiming it must not be published.
+10. **Doc/evidence nits.** Removed the README/spec BOM, corrected the fps claim to 60.4–60.5,
+    extended the FR-005 check to the base URL and input, and asserted the `--no-aigc` page-2 archival
+    asset and visibility.
 
 ## Command evidence
 
 | Command | Result |
 |---|---|
 | `uv run --python 3.12 showcase/build.py` | 2,677.5 KiB (2.61 MiB), 82.8 s narration, both AIGC images inlined, redacted hero reused |
-| `uv run --python 3.12 showcase/verify.py` | **157 passed, 0 failed** |
-| `uv run --python 3.12 showcase/verify_deep.py` | **182 passed, 0 failed, 1 skipped** (Firefox absent) |
+| `uv run --python 3.12 showcase/verify.py` | **171 passed, 0 failed** |
+| `uv run --python 3.12 showcase/verify_deep.py` | **186 passed, 0 failed, 1 skipped** (Firefox absent) |
 | `verify_axe.py` (axe-core 4.10.3, WCAG 2.1 A/AA) | **0 violations**; 1 incomplete color-contrast per poster (120/66/113 nodes) |
-| `verify_variants.py` | **58 passed, 0 failed** (default, `--no-aigc`, `--no-hero`, `--hero`) |
+| `verify_variants.py` | **63 passed, 0 failed** (default, `--no-aigc`, `--no-hero`, `--hero`) |
 | reproducibility | `default-a` = `default-b` = `index.html` = `b758b90a…864afc`, 2,741,798 bytes |
 | screenshots | `deep-edge-poster-2/3.png`, `deep-4k-poster-2/3.png`; visual check: AIGC imagery present, cards/loop/roadmap readable |
 
 ## Residual issues / not fixed
 
-- **Licensing (T042, issue #2)** — page 2 is a derivative of the official promo and must not ship
-  publicly without clearance. This is a release gate, not a code defect. Keep issue #2 open; the PR
-  uses `Refs #2`.
+- **Licensing (T042, issue #2)** — page 2 is a derivative of the official promo. It is now in the
+  public repo at the owner's direction; licensing remains pending and it is **not** a licensed
+  capture. Replace it if a cleared distribution is required. This is a release/legal gate, not a
+  code defect. Keep issue #2 open; the PRs use `Refs #2`.
 - **Page-2 seam** — the redacted `REDACTED` stamp is partially visible at the diagonal when the split
   is near 46% (the letters `R` / `LICE`). It is truthful archival content, but visually it reads as
   stray text. Not a spec violation; a future polish could crop/fade the stamp on the comparison page.
-- **Independent review / merge (T012)** — not done. A reviewer who is not the author must review the
-  diff; merge only into a clean current `main` and only with the user's permission.
+- **Independent review / merge (T012)** — #23 and #24 are merged; no formal GitHub approving
+  review is recorded (`reviewDecision` empty). The merge was owner-directed after two subagent
+  audits; the post-merge reviewer found the evidence gaps fixed in this follow-up. A formal review
+  record is still a process gap, not a code gap.
 - **`--no-hero` scope** — it removes the poster-1 hero only; page 2 keeps the redacted archival
   inset (the flag's help text now says so). A fully redacted-free build would need a separate
   page-2 fallback and is not provided by this flag.
@@ -83,6 +99,8 @@ This is **not** the independent PR review required by T012.
 
 ## Verdict
 
-Implementation is complete against FR-001..FR-008 and SC-001..SC-006, with the fixes above. No
-pre-review implementation task remains. T012 (independent review, PR, merge) and T042 (licensing)
-are the only open gates.
+Implementation is complete against FR-001..FR-008 and SC-001..SC-006 and is merged into `main`
+(#23, #24). The post-merge evidence review's blocking findings are fixed in this follow-up: the
+visibility gate now combines computed style, decoded pixels and negative controls, and the licensing
+wording no longer contradicts the public state. T042 (page-2 licensing) is the only open delivery
+gate; a formal GitHub approving review record is still absent.
