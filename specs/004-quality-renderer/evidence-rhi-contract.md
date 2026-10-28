@@ -8,7 +8,7 @@
 - **Source identity**: worktree `docs-20-t004-t005-signoff`, branch `docs/20-t004-t005-signoff`, base `origin/main` `8638db8` (the merged Q1a change). The content under review is the commit named in the sign-off block; this evidence-only edit follows that commit. Submodule `doom3_orig/doom3` is initialized at `a9c49da5afb18201d31e3f0a429a037e56ce2b9a` (`heads/master`); its porcelain is empty.
 - **Data identity and rights**: no game data used. Inputs are tracked Markdown and Python sources plus the merged Q1a public header and tests.
 - **Scene and inputs**: none; this stage has no renderer, device or scene.
-- **Exclusions and limitations**: no GPU, build, engine integration or browser run. The validator checks document structure and a lexical vocabulary boundary only — not technical truth, permissions, whether any matrix row is implementable, or whether a noun list is complete for a future API. A renamed private concept can still pass; the semantic field mapping review is the control. Q1a execution evidence is `evidence-q1a.md`.
+- **Exclusions and limitations**: no GPU, build, engine integration or browser run. The validator checks document structure and a lexical vocabulary boundary only — not technical truth, permissions, whether any matrix row is implementable, or whether a noun list is complete for a future API. A renamed private concept can still pass, and a core header placed outside `src/renderer/` is outside the scan roots; the contract requires core headers under `src/renderer/`, and the semantic field mapping review is the control. Q1a execution evidence is `evidence-q1a.md`.
 - **Machine-local artifacts**: full output is retained under the ignored `build-t004-evidence/` and `build-rhi-contract-mutations/` directories; paths here are relative to this worktree.
 
 ## Environment and configuration
@@ -28,8 +28,8 @@
   | 1 | `py -3 -I scripts/validate-rhi-contract.py --self-test` | 0 | `signoff-validate.log` |
   | 2 | `py -3 -I scripts/test-validate-rhi-contract.py` | 0 | `signoff-tests.log` |
   | 3 | `py -3 -I scripts/test-validate-rhi-contract-mutations.py` | 0 | `signoff-mutations.log` |
-  | 4 | `git diff --check` | 0 | `signoff-check.log` (contains the exit line) |
-  | 5 | `git diff --no-index --check -- /dev/null <new file>` | 1 each | expected: exit 1 is the difference |
+  | 4 | `git diff --check`; `git diff --check origin/main...HEAD` | 0; 0 | `signoff-check.log`, `freeze-commit-check.log` |
+  | 5 | `git diff --no-index --check -- /dev/null <new file>` (pre-commit only) | 1 each | not a whitespace proof; exit 1 is any difference |
   | 6 | `git submodule status -- doom3_orig/doom3`; `git -C doom3_orig/doom3 status --porcelain` | 0; empty | `a9c49da`, initialized |
   | 7 | `py -3 -I build-t004-evidence/check-tables.py` | 0 | `signoff-tables.log` |
   | 8 | `py -3 -I build-t004-evidence/check-links.py` | 0 | `signoff-links.log` |
@@ -47,9 +47,9 @@
 | Validator behavioral suite | RUN | PASS | 40 tests, `OK` | `build-t004-evidence/signoff-tests.log` |
 | Validator in-memory negative controls | RUN | PASS | 17/17 detected, 0 failed | `build-t004-evidence/signoff-validate.log` |
 | Source mutation controls | RUN | PASS | 11/11 mutants rejected by the expected test; restored validator passes 40 tests; digest retained | `build-t004-evidence/signoff-mutations.log`, `signoff-validator-sha.log` |
-| Identifier-embedded gate controls | RUN | PASS | 14/14 private spellings rejected; 5 clean portable names accepted | `build-t004-evidence/signoff-tests.log` |
-| Whitespace, tracked diff | RUN | PASS | `git diff --check` exit 0; the CRLF notice is not a whitespace failure | `build-t004-evidence/signoff-check.log` |
-| Whitespace, new files | RUN | PASS | `--no-index --check` exit 1 for each new file, as expected for a difference | command table above |
+| Identifier-embedded gate controls | RUN | PASS | 14 asserted private spellings (17 probes including variants) rejected; 6 clean names accepted | `build-t004-evidence/signoff-tests.log` |
+| Whitespace, working tree | RUN | PASS | `git diff --check` exit 0; the CRLF notice is not a whitespace failure | `build-t004-evidence/signoff-check.log` |\n| Whitespace, committed delta | RUN | PASS | `git diff --check origin/main...HEAD` exit 0 | `build-t004-evidence/freeze-commit-check.log` |
+| Whitespace, new files (pre-commit) | RUN | PASS | `--no-index --check` exit 1 for each new file; this is a difference, not a whitespace proof | command table above |
 | Machine-specific absolute paths | RUN | PASS | No drive-letter path in the seven owned files | `build-t004-evidence/signoff-validate.log` |
 | Markdown table shape | RUN | PASS | 34 tables; each row has its header's cell count and an adjacent separator; helpers are worktree-local and not tracked | `build-t004-evidence/signoff-tables.log` |
 | Relative-link resolution | RUN | PASS | 19 relative links resolve | `build-t004-evidence/signoff-links.log` |

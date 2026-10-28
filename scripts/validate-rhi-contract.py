@@ -418,7 +418,7 @@ def main():
     header_files = []
     if renderer.is_dir():
         for path in sorted(renderer.rglob("*")):
-            if not path.is_file() or path.suffix.lower() not in (".h", ".hpp", ".hxx", ".inl"):
+            if not path.is_file() or path.suffix.lower() not in (".h", ".hh", ".hpp", ".hxx", ".inl"):
                 continue
             if private_parts & {part.lower() for part in path.relative_to(ROOT).parts}:
                 continue
@@ -433,7 +433,7 @@ def main():
     test_files = []
     if test_root.is_dir():
         for path in sorted(test_root.rglob("*")):
-            if not path.is_file() or path.suffix.lower() not in (".cpp", ".cc", ".cxx", ".h", ".hpp"):
+            if not path.is_file() or path.suffix.lower() not in (".cpp", ".cc", ".cxx", ".h", ".hh", ".hpp"):
                 continue
             if private_parts & {part.lower() for part in path.relative_to(ROOT).parts}:
                 continue
