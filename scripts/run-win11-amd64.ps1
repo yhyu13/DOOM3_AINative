@@ -23,6 +23,10 @@ param(
     [string]$OutDir,
     [string]$Exe,
     [string]$Game = '',   # optional +set fs_game <Game>; DOOM3XP.exe defaults to d3xp
+    [switch]$HdTextures,   # force TGA path and disable image downsampling for HD evidence
+    [switch]$GfxInfo,      # append +gfxInfo after +devmap (GL identity and ARB2 path)
+    [switch]$ListImages,   # append +listImages after +devmap (per-image upload dimensions for HD proof)
+    [string[]]$ExtraArgs = @(),   # extra command-line tokens appended after +devmap, e.g. '+gfxInfo'
     [switch]$Build,
     [switch]$Clean,        # allow replacing a non-empty -OutDir
     [switch]$StopExisting  # allow stopping instances of the same resolved executable
@@ -33,6 +37,8 @@ $tgt = Join-Path $repo 'targets\win11-amd64'
 . (Join-Path $PSScriptRoot '_common.ps1')
 $exe = $Exe
 if (-not $OutDir) { $OutDir = Join-Path $tgt 'build\run' }
+$OutDir = [IO.Path]::GetFullPath($OutDir).TrimEnd('\', '/')
+if ($DataDir) { $DataDir = [IO.Path]::GetFullPath($DataDir).TrimEnd('\', '/') }
 $cmake = $null
 $buildDir = $null
 if ($Build) {
@@ -86,11 +92,32 @@ $a = @('+set', 'logFile', '2', '+set', 'r_fullscreen', '0', '+set', 'fs_savepath
 if (-not $Game -and $exe -and (Split-Path -Leaf $exe) -ieq 'DOOM3XP.exe') { $Game = 'd3xp' }
 if ($Game) { $a += @('+set', 'fs_game', $Game) }
 if ($DataDir) { $a += @('+set', 'fs_basepath', $DataDir) }
+if ($HdTextures) {
+    # The demo ships dds/; the engine prefers it over higher-priority TGA. Disable both the
+    # precompressed path and the demo's downsize defaults so the pack's real size is visible.
+    $a += @(
+        '+set', 'image_usePrecompressedTextures', '0',
+        '+set', 'image_downSize', '0',
+        '+set', 'image_downSizeBump', '0',
+        '+set', 'image_downSizeSpecular', '0'
+    )
+}
 if ($Map) { $a += @('+devmap', $Map) }
-$p = Start-Process -FilePath $exe -ArgumentList $a -PassThru
+if ($GfxInfo) { $a += '+gfxInfo' }
+if ($ListImages) { $a += '+listImages' }
+if ($ExtraArgs.Count -gt 0) { $a += $ExtraArgs }
+
+# Start-Process joins an array with spaces; quote values that contain spaces so a
+# data root such as "<data-root>\my run" reaches the engine as one argument.
+function Quote-NativeArg([string]$Value) {
+    if ($Value -match '[\s"]') { return '"' + ($Value -replace '"', '\"') + '"' }
+    return $Value
+}
+$argString = ($a | ForEach-Object { Quote-NativeArg ([string]$_) }) -join ' '
+$log = Join-Path $OutDir 'save\base\qconsole.log'
+$p = Start-Process -FilePath $exe -ArgumentList $argString -PassThru
 $sw = [Diagnostics.Stopwatch]::StartNew()
 while ($sw.Elapsed.TotalSeconds -lt $WaitSec -and -not $p.HasExited) { Start-Sleep -Seconds 2 }
-$log = Join-Path $OutDir 'save\base\qconsole.log'
 $logText = if (Test-Path $log) { Get-Content $log -Raw } else { '' }
 if ($logText) { Copy-Item $log (Join-Path $OutDir 'qconsole.log') -Force }
 if ($p.HasExited) { Write-Host ("RUN process died, exit code 0x{0:X}" -f $p.ExitCode); exit 4 }

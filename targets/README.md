@@ -45,7 +45,8 @@ because a copy is tens of megabytes and diverges immediately.
 
 | Target | Copy | Notes |
 |---|---|---|
-| _(none yet)_ | — | create one with `scripts/new-target.ps1 -Name web` |
+| `win11-amd64` | `doom3/` | native x64 port; see its README |
+| `win11-amd64-hd` | `doom3/` | same engine plus a runtime HD texture overlay; see its README and `specs/006-hd-assets/` |
 
 ## The win11-amd64 target
 
