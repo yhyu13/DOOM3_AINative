@@ -8,7 +8,9 @@
 #include <wrl/client.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cstdint>
+#include <limits>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -27,6 +29,22 @@ namespace {
 
 constexpr DWORD kWaitTimeoutMilliseconds = 30000;
 constexpr size_t kMaxCapturedMessages = 8;
+
+// Process-lifetime, non-recycling IDs prevent aliases across devices and
+// reinitializations. Saturation is permanent rather than wrapping to an old ID.
+std::atomic<uint64_t> gNextSubmissionId{1};
+
+bool AllocateSubmissionId(uint32_t* id) {
+    uint64_t next = gNextSubmissionId.load(std::memory_order_relaxed);
+    while (next <= std::numeric_limits<uint32_t>::max()) {
+        if (gNextSubmissionId.compare_exchange_weak(
+                next, next + 1, std::memory_order_relaxed)) {
+            *id = static_cast<uint32_t>(next);
+            return true;
+        }
+    }
+    return false;
+}
 
 const char* SeverityName(D3D12_MESSAGE_SEVERITY severity) {
     switch (severity) {
@@ -115,6 +133,7 @@ struct Device::Impl {
         uint32_t tightRowPitch = 0;
         uint64_t readbackBytes = 0;
 
+        ComPtr<ID3D12Fence> gateFence;
         ComPtr<ID3D12Resource> texture;
         ComPtr<ID3D12Resource> readback;
         ComPtr<ID3D12DescriptorHeap> rtvHeap;
@@ -128,7 +147,6 @@ struct Device::Impl {
     ComPtr<ID3D12CommandQueue> queue;
     ComPtr<ID3D12CommandQueue> gateQueue;
     ComPtr<ID3D12Fence> fence;
-    ComPtr<ID3D12Fence> gateFence;
 
     AdapterInfo adapterInfo;
     Diagnostics diagnostics;
@@ -136,22 +154,25 @@ struct Device::Impl {
     std::map<uint32_t, Record> records;
 
     uint64_t nextFenceValue = 1;
-    uint64_t nextGateValue = 1;
-    uint32_t nextSubmissionId = 1;
     bool initialized = false;
 
-    Record* FindRecord(uint32_t id) {
-        auto it = records.find(id);
-        return it == records.end() ? nullptr : &it->second;
+    Record* FindRecord(const Submission& submission) {
+        auto it = records.find(submission.id);
+        return it == records.end() || it->second.serial != submission.completionSerial ||
+                       it->second.gated != submission.gated
+                   ? nullptr : &it->second;
     }
 
-    const Record* FindRecord(uint32_t id) const {
-        auto it = records.find(id);
-        return it == records.end() ? nullptr : &it->second;
+    const Record* FindRecord(const Submission& submission) const {
+        auto it = records.find(submission.id);
+        return it == records.end() || it->second.serial != submission.completionSerial ||
+                       it->second.gated != submission.gated
+                   ? nullptr : &it->second;
     }
 
     void ReleaseRecord(Record& record) {
         record.commandList.Reset();
+        record.gateFence.Reset();
         record.allocator.Reset();
         record.readback.Reset();
         record.rtvHeap.Reset();
@@ -163,7 +184,6 @@ struct Device::Impl {
         queue.Reset();
         gateQueue.Reset();
         fence.Reset();
-        gateFence.Reset();
         device.Reset();
         adapter.Reset();
         factory.Reset();
@@ -369,12 +389,6 @@ struct Device::Impl {
         if (FAILED(hr)) {
             return Fail(Status::Error, error, ErrorWith("CreateFence(completion)", hr));
         }
-        hr = device->CreateFence(
-            0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence),
-            reinterpret_cast<void**>(gateFence.GetAddressOf()));
-        if (FAILED(hr)) {
-            return Fail(Status::Error, error, ErrorWith("CreateFence(gate)", hr));
-        }
         return Status::Ok;
     }
 };
@@ -467,8 +481,6 @@ Status Device::Initialize(const DeviceOptions& options, std::string* error) {
     impl.journal.clear();
     impl.records.clear();
     impl.nextFenceValue = 1;
-    impl.nextGateValue = 1;
-    impl.nextSubmissionId = 1;
     if (options.enableDebugLayer) {
         impl.diagnostics.debugLayer = DiagnosticState::NotRun;
     }
@@ -549,9 +561,9 @@ Status Device::Shutdown() {
     for (auto& entry : impl.records) {
         Impl::Record& record = entry.second;
         if (!record.released && record.gated && !record.gateReleased && impl.gateQueue &&
-            impl.gateFence) {
+            record.gateFence) {
             const HRESULT signalResult =
-                impl.gateQueue->Signal(impl.gateFence.Get(), record.gateValue);
+                impl.gateQueue->Signal(record.gateFence.Get(), record.gateValue);
             if (SUCCEEDED(signalResult)) {
                 record.gateReleased = true;
             }
@@ -600,7 +612,7 @@ Status Device::SubmitClearReadback(const ClearReadbackDesc& desc,
     }
     *submission = Submission{};
     if (!impl.initialized || !impl.device || !impl.queue || !impl.fence ||
-        !impl.gateFence || !impl.gateQueue) {
+        !impl.gateQueue) {
         return Fail(Status::Error, error, "device is not initialized");
     }
     if (desc.width == 0 || desc.height == 0) {
@@ -617,10 +629,16 @@ Status Device::SubmitClearReadback(const ClearReadbackDesc& desc,
     }
 
     Impl::Record record;
-    record.id = impl.nextSubmissionId++;
+    // UINT64_MAX is reserved by D3D12 for device removal; never signal it.
+    if (impl.nextFenceValue == std::numeric_limits<uint64_t>::max()) {
+        return Fail(Status::Error, error, "completion serial space exhausted");
+    }
+    if (!AllocateSubmissionId(&record.id)) {
+        return Fail(Status::Error, error, "submission identity space exhausted");
+    }
     record.serial = impl.nextFenceValue++;
     record.gated = options.waitForCpuGate;
-    record.gateValue = options.waitForCpuGate ? impl.nextGateValue++ : 0;
+    record.gateValue = options.waitForCpuGate ? 1 : 0;
     record.width = desc.width;
     record.height = desc.height;
     record.tightRowPitch = desc.width * 4;
@@ -779,7 +797,15 @@ Status Device::SubmitClearReadback(const ClearReadbackDesc& desc,
     }
 
     if (record.gated) {
-        hr = impl.queue->Wait(impl.gateFence.Get(), record.gateValue);
+        // A distinct fence per submission prevents a signal for a later gate
+        // from satisfying an earlier wait on the same monotonic fence.
+        hr = impl.device->CreateFence(
+            0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence),
+            reinterpret_cast<void**>(record.gateFence.GetAddressOf()));
+        if (FAILED(hr)) {
+            return Fail(Status::Error, error, ErrorWith("CreateFence(gate)", hr));
+        }
+        hr = impl.queue->Wait(record.gateFence.Get(), record.gateValue);
         if (FAILED(hr)) {
             return Fail(Status::Error, error, ErrorWith("CommandQueue::Wait(gate)", hr));
         }
@@ -820,7 +846,7 @@ Status Device::SubmitClearReadback(const ClearReadbackDesc& desc,
 
 Status Device::ReleaseGate(const Submission& submission, std::string* error) {
     Impl& impl = *impl_;
-    Impl::Record* record = impl.FindRecord(submission.id);
+    Impl::Record* record = impl.FindRecord(submission);
     if (record == nullptr || record->released) {
         return Fail(Status::InvalidArgument, error, "unknown or released submission");
     }
@@ -834,10 +860,10 @@ Status Device::ReleaseGate(const Submission& submission, std::string* error) {
         }
         return Status::Ok;
     }
-    if (!impl.gateQueue || !impl.gateFence) {
+    if (!impl.gateQueue || !record->gateFence) {
         return Fail(Status::Error, error, "gate queue or gate fence is unavailable");
     }
-    const HRESULT hr = impl.gateQueue->Signal(impl.gateFence.Get(), record->gateValue);
+    const HRESULT hr = impl.gateQueue->Signal(record->gateFence.Get(), record->gateValue);
     if (FAILED(hr)) {
         return Fail(Status::Error, error, ErrorWith("CommandQueue::Signal(gate)", hr));
     }
@@ -851,7 +877,7 @@ Status Device::ReleaseGate(const Submission& submission, std::string* error) {
 
 Status Device::Wait(const Submission& submission, std::string* error) {
     Impl& impl = *impl_;
-    Impl::Record* record = impl.FindRecord(submission.id);
+    Impl::Record* record = impl.FindRecord(submission);
     if (record == nullptr || record->released) {
         return Fail(Status::InvalidArgument, error, "unknown or released submission");
     }
@@ -876,7 +902,7 @@ Status Device::Readback(const Submission& submission, ReadbackResult* result,
         return Fail(Status::InvalidArgument, error, "readback result is null");
     }
     *result = ReadbackResult{};
-    Impl::Record* record = impl.FindRecord(submission.id);
+    Impl::Record* record = impl.FindRecord(submission);
     if (record == nullptr || record->released) {
         return Fail(Status::InvalidArgument, error, "unknown or released submission");
     }
@@ -928,7 +954,7 @@ Status Device::Readback(const Submission& submission, ReadbackResult* result,
 
 ReleaseStatus Device::TryRelease(const Submission& submission, std::string* error) {
     Impl& impl = *impl_;
-    Impl::Record* record = impl.FindRecord(submission.id);
+    Impl::Record* record = impl.FindRecord(submission);
     if (record == nullptr || record->released) {
         if (error != nullptr) {
             *error = "unknown or already released submission";
@@ -956,7 +982,7 @@ ReleaseStatus Device::TryRelease(const Submission& submission, std::string* erro
 
 uint64_t Device::CompletedSerial(const Submission& submission) const {
     const Impl& impl = *impl_;
-    const Impl::Record* record = impl.FindRecord(submission.id);
+    const Impl::Record* record = impl.FindRecord(submission);
     if (record == nullptr || record->released || !impl.fence) {
         return 0;
     }
@@ -965,7 +991,7 @@ uint64_t Device::CompletedSerial(const Submission& submission) const {
 
 bool Device::IsCompleted(const Submission& submission) const {
     const Impl& impl = *impl_;
-    const Impl::Record* record = impl.FindRecord(submission.id);
+    const Impl::Record* record = impl.FindRecord(submission);
     if (record == nullptr || record->released || !impl.fence) {
         return false;
     }

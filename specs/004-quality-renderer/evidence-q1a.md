@@ -1,8 +1,104 @@
 # Q1a evidence: D3D12 RHI clear/readback foundation
 
-**Status**: Implemented and verified locally on 2026-10-27. Independent review is
-recorded in [review-q1a.md](./review-q1a.md). This evidence covers **Q1a only**. It
-does not complete Q1, User Story 2, the renderer programme or any later gate.
+**Status: remediation is incomplete; do not merge or treat Q1a as accepted.** The
+2026-10-28 results and blockers below supersede the historical acceptance claims
+in this document. The existing independent review predates these changes and is
+not a review of the current worktree. Q1, browser and game integration are not
+complete.
+
+## 2026-10-28 partial remediation
+
+This worktree started clean on `feat/11-q1a-rhi-clear-readback` at `cda817a`.
+The changes below address the observed gate and handle aliases only. In particular,
+**ownership after a fence wait or queue-signal failure is not guaranteed**, so
+remediation stopped rather than claiming the safety cases fixed.
+
+| Check | Debug result | Release result | Evidence |
+|---|---|---|---|
+| Fresh configure | exit 0 | same configuration | `build-r1/configure.log` |
+| Build | exit 0 | exit 0 | `build-r1/final-build-debug.log`, `final-build-release.log` |
+| Full CTest | exit 0, 7/7 | exit 0, 7/7 | `build-r1/final-ctest-debug.log`, `final-ctest-release.log`; JUnit `final-debug.xml`, `final-release.xml` |
+| Actual adapters | Intel hardware and Microsoft Basic Render Driver (WARP), both executed | same | full CTest logs; per-adapter summaries |
+| Debug layer and GPU-based validation | SKIPPED (`0x887A002D`) | SKIPPED (`0x887A002D`) | diagnostics cases in full logs; not a validation pass |
+
+The first attempted fresh build directory, `build-rhi-004-remediation-20261028`,
+failed to configure with MSBuild `FTK1011` file-tracker path errors (exit 1);
+its `configure.log` is retained. The shorter, separately created `build-r1`
+configured successfully. Full Git Bash commands, tool selection and the
+isolated red-check recipes are retained in `build-r1/commands.txt`. The principal
+commands, from the worktree root with the Visual Studio bundled CMake/CTest, are:
+
+```text
+cmake -S tests/renderer -B build-r1 -G "Visual Studio 17 2022" -A x64
+cmake --build build-r1 --config Debug -- -m
+ctest --test-dir build-r1 -C Debug --no-tests=error -V --output-junit final-debug.xml
+cmake --build build-r1 --config Release -- -m
+ctest --test-dir build-r1 -C Release --no-tests=error -V --output-junit final-release.xml
+```
+
+### New regression slices
+
+| Behavior | Red, before fix | Green, unchanged test | Isolated red-check |
+|---|---|---|---|
+| Signal only gate 2 while gate 1 remains closed | `reverse-red.log`: CTest exit 8; both adapters completed gate 1 and allowed readback | `reverse-green.log`: exit 0; neither completed and readback was rejected on both adapters | `reverse-mutant.log`: exit 8 on both adapters; original shared-fence backend from `HEAD` |
+| Foreign and pre-reinitialization handles | `identity-red.log`: exit 8; both adapters accepted foreign and stale handles in all six tested operations | `identity-green.log`: exit 0; both handles rejected in all six operations on both adapters | `identity-mutant.log`: exit 8 on both adapters; retained pre-identity-fix backend |
+
+All logs and SHA-256 manifests above are in `build-r1/`; isolated copies are
+`build-r1/reverse-mutant/` and `build-r1/identity-mutant/`, built in `build-m1/`
+and `build-m2/` respectively. Mutation backend hashes are
+`fc1357bb6d4bedbdbddf6e8705ca352fed711b9955d8c82dcddeb6f2edd19614` and
+`d72cb1cbd1351741a2ed1a995bad59dd248492579e246b791fcbadd184670696`.
+The gate test uses a bounded one-second observation interval; the red runs show
+that the old failure did manifest, but absence of completion in a bounded window
+is not a proof for every scheduler. Normal post-release waits and teardown ran;
+shutdown specifically with gate 1 closed and gate 2 signalled is not separately
+asserted. ID and completion-serial exhaustion guards and tampered-handle fields
+have not been fault-injected or sensitivity-tested.
+
+### Open blockers and proposed fault seam
+
+- `GetCompletedValue() == UINT64_MAX` is still treated as completion; shutdown
+  still releases records after an unsuccessful wait. A failed queue `Signal`
+  after `ExecuteCommandLists` and an allocation failure while recording an
+  already-submitted command also need ownership-safe handling, including the
+  destructor. None of those paths has an adequate sensitivity test.
+- A narrow test-build-only D3D-call shim could force an underreported completion,
+  `SetEventOnCompletion`/wait failure, the removal sentinel, or a post-execute
+  `Signal` failure while exercising the existing `Device` methods. Underreporting
+  completion and suppressing a signal before the real call avoids inducing
+  machine-wide GPU removal. Recovery tests must restore the real calls and
+  demonstrate completion before freeing resources. Observing ownership after a
+  destructor requires a test-only lifetime observer or another agreed seam;
+  this changes the observable testing boundary and has not been approved or
+  implemented. The current API alone cannot prove that destroyed objects retained
+  native resources. Do not infer safety from these proposed tests.
+- Software device creation and debug-interface failures can still be
+  misclassified as `Unsupported`/`SKIPPED`; enabling the process-global debug
+  layer with an existing D3D12 device also remains unresolved. Debug/GBV did not
+  run here.
+- The old M5b control below timed out and dropped outstanding resources; it is
+  **not** valid evidence of a completed wait-idle-before-release shortcut. A safe,
+  reproducible replacement is still required. The historical T016/T018 red
+  provenance also remains insufficient.
+- Issue #11 accepts per-byte comparison with a one-step UNORM tolerance; T013
+  additionally says to check row hashes. The current test logs hashes but does
+  not assert them. Strict hash equality is not equivalent to tolerated bytes;
+  reconciliation requires a contract decision outside this issue's writable
+  scope. This discrepancy remains open.
+- The current patch has not received the required new independent review and is
+  not committed, pushed or ready to merge.
+
+### Files changed in this remediation
+
+- `src/renderer/d3d12/rhi_d3d12.cpp`
+- `tests/renderer/CMakeLists.txt`
+- `tests/renderer/rhi_lifetime_test.cpp`
+- `specs/004-quality-renderer/evidence-q1a.md`
+
+## Historical 2026-10-27 evidence (superseded where contradicted above)
+
+This evidence covers **Q1a only**. It does not complete Q1, User Story 2, the
+renderer programme or any later gate.
 
 ## Issue, branch and baseline
 
@@ -273,7 +369,11 @@ check.
 Playwright and browser tests are **not applicable** to Q1a: there is no web page,
 DOM, browser build or WebGPU backend in this slice.
 
-## Mutation evidence
+## Historical mutation evidence — M5b is invalid
+
+The historical M5b run ignored a timeout and freed outstanding resources. Its
+failure does **not** establish a valid completed wait-idle negative control;
+the original interpretation below is retained only as historical context.
 
 Each mutation was applied to `src/renderer/d3d12/rhi_d3d12.cpp`, rebuilt and run
 against the unchanged test, then restored and rebuilt. Logs are under

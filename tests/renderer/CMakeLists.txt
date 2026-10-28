@@ -39,6 +39,8 @@ add_test(NAME rhi.q1a.clear_readback COMMAND q1a_clear_test clear_readback)
 add_test(NAME rhi.q1a.state_journal COMMAND q1a_clear_test state_journal)
 add_test(NAME rhi.q1a.negative_controls COMMAND q1a_clear_test negative_controls)
 add_test(NAME rhi.q1a.fence_outstanding_release COMMAND q1a_lifetime_test)
+add_test(NAME rhi.q1a.reverse_gate COMMAND q1a_lifetime_test reverse_gate)
+add_test(NAME rhi.q1a.handle_identity COMMAND q1a_lifetime_test handle_identity)
 add_test(NAME rhi.q1a.diagnostics COMMAND q1a_diagnostics_test)
 
 set_tests_properties(
@@ -46,6 +48,8 @@ set_tests_properties(
     rhi.q1a.state_journal
     rhi.q1a.negative_controls
     rhi.q1a.fence_outstanding_release
+    rhi.q1a.reverse_gate
+    rhi.q1a.handle_identity
     rhi.q1a.diagnostics
     PROPERTIES
         SKIP_RETURN_CODE 77

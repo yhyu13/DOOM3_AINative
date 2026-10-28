@@ -1,6 +1,8 @@
 #include "q1a_test_support.h"
 
+#include <chrono>
 #include <string>
+#include <thread>
 
 using doom3::rhi::ClearReadbackDesc;
 using doom3::rhi::Device;
@@ -12,6 +14,148 @@ using doom3::rhi::Submission;
 using doom3::rhi::SubmissionOptions;
 
 namespace {
+
+// Releasing a later gate must not open an earlier gate. The bounded observation
+// interval lets an incorrectly signalled GPU queue make progress; teardown always
+// opens the first gate before waiting, including when an assertion fails.
+int RunReverseGate(Device& device) {
+    const ClearReadbackDesc desc = q1a_test::MakePatternDesc();
+    SubmissionOptions options;
+    options.waitForCpuGate = true;
+    Submission first, second;
+    std::string error;
+    bool ok = true;
+    Status status = device.SubmitClearReadback(desc, options, &first, &error);
+    ok &= q1a_test::Require(status == Status::Ok, "first gated submit failed: " + error);
+    if (status != Status::Ok) {
+        return 1;
+    }
+    status = device.SubmitClearReadback(desc, options, &second, &error);
+    ok &= q1a_test::Require(status == Status::Ok, "second gated submit failed: " + error);
+    if (status != Status::Ok) {
+        return 1;  // ForEachAdapter shuts the device down, opening the first gate.
+    }
+    status = device.ReleaseGate(second, &error);
+    ok &= q1a_test::Require(status == Status::Ok, "release second gate failed: " + error);
+    if (status == Status::Ok) {
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(1);
+        while (!device.IsCompleted(first) && std::chrono::steady_clock::now() < deadline) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+        const bool firstCompleted = device.IsCompleted(first);
+        const bool secondCompleted = device.IsCompleted(second);
+        ReadbackResult output;
+        const Status read = device.Readback(first, &output, &error);
+        q1a_test::Log("REVERSE_GATE first_completed=%s second_completed=%s first_readback=%s",
+                      firstCompleted ? "true" : "false", secondCompleted ? "true" : "false",
+                      doom3::rhi::ToString(read));
+        ok &= q1a_test::Require(!firstCompleted, "second gate opened first submission");
+        ok &= q1a_test::Require(!secondCompleted, "second submission passed the closed first gate");
+        ok &= q1a_test::Require(read == Status::InvalidArgument,
+                                "readback succeeded while first gate remained closed");
+        const ReleaseStatus release = device.TryRelease(first, &error);
+        ok &= q1a_test::Require(release == ReleaseStatus::RefusedOutstanding,
+                                "first outstanding submission was released");
+    }
+    status = device.ReleaseGate(first, &error);
+    ok &= q1a_test::Require(status == Status::Ok, "release first gate failed: " + error);
+    if (status == Status::Ok) {
+        status = device.Wait(first, &error);
+        ok &= q1a_test::Require(status == Status::Ok, "wait first failed: " + error);
+        if (status == Status::Ok) {
+            ok &= q1a_test::Require(device.TryRelease(first, &error) == ReleaseStatus::Released,
+                                    "completed first submission was not released");
+        }
+        status = device.Wait(second, &error);
+        ok &= q1a_test::Require(status == Status::Ok, "wait second failed: " + error);
+        if (status == Status::Ok) {
+            ok &= q1a_test::Require(device.TryRelease(second, &error) == ReleaseStatus::Released,
+                                    "completed second submission was not released");
+        }
+    }
+    return ok ? 0 : 1;
+}
+
+// Check every operation that accepts a submission, including the non-mutating
+// queries. Invalid handles must not be able to open or retire a live submission.
+bool RejectOtherHandle(Device& device, const Submission& other, const char* label) {
+    std::string error;
+    bool ok = true;
+    Status gate = device.ReleaseGate(other, &error);
+    Status wait = device.Wait(other, &error);
+    ReadbackResult readback;
+    Status read = device.Readback(other, &readback, &error);
+    const uint64_t completed = device.CompletedSerial(other);
+    const bool isCompleted = device.IsCompleted(other);
+    ReleaseStatus release = device.TryRelease(other, &error);
+    q1a_test::Log("HANDLE %s gate=%s wait=%s readback=%s completed=%llu is_completed=%s release=%s",
+                  label, doom3::rhi::ToString(gate), doom3::rhi::ToString(wait),
+                  doom3::rhi::ToString(read), static_cast<unsigned long long>(completed),
+                  isCompleted ? "true" : "false", doom3::rhi::ToString(release));
+    ok &= q1a_test::Require(gate == Status::InvalidArgument, std::string(label) + " accepted by ReleaseGate");
+    ok &= q1a_test::Require(wait == Status::InvalidArgument, std::string(label) + " accepted by Wait");
+    ok &= q1a_test::Require(read == Status::InvalidArgument, std::string(label) + " accepted by Readback");
+    ok &= q1a_test::Require(completed == 0, std::string(label) + " accepted by CompletedSerial");
+    ok &= q1a_test::Require(!isCompleted, std::string(label) + " accepted by IsCompleted");
+    ok &= q1a_test::Require(release == ReleaseStatus::InvalidSubmission, std::string(label) + " accepted by TryRelease");
+    return ok;
+}
+
+int RunHandleIdentity(Device& device) {
+    const ClearReadbackDesc desc = q1a_test::MakePatternDesc();
+    SubmissionOptions gated;
+    gated.waitForCpuGate = true;
+    DeviceOptions options;
+    options.adapterClass = device.adapter().adapterClass;
+    std::string error;
+    bool ok = true;
+    Submission current, foreign;
+    Status status = device.SubmitClearReadback(desc, gated, &current, &error);
+    if (!q1a_test::Require(status == Status::Ok, "identity current submit failed: " + error)) {
+        return 1;
+    }
+    Device other;
+    status = other.Initialize(options, &error);
+    if (!q1a_test::Require(status == Status::Ok, "identity foreign device initialization failed: " + error)) {
+        return 1;
+    }
+    status = other.SubmitClearReadback(desc, gated, &foreign, &error);
+    if (!q1a_test::Require(status == Status::Ok, "identity foreign submit failed: " + error)) {
+        return 1;
+    }
+    q1a_test::PrintSubmission("identity-current", current);
+    q1a_test::PrintSubmission("identity-foreign", foreign);
+    ok &= RejectOtherHandle(device, foreign, "foreign");
+    status = device.ReleaseGate(current, &error);
+    if (status == Status::Ok) {
+        status = device.Wait(current, &error);
+        if (status == Status::Ok) {
+            device.TryRelease(current, &error);
+        }
+    }
+    ok &= q1a_test::Require(other.Shutdown() == Status::Ok, "foreign cleanup failed");
+    ok &= q1a_test::Require(device.Shutdown() == Status::Ok, "pre-reinitialize cleanup failed");
+    status = device.Initialize(options, &error);
+    if (!q1a_test::Require(status == Status::Ok, "identity reinitialize failed: " + error)) {
+        return 1;
+    }
+    Submission fresh;
+    status = device.SubmitClearReadback(desc, gated, &fresh, &error);
+    if (!q1a_test::Require(status == Status::Ok, "identity fresh submit failed: " + error)) {
+        return 1;
+    }
+    q1a_test::PrintSubmission("identity-old", current);
+    q1a_test::PrintSubmission("identity-fresh", fresh);
+    ok &= RejectOtherHandle(device, current, "stale");
+    status = device.ReleaseGate(fresh, &error);
+    if (status == Status::Ok) {
+        status = device.Wait(fresh, &error);
+        if (status == Status::Ok) {
+            device.TryRelease(fresh, &error);
+        }
+    }
+    return ok ? 0 : 1;
+}
 
 int RunLifetime(Device& device) {
     const ClearReadbackDesc desc = q1a_test::MakePatternDesc();
@@ -187,7 +331,13 @@ int RunIncompleteInitShutdown() {
 
 }  // namespace
 
-int main() {
+int main(int argc, char** argv) {
+    if (argc == 2 && std::string(argv[1]) == "reverse_gate") {
+        return q1a_test::ForEachAdapter(RunReverseGate);
+    }
+    if (argc == 2 && std::string(argv[1]) == "handle_identity") {
+        return q1a_test::ForEachAdapter(RunHandleIdentity);
+    }
     const int lifetime = q1a_test::ForEachAdapter(RunLifetime);
     const int outstanding = q1a_test::ForEachAdapter(RunShutdownWithOutstanding);
     const int incomplete = RunIncompleteInitShutdown();
