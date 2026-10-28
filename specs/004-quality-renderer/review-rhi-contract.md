@@ -32,7 +32,7 @@
 ### 3. The evidence record was stale
 
 - **Finding**: `evidence-contract.md` described a `964d358` base and a 23-test suite; the suite had grown and the branch had moved. It also did not record the new lexical checks.
-- **Resolution**: renamed to `evidence-rhi-contract.md`, refreshed identity, counts (35 tests, 16 self-tests, 10 mutants), new logs, per-check outcomes, and the issue-#11 permission failure. The historical red log is labelled historical.
+- **Resolution**: renamed to `evidence-rhi-contract.md`, refreshed identity, counts (38 tests, 16 self-tests, 11 mutants), new logs, per-check outcomes, and the issue-#11 permission failure. The historical red log is labelled historical.
 - **Status**: resolved.
 
 ### 4. Five stale 005 claims and one wrong tense
