@@ -1,6 +1,6 @@
 # Independent review: Q1a D3D12 RHI clear/readback
 
-**Status**: final review record for issue #11. This file **replaces** the 2026-10-27
+**Date**: 2026-10-28. **Status**: final review record for issue #11. This file **replaces** the 2026-10-27
 review, which covered the superseded pre-amendment seam. The reviewed code is commit
 `1c0187b` and the evidence/fix commit `369c47b`; the round-2 reviewer accepted both. This
 review was performed by an agent with a fresh context that did not write the code. It is
@@ -78,7 +78,7 @@ the opt-in reporting behavior, not because validation executed.
 | ID | Severity | Finding | Disposition |
 |---|---|---|---|
 | N1 | Low, record-keeping | The evidence said a round-2 review was recorded while the 2026-10-27 file was still present | Fixed by replacing this file and correcting the evidence sentence |
-| N2 | Low, latent robustness | `Submit` did not guard `bad_alloc` around journal/map bookkeeping | Fixed after round 2 with a catch returning `OutOfMemory`; the author rebuilt and reran Debug/Release 7/7. This delta is not independently re-reviewed; it is a defensive path with no behavior change on the tested route |
+| N2 | Low, latent robustness | `Submit` did not guard `bad_alloc` around journal/map bookkeeping | Fixed after round 2 with a catch returning `OutOfMemory`; the author rebuilt and reran Debug/Release 7/7. This delta was then verified by a final delta review at `b059007`; it is a defensive path with no behavior change on the tested route |
 
 ## What was verified
 

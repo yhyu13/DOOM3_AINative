@@ -311,4 +311,4 @@ Use a new, non-existing build directory for a fresh run. The fixture reads
 - **Review decision and unresolved items**: round 1 requested evidence/process changes only
   (no blocking code defect): commit the corrected evidence, replace the stale review, add the
   red and changed-files records, and fix several wording/robustness items. Those changes are
-  applied here. Round 2 independently reran the full suite and returned ACCEPT at `369c47b`. A post-review `std::bad_alloc` guard in `Submit` (finding N2) is a defensive change after that acceptance; the author rebuilt and reran Debug/Release 7/7, but that delta is not independently re-reviewed.
+  applied here. Round 2 independently reran the full suite and returned ACCEPT at `369c47b`. A post-review `std::bad_alloc` guard in `Submit` (finding N2) is a defensive change after that acceptance; the author rebuilt and reran Debug/Release 7/7, but that delta was verified by a final delta review at `b059007`.
