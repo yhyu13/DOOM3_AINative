@@ -1,4 +1,4 @@
-# DOOM3_AINative — three-poster product concept
+﻿# DOOM3_AINative — three-poster product concept
 
 **One offline HTML file. Three posters. A browser-monitor product hero, a real (redacted) DOOM 3 frame, and a one-sentence Rogue-mode concept.**
 
@@ -12,8 +12,8 @@ Microsoft Edge kiosk with the autoplay exemption.
 | Poster | Claim | What it shows |
 |---|---|---|
 | **01 · PLAY** | *DOOM 3 in the browser.* | A monitor/browser mockup with a **real DOOM 3 frame, fully redacted in `XX`**, a live HUD, and four capability cards: **PLAY / REMAP / MOD / AI ROGUE**. |
-| **02 · THE DREAM** | *Modern FPS. Personal hell.* | A **2004 / 2026 diagonal comparison**: the left side is the **redacted 2004 archival frame**, the right side a **procedural 2026 modern corridor** (Mars window, volumetric light, HUD). Drag the knob, press **REVEAL 2026**, or let it auto-sweep after 2.6 s idle; **REVEAL 2026** expands the modern side (32), **BACK TO 2004** expands the old side (80); **NEXT-GEN LOOK / AI DIRECTOR / PERSONAL RUN**; one proof strip. |
-| **03 · VISION** | *Your DOOM. Your rules.* | **REMAP** (M5 planned), **MOD** (M7 planned), and **AI ROGUE** — a working concept demo where one sentence regenerates a seed, a map and a modifier. Plus the seven-step delivery loop and the M0–M7 roadmap. |
+| **02 · THE DREAM** | *Modern FPS. Personal hell.* | A **2004 / 2026 diagonal comparison**: the left side is the **redacted 2004 archival frame**, the right side a **GPT Image 2.5 modern-FPS vision** (image-to-image from the 2004 promo; PBR, volumetric light, HDR). Drag the knob, press **REVEAL 2026**, or let it auto-sweep after 2.6 s idle; **REVEAL 2026** expands the modern side (32), **BACK TO 2004** expands the old side (80); **NEXT-GEN LOOK / AI DIRECTOR / PERSONAL RUN**; one proof strip. |
+| **03 · VISION** | *Your DOOM. Your rules.* | Over a **GPT Image 2.5 Mars command-center vision**: **REMAP** (M5 planned), **MOD** (M7 planned), and **AI ROGUE** — a working concept demo where one sentence regenerates a seed, a map and a modifier. Plus the seven-step delivery loop and the M0–M7 roadmap. |
 
 The deck is a **product concept**, not a claim that the port is shipped. Poster 1 uses future-tense
 product copy (`will run`), carries `M0 · SCAFFOLD`, and says port work starts at M1; poster 3
@@ -48,6 +48,28 @@ uv run --python 3.12 showcase/build.py `
 A local, unredacted design preview was used only in the operator's temp directory and is not part of
 this repository. The rejected alternatives (Doom Wiki fair use, CC BY 2.0 QuakeCon photo, CC BY-SA
 2.5 fan art) are not GPL-compatible; the licence audit is recorded in the project conversation.
+
+## AIGC vision (GPT Image 2.5)
+
+The two vision images are generated with **GPT Image 2.5** (`openai/gpt-image-2.5-flare`) through an
+OpenAI-compatible proxy:
+
+| Asset | Endpoint | Input | Role |
+|---|---|---|---|
+| `assets/aigc/page2-modern.jpg` | `POST /v1/images/edits` | official 2004 promo frame (local only) | 2026 modern-FPS reimagining; right side of poster 2 |
+| `assets/aigc/page3-vision.jpg` | `POST /v1/images/generations` | text only | Mars command center / holographic level map; poster 3 backdrop |
+
+Both are cropped to 16:9, resized to **1600×900 JPEG q86**, and embedded as data URIs. The deck
+labels them **`AI-GENERATED VISION · NOT A GAME CAPTURE`**; page 3 also carries
+**`AI VISION · GPT IMAGE 2.5`**. The prompts, endpoints and licensing status are in
+[`assets/aigc/README.md`](assets/aigc/README.md).
+
+- Page 2 is a **derivative** of the official promo screenshot. The original and the unredacted input
+  are **not** in this repository; licensing is **pending** (T042 / issue #2). Replace it with a
+  licensed capture before public distribution.
+- Page 3 is **text-to-image** with no game-art input; it is original AI-generated concept art.
+- `--no-aigc` restores the procedural corridor/network fallback. The page-2 left side reuses the
+  embedded redacted hero, so the PNG is stored once.
 
 ## Controls
 
@@ -106,24 +128,30 @@ The English translation is the second caption line. Both live in
 
 ## Rebuild
 
-The committed `index.html` already contains the audio and the redacted capture. Rebuilding is only
-needed when the script, voice, redacted asset, or licensed media changes.
+The committed `index.html` already contains the audio, the redacted capture and the two AIGC
+vision images. Rebuilding is only needed when the script, voice, assets, or licensed media changes.
 
 ```powershell
 uv run --python 3.12 showcase/build.py
+uv run --python 3.12 showcase/build.py --no-aigc   # procedural corridor/network fallback
 ```
 
-By default the build uses `assets/hero-redacted.png`. Use `--no-hero` for the procedural industrial
-reference frame, or `--hero` for a licensed image/video. The first build needs network access to
-Microsoft Edge TTS; later builds reuse the git-ignored cache in
-`showcase/evidence/tts-cache.json`.
+By default the build uses `assets/hero-redacted.png` and the two `assets/aigc/*.jpg` images. Use
+`--no-hero` for the procedural industrial reference frame on poster 1 (page 2 keeps the redacted
+archival inset), `--no-aigc` for the procedural corridor/network fallback, or `--hero` for a
+licensed image/video. The first build needs network access to Microsoft Edge TTS; later builds
+reuse the git-ignored cache in `showcase/evidence/tts-cache.json`.
 
 ```text
 showcase/
 ├── index.html                 generated single-file deliverable
 ├── assets/
 │   ├── hero-redacted.png      redacted real frame (placeholder, licensing pending)
-│   └── README.md              provenance + redaction method
+│   ├── README.md              provenance + redaction method
+│   └── aigc/
+│       ├── page2-modern.jpg   GPT Image 2.5 image-to-image vision (licensing pending)
+│       ├── page3-vision.jpg   GPT Image 2.5 text-to-image command center
+│       └── README.md          model, endpoints, prompts and licensing status
 ├── src/
 │   ├── narration.json         the only transcript source
 │   ├── head.html              document head + meta
@@ -137,6 +165,8 @@ showcase/
 ├── build.py                   TTS + timings + assembly + hero media
 ├── verify.py                  Playwright contract gate
 ├── verify_deep.py             extended matrix (Chrome/Edge, offline, touch, sync)
+├── verify_variants.py         default / --no-aigc / --no-hero / --hero / reproducibility gate
+├── verify_axe.py              axe-core WCAG 2.1 A/AA gate (axe-core not vendored)
 ├── start.cmd                  Edge kiosk launcher
 └── preview.png                3-up preview for this README
 ```
@@ -148,24 +178,39 @@ showcase/
 ```powershell
 uv run --python 3.12 showcase/verify.py
 uv run --python 3.12 showcase/verify_deep.py
+uv run --python 3.12 showcase/verify_variants.py
+# axe-core is not vendored; install it once, then point AXE_PATH at it
+npm install axe-core@4.10.3 --prefix .axe
+$env:AXE_PATH = ".axe/node_modules/axe-core/axe.min.js"
+uv run --python 3.12 showcase/verify_axe.py
 ```
 
-Current evidence (2026-10-26):
+Current evidence (2026-10-28):
 
-- `verify.py` — **124 passed, 0 failed**. Single file 2.64 MiB, zero external requests, three posters,
-  zero console/page errors, three distinct screenshots, embedded narration, six claim literals,
-  redacted-hero label, four capability cards, AI Rogue concept, keyboard/pause/captions,
-  autoplay-blocked fallback, `?autoplay=0`, 1366 scaling.
-- `verify_deep.py` — **161 passed, 0 failed, 1 skipped**. Edge + Chrome, offline `file://`, reduced
+- `verify.py` — **157 passed, 0 failed**. Single file 2,741,798 bytes (2.61 MiB), zero external
+  requests, three posters, zero console/page errors, three distinct screenshots, embedded narration,
+  six claim literals, redacted-hero label, four capability cards, AI Rogue concept,
+  keyboard/pause/captions, autoplay-blocked fallback, `?autoplay=0`, 1366 scaling. It also asserts
+  the exact data URI and decoded 1600×900 size of each AIGC image, the exact truth labels on pages 2
+  and 3, the single embedded redacted PNG, the visual split/clip (not just `aria-valuenow`), real
+  pointer drag, and both sides of the auto-sweep (72 → 40).
+- `verify_deep.py` — **182 passed, 0 failed, 1 skipped**. Edge + Chrome, offline `file://`, reduced
   motion, `cc=0`, **real CDP touch swipe (no `pointercancel`)**, 3→1 loop, caption + word sync at all
   21 chunks, Space-on-control, page visibility, canvas-unavailable fallback, evidence hovers, mute,
-  fullscreen, 4K + DPR2, portrait, animation, **60.0–60.3 fps measured across recent runs** (gate ≥30), accessible button
-  names, HTML parse, and the `start.cmd` contract. The one skip is Firefox: not installed.
+  fullscreen, **4K posters 1/2/3**, DPR2, portrait, animation, **49–59 fps measured in this run**
+  (gate ≥30), accessible button names, HTML parse, and the `start.cmd` contract. The one skip is
+  Firefox: not installed.
 - **axe-core 4.10.3, WCAG 2.1 A/AA** — **0 violations** on all three posters after a 900 ms settle;
-  **1 incomplete color-contrast check per poster** (120/66/111 nodes, text over image/canvas), so AA
-  contrast is not fully machine-verified. The first pass exposed two real contrast misses, both fixed.
-- **Reproducibility** — two consecutive default builds are byte-identical: 2,763,768 bytes,
-  SHA-256 `71538680713998ebd1ff657b1ccc14dd0ea1aa8980201fcb949c3b9bb426fa9e`.
+  **1 incomplete color-contrast check per poster** (120/66/113 nodes, text over image/canvas), so AA
+  contrast is not fully machine-verified. Rerun with `verify_axe.py`; the JSON lands in
+  `showcase/evidence/axe.json`.
+- **Variant gate** — `verify_variants.py` rebuilds the default twice plus `--no-aigc`, `--no-hero`
+  and a licensed `--hero` deck and checks exact assets/labels, the 46→80→32 visual clip, pointer
+  drag, static and runtime fallback labels, procedural canvases, licensed-hero isolation, local-only
+  requests and reproducibility. Last run: **58 passed, 0 failed**.
+- **Reproducibility** — two consecutive default builds are byte-identical and match the committed
+  artifact: 2,741,798 bytes, SHA-256
+  `b758b90a9cd2bc1a98af0b6cae853a9f21348156d2a2281e30032f043e864afc`.
 
 Screenshots and logs land in `showcase/evidence/`, which is git-ignored. `verify.py --headed` lets
 you watch the run.
@@ -193,8 +238,14 @@ verifier: it asserts the README literals and the poster proof strip.
   Rights remain with id/Bethesda; it is included only as a **redacted placeholder** with
   `LICENSING PENDING`. Replace it with a licensed capture before public distribution. The original
   screenshot is not in this repository.
-- The procedural reference frame, 2026 modern corridor render, portal, code rain, graph and AI Rogue demo
-  are original code in this repository.
+- `assets/aigc/page2-modern.jpg` is a **GPT Image 2.5 derivative** of the official 2004 promo frame
+  (image-to-image). Rights in the underlying art remain with id/Bethesda; it is a concept vision, not
+  a game capture, and **licensing is pending** (T042 / issue #2). The original input is not in this
+  repository.
+- `assets/aigc/page3-vision.jpg` is **text-to-image** with no game-art input; it is original
+  AI-generated concept art for this deck.
+- The procedural reference frame, procedural 2026 corridor/network fallback, portal, code rain,
+  graph and AI Rogue demo are original code in this repository.
 - Narration is generated with Microsoft Edge TTS from the repository's own script.
 - Any `--hero` image or video is supplied by the operator; it is inlined into a local build but is
   not part of the repository, and the operator is responsible for its licence.

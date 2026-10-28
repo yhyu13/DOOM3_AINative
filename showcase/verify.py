@@ -14,6 +14,7 @@ download is needed. Writes screenshots and a log under showcase/evidence/.
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import json
 import re
@@ -113,11 +114,11 @@ def main() -> int:
 
     html = INDEX.read_text(encoding="utf-8")
     size = INDEX.stat().st_size
-    check(100_000 <= size <= 4 * 1024 * 1024, f"artifact :: single file size {size/1024:.1f} KiB within 100 KiB–4 MiB")
+    check(100_000 <= size < 4 * 1024 * 1024, f"artifact :: single file size {size/1024:.1f} KiB within 100 KiB–under 4 MiB")
     check('src="http' not in html and "src='http" not in html, "artifact :: no external src")
     check('href="http' not in html and "href='http" not in html, "artifact :: no external href")
     check("@import url(http" not in html, "artifact :: no remote CSS import")
-    check(not re.search(r"(?:src|href)\s*=\s*['\"]?https?://", html, re.I), "artifact :: no remote src/href (regex)")
+    check(not re.search(r"(?:src|href|srcset|imagesrcset|poster)\s*=\s*['\"]?https?://", html, re.I), "artifact :: no remote src/href/srcset/poster (regex)")
     check(not re.search(r"url\(\s*['\"]?https?://", html, re.I), "artifact :: no remote CSS url()")
     check(not re.search(r"fetch\(\s*['\"]?https?://", html, re.I), "artifact :: no remote fetch()")
     check(not INDEX.read_bytes().startswith(b"\xef\xbb\xbf"), "artifact :: no UTF-8 BOM")
@@ -129,8 +130,18 @@ def main() -> int:
     check(html.count("data:audio/mpeg;base64,") == 3, "artifact :: three embedded MP3 narration tracks")
     check((ROOT / "assets" / "hero-redacted.png").exists(), "asset :: redacted capture file exists")
     check((ROOT / "assets" / "README.md").exists(), "asset :: provenance note exists")
+    aigc_note = ROOT / "assets" / "aigc" / "README.md"
+    check(aigc_note.exists(), "asset :: AIGC provenance note exists")
+    note = aigc_note.read_text(encoding="utf-8") if aigc_note.exists() else ""
+    check(all(x in note for x in ("gpt-image-2.5", "images/edits", "images/generations", "Prompt", "licensing pending")),
+          "asset :: AIGC note records model, endpoints, prompt and licensing")
     check("data:image/png;base64," in html, "artifact :: redacted hero image embedded")
+    check(html.count("data:image/png;base64,") == 1, "artifact :: hero PNG embedded exactly once (not duplicated for page 2)")
+    check(html.count("data:image/jpeg;base64,") == 2, "artifact :: exactly two AIGC JPEG assets embedded")
     check("REDACTED CAPTURE" in html and "LICENSING PENDING" in html, "artifact :: redaction label and credit present")
+    page2_uri = "data:image/jpeg;base64," + base64.b64encode((ROOT / "assets" / "aigc" / "page2-modern.jpg").read_bytes()).decode("ascii")
+    page3_uri = "data:image/jpeg;base64," + base64.b64encode((ROOT / "assets" / "aigc" / "page3-vision.jpg").read_bytes()).decode("ascii")
+    hero_uri = "data:image/png;base64," + base64.b64encode((ROOT / "assets" / "hero-redacted.png").read_bytes()).decode("ascii")
 
     launch_args = [
         "--autoplay-policy=no-user-gesture-required",
@@ -160,10 +171,55 @@ def main() -> int:
             check(page.evaluate("document.querySelector('.poster.is-active').dataset.poster") == str(n), f"poster {n} :: correct active poster")
             if n == 2:
                 check(page.evaluate("document.querySelector('#p2Old').src.startsWith('data:image/png')"), "poster 2 :: 2004 archival image present")
+                check(page.evaluate("""() => {const i=document.querySelector('#p2Old');
+                    return i.complete && i.naturalWidth > 0 && i.naturalHeight > 0;}"""),
+                      "poster 2 :: 2004 archival image decoded")
+                check(page.evaluate("(u) => document.querySelector('#p2Old').src === u", hero_uri),
+                      "poster 2 :: 2004 archival reuses the embedded redacted hero")
+                check(page.evaluate("(u) => document.querySelector('#p2New').src === u", page2_uri),
+                      "poster 2 :: #p2New is exactly page2-modern.jpg")
+                check(page.evaluate("""() => {const i=document.querySelector('#p2New');
+                    return !i.hidden && i.complete && i.naturalWidth===1600 && i.naturalHeight===900;}"""),
+                      "poster 2 :: AIGC image decoded 1600x900 and visible")
+                check(page.evaluate("document.querySelector('#p2New').hidden === false && document.querySelector('.p2').dataset.aigc === '1'"),
+                      "poster 2 :: AIGC mode is active")
+                check(page.evaluate("getComputedStyle(document.querySelector('#fx2')).display === 'none'"),
+                      "poster 2 :: procedural canvas is hidden when AIGC is active")
                 check(page.locator("#p2Handle").count() == 1 and page.locator("#p2Reveal").count() == 1, "poster 2 :: compare handle + reveal button")
                 check(page.locator("#p2SplitLine").count() == 1, "poster 2 :: diagonal split line")
                 check(page.locator(".claim,.claims").count() == 0, "poster 2 :: no source-card wall")
-                check("PROCEDURAL MODERN RENDER" in page.locator(".p2-vision-label").inner_text(), "poster 2 :: modern-render truth label")
+                check(page.locator("#p2VisionLabel").inner_text().strip() == "AI-GENERATED VISION · NOT A GAME CAPTURE",
+                      "poster 2 :: exact AIGC truth label")
+                check(len(page.locator("#p2New").get_attribute("alt") or "") > 8 and "AI" in page.locator("#p2New").get_attribute("alt"),
+                      "poster 2 :: AIGC image has a descriptive alt")
+                split_css = page.evaluate("getComputedStyle(document.querySelector('.p2')).getPropertyValue('--split').trim()")
+                split_aria = page.locator("#p2Handle").get_attribute("aria-valuenow")
+                check(float(split_css) == float(split_aria), f"poster 2 :: visual split {split_css} matches aria {split_aria}")
+                clip = page.evaluate("getComputedStyle(document.querySelector('#p2Old')).clipPath")
+                check(clip.startswith("polygon("), f"poster 2 :: 2004 image is clipped by the split ({clip[:40]}…)")
+            if n == 3:
+                check(page.evaluate("(u) => document.querySelector('#p3Bg').src === u", page3_uri),
+                      "poster 3 :: #p3Bg is exactly page3-vision.jpg")
+                check(page.evaluate("""() => {const i=document.querySelector('#p3Bg');
+                    return !i.hidden && i.complete && i.naturalWidth===1600 && i.naturalHeight===900;}"""),
+                      "poster 3 :: AIGC background decoded 1600x900 and visible")
+                check(page.evaluate("document.querySelector('.p3').dataset.aigc === '1'"), "poster 3 :: AIGC mode is active")
+                check(page.evaluate("getComputedStyle(document.querySelector('#fx3')).display === 'none'"),
+                      "poster 3 :: procedural network canvas is hidden when AIGC is active")
+                check(page.locator("#p3AiLabel").inner_text().strip() == "AI VISION · GPT IMAGE 2.5", "poster 3 :: exact AI vision label")
+                check(page.locator("#p3Truth").inner_text().strip() == "AI-GENERATED VISION · NOT A GAME CAPTURE",
+                      "poster 3 :: page 3 carries the AI-generated truth label")
+                check(len(page.locator("#p3Bg").get_attribute("alt") or "") > 8 and "AI" in page.locator("#p3Bg").get_attribute("alt"),
+                      "poster 3 :: AIGC background has a descriptive alt")
+                check(page.locator(".vision-card").count() == 3, "poster 3 :: three vision cards")
+                check(page.locator(".loop-step").count() == 7, "poster 3 :: seven loop steps")
+                check(page.locator(".rm-cell").count() == 8, "poster 3 :: eight roadmap milestones")
+                on_top = page.evaluate("""() => Array.from(document.querySelectorAll('.vision-card')).every(el => {
+                    const r = el.getBoundingClientRect();
+                    const hit = document.elementFromPoint(r.left + r.width/2, r.top + r.height/2);
+                    return !!(hit && hit.closest('.vision-card'));
+                })""")
+                check(on_top, "poster 3 :: all three cards sit above the AIGC background")
             if n == 1:
                 check(page.locator(".monitor").count() == 1, "poster 1 :: browser monitor present")
                 check(page.locator("#browserView #fxFrame").count() == 1, "poster 1 :: game canvas sits inside the browser viewport")
@@ -215,7 +271,7 @@ def main() -> int:
             check(literal in readme, f"claims :: README evidence present: {literal}")
         check("ROADMAP §1" in readme or "docs/ROADMAP.md §1" in readme, "claims :: README cites the roadmap")
         for literal in ("MODERN FPS.", "PERSONAL HELL.", "NEXT-GEN LOOK", "AI DIRECTOR", "PERSONAL RUN",
-                        "1,387", "734,180", "0 GAME DATA", "PROCEDURAL MODERN RENDER · NOT A GAME CAPTURE"):
+                        "1,387", "734,180", "0 GAME DATA", "AI-GENERATED VISION · NOT A GAME CAPTURE"):
             check(literal in content, f"dream :: literal present: {literal}")
         for literal in ("CONCEPT ROADMAP / 2026", "M5 / PLANNED", "M7 / PLANNED", "CONCEPT DEMO · NOT A SHIPPED FEATURE"):
             check(literal in content, f"vision :: literal present: {literal}")
@@ -226,15 +282,48 @@ def main() -> int:
         ctx, page, errors, requests = new_page(browser)
         page.goto(page_url(2, snap=False), wait_until="load")
         wait_ready(page)
-        before_split = page.locator("#p2Handle").get_attribute("aria-valuenow")
+        def split_state(pg):
+            return pg.evaluate("""() => {
+                const p2 = document.querySelector('.p2');
+                const h = document.querySelector('#p2Handle');
+                const old = document.querySelector('#p2Old');
+                return {
+                    css: parseFloat(getComputedStyle(p2).getPropertyValue('--split')),
+                    aria: parseFloat(h.getAttribute('aria-valuenow')),
+                    clip: getComputedStyle(old).clipPath,
+                    label: h.querySelector('span').textContent
+                };
+            }""")
+
+        before = split_state(page)
+        check(before["css"] == 46 and before["aria"] == 46, "compare :: starts at the 46 split")
         page.locator("#p2Reveal").click()
         page.wait_for_timeout(2200)
-        after_split = page.locator("#p2Handle").get_attribute("aria-valuenow")
-        check(before_split == "46" and after_split == "80", f"compare :: BACK TO 2004 expands the old side ({before_split} -> {after_split})")
+        back = split_state(page)
+        check(back["aria"] == 80, f"compare :: BACK TO 2004 expands the old side ({before['aria']} -> {back['aria']})")
+        check(abs(back["css"] - 80) <= 0.6 and back["clip"].startswith("polygon("), f"compare :: BACK TO 2004 moves the visual clip, not just aria (css {back['css']})")
         page.locator("#p2Reveal").click()
         page.wait_for_timeout(2200)
-        check(page.locator("#p2Handle").get_attribute("aria-valuenow") == "32", "compare :: REVEAL 2026 expands the modern side")
+        reveal = split_state(page)
+        check(reveal["aria"] == 32, "compare :: REVEAL 2026 expands the modern side")
+        check(abs(reveal["css"] - 32) <= 0.6 and reveal["clip"].startswith("polygon("), f"compare :: REVEAL 2026 moves the visual clip, not just aria (css {reveal['css']})")
+        check(reveal["clip"] != back["clip"], "compare :: the 2004 clip actually changes between 80 and 32")
         audit_console(errors, "compare")
+
+        # real pointer drag on the handle (not just the buttons)
+        box = page.locator("#p2Handle").bounding_box()
+        start_x = box["x"] + box["width"] / 2
+        start_y = box["y"] + box["height"] / 2
+        page.mouse.move(start_x, start_y)
+        page.mouse.down()
+        page.mouse.move(start_x + 420, start_y, steps=8)
+        page.mouse.up()
+        page.wait_for_timeout(300)
+        dragged = split_state(page)
+        check(dragged["aria"] > reveal["aria"] + 10, f"compare :: pointer drag moves the split ({reveal['aria']} -> {dragged['aria']})")
+        check(abs(dragged["css"] - dragged["aria"]) <= 0.6, "compare :: drag keeps the visual split in sync with aria")
+        check(dragged["label"] == "DRAG", "compare :: drag exits the AUTO state")
+        audit_console(errors, "compare drag")
         ctx.close()
 
         # ---- snap-mode button regression (no spring)
@@ -255,9 +344,12 @@ def main() -> int:
         page.goto(page_url(2, snap=False), wait_until="load")
         wait_ready(page)
         page.wait_for_timeout(4400)
-        auto_split = page.locator("#p2Handle").get_attribute("aria-valuenow")
-        check(int(auto_split) > 50, f"compare :: idle auto-sweep moves the split ({auto_split})")
+        auto_split = int(page.locator("#p2Handle").get_attribute("aria-valuenow"))
+        check(68 <= auto_split <= 76, f"compare :: idle auto-sweep reaches the 72 side ({auto_split})")
         check("AUTO" in page.locator("#p2Handle").inner_text(), "compare :: auto state is visible on the handle")
+        page.wait_for_timeout(4700)
+        auto_back = int(page.locator("#p2Handle").get_attribute("aria-valuenow"))
+        check(auto_back < 50, f"compare :: auto-sweep oscillates back toward 40 ({auto_split} -> {auto_back})")
         audit_console(errors, "compare auto")
         ctx.close()
 

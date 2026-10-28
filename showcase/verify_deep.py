@@ -14,6 +14,7 @@ Run:
 """
 from __future__ import annotations
 
+import base64
 import hashlib
 import html5lib
 import re
@@ -27,6 +28,9 @@ from playwright.sync_api import Error as PWError, sync_playwright
 ROOT = Path(__file__).resolve().parent
 INDEX = ROOT / "index.html"
 EVIDENCE = ROOT / "evidence"
+PAGE2_URI = "data:image/jpeg;base64," + base64.b64encode((ROOT / "assets" / "aigc" / "page2-modern.jpg").read_bytes()).decode("ascii")
+PAGE3_URI = "data:image/jpeg;base64," + base64.b64encode((ROOT / "assets" / "aigc" / "page3-vision.jpg").read_bytes()).decode("ascii")
+HERO_URI = "data:image/png;base64," + base64.b64encode((ROOT / "assets" / "hero-redacted.png").read_bytes()).decode("ascii")
 LAUNCH_ARGS = [
     "--autoplay-policy=no-user-gesture-required",
     "--allow-file-access-from-files",
@@ -315,8 +319,12 @@ def main() -> int:
             wait_ready(page)
             check(page.locator(".p2-feature").count() == 3, "compare :: three experience cards")
             check("NEXT-GEN LOOK" in page.locator(".p2-features").inner_text(), "compare :: next-gen look card")
-            check(page.evaluate("document.querySelector('#p2Old').src.startsWith('data:image/png')"), "compare :: 2004 archival frame is present")
-            check("PROCEDURAL MODERN RENDER" in page.locator(".p2-vision-label").inner_text(), "compare :: modern render label")
+            check(page.evaluate("(u) => document.querySelector('#p2Old').src === u", HERO_URI), "compare :: 2004 archival frame reuses the redacted hero")
+            check(page.evaluate("(u) => document.querySelector('#p2New').src === u", PAGE2_URI), "compare :: #p2New is exactly page2-modern.jpg")
+            check(page.evaluate("""() => {const i=document.querySelector('#p2New');
+                return !i.hidden && i.complete && i.naturalWidth===1600 && i.naturalHeight===900;}"""),
+                  "compare :: AIGC modern vision decoded 1600x900 and visible")
+            check(page.locator("#p2VisionLabel").inner_text().strip() == "AI-GENERATED VISION · NOT A GAME CAPTURE", "compare :: exact AIGC vision label")
             check("734,180" in page.locator(".p2-proof").inner_text(), "compare :: proof strip carries the reality check")
             check(page.locator(".claim,.claims").count() == 0, "compare :: no source-card wall")
             before_split = page.locator("#p2Handle").get_attribute("aria-valuenow")
@@ -337,6 +345,28 @@ def main() -> int:
             })""")
             check(p2fps >= 30, f"performance :: page 2 comparison {p2fps:.1f} fps")
             audit_console(errors, "compare poster")
+            ctx.close()
+
+            # ---- page 3 AIGC background
+            ctx, page, errors, requests = new_ctx(browser)
+            page.goto(url(3, snap=True), wait_until="load")
+            wait_ready(page)
+            check(page.evaluate("(u) => document.querySelector('#p3Bg').src === u", PAGE3_URI), "vision :: #p3Bg is exactly page3-vision.jpg")
+            check(page.evaluate("""() => {const i=document.querySelector('#p3Bg');
+                return !i.hidden && i.complete && i.naturalWidth===1600 && i.naturalHeight===900;}"""),
+                  "vision :: AIGC background decoded 1600x900 and visible")
+            check(page.locator("#p3AiLabel").inner_text().strip() == "AI VISION · GPT IMAGE 2.5", "vision :: exact AI vision label")
+            check(page.locator("#p3Truth").inner_text().strip() == "AI-GENERATED VISION · NOT A GAME CAPTURE", "vision :: page 3 truth label")
+            check(page.locator(".vision-card").count() == 3, "vision :: three vision cards")
+            check(page.locator(".loop-step").count() == 7, "vision :: seven loop steps")
+            check(page.locator(".rm-cell").count() == 8, "vision :: eight roadmap milestones")
+            on_top = page.evaluate("""() => Array.from(document.querySelectorAll('.vision-card')).every(el => {
+                const r = el.getBoundingClientRect();
+                const hit = document.elementFromPoint(r.left + r.width/2, r.top + r.height/2);
+                return !!(hit && hit.closest('.vision-card'));
+            })""")
+            check(on_top, "vision :: all cards sit above the AIGC background")
+            audit_console(errors, "vision background")
             ctx.close()
 
             # mute toggle
@@ -385,6 +415,24 @@ def main() -> int:
                 s = 0.0
             check(1.99 <= s <= 2.01, f"4k :: stage scales 2x ({tr})")
             shot(page, "deep-4k-poster-1.png")
+            ctx.close()
+
+            # 4K pages 2/3: content must stay above the AIGC imagery
+            ctx, page, errors, requests = new_ctx(browser, viewport={"width": 3840, "height": 2160})
+            for n, selector in ((2, ".p2-copy, .p2-features, .p2-compare-actions"), (3, ".vision-card, .loop-step, .rm-cell")):
+                page.goto(url(n, snap=True), wait_until="load")
+                wait_ready(page)
+                on_top = page.evaluate("""(sel) => Array.from(document.querySelectorAll(sel)).every(el => {
+                    const r = el.getBoundingClientRect();
+                    const x = r.left + Math.min(r.width/2, 120);
+                    const y = r.top + Math.min(r.height/2, 60);
+                    const hit = document.elementFromPoint(x, y);
+                    return !!(hit && (hit === el || el.contains(hit) || hit.closest(sel)));
+                })""", selector)
+                check(on_top, f"4k :: poster {n} content sits above the background")
+                check(page.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), f"4k :: poster {n} has no horizontal overflow")
+                shot(page, f"deep-4k-poster-{n}.png")
+                audit_console(errors, f"4k poster {n}")
             ctx.close()
 
             # DPR2 / high-density backing store

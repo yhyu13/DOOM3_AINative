@@ -35,6 +35,7 @@ CACHE = ROOT / "evidence" / "tts-cache.json"
 DEFAULT_HERO = ROOT / "assets" / "hero-redacted.png"
 DEFAULT_HERO_CREDIT = "LICENSING PENDING · NOT A LICENSED RELEASE"
 DEFAULT_HERO_LABEL = "REDACTED CAPTURE"
+AIGC_DIR = ROOT / "assets" / "aigc"
 WORD_RE = re.compile(r"\w", re.UNICODE)
 
 
@@ -172,7 +173,7 @@ def assign_words(chunks: list[dict], words: list[dict], duration: float) -> None
         chunks[-1]["end"] = duration
 
 
-async def build(hero: Path | None, out: Path, hero_credit: str | None, hero_label: str | None, no_hero: bool) -> int:
+async def build(hero: Path | None, out: Path, hero_credit: str | None, hero_label: str | None, no_hero: bool, no_aigc: bool) -> int:
     import time as _time
 
     spec = json.loads((SRC / "narration.json").read_text(encoding="utf-8"))
@@ -274,22 +275,54 @@ async def build(hero: Path | None, out: Path, hero_credit: str | None, hero_labe
         print(f"[hero] credit: {credit}", flush=True)
 
     archival_data = None
-    if DEFAULT_HERO.exists():
+    reuse_default_hero = hero is not None and hero == default_hero
+    if DEFAULT_HERO.exists() and not reuse_default_hero:
         raw_a = DEFAULT_HERO.read_bytes()
         archival_data = {
             "src": "data:image/png;base64," + base64.b64encode(raw_a).decode("ascii"),
             "label": "2004 ARCHIVAL / REDACTED",
         }
         print(f"[archival] inlined {DEFAULT_HERO.name} for the 2004 inset", flush=True)
+    elif reuse_default_hero:
+        print("[archival] reusing the default redacted hero for the 2004 inset", flush=True)
+
+    aigc_data = None
+    if not no_aigc:
+        p2 = AIGC_DIR / "page2-modern.jpg"
+        p3 = AIGC_DIR / "page3-vision.jpg"
+        if p2.exists() and p3.exists():
+            aigc_data = {
+                "page2": "data:image/jpeg;base64," + base64.b64encode(p2.read_bytes()).decode("ascii"),
+                "page3": "data:image/jpeg;base64," + base64.b64encode(p3.read_bytes()).decode("ascii"),
+            }
+            print(f"[aigc] inlined {p2.name} + {p3.name}", flush=True)
+        else:
+            print(f"WARNING: AIGC assets missing under {AIGC_DIR}; using procedural fallback.", file=sys.stderr)
+    else:
+        print("[aigc] disabled (--no-aigc); procedural fallback", flush=True)
 
     css = read("base.css") + "\n" + read("posters.css")
     head = read("head.html").replace("<!--__CSS__-->", "<style>\n" + css + "\n</style>")
     body = read("body.html")
+    if aigc_data is None:
+        # Keep a --no-aigc (or missing-asset) build truthful before JS boots.
+        replacements = (
+            ('id="p2VisionLabel">AI-GENERATED VISION · NOT A GAME CAPTURE<',
+             'id="p2VisionLabel">PROCEDURAL MODERN RENDER · NOT A GAME CAPTURE<'),
+            ('id="p3Truth">AI-GENERATED VISION · NOT A GAME CAPTURE<',
+             'id="p3Truth">PROCEDURAL VISION · NOT A GAME CAPTURE<'),
+            ('id="p3AiLabel">AI VISION · GPT IMAGE 2.5<',
+             'id="p3AiLabel">PROCEDURAL VISION<'),
+        )
+        for old, new in replacements:
+            if old not in body:
+                print(f"WARNING: procedural label placeholder not found: {old}", file=sys.stderr)
+            body = body.replace(old, new)
     frame = read("runtime.frame.js")
     cmp = read("runtime.compare.js")
     canvas = read("runtime.canvas.js")
     core = read("runtime.core.js")
-    data = {"pages": pages, "hero": hero_data, "archival": archival_data}
+    data = {"pages": pages, "hero": hero_data, "archival": archival_data, "aigc": aigc_data}
     data_json = json.dumps(data, ensure_ascii=False).replace("<", "\\u003c")
 
     html = (
@@ -335,11 +368,12 @@ def main() -> int:
     ap.add_argument("--hero", type=Path, help="Optional licensed image or video (png/jpg/webp/mp4/webm/mov) to inline on poster 1.")
     ap.add_argument("--hero-credit", type=str, default=None, help="Attribution shown on the media badge.")
     ap.add_argument("--hero-label", type=str, default=None, help="Badge label (default: REDACTED CAPTURE or LICENSED IMAGE/VIDEO).")
-    ap.add_argument("--no-hero", action="store_true", help="Ignore the default redacted asset and use procedural visuals.")
+    ap.add_argument("--no-hero", action="store_true", help="Ignore the default redacted hero on poster 1; page 2 keeps the archival inset.")
+    ap.add_argument("--no-aigc", action="store_true", help="Use the procedural corridor/network fallback instead of the AIGC images.")
     ap.add_argument("--out", type=Path, default=OUT, help="Output HTML path (default: showcase/index.html).")
     args = ap.parse_args()
     try:
-        return asyncio.run(build(args.hero, args.out, args.hero_credit, args.hero_label, args.no_hero))
+        return asyncio.run(build(args.hero, args.out, args.hero_credit, args.hero_label, args.no_hero, args.no_aigc))
     except KeyboardInterrupt:
         return 130
     except Exception as exc:

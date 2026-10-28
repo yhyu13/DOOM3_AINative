@@ -34,6 +34,12 @@
   const heroImage = $('#heroImage');
   const p2 = $('.p2');
   const p2Old = $('#p2Old');
+  const p2New = $('#p2New');
+  const p3 = $('.p3');
+  const p3Bg = $('#p3Bg');
+  const p2VisionLabel = $('#p2VisionLabel');
+  const p3Truth = $('#p3Truth');
+  const p3AiLabel = $('#p3AiLabel');
   const p2SplitLine = $('#p2SplitLine');
   const p2Handle = $('#p2Handle');
   const p2Reveal = $('#p2Reveal');
@@ -498,8 +504,29 @@
       }
     }
 
-    if (p2Old && DATA.archival && DATA.archival.src) p2Old.src = DATA.archival.src;
-    else if (p2Old) p2Old.style.display = 'none';
+    const hasAigc = !!(DATA.aigc && DATA.aigc.page2 && DATA.aigc.page3);
+    if (p2New) {
+      if (DATA.aigc && DATA.aigc.page2) { p2New.src = DATA.aigc.page2; p2New.hidden = false; }
+      else p2New.hidden = true;
+    }
+    if (p2) p2.dataset.aigc = hasAigc ? '1' : '0';
+    if (p3Bg) {
+      if (DATA.aigc && DATA.aigc.page3) { p3Bg.src = DATA.aigc.page3; p3Bg.hidden = false; }
+      else p3Bg.hidden = true;
+    }
+    if (p3) p3.dataset.aigc = hasAigc ? '1' : '0';
+    if (p2VisionLabel) p2VisionLabel.textContent = hasAigc
+      ? 'AI-GENERATED VISION · NOT A GAME CAPTURE'
+      : 'PROCEDURAL MODERN RENDER · NOT A GAME CAPTURE';
+    if (p3Truth) p3Truth.textContent = hasAigc
+      ? 'AI-GENERATED VISION · NOT A GAME CAPTURE'
+      : 'PROCEDURAL VISION · NOT A GAME CAPTURE';
+    if (p3AiLabel) p3AiLabel.textContent = hasAigc ? 'AI VISION · GPT IMAGE 2.5' : 'PROCEDURAL VISION';
+    const oldSrc = (DATA.archival && DATA.archival.src) || (DATA.hero && DATA.hero.type === 'image' ? DATA.hero.src : null);
+    if (p2Old) {
+      if (oldSrc) { p2Old.src = oldSrc; p2Old.style.display = ''; }
+      else p2Old.style.display = 'none';
+    }
     setSplit(46);
 
     if (snap) {

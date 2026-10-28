@@ -97,6 +97,7 @@
     <!-- ================= POSTER 2 · 2004 → 2026 ================= -->
     <section class="poster p2" data-poster="2" data-split="46" aria-label="Poster 2 — 2004 versus 2026">
       <canvas class="fx" id="fx2" width="1920" height="1080" aria-hidden="true"></canvas>
+      <img class="p2-new" id="p2New" alt="AI-generated 2026 modern vision" draggable="false" hidden>
       <img class="p2-old" id="p2Old" alt="Redacted 2004 archival DOOM 3 frame" draggable="false">
       <div class="shade"></div>
 
@@ -128,7 +129,7 @@
       </div>
 
       <div class="p2-compare-actions reveal" style="--d:.42s">
-        <span class="p2-vision-label">PROCEDURAL MODERN RENDER · NOT A GAME CAPTURE</span>
+        <span class="p2-vision-label" id="p2VisionLabel">AI-GENERATED VISION · NOT A GAME CAPTURE</span>
         <button class="p2-reveal" id="p2Reveal">BACK TO 2004</button>
       </div>
 
@@ -164,6 +165,7 @@
     <!-- ================= POSTER 3 · VISION ================= -->
     <section class="poster p3" data-poster="3" aria-label="Poster 3 — Your DOOM, your rules">
       <canvas class="fx" id="fx3" width="1920" height="1080" aria-hidden="true"></canvas>
+      <img class="p3-bg" id="p3Bg" alt="AI-generated AI-native Mars command center" draggable="false" hidden>
       <div class="shade"></div>
 
       <div class="p3-head">
@@ -180,6 +182,8 @@
       <aside class="p3-meta reveal" style="--d:.26s">
         <b>CONCEPT ROADMAP / 2026</b>
         <span>EVIDENCE BEFORE VICTORY · AGENTS.md #5</span>
+        <span class="truth" id="p3Truth">AI-GENERATED VISION · NOT A GAME CAPTURE</span>
+        <span class="ai" id="p3AiLabel">AI VISION · GPT IMAGE 2.5</span>
         <span class="url">github.com/yhyu13/DOOM3_AINative</span>
       </aside>
 

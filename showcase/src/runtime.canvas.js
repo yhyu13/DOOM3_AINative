@@ -402,9 +402,13 @@
       drawPortal(t, freeze);
       if (!DATA.hero && window.__SHOWCASE_FRAME__) window.__SHOWCASE_FRAME__.draw(t, freeze);
     } else if (page === 2) {
+      if (DATA.aigc && DATA.aigc.page2) return;
       if (window.__SHOWCASE_COMPARE__) window.__SHOWCASE_COMPARE__.draw(t, freeze);
       else drawRain(t, freeze);
-    } else if (page === 3) drawNetwork(t, freeze);
+    } else if (page === 3) {
+      if (DATA.aigc && DATA.aigc.page3) return;
+      drawNetwork(t, freeze);
+    }
   }
 
   function drawAllStatic() {
