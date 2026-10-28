@@ -102,7 +102,7 @@
 - Header/test gate exercised end-to-end on temporary fixtures: a header containing `#include <d3d12.h>` → exit 1 with `D3D12` and `ID3D12*`; a public test unit containing `ID3D12Device` → exit 1; the same content under `tests/renderer/d3d12/` → exit 0; an empty header directory → exit 1 with `contains no scannable header`; a clean header → exit 0. All temporary paths were removed.
 - `git diff --check` → exit 0; new files checked with `--no-index` (exit 1 = difference).
 - `git -C doom3_orig/doom3 status --porcelain` → empty.
-- 34 Markdown tables → consistent cell counts and adjacent separators; 19 relative links → all resolve.
+- 36 Markdown tables (including this evidence record) → consistent cell counts and adjacent separators; 19 relative links → all resolve.
 
 ## Unresolved items
 

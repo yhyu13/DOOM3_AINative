@@ -36,7 +36,7 @@
   | 9 | `(Get-FileHash scripts/validate-rhi-contract.py).Hash` | 0 | `signoff-validator-sha.log` |
   | 10 | Header/test scan over the merged Q1a files | 0 | `signoff-validate.log`: `RUN over 1 header(s) and 3 public test file(s)` |
 
-- **Retained logs and artifacts**: `signoff-validate.log` (17 in-memory controls, 0 failed), `signoff-tests.log` (40 behavioral tests, `OK`), `signoff-mutations.log` (11 mutants rejected; restored validator passes 40 tests), `signoff-check.log` (with `exit=0`), `signoff-tables.log` (34 tables, 0 malformed), `signoff-links.log` (19 links, 0 missing), `signoff-validator-sha.log` (SHA-256 `C3B4C162C4E695462D8BC6027CB1467D96C046193BE352F795721354CFE642A3`), and `build-rhi-contract-mutations/`.
+- **Retained logs and artifacts**: `signoff-validate.log` (17 in-memory controls, 0 failed), `signoff-tests.log` (40 behavioral tests, `OK`), `signoff-mutations.log` (11 mutants rejected; restored validator passes 40 tests), `signoff-check.log` (with `exit=0`), `signoff-tables.log` (36 tables, 0 malformed), `signoff-links.log` (19 links, 0 missing), `signoff-validator-sha.log` (SHA-256 `C3B4C162C4E695462D8BC6027CB1467D96C046193BE352F795721354CFE642A3`), and `build-rhi-contract-mutations/`.
 - **Negative controls**: 17 in-memory self-tests (missing file, missing field, empty field, missing results columns, missing contract section, wrong tier, empty cell, six separator forms, missing surface block, prohibited noun in the surface, prohibited LUID in the surface, drive-letter path); 11 source mutants; 40 behavioral tests including 14 identifier-embedded private forms (`AdapterLuid`, `luid_high`, `GPUOnlyValidation`, `ValidationFlags`, `CopySource`, `RenderTarget`, `Presentation`, `PresentFrame`, `CmdList`, `ResetAllocator`, `completionSerial`, `nativeHandle`, `dx12` include, `DebugFlags`) and clean controls (`CompletionToken`, `CopyTexture`, `fluidDensity`, `presentationTime`, `resetFrameCounter`); plus directory-gating fixtures for a prohibited include, a prohibited public test, the `d3d12/`/`ext/` exclusions and an empty header directory.
 
 ## Per-check results
@@ -48,10 +48,11 @@
 | Validator in-memory negative controls | RUN | PASS | 17/17 detected, 0 failed | `build-t004-evidence/signoff-validate.log` |
 | Source mutation controls | RUN | PASS | 11/11 mutants rejected by the expected test; restored validator passes 40 tests; digest retained | `build-t004-evidence/signoff-mutations.log`, `signoff-validator-sha.log` |
 | Identifier-embedded gate controls | RUN | PASS | 14 asserted private spellings (17 probes including variants) rejected; 6 clean names accepted | `build-t004-evidence/signoff-tests.log` |
-| Whitespace, working tree | RUN | PASS | `git diff --check` exit 0; the CRLF notice is not a whitespace failure | `build-t004-evidence/signoff-check.log` |\n| Whitespace, committed delta | RUN | PASS | `git diff --check origin/main...HEAD` exit 0 | `build-t004-evidence/freeze-commit-check.log` |
+| Whitespace, working tree | RUN | PASS | `git diff --check` exit 0; the CRLF notice is not a whitespace failure | `build-t004-evidence/signoff-check.log` |
+| Whitespace, committed delta | RUN | PASS | `git diff --check origin/main...HEAD` exit 0 | `build-t004-evidence/freeze-commit-check.log` |
 | Whitespace, new files (pre-commit) | RUN | PASS | `--no-index --check` exit 1 for each new file; this is a difference, not a whitespace proof | command table above |
 | Machine-specific absolute paths | RUN | PASS | No drive-letter path in the seven owned files | `build-t004-evidence/signoff-validate.log` |
-| Markdown table shape | RUN | PASS | 34 tables; each row has its header's cell count and an adjacent separator; helpers are worktree-local and not tracked | `build-t004-evidence/signoff-tables.log` |
+| Markdown table shape | RUN | PASS | 36 tables (the six documents plus this evidence record); each row has its header's cell count and an adjacent separator; the helper is worktree-local and not tracked | `build-t004-evidence/signoff-tables.log` |
 | Relative-link resolution | RUN | PASS | 19 relative links resolve | `build-t004-evidence/signoff-links.log` |
 | Merged Q1a header/test scan | RUN | PASS | Real `src/renderer/rhi/rhi.h` and three public test files from `8638db8` contain no prohibited noun; `d3d12/` and `ext/` are excluded | `build-t004-evidence/signoff-validate.log` |
 | LUID / GPU-validation negative | RUN | PASS | `luid` and `enableGpuBasedValidation` → exit 1 with `LUID family` and `GPU validation/based` | `build-t004-evidence/luid-gpubased-negative.log` |
