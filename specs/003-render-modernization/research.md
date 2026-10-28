@@ -536,7 +536,7 @@ These **supersede the former research recommendations**, not the unchanged spec'
 | ID | New recommendation [proposal] | Revisit if |
 |---|---|---|
 | D1 | Preserve the working native classic-data port as the reference; no automatic dhewm3 rebase | An adoption spike proves substantial benefits without unacceptable data/mod/provenance changes |
-| D2 | D3D12-first backend-neutral bounded RHI for the desktop flagship; HLSL/DXC | Target constraints favour another API, or required authorised NR is Vulkan-only: add/select Vulkan NR profile or explicitly remove DLSS 5 from D3D12 shipping scope |
+| D2 | D3D12-first backend-neutral bounded RHI for the desktop flagship; HLSL/DXC (qualified by the 2026-10-28 amendment below: three-tier core, HLSL is not the public input) | Target constraints favour another API, or required authorised NR is Vulkan-only: add/select Vulkan NR profile or explicitly remove DLSS 5 from D3D12 shipping scope |
 | D3 | Custom bounded RHI for deliberate design ownership, explicit frame resources/graph from the first backend; algorithms above it; NVRHI is an equally credible pixel-quality alternative | A prototype shows custom ownership adds no useful benefit over NVRHI plus our frame graph/renderer |
 | D4 | Motion vectors, readable depth, rendered-history identity and HUD separation are initial design requirements | Never remove silently; any limitation needs a tested policy |
 | D5 | Hybrid deferred opaque PBR + forward/legacy-special path; compatibility mode remains | A source-backed alternative handles materials/transparency better in measured tests |
@@ -544,6 +544,24 @@ These **supersede the former research recommendations**, not the unchanged spec'
 | D7 | Asset/material authoring is part of modernization; legal local corpora only | Licence-compatible new assets become distributable after provenance checks |
 | D8 | DXR hybrid effects and a path-traced showcase/reference are stretch capabilities | They fail motion, art-direction or measured performance goals |
 | D9 | Future Vulkan/web/mobile profiles share semantics and declared fallbacks, not a GL3 ceiling | Portability becomes the overriding product goal |
+
+### Amendment 2026-10-28 (Refs #20, #11)
+
+This amendment records a later decision; it does not rewrite D1–D9.
+
+- **D2 is refined, not reversed.** D3D12 remains the first *implementation*, but "backend-neutral
+  bounded RHI" is now a **three-tier** contract: a portable WebGPU-subset core, a D3D12-private
+  implementation and optional native extensions (`specs/004-quality-renderer/contracts/rhi-foundation.md`).
+  HLSL/DXC are a D3D12 build detail, **not** the public shader input and not the portable shader
+  contract: a core shader module is a backend blob, and native HLSL/DXC compilation does not prove
+  WebGPU support. No public core type, field or function may require a D3D12 noun.
+- **D9 is applied.** The future web profile targets the portable core through a WebGPU backend, with
+  its own capability/fallback table, shader compilation/validation and real-scene evidence; DXR,
+  an authorized neural provider, multi-queue and bindless access are native extensions. No browser
+  implementation exists and this amendment claims none.
+- **Unchanged:** D3's custom-RHI ownership choice, D4's motion/depth/history requirements, D6's
+  optional-provider boundary, and the evidence, pristine-source, legal-data, one-writer and review
+  rules remain in force.
 
 **Before `/speckit.plan`, reconcile `spec.md` (not edited by this review):**
 

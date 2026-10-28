@@ -8,7 +8,36 @@
 - The standalone first slice uses synthetic data only; it does not require a DOOM 3 target copy, game assets, NVIDIA SDK or Internet download.
 - Use a fresh build directory in the implementation worktree. Never use the root checkout's existing `build/` cache: during planning it pointed at another worktree. `run-win11-amd64.ps1 -Build` now refuses a cache whose `CMAKE_HOME_DIRECTORY` is a different checkout.
 - Keep `doom3_orig/doom3` clean and do not modify game data. Check `git status --short` and `git -C doom3_orig/doom3 status --porcelain` before and after work.
-- Do not run the native evidence scripts blindly. `scripts/verify-win11-amd64.ps1` exports patches to a fresh temporary directory and fails SC-006b on added/deleted rows; `scripts/smoke-win11-amd64.ps1` stops only processes whose executable path matches the resolved executable, requires `-StopExisting` (exit 12), and refuses a non-empty `-OutDir` without `-Clean` (exit 11); `scripts/run-win11-amd64.ps1` checks/stops that same executable before `-Build`, requires `-StopExisting` (exit 8), and refuses a non-empty `-OutDir` without `-Clean` (exit 9). Obtain consent before terminating a process or replacing output, and never delete game data.
+- Do not run the native evidence scripts blindly. `scripts/verify-win11-amd64.ps1` exports patches to a fresh temporary directory and fails SC-006b on added/deleted rows of the manifest it exports, but that manifest and its expected hashes are both regenerated from the current target copy, so a pass is self-consistency only and does not show that the copy matches the stored canonical patch (T084 owns that gap); `scripts/smoke-win11-amd64.ps1` stops only processes whose executable path matches the resolved executable, requires `-StopExisting` (exit 12), and refuses a non-empty `-OutDir` without `-Clean` (exit 11); `scripts/run-win11-amd64.ps1` checks/stops that same executable before `-Build`, requires `-StopExisting` (exit 8), and refuses a non-empty `-OutDir` without `-Clean` (exit 9). Obtain consent before terminating a process or replacing output, and never delete game data.
+
+## Documentation contract and evidence-template validation
+
+From the root of this issue's own worktree, with Python 3 available, run:
+
+```powershell
+py -3 -I scripts/validate-rhi-contract.py --self-test
+if ($LASTEXITCODE -ne 0) { throw "Documentation validation failed: $LASTEXITCODE" }
+py -3 -I scripts/test-validate-rhi-contract.py
+if ($LASTEXITCODE -ne 0) { throw "Validator behavior tests failed: $LASTEXITCODE" }
+py -3 -I scripts/test-validate-rhi-contract-mutations.py
+if ($LASTEXITCODE -ne 0) { throw "Validator mutation controls failed: $LASTEXITCODE" }
+git diff --check
+if ($LASTEXITCODE -ne 0) { throw "Tracked diff whitespace check failed: $LASTEXITCODE" }
+# `git diff --check` does not cover a file absent from the index. Compare each new file with an
+# empty path; exit 1 is the file difference, not a whitespace failure.
+git diff --no-index --check -- /dev/null specs/004-quality-renderer/evidence-template.md
+if ($LASTEXITCODE -ne 1) { throw "Template no-index whitespace check failed: $LASTEXITCODE" }
+git diff --no-index --check -- /dev/null scripts/validate-rhi-contract.py
+if ($LASTEXITCODE -ne 1) { throw "Validator no-index whitespace check failed: $LASTEXITCODE" }
+git diff --no-index --check -- /dev/null scripts/test-validate-rhi-contract.py
+if ($LASTEXITCODE -ne 1) { throw "Validator test no-index whitespace check failed: $LASTEXITCODE" }
+git diff --no-index --check -- /dev/null scripts/test-validate-rhi-contract-mutations.py
+if ($LASTEXITCODE -ne 1) { throw "Mutation harness no-index whitespace check failed: $LASTEXITCODE" }
+```
+
+Retain complete command output and each exit code in a fresh worktree-local ignored `build-*/` directory. The validator checks that the seven owned specification files exist and are nonempty, required contract sections (including the three tiers, the header gate and the tier mapping) and all eleven named capability/fallback matrix rows have the specified tiers and five nonempty cells, the matrix and results headers have an adjacent separator of the matching cell count, and required evidence-template sections, fields, result markers and table columns exist. It also scans the fenced `portable-core-surface` block for prohibited D3D12 vocabulary, scans the seven owned documents for drive-letter absolute paths, and scans core headers under `src/renderer/rhi/` plus public test units under `tests/renderer/` (excluding `tests/renderer/d3d12/` and `tests/renderer/ext/`) for prohibited nouns. It reports the header/test scan as NOT RUN while neither path exists; a header directory that exists with no scannable header is a failure, not a pass, while the public-test scan may be zero before the first fixture (the Q7a gate, T088). Tables, fields and headings inside fenced code blocks or HTML comments do not count, rows must be contiguous with their header, and an extra empty edge cell is invalid. Its in-memory negative controls remove a file/field/section or result columns, blank a field/cell, change a tier, inject a prohibited noun into the portable surface and corrupt or separate the delimiters; each must be detected. `scripts/test-validate-rhi-contract.py` re-runs those families plus Markdown visibility and contiguity cases against the validator file itself, so a regression in the validator fails the suite. `scripts/test-validate-rhi-contract-mutations.py` disables eleven protected behaviors one at a time in a worktree-local copy of the validator, requires the unchanged suite to fail on each, and requires the restored validator to pass; it does not edit the tracked file. Neither command checks the truth, adequacy or execution of those fields, permissions, a backend or a review; both are structural and lexical checks, not a Markdown parser or a design review. `git diff --check` covers tracked changes, not untracked new files; the no-index checks above cover the new files and expect exit 1 for the difference, not for a whitespace failure.
+
+A different reviewer must inspect and record, in the authorized issue/PR review record: (1) every matrix row's capability, tier, explicit selectable fallback/unsupported and target evidence; (2) binding-group/index mapping and limits, conservative render/compute usage scopes, ordering, backend-proven retirement distinct from error/loss observation, async readback and native-lease lifetime, including Q1a's state/fence/diagnostic gates; (3) shader provenance, permissions and per-target compilation/execution; (4) the proposed T013 canonical expected-row integrity and per-byte tolerance policy; (5) T041–T047 and T085 before Q3 review, and the conditional T086 provider branch; and (6) the evidence template's identity, permissions, commands/exits, thresholds, result distinctions, exclusions and independent-review fields, plus the validator output and limitations. Record reviewer identity, decision and each unresolved item. A successful structural command is not this review and cannot mark T004 or T005 complete.
 
 ## Q1a — Standalone RHI fixture (planned)
 
@@ -50,7 +79,7 @@ if ($LASTEXITCODE -ne 0) { throw "RHI tests failed: $LASTEXITCODE" }
 
 `--output-on-failure` alone retains only failures. Keep the verbose console output and/or the JUnit file as the full test log, including successful cases, adapter identity and executed/skipped checks.
 
-Expected **after implementation**: the test summary names each hardware/software adapter case and confirms actual expected RGBA8 readback and fence/lifetime tests. Preserve the full summary, adapter identity and exit codes. CTest can exit zero when tests are skipped: inspect the per-test statuses and require the intended adapter case to have actually run. Missing GPU, debug layer or GPU-based validation must be recorded separately as SKIPPED/NOT RUN.
+Expected **after implementation**: the test summary names each hardware/software adapter case and confirms actual expected RGBA8 readback plus completion-token/lifetime tests; the D3D12-private hook records the state journal and the outstanding fence values. The public test must not require a D3D12 type or name. Preserve the full summary, adapter identity and exit codes. CTest can exit zero when tests are skipped: inspect the per-test statuses and require the intended adapter case to have actually run. Missing GPU, debug layer or GPU-based validation must be recorded separately as SKIPPED/NOT RUN.
 
 A software adapter functional pass is not a hardware-performance pass. A clear/readback pass is Q1a only: it does not demonstrate programmable draw, compute, MRT, readable depth, temporal inputs, presentation, engine parity or full Q1 validation.
 
@@ -65,7 +94,7 @@ Follow the existing [native target documentation](../../targets/win11-amd64/READ
 - **Q1b/Q1**: Extend the fixture to draw/compute/MRT/depth/velocity/overlay and resize/history/lifetime tests. The full gate requires the debug layer and GPU-based validation to have actually run with zero unwaived errors.
 - **Q2/Q3**: Run documented GL/new-backend scene comparisons and analytic camera/rigid/skinned history tests; predeclare comparison thresholds and unsupported material cases.
 - **Q4**: Review the legal hero set and moving sequences with recorded art, resource and performance evidence.
-- **Q5**: Run the actual authorized SDK create/evaluate on the chosen backend only after access, hardware and distribution review. Otherwise report NOT RUN and test the complete off path.
+- **Q5**: Separately test the complete off path and observe clean default configure, build **and run** for attempted NVIDIA downloads (including failed/blocked attempts and child processes); inspect linked/bundled components independently. Record the observation method, coverage, commands, exits and retained logs; missing or insufficient observation is NOT RUN for that phase, not evidence of no attempt. Run the actual authorized SDK create/evaluate on the chosen backend only after access, hardware and distribution review; otherwise that provider check is NOT RUN.
 - **Q6/Q7**: Capture a converged path-traced reference and dynamic case, or exercise each actual future target with a documented capability/fallback table. A compile or feature flag alone is not a pass.
 
 Exact commands for Q1b–Q7 must be added when their implementations and fixtures exist. Each stage issue owns updating the commands for its own scope; T079 only re-runs commands already documented here. These are acceptance outlines, not already runnable tests.
