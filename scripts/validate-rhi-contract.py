@@ -42,9 +42,10 @@ CONTRACT_SECTIONS = (
 MATRIX_TIERS = {
     "core-device": "Core", "core-resources-bindings": "Core",
     "core-submit-readback": "Core", "core-draw-compute": "Core",
-    "core-present": "Core", "native-interop": "Native extension",
+    "core-surface-acquire": "Core", "native-interop": "Native extension",
     "native-provider": "Native extension", "native-dxr": "Native extension",
     "native-multi-queue": "Native extension", "native-bindless": "Native extension",
+    "native-sparse-aliasing": "Native extension",
 }
 MATRIX_HEADER = (
     "Operation", "Tier", "Capability / limit to check",
@@ -54,8 +55,12 @@ SURFACE_INFO = "portable-core-surface"
 # Lexical gate only: these are the D3D12-private nouns that must not reach the
 # engine-facing core surface. Each entry is (diagnostic label, regex).
 PROHIBITED_CORE = (
-    ("D3D12_*", r"d3d12_"),
+    ("D3D12", r"d3d12"),
     ("ID3D12*", r"id3d12"),
+    ("DXGI", r"dxgi"),
+    ("IUnknown", r"\biunknown\b"),
+    ("ComPtr", r"\bcomptr\b"),
+    ("WRL", r"\bwrl\b"),
     ("HRESULT", r"hresult"),
     ("fence/fenceValue", r"fence"),
     ("GetCompletedValue", r"getcompletedvalue"),
@@ -145,11 +150,11 @@ def prohibited_errors(text, where):
     return errors
 
 
-def header_scan_errors(files):
+def header_scan_errors(files, kind="engine-facing header"):
     """Scan (relative path, text) pairs for prohibited public-header nouns."""
     errors = []
     for path, text in files:
-        errors.extend(prohibited_errors(text, "engine-facing header " + str(path)))
+        errors.extend(prohibited_errors(text, kind + " " + str(path)))
     return errors
 
 
@@ -391,27 +396,47 @@ def main():
             print("ERROR reading", path, ":", exc, file=sys.stderr)
     errors = validate(docs)
     rhi = ROOT / "src" / "renderer" / "rhi"
-    headers = []
+    test_root = ROOT / "tests" / "renderer"
+    header_files = []
     if rhi.is_dir():
         for path in sorted(rhi.rglob("*")):
             if path.is_file() and path.suffix.lower() in (".h", ".hpp", ".hxx", ".inl"):
-                headers.append((
+                header_files.append((
                     path.relative_to(ROOT),
                     path.read_text(encoding="utf-8", errors="replace"),
                 ))
-        errors.extend(header_scan_errors(headers))
+        errors.extend(header_scan_errors(header_files))
+        if not header_files:
+            errors.append("header gate: src/renderer/rhi exists but contains no scannable header")
+    test_files = []
+    if test_root.is_dir():
+        for path in sorted(test_root.rglob("*")):
+            if not path.is_file() or path.suffix.lower() not in (".cpp", ".h", ".hpp"):
+                continue
+            if "d3d12" in [part.lower() for part in path.relative_to(ROOT).parts]:
+                continue
+            test_files.append((
+                path.relative_to(ROOT),
+                path.read_text(encoding="utf-8", errors="replace"),
+            ))
+        errors.extend(header_scan_errors(test_files, "public test unit"))
+    if rhi.is_dir():
         header_note = (
-            "header scan: RUN over " + str(len(headers)) + " file(s)"
-            if headers else
-            "header scan: RUN over 0 files (no public header found; gate not exercised)"
+            "header scan: RUN over " + str(len(header_files)) + " header(s)"
+            + (" and " + str(len(test_files)) + " public test file(s)" if test_root.is_dir() else "")
+        )
+    elif test_root.is_dir():
+        header_note = (
+            "header scan: NOT RUN (src/renderer/rhi absent); "
+            "public test scan: RUN over " + str(len(test_files)) + " file(s)"
         )
     else:
-        header_note = "header scan: NOT RUN (src/renderer/rhi absent; Q7a/T088)"
+        header_note = "header/test scan: NOT RUN (src/renderer/rhi and tests/renderer absent; Q7a/T088)"
     if errors:
         for error in errors:
             print("FAIL:", error)
         return 1
-    print("PASS: seven required files, template fields, ten matrix rows, tier sections and the portable-core surface have the required structure")
+    print("PASS: seven required files, template fields, eleven matrix rows, tier sections and the portable-core surface have the required structure")
     print("NOTE: structure and lexical gate only; independent semantic review and target execution are NOT RUN by this check; " + header_note)
     return self_test(docs) if args.self_test else 0
 

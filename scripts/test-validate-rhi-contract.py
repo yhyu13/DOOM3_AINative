@@ -279,22 +279,25 @@ class SurfaceAndHeaderGate(ValidatorTestCase):
     def test_header_scan_detects_each_private_noun(self):
         errors = validator.header_scan_errors([
             (Path("src/renderer/rhi/rhi.h"),
+             "#include <d3d12.h>\n"
              "enum class ResourceState { RENDER_TARGET };\n"
              "uint64_t fenceValue;\nuint64_t GetCompletedValue();\n"
-             "struct ID3D12Device;\n"),
+             "struct ID3D12Device;\nDXGI_FORMAT format;\n"
+             "ComPtr<IUnknown> device;\n"),
         ])
+        for label in ("D3D12", "ID3D12*", "DXGI", "IUnknown", "ComPtr",
+                      "ResourceState", "fence/fenceValue", "RENDER_TARGET"):
+            self.assertIn(
+                "prohibited D3D12 vocabulary in engine-facing header "
+                "src\\renderer\\rhi\\rhi.h: " + label, errors)
+
+    def test_public_test_unit_scan_uses_its_own_kind(self):
+        errors = validator.header_scan_errors(
+            [(Path("tests/renderer/rhi_clear_test.cpp"), "ID3D12Device* device;")],
+            "public test unit")
         self.assertIn(
-            "prohibited D3D12 vocabulary in engine-facing header "
-            "src\\renderer\\rhi\\rhi.h: ResourceState", errors)
-        self.assertIn(
-            "prohibited D3D12 vocabulary in engine-facing header "
-            "src\\renderer\\rhi\\rhi.h: fence/fenceValue", errors)
-        self.assertIn(
-            "prohibited D3D12 vocabulary in engine-facing header "
-            "src\\renderer\\rhi\\rhi.h: RENDER_TARGET", errors)
-        self.assertIn(
-            "prohibited D3D12 vocabulary in engine-facing header "
-            "src\\renderer\\rhi\\rhi.h: ID3D12*", errors)
+            "prohibited D3D12 vocabulary in public test unit "
+            "tests\\renderer\\rhi_clear_test.cpp: ID3D12*", errors)
 
     def test_header_scan_accepts_portable_names(self):
         errors = validator.header_scan_errors([
@@ -302,6 +305,21 @@ class SurfaceAndHeaderGate(ValidatorTestCase):
              "struct TextureView;\nstruct CompletionToken;\nvoid CopyTexture();\n"),
         ])
         self.assertEqual([], errors)
+
+    def test_missing_sparse_aliasing_row_is_invalid(self):
+        name = "contracts/rhi-foundation.md"
+        row = next(line for line in self.docs[name].splitlines(keepends=True)
+                   if line.startswith("| `native-sparse-aliasing` |"))
+        docs = self.changed(name, row, "")
+        self.assertIn("missing matrix row: native-sparse-aliasing", validator.validate(docs))
+
+    def test_surface_acquire_row_name_is_required(self):
+        name = "contracts/rhi-foundation.md"
+        row = next(line for line in self.docs[name].splitlines(keepends=True)
+                   if line.startswith("| `core-surface-acquire` |"))
+        docs = self.changed(name, row, row.replace("`core-surface-acquire`", "`core-present`"))
+        self.assertIn("missing matrix row: core-surface-acquire", validator.validate(docs))
+        self.assertIn("unknown matrix row: core-present", validator.validate(docs))
 
 
 if __name__ == "__main__":

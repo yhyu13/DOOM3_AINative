@@ -11,9 +11,9 @@
 | Gap audit (fresh-context agent) | Did not author; separate context | GitHub issue #20 acceptance criteria 1–7 against the committed draft and the live tree | CHANGES REQUESTED; re-audit pending |
 | Consistency audit (fresh-context agent) | Did not author; separate context | 004 documents, 003 §11, 005 research, scripts, cross-references, stale claims | CHANGES REQUESTED; fixes applied, re-audit pending |
 | Engine-citation audit (fresh-context agent) | Did not author; separate context | Every `File.cpp:line` citation in 005 §2 against submodule `a9c49da` | CHANGES REQUESTED; fixes applied and spot-checked |
-| Contract review (fresh-context agent) | Did not author; separate context | Issue #20 criteria, tiers, matrix, Q1a seam, header gate, T013, validator claims | running |
+| Contract review (fresh-context agent) | Did not author; separate context | Issue #20 criteria, tiers, matrix, Q1a seam, header gate, T013, validator claims | CHANGES REQUESTED; 16 findings addressed, re-check pending |
 | Cross-document review (fresh-context agent) | Did not author; separate context | Contradictions, anchors, task IDs, status claims, scope drift | running |
-| WebGPU claims review (fresh-context agent) | Did not author; separate context | Limits, usage scopes, shader input, ray tracing, availability claims | running |
+| WebGPU claims review (fresh-context agent) | Did not author; separate context | Limits, usage scopes, shader input, ray tracing, availability claims | CHANGES REQUESTED; 3 factual errors corrected |
 
 ## Findings and resolution
 
@@ -47,12 +47,35 @@
 - **Resolution**: nine citations corrected, including `_currentRender` (`draw_common.cpp:984-996`), the per-light split (`draw_arb2.cpp:165-198`), the stencil-op selection (`RenderSystem_init.cpp:418-424`), `GuiModel.cpp:226-297` and the `[-1.001, 0.999]` NDC range. The corrected lines were spot-checked directly in the submodule.
 - **Status**: resolved; re-audit pending.
 
+### 6. Contract review: 16 findings, all addressed in the tree
+
+- **`core-present` contradicted the private-presentation rule.** Renamed to `core-surface-acquire` (surface configure/acquire and frame commit); the matrix, validator map and tests now use the new name, and a test rejects a return to `core-present`.
+- **The staging-pitch control was not expressible through the public seam.** The public seam returns tightly packed bytes and never exposes the pitch, so the pitch control now belongs to the D3D12-private companion test; the public test owns the off-by-one row, repeat-row-0 and packed-row-length controls. The contract, T013, T015 and the issue mirror say which test owns which control.
+- **T015 broke state in a test that no longer asserts it.** T015 now breaks row indexing and packed-row length in T013 and the state journal in its private companion.
+- **The lexical gate was too narrow and skipped public test units.** It now rejects `d3d12`, `dxgi`, `iunknown`, `comptr`, `wrl` and scans public test units under `tests/renderer/` while excluding `tests/renderer/d3d12/`. The contract places native-extension headers outside `src/renderer/rhi/`.
+- **A header directory with no scannable header passed.** It is now a failure, and the note distinguishes a missing path (NOT RUN) from an empty one (FAIL).
+- **`quickstart.md` claimed the scripts were path-scanned.** The validator scans the seven owned documents; the wording now says so.
+- **"The public test asserts only the completed readback" was over-broad.** Scoped to state: the same bullet now points to the completion-token assertion.
+- **The evidence identity was stale.** Refreshed after the commit that contains the tested content; the record distinguishes a missing path from an empty one.
+- **The live issue #11 still shows the old seam.** The mirror now says explicitly: do not implement from the live body; apply the mirrored text first.
+- **T088 was a hard Q2 prerequisite with undefined tooling.** It now requires a named encoder (Dawn native, or a pinned browser plus the Emscripten WebGPU library), version/commit, license, acquisition, storage and authorization, and is fail-closed with NOT RUN.
+- **Two traceability rows still said "two-tier".** Corrected to three-tier.
+- **`sparse resources and aliasing` had no matrix row.** Added `native-sparse-aliasing` with its fallback and evidence.
+- **The data-model GPU resource still carried a private journal.** The journal is now stated as D3D12-private and outside the model.
+- **The plan omitted the mutation command.** Added to the verification list.
+- **The index/worktree split was a commit hazard.** Resolved by committing the rename and content together.
+
+### 7. WebGPU claims: three factual errors corrected
+
+- `rg16float` is a core renderable/blendable format; only its storage-texture use needs `texture-formats-tier1`. The §3.2 row now says that and agrees with §4.1.
+- The caniuse figures were wrong: the live caniuse-db data fetched 2026-10-28 reports 85.8% full and 3.66% partial, not 2.02%/87.82%, and the comparison with an "earlier 3.66%" was backwards. The fixed text records the fetch date.
+- The G-buffer byte arithmetic counted an `rgba8unorm` render target as 4 B; the render-target byte cost is 8 B, so the named four-attachment layout is 28 B, not 16 B. The "fits in 32 B" conclusion is unchanged, and depth is explicitly excluded from the limit.
 ## Checks run for this review
 
 - `py -3 -I scripts/validate-rhi-contract.py --self-test` → exit 0; 16/16 in-memory negative controls detected.
-- `py -3 -I scripts/test-validate-rhi-contract.py` → exit 0; 35 tests, `OK`.
-- `py -3 -I scripts/test-validate-rhi-contract-mutations.py` → exit 0; 10/10 mutants rejected; restored validator passes 35 tests.
-- Temporary-header gate: a header containing `ID3D12Device` → exit 1 with the expected diagnostic; a clean header → exit 0 and `header scan: RUN over 1 file(s)`; the temporary directory was removed.
+- `py -3 -I scripts/test-validate-rhi-contract.py` → exit 0; 38 tests, `OK`.
+- `py -3 -I scripts/test-validate-rhi-contract-mutations.py` → exit 0; 11/11 mutants rejected; restored validator passes 38 tests.
+- Header/test gate exercised end-to-end on temporary fixtures: a header containing `#include <d3d12.h>` → exit 1 with `D3D12` and `ID3D12*`; a public test unit containing `ID3D12Device` → exit 1; the same content under `tests/renderer/d3d12/` → exit 0; an empty header directory → exit 1 with `contains no scannable header`; a clean header → exit 0. All temporary paths were removed.
 - `git diff --check` → exit 0; new files checked with `--no-index` (exit 1 = difference).
 - `git -C doom3_orig/doom3 status --porcelain` → empty.
 - 34 Markdown tables → consistent cell counts and adjacent separators; 19 relative links → all resolve.
@@ -63,7 +86,7 @@
 2. **Issue #11 body still needs the mirrored text.** `gh issue edit 11` failed with GraphQL `UpdateIssue` permission denied. Apply `specs/004-quality-renderer/issue-q1a.md` with an account that can edit issues.
 3. **The header gate has not scanned a real public header.** The scan works end-to-end on a temporary header, but `src/renderer/rhi/**` does not exist, so the Q7a/T088 gate remains NOT RUN for the actual implementation.
 4. **Q7a conformance spike is not built.** The plan now names it (T088); no Dawn/pinned-browser fixture, shader compile or browser frame exists.
-5. **The final contract/consistency/WebGPU review results are pending** and must be appended before this record is presented as complete.
+5. **The final cross-document consistency review is still running.** The contract and WebGPU reviews returned changes-requested and their findings are addressed above; the consistency pass and a re-check of the fixes are pending. This record is not complete until they are appended.
 
 ## Decision
 

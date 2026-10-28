@@ -107,6 +107,12 @@ def build_mutants(source):
         "        errors.extend(prohibited_errors(surface_blocks[0], SURFACE_INFO))\n",
         "        pass\n",
     )
+    header = replace_once(
+        source,
+        '    for path, text in files:\n'
+        '        errors.extend(prohibited_errors(text, kind + " " + str(path)))\n',
+        "    pass\n",
+    )
     return (
         ("hidden-markdown", hidden, "test_fenced_matrix_does_not_count_as_a_table"),
         ("extra-empty-cells", empty_cells, "test_extra_empty_matrix_row_cell_is_invalid"),
@@ -118,6 +124,7 @@ def build_mutants(source):
         ("unknown-matrix-row", unknown, "test_unknown_matrix_row_is_rejected"),
         ("ambiguous-tables", ambiguous, "test_second_matrix_table_is_ambiguous"),
         ("portable-surface-scan", surface, "test_prohibited_noun_in_surface_is_invalid"),
+        ("header-scan", header, "test_header_scan_detects_each_private_noun"),
     )
 
 

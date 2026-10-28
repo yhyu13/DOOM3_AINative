@@ -369,7 +369,7 @@ Before the 2026-10-28 amendment, the 004 contract was D3D12-first in substance e
 | Debug layer + GPU-based validation | Error scopes + uncaptured errors; no debug-layer/GBV toggle | D3D12-only capability; web profile has its own zero-uncaptured-error gate; never a cross-backend acceptance gate |
 | One direct queue | One `device.queue`; no async compute | One queue in the core; multi-queue is a native extension |
 | MRT + shader-readable depth | 8 colour attachments / 32 bytes per sample; depth sampled in a later pass | G-buffer must fit 32 B/sample; no same-pass depth sampling |
-| Motion/validity | Data-level contract; `rg16float` renderability needs a capability check | Keep `rg16f` velocity; check `texture-formats-tier1` where required |
+| Motion/validity | Data-level contract; `rg16float` is core-renderable and blendable | Keep `rg16f` velocity; only a storage-texture use would need `texture-formats-tier1` |
 | Overlay separation | Application-level composition | Keep; display HUD pass after reconstruction |
 | Device removal | `device.lost` + resource recreation; no DRED | Capability-specific recovery; fault-injected test |
 | Shader compilation | WGSL only; no HLSL/DXC/SPIR-V input | Shader module = backend blob (DXIL/WGSL); HLSL is not a public RHI input |
@@ -460,13 +460,14 @@ W3C CRD 2026-09-15 defaults (grade 1):
 | `maxVertexBuffers` | 8 | DOOM 3's single interleaved vertex buffer fits |
 | `maxVertexAttributes` | 16 | Position/ST/normal/tangents/colour fit |
 | `maxColorAttachments` | 8 | G-buffer fits if channel count is controlled |
-| `maxColorAttachmentBytesPerSample` | 32 B | 8+8+4+4+4 = 28 B fits; four RGBA16F = 32 B exactly |
+| `maxColorAttachmentBytesPerSample` | 32 B | A 28 B four-attachment layout fits; four RGBA16F = 32 B exactly |
 | `maxComputeInvocationsPerWorkgroup` | 256 | Compute tile sizes must respect this |
 | `maxImmediateSize` | 64 B | Push constants cannot carry the ARB2 parameter block |
 
-A G-buffer such as `rgba8 albedo/AO` (4) + `rgba8 octahedral normal + roughness/metallic` (4) +
-`rg16f velocity` (4) + `rgba8 emissive/flags` (4) = 16 B, plus `depth24plus-stencil8`, fits
-comfortably. A 28 B layout also fits. The exact channel study is still open.
+A G-buffer such as `rgba8 albedo/AO` (8 B under the render-target byte-cost rule) + `rgba8
+octahedral normal + roughness/metallic` (8) + `rg16f velocity` (4) + `rgba8 emissive/flags` (8) =
+28 B, plus `depth24plus-stencil8`, fits within the 32 B limit but leaves only 4 B of headroom. Depth
+is not counted by `maxColorAttachmentBytesPerSample`. The exact channel study is still open.
 
 ### 4.4 Browser availability and evidence
 
@@ -477,8 +478,9 @@ As of 2026-10-27:
 - Firefox 141 on Windows; Firefox 145 on macOS 26 Tahoe Apple Silicon; Firefox Android has no
   WebGPU.
 - Safari 26.0 on macOS/iOS/iPadOS/visionOS.
-- WebGPU is not Baseline. A September 2026 caniuse snapshot reports 85.8% full support plus 2.02%
-  partial support (87.82% total), not the earlier 3.66% partial figure. [Grade 3 — 仅供参考]
+- WebGPU is not Baseline. The live caniuse-db data fetched on 2026-10-28 reports 85.8% full support
+  and 3.66% partial support; the partial share is small and changes over time, so record the fetch
+  date with the figure rather than a fixed total. [Grade 3 — 仅供参考]
 - Headless Chromium disables SwiftShader by default (2026-10-27 commit); WebGPU tests need
   `--enable-unsafe-webgpu` and, for software, `--enable-unsafe-swiftshader`. Playwright's default
   `chromium-headless-shell` is not a reliable WebGPU runner; Playwright WebKit has no WebGPU.
@@ -723,7 +725,7 @@ fits WebGPU if the budget is fixed now:
 | Item | WebGPU-compatible design |
 |---|---|
 | Depth prepass | `depth24plus-stencil8`; alpha discard; no colour |
-| G-buffer | <= 8 attachments, <= 32 B/sample; e.g. albedo/AO (RGBA8), octahedral normal + roughness/metallic (RGBA8), velocity (RG16F), emissive/flags (RGBA8) = 16 B + depth |
+| G-buffer | <= 8 attachments, <= 32 B/sample; the named layout (RGBA8 + RGBA8 + RG16F + RGBA8) is 28 B under the render-target byte-cost rule, plus depth |
 | Deferred lighting | Reads G-buffer and depth as textures in a later pass; writes `rgba16float` HDR |
 | Shadows | Shadow atlas/mask in a separate pass; classic stencil path remains for compatibility |
 | GI/reflections/volumetrics | Compute passes with storage buffers; 8 storage buffers/stage; no UAV barrier |
