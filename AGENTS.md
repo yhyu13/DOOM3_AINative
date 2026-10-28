@@ -90,12 +90,6 @@ are in `THIRD_PARTY_NOTICES.md`. Game data is not covered and must not be commit
     user explicitly approved closing that issue. Link with `Refs #N`. A merged PR proves the work,
     not the decision to close the issue; say the work looks finished and let the user decide.
     This supersedes the `Closes #N` wording in `docs/GIT_WORKFLOW.md` and `CONTRIBUTING.md`.
-11. **Show visual deliverables, not just paths.** This extends rule 5. When a task produces a
-    visual artifact — a rendered page or deck, image, chart, UI, or video — attach/render the actual
-    screenshot or image for the user **and** list every deliverable path. A path or a test summary
-    alone is not acceptance. For each path, say whether it is tracked, git-ignored, or temporary;
-    keep generated screenshots in the task's `evidence/` directory (for the showcase,
-    `showcase/evidence/`).
 
 ## Spec-driven flow
 
