@@ -10,7 +10,7 @@ Evidence files: `evidence-rhi-contract.md`, `evidence-q0.md`, `evidence-q1a.md`,
 |---|---|---|---|
 | FR-001 | T006, T009, T010, T011 | `baseline-procedure.md`, `evidence-q0.md` | Planned |
 | FR-002 | T007, T010 | `reference-scenes.md`, `evidence-q0.md` | Planned; data-dependent cases may be SKIPPED |
-| FR-003 | T004, T012, T014, T035 | `contracts/rhi-foundation.md`, `engine-integration.md` | T004 sign-off withdrawn; re-review pending; Q2 still needs Q7a/T088; Q1a is not portability evidence |
+| FR-003 | T004, T012, T014, T035 | `contracts/rhi-foundation.md`, `engine-integration.md` | T004 signed off 2026-10-28 on 11ea64a (agent reviewer; human caveat); Q2 still needs Q7a/T088; Q1a is not portability evidence |
 | FR-004 | T004, T012, T022–T029 | `contracts/rhi-foundation.md`, `data-model.md` | Planned; Q1b consumes the portable contract; native extensions are optional |
 | FR-005 | T013–T019, T024–T028, T030 | `evidence-q1a.md`, `evidence-q1.md` | Planned; **partial** — Q1a covers only the first slice; proposed T013 hash/tolerance policy requires independent review |
 | FR-006 | T036, T037, T039, T080–T083 | `classic-parity.md`, `evidence-q2.md` | Planned; T080–T082 production, T083 integration check |
@@ -24,8 +24,8 @@ Evidence files: `evidence-rhi-contract.md`, `evidence-q0.md`, `evidence-q1a.md`,
 | FR-014 | T055, T058–T061 | `provider-clearance.md`, `evidence-q5.md` | Planned; **partial** — T055 supplies the independent off path; T059 separately observes clean configure/build and run, and inspects dependencies/artifacts |
 | FR-015 | T060–T062 | `provider-clearance.md`, `evidence-q5.md` | Planned; NOT RUN until access and clearance exist |
 | FR-016 | T063–T070 | `path-tracing-rubric.md`, `evidence-q6.md` | Planned |
-| FR-017 | T004, T088, T071–T075 | `contracts/rhi-foundation.md`, `portable-profile-contract.md`, `evidence-q7a.md`, `evidence-q7.md` | Planned; T004 sign-off withdrawn; re-review pending; three-tier contract is design only; T088 is a pre-Q2 header/mapping and WebGPU conformance spike, not target support; per-target implementation and real-scene validation remain required |
-| FR-018 | T005, T056, T060, T069, T074 | `evidence-template.md` and each evidence file | Template and validator sign-off withdrawn; re-review pending; stage evidence remains open |
+| FR-017 | T004, T088, T071–T075 | `contracts/rhi-foundation.md`, `portable-profile-contract.md`, `evidence-q7a.md`, `evidence-q7.md` | Planned; T004 signed off 2026-10-28 on 11ea64a (agent reviewer; human caveat); three-tier contract is design only; T088 is a pre-Q2 header/mapping and WebGPU conformance spike, not target support; per-target implementation and real-scene validation remain required |
+| FR-018 | T005, T056, T060, T069, T074 | `evidence-template.md` and each evidence file | Template and validator signed off 2026-10-28 on 11ea64a (agent reviewer; human caveat); stage evidence remains open |
 | FR-019 | T001–T003, T033, T040, T084 | `review-q2.md`, repository history | Planned; no exception to the constitution |
 
 ## Success criteria
@@ -45,7 +45,7 @@ Evidence files: `evidence-rhi-contract.md`, `evidence-q0.md`, `evidence-q1a.md`,
 
 - T055 (non-proprietary reconstruction/off path) is a Q4/US5 task, not a Q5 task. T086's independent ordering branch follows T047/T055 and is reviewed with Q4; its provider branch follows T062 only if authorized and executed. An unavailable provider is NOT RUN and does not gate Q4 or the independently testable off path. SC-006 additionally requires the observed clean default configure/build/run without attempted NVIDIA downloads; an off-path pass or artifact inspection alone cannot satisfy it.
 - T048's Q3 execution and review follow T041–T047 and T085; fixture design T041 may be prepared earlier. T013 proposes canonical expected-row hash integrity plus independent ±1 byte acceptance and diagnostic actual hashes; the policy and any implementation still require independent review.
-- T004 and T005 were signed off on 2026-10-28 and the sign-off was withdrawn the same day after a second reviewer found header-gate bypasses; re-review is pending. T005's validator checks structure rather than the truth of results or permissions; stage evidence remains open.
+- T004 and T005 were signed off on 2026-10-28 on `11ea64a` by a non-author agent reviewer, after an earlier attempt was withdrawn and the gate bypasses were fixed. A human/owner sign-off is not recorded and remains a caveat. T005's validator checks structure rather than the truth of results or permissions; stage evidence remains open.
 - Only T033 and T040 of T033–T040 concern FR-019 (delivery/ownership). The rest of that range concerns Q2 behavior.
 - The "38 raw findings" mentioned in earlier planning is a process observation, not a repository fact; it is not traceable here.
 - A task ID in these tables is a plan reference. It becomes evidence only when its own command output exists and is recorded.

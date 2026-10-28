@@ -1,6 +1,6 @@
 # Review: three-tier RHI contract and evidence template (T004, T005)
 
-**Status**: Review record for issue #20. It records six agent reviews and one sign-off round (two non-author reviewers), their findings and resolution. The sign-off is an **agent** review, not a human reviewer; that caveat is carried into the decision. A sign-off block was appended on 2026-10-28 for `5c9af34`, then **withdrawn**: a second non-author reviewer found header-gate bypasses on the same revision. Re-review is pending.
+**Status**: Review record for issue #20. It records six agent reviews and one sign-off round (two non-author reviewers), their findings and resolution. The sign-off is an **agent** review, not a human reviewer; that caveat is carried into the decision. A `5c9af34` block was appended on 2026-10-28, then **withdrawn** after a second reviewer found gate bypasses. The candidate was re-frozen and the final block for `11ea64a` was appended after the bypasses were fixed and re-verified. The sign-off is an agent review, not a human review.
 
 **Revision reviewed**: branch `docs/20-t004-t005-signoff`, based on `origin/main` `8638db8` (the merged Q1a change), at the gate-broadening commit named in the sign-off block. The merged Q1a header and public tests are present and scanned.
 
@@ -125,6 +125,19 @@
 - **T004**: signed off
 - **T005**: signed off
 
+### Sign-off: T004/T005 (issue #20) — final, revision 11ea64a
+- **Reviewer identity**: Final sign-off reviewer (fresh-context agent, non-author)
+- **Date**: 2026-10-28
+- **Revision reviewed**: 11ea64a8027c19c8ff867ce77fc99c9bbc689814 (11ea64a), base origin/main 8638db8
+- **Independence**: did not author; agent review, not a human review
+- **Scope**: three-tier contract, 11-row capability/fallback matrix, shader source/build/validation contract, public boundary and amended Q1a seam, header/test lexical gate (separator-stripped and unbounded-DX12 matching, four documented private-prefix exclusions wired through `scan_files`, .h/.hh/.hpp/.hxx/.inl and .cpp/.cc/.cxx/.h/.hh/.hpp suffixes), T013 expected-row/digest/tolerance policy, evidence template and required fields, validator, 42-test suite, 11-mutant suite, evidence and review records; independently re-ran every claimed command and probed the scanner and path exclusion on a temp tree at this commit.
+- **Commands and results**: validator --self-test exit 0, 17/17 controls; real header scan 1 header + 3 public tests; 42 tests OK; 11/11 mutants rejected, restored passes 42; git diff --check exit 0 and git diff --check origin/main...HEAD exit 0; 36 tables/0 malformed, 19 links/0 missing; submodule a9c49da clean; validator SHA-256 519C9770499856F314096D62983E923C498C6801449D58711D0303AE99608FB0. Scanner wiring confirmed through `scan_files()`: `src/renderer/rhi/ext/private.h`, `src/renderer/rhi/nested/ext/x.h` and `tests/renderer/sub/ext/x.cpp` are scanned; `src/renderer/d3d12/x.h`, `src/renderer/ext/x.h` and `tests/renderer/d3d12/x.cpp` are excluded; the scanner-level exclusion test passes. Separator-stripped and DX12 probes (`completion_serial`, `completion-serial`, `queue_value`, `queue-value`, `signal_value`, `get_completed_value`, `validation_flags`, `validation_layer`, `command_list`, `descriptor_heap`, `root_signature`, `swap_chain`, `query_heap`, `present_frame`, `native_dx12`, `DX12Helper`, `useDx12`) all caught; `CompletionToken`, `CopyTexture`, `fluidDensity`, `presentationTime`, `resetFrameCounter` and `AdapterInfo` all clean.
+- **Decision**: APPROVED
+- **T013 decision**: APPROVED — canonical expected bytes derived from the published pattern, per-row published digests bind the expected data and are independently recomputable, per-byte acceptance at |actual-expected| <= 1 UNORM step, actual raw hashes are diagnostic only, controls split correctly between the public test (off-by-one-row, repeat-row-0, packed-row-length) and the D3D12-private companion (staging pitch), and no Q1a implementation is presumed to satisfy it.
+- **Unresolved items**: (1) the agent sign-off is recorded; a human/owner sign-off is not recorded and remains a caveat — T004/T005 are checked on the agent sign-off, not on a human review; (2) Q7a/T088 conformance spike and the semantic field-to-WebGPU mapping review remain NOT RUN; (3) no GPU/build/engine/browser execution is claimed here — Q1a execution evidence is separate; (4) the live issue #11 body is updated only after sign-off and the mirror `issue-q1a.md` is reverted to origin/main; (5) disclosed lexical-gate residuals remain (transitive includes, unlisted native synonyms; separator stripping covers `_` and `-` but not spaces or dots), controlled by the semantic review.
+- **T004**: signed off
+- **T005**: signed off
+
 ## Decision
 
-**WITHDRAWN on `5c9af34` — CHANGES REQUESTED.** A later reviewer found that separator/snake-case and embedded-DX12 forms still pass the gate, and that the directory exclusion is broader than the contract. The block above is kept for history but is not a valid sign-off. T004/T005 are unchecked; T013 remains approved.
+**APPROVED on `11ea64a`.** T004 and T005 are signed off by the non-author reviewer above, and T013 is approved. The human/owner caveat and the Q7a/T088 conformance work remain; they are not defects in this package. The `5c9af34` block above is retained as withdrawn history and is not the current decision.
