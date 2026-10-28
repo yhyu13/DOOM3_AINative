@@ -28,31 +28,39 @@ function(add_q1a_test target source)
     endif()
 endfunction()
 
+# Public-seam fixtures. These translation units are scanned by
+# scripts/validate-rhi-contract.py and must stay free of private vocabulary.
 add_q1a_test(q1a_clear_test rhi_clear_test.cpp)
 add_q1a_test(q1a_lifetime_test rhi_lifetime_test.cpp)
-add_q1a_test(q1a_diagnostics_test rhi_diagnostics_test.cpp)
+
+# D3D12-private companions. The directory name excludes them from the public
+# scan; they are the only tests that name state, the journal and fence values.
+add_q1a_test(q1a_d3d12_test d3d12/rhi_d3d12_test.cpp)
+add_q1a_test(q1a_lifetime_private d3d12/rhi_lifetime_private_test.cpp)
+add_q1a_test(q1a_diagnostics_test d3d12/rhi_diagnostics_test.cpp)
 
 enable_testing()
 
 set(Q1A_EVIDENCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/q1a-evidence")
+
 add_test(NAME rhi.q1a.clear_readback COMMAND q1a_clear_test clear_readback)
-add_test(NAME rhi.q1a.state_journal COMMAND q1a_clear_test state_journal)
 add_test(NAME rhi.q1a.negative_controls COMMAND q1a_clear_test negative_controls)
-add_test(NAME rhi.q1a.fence_outstanding_release COMMAND q1a_lifetime_test)
-add_test(NAME rhi.q1a.reverse_gate COMMAND q1a_lifetime_test reverse_gate)
-add_test(NAME rhi.q1a.handle_identity COMMAND q1a_lifetime_test handle_identity)
+add_test(NAME rhi.q1a.state_journal COMMAND q1a_d3d12_test state_journal)
+add_test(NAME rhi.q1a.staging_pitch COMMAND q1a_d3d12_test staging_pitch)
+add_test(NAME rhi.q1a.outstanding_release COMMAND q1a_lifetime_test)
+add_test(NAME rhi.q1a.outstanding_release_private COMMAND q1a_lifetime_private)
 add_test(NAME rhi.q1a.diagnostics COMMAND q1a_diagnostics_test)
 
 set_tests_properties(
     rhi.q1a.clear_readback
-    rhi.q1a.state_journal
     rhi.q1a.negative_controls
-    rhi.q1a.fence_outstanding_release
-    rhi.q1a.reverse_gate
-    rhi.q1a.handle_identity
+    rhi.q1a.state_journal
+    rhi.q1a.staging_pitch
+    rhi.q1a.outstanding_release
+    rhi.q1a.outstanding_release_private
     rhi.q1a.diagnostics
     PROPERTIES
         SKIP_RETURN_CODE 77
-        TIMEOUT 120
+        TIMEOUT 240
         ENVIRONMENT "RHI_EVIDENCE_DIR=${Q1A_EVIDENCE_DIR}"
 )

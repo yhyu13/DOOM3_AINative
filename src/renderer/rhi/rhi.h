@@ -1,15 +1,15 @@
 #pragma once
 
-// Q1a public RHI seam.
+// Q1a portable RHI seam.
 //
-// This header is deliberately backend-neutral: it does not include Windows,
-// D3D12, DXGI or any native handle. The D3D12 implementation lives in
-// src/renderer/d3d12/rhi_d3d12.cpp. Completion values are opaque backend
-// serials, not a promise that every backend owns a fence object.
+// This header is the engine-facing core for the first vertical slice. It names
+// no native API type, handle or synchronization value. The backend
+// implementation lives outside this directory and keeps its own vocabulary.
 //
-// Q1a is intentionally small. It proves one offscreen clear, one transition
-// to a copy source, one row-pitched readback and one fence-safe retirement
-// path. It is not a renderer, a frame graph or the full Q1 contract.
+// Q1a is deliberately small: one offscreen synthetic clear, one row-pitched
+// readback exposed as tightly packed caller bytes, an opaque completion token,
+// and a release operation that refuses while the producing submission is still
+// running. It is not a renderer, a frame graph or the full Q1 contract.
 
 #include <cstdint>
 #include <memory>
@@ -26,6 +26,7 @@ enum class AdapterClass {
 
 enum class Status {
     Ok,
+    NotReady,
     InvalidArgument,
     Unsupported,
     DeviceLost,
@@ -39,39 +40,19 @@ enum class ReleaseStatus {
     InvalidSubmission,
 };
 
-enum class ResourceState {
-    Unknown,
-    RenderTarget,
-    CopySource,
-    CopyDest,
-    Common,
-};
-
-enum class DiagnosticState {
-    NotRequested,
-    Run,
-    Skipped,
-    NotRun,
-    Failed,
-};
-
 struct AdapterInfo {
     AdapterClass adapterClass = AdapterClass::Hardware;
     std::string name;
     uint32_t vendorId = 0;
     uint32_t deviceId = 0;
     uint64_t dedicatedVideoMemory = 0;
-    uint64_t luid = 0;
 };
 
 struct DeviceOptions {
     AdapterClass adapterClass = AdapterClass::Hardware;
-    // Select the Nth adapter of the requested class. Out-of-range is an
-    // actionable Unsupported result, which also exercises incomplete-init
-    // shutdown.
+    // Select the Nth adapter of the requested class. An out-of-range index is
+    // an actionable Unsupported result and also exercises failed setup.
     uint32_t adapterIndex = 0;
-    bool enableDebugLayer = false;
-    bool enableGpuBasedValidation = false;
 };
 
 struct ClearRow {
@@ -84,63 +65,29 @@ struct ClearRow {
 struct ClearReadbackDesc {
     uint32_t width = 4;
     uint32_t height = 4;
-    // One entry per row. The test supplies hard-coded RGB values; the backend
-    // clears each row through a D3D12 clear rect and must not synthesize the
-    // expected bytes from the readback.
+    // Exactly one entry per row. The test supplies literal channel values; the
+    // backend must clear each row from this description and must not derive
+    // expected bytes from anything it later reads back.
     std::vector<ClearRow> rows;
 };
 
-struct SubmissionOptions {
-    // Test/diagnostic gate. When true, the backend enqueues a GPU wait before
-    // the submission so the CPU can deterministically observe an unsignalled
-    // completion while it attempts to release resources.
-    bool waitForCpuGate = false;
-};
-
+// An opaque, device-scoped completion token. It is not a native synchronization
+// value, is not comparable across devices, and must not be inspected to infer
+// backend progress. Zero means "no submission".
 struct Submission {
     uint32_t id = 0;
-    // Backend completion serial. On D3D12 this is the queue fence value.
-    uint64_t completionSerial = 0;
-    bool gated = false;
+    uint64_t completionToken = 0;
 };
 
 struct ReadbackResult {
     uint32_t width = 0;
     uint32_t height = 0;
-    // GPU staging row pitch returned by the backend. It may be larger than
-    // width * 4 and must be used to walk the staging bytes.
-    uint32_t rowPitch = 0;
-    uint32_t tightRowPitch = 0;
-    // Caller-owned tightly packed copy, height * tightRowPitch bytes.
+    // Bytes per tightly packed row: width * 4 for RGBA8. Backend padding is
+    // internal and never appears here.
+    uint32_t rowStride = 0;
+    // Caller-owned tightly packed bytes, height * rowStride in size.
     std::vector<uint8_t> pixels;
-    // Caller-owned diagnostic copy of the raw row-pitched staging bytes,
-    // height * rowPitch bytes. Bytes beyond each row's tightRowPitch are
-    // padding and are not guaranteed to have been written. Q1a uses this to
-    // make the wrong-stride and off-by-one-row negative controls real rather
-    // than simulated.
-    std::vector<uint8_t> staging;
     AdapterInfo adapter;
-};
-
-struct StateTransition {
-    std::string resource;
-    ResourceState from = ResourceState::Unknown;
-    ResourceState to = ResourceState::Unknown;
-    std::string reason;
-};
-
-struct Diagnostics {
-    DiagnosticState debugLayer = DiagnosticState::NotRequested;
-    DiagnosticState gpuBasedValidation = DiagnosticState::NotRequested;
-    std::string debugLayerDetail;
-    std::string gpuBasedValidationDetail;
-    uint32_t messageCount = 0;
-    uint32_t errorCount = 0;
-    uint32_t warningCount = 0;
-    // Bounded message text captured from ID3D12InfoQueue for the retained test
-    // log. Empty when the debug layer is unavailable or no message was stored;
-    // messageCount still reports the full number of stored messages.
-    std::vector<std::string> messages;
 };
 
 class Device {
@@ -153,60 +100,42 @@ public:
     Device(Device&&) = delete;
     Device& operator=(Device&&) = delete;
 
-    // Enables the selected adapter and backend. A requested debug layer or
-    // GPU-based validation that is unavailable is recorded in diagnostics and
-    // does not silently turn into a pass.
+    // Enables the selected adapter and backend. Failures carry an actionable
+    // reason. This does not run any GPU work.
     Status Initialize(const DeviceOptions& options, std::string* error);
 
-    // Idempotent. Outstanding gated submissions are unblocked, completed and
-    // released before native objects are dropped. Returns Error when an
-    // outstanding serial did not complete within the backend timeout; the
-    // references are still dropped because this is test-process teardown.
+    // Idempotent. Completes or reports unproven outstanding work, then drops
+    // backend objects. It returns Error or DeviceLost instead of claiming a
+    // clean teardown when ownership cannot be proved.
     Status Shutdown();
 
     bool IsInitialized() const;
     const AdapterInfo& adapter() const;
-    const std::vector<StateTransition>& stateJournal() const;
-    const Diagnostics& diagnostics() const;
 
-    // Records the row clears, the RENDER_TARGET -> COPY_SOURCE transition,
-    // the readback COPY_DEST placement, submits the command list and signals
-    // the completion serial. It does not wait or read back.
-    Status SubmitClearReadback(const ClearReadbackDesc& desc,
-                               const SubmissionOptions& options,
-                               Submission* submission,
+    // Records the synthetic row clears, the copy and the completion signal,
+    // then returns without waiting. The caller observes progress only through
+    // the completion token.
+    Status SubmitClearReadback(const ClearReadbackDesc& desc, Submission* submission,
                                std::string* error);
 
-    // Releases the CPU gate for a gated submission. Calling this for an
-    // ungated submission is an InvalidArgument.
-    Status ReleaseGate(const Submission& submission, std::string* error);
+    // Polls the completion token. An unknown, released or foreign submission
+    // returns false.
+    bool IsComplete(const Submission& submission) const;
 
-    // Waits for the completion serial. A gated submission must have its gate
-    // released first; otherwise this returns InvalidArgument rather than
-    // deadlocking the test process.
-    Status Wait(const Submission& submission, std::string* error);
-
-    // Copies the staging buffer into caller-owned bytes. The completion must
-    // already have been waited for.
+    // Copies tightly packed caller-owned bytes. The producing submission must
+    // be complete; NotReady is returned otherwise. Readback never exposes
+    // backend row padding or a mapped view.
     Status Readback(const Submission& submission, ReadbackResult* result,
                     std::string* error);
 
-    // Attempts to release the command allocator and resources. It must refuse
-    // while the completion serial is still outstanding.
+    // Releases the recording and resources only after the completion token has
+    // been reached. It must refuse while the submission is still outstanding;
+    // it must not wait first.
     ReleaseStatus TryRelease(const Submission& submission, std::string* error);
 
-    // Backend completion serial already reached, or zero for an invalid
-    // submission. Used by the Q1a lifetime test to log both values.
-    uint64_t CompletedSerial(const Submission& submission) const;
-    bool IsCompleted(const Submission& submission) const;
-
-    // Convenience path used by the functional fixture: submit, wait, read
-    // back and release one submission.
-    Status ClearAndReadback(const ClearReadbackDesc& desc,
-                            ReadbackResult* result,
-                            std::string* error);
-
 private:
+    friend struct BackendAccess;
+
     struct Impl;
     std::unique_ptr<Impl> impl_;
 };
@@ -214,8 +143,6 @@ private:
 const char* ToString(AdapterClass value);
 const char* ToString(Status value);
 const char* ToString(ReleaseStatus value);
-const char* ToString(ResourceState value);
-const char* ToString(DiagnosticState value);
 
 }  // namespace rhi
 }  // namespace doom3

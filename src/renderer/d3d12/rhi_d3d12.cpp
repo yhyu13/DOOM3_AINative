@@ -1,4 +1,4 @@
-#include "rhi/rhi.h"
+#include "d3d12/d3d12_private.h"
 
 #include <windows.h>
 
@@ -9,13 +9,15 @@
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <cstdint>
-#include <limits>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 #include <map>
 #include <memory>
+#include <new>
 #include <string>
 #include <utility>
 #include <vector>
@@ -27,12 +29,14 @@ namespace rhi {
 
 namespace {
 
-constexpr DWORD kWaitTimeoutMilliseconds = 30000;
+constexpr DWORD kShutdownTimeoutMilliseconds = 30000;
 constexpr size_t kMaxCapturedMessages = 8;
+constexpr uint64_t kRemovedSentinel = std::numeric_limits<uint64_t>::max();
 
 // Process-lifetime, non-recycling IDs prevent aliases across devices and
 // reinitializations. Saturation is permanent rather than wrapping to an old ID.
 std::atomic<uint64_t> gNextSubmissionId{1};
+std::atomic<uint64_t> gNextCompletionToken{1};
 
 bool AllocateSubmissionId(uint32_t* id) {
     uint64_t next = gNextSubmissionId.load(std::memory_order_relaxed);
@@ -40,6 +44,18 @@ bool AllocateSubmissionId(uint32_t* id) {
         if (gNextSubmissionId.compare_exchange_weak(
                 next, next + 1, std::memory_order_relaxed)) {
             *id = static_cast<uint32_t>(next);
+            return true;
+        }
+    }
+    return false;
+}
+
+bool AllocateCompletionToken(uint64_t* token) {
+    uint64_t next = gNextCompletionToken.load(std::memory_order_relaxed);
+    while (next != 0) {
+        if (gNextCompletionToken.compare_exchange_weak(
+                next, next + 1, std::memory_order_relaxed)) {
+            *token = next;
             return true;
         }
     }
@@ -60,28 +76,6 @@ const char* SeverityName(D3D12_MESSAGE_SEVERITY severity) {
             return "MESSAGE";
     }
     return "UNKNOWN";
-}
-
-// The resource creation states are named once and used both for the D3D12
-// calls and for the public state journal. The journal is therefore derived
-// from the states actually passed to D3D12, not a separate hand-written story.
-constexpr D3D12_RESOURCE_STATES kRenderTargetInitialState =
-    D3D12_RESOURCE_STATE_RENDER_TARGET;
-constexpr D3D12_RESOURCE_STATES kReadbackInitialState = D3D12_RESOURCE_STATE_COPY_DEST;
-
-ResourceState ToResourceState(D3D12_RESOURCE_STATES state) {
-    switch (state) {
-        case D3D12_RESOURCE_STATE_COMMON:
-            return ResourceState::Common;
-        case D3D12_RESOURCE_STATE_RENDER_TARGET:
-            return ResourceState::RenderTarget;
-        case D3D12_RESOURCE_STATE_COPY_SOURCE:
-            return ResourceState::CopySource;
-        case D3D12_RESOURCE_STATE_COPY_DEST:
-            return ResourceState::CopyDest;
-        default:
-            return ResourceState::Unknown;
-    }
 }
 
 std::string HrString(HRESULT hr) {
@@ -117,60 +111,131 @@ std::string WideToUtf8(const wchar_t* value) {
     return result;
 }
 
+constexpr D3D12_RESOURCE_STATES kTextureInitialState =
+    D3D12_RESOURCE_STATE_RENDER_TARGET;
+constexpr D3D12_RESOURCE_STATES kReadbackInitialState = D3D12_RESOURCE_STATE_COPY_DEST;
+
+const char* PrivateStateName(D3D12_RESOURCE_STATES state) {
+    switch (state) {
+        case D3D12_RESOURCE_STATE_COMMON:
+            return "COMMON";
+        case D3D12_RESOURCE_STATE_RENDER_TARGET:
+            return "RENDER_TARGET";
+        case D3D12_RESOURCE_STATE_COPY_SOURCE:
+            return "COPY_SOURCE";
+        case D3D12_RESOURCE_STATE_COPY_DEST:
+            return "COPY_DEST";
+        default:
+            return "UNKNOWN";
+    }
+}
+
+// One submission owns everything the GPU may still reference. Nothing in this
+// record is destroyed until the completion value proves the last use ended, or
+// the whole record is moved to process-lifetime quarantine.
+struct Q1aRecord {
+    uint32_t id = 0;
+    uint64_t token = 0;
+    uint64_t serial = 0;
+    uint32_t width = 0;
+    uint32_t height = 0;
+    uint32_t rowPitch = 0;
+    uint32_t tightRowStride = 0;
+    uint64_t readbackBytes = 0;
+    bool gated = false;
+    bool gateReleased = false;
+    bool signalled = false;
+    bool released = false;
+    std::vector<d3d12::JournalEntry> journal;
+
+    ComPtr<ID3D12Fence> gateFence;
+    ComPtr<ID3D12Resource> texture;
+    ComPtr<ID3D12Resource> readback;
+    ComPtr<ID3D12DescriptorHeap> rtvHeap;
+    ComPtr<ID3D12CommandAllocator> allocator;
+    ComPtr<ID3D12GraphicsCommandList> commandList;
+};
+
+// Deliberately never destroyed. If completion cannot be proved, dropping these
+// objects could free memory the GPU still reads. A process-lifetime quarantine
+// is the honest alternative to a clean-looking teardown.
+struct QuarantineStore {
+    std::vector<Q1aRecord> records;
+    ComPtr<ID3D12Device> device;
+    ComPtr<ID3D12CommandQueue> queue;
+    ComPtr<ID3D12CommandQueue> gateQueue;
+    ComPtr<ID3D12Fence> completion;
+    ComPtr<IDXGIAdapter1> adapter;
+    ComPtr<IDXGIFactory1> factory;
+};
+
+QuarantineStore* Quarantine() {
+    static QuarantineStore* store = new QuarantineStore();
+    return store;
+}
+
 }  // namespace
 
 struct Device::Impl {
-    struct Record {
-        uint32_t id = 0;
-        uint64_t serial = 0;
-        uint64_t gateValue = 0;
-        bool gated = false;
-        bool gateReleased = false;
-        bool released = false;
-        uint32_t width = 0;
-        uint32_t height = 0;
-        uint32_t rowPitch = 0;
-        uint32_t tightRowPitch = 0;
-        uint64_t readbackBytes = 0;
-
-        ComPtr<ID3D12Fence> gateFence;
-        ComPtr<ID3D12Resource> texture;
-        ComPtr<ID3D12Resource> readback;
-        ComPtr<ID3D12DescriptorHeap> rtvHeap;
-        ComPtr<ID3D12CommandAllocator> allocator;
-        ComPtr<ID3D12GraphicsCommandList> commandList;
-    };
-
     ComPtr<IDXGIFactory1> factory;
     ComPtr<IDXGIAdapter1> adapter;
     ComPtr<ID3D12Device> device;
     ComPtr<ID3D12CommandQueue> queue;
     ComPtr<ID3D12CommandQueue> gateQueue;
-    ComPtr<ID3D12Fence> fence;
+    ComPtr<ID3D12Fence> completion;
 
     AdapterInfo adapterInfo;
-    Diagnostics diagnostics;
-    std::vector<StateTransition> journal;
-    std::map<uint32_t, Record> records;
+    d3d12::DiagnosticReport diagnostics;
+    std::map<uint32_t, Q1aRecord> records;
 
-    uint64_t nextFenceValue = 1;
+    uint64_t nextCompletionValue = 1;
     bool initialized = false;
 
-    Record* FindRecord(const Submission& submission) {
-        auto it = records.find(submission.id);
-        return it == records.end() || it->second.serial != submission.completionSerial ||
-                       it->second.gated != submission.gated
-                   ? nullptr : &it->second;
+    bool CompletionValueReached(uint64_t serial) const {
+        if (!completion || !device) {
+            return false;
+        }
+        if (FAILED(device->GetDeviceRemovedReason())) {
+            return false;
+        }
+        const uint64_t completed = completion->GetCompletedValue();
+        return completed != kRemovedSentinel && completed >= serial;
     }
 
-    const Record* FindRecord(const Submission& submission) const {
-        auto it = records.find(submission.id);
-        return it == records.end() || it->second.serial != submission.completionSerial ||
-                       it->second.gated != submission.gated
-                   ? nullptr : &it->second;
+    bool Lost(std::string* error) const {
+        if (!device) {
+            return false;
+        }
+        const HRESULT reason = device->GetDeviceRemovedReason();
+        if (FAILED(reason)) {
+            if (error != nullptr) {
+                *error = "device removed before ownership was proved (" +
+                         HrString(reason) + ")";
+            }
+            return true;
+        }
+        return false;
     }
 
-    void ReleaseRecord(Record& record) {
+    Q1aRecord* FindRecord(const Submission& submission) {
+        auto it = records.find(submission.id);
+        if (it == records.end() || it->second.released ||
+            it->second.token != submission.completionToken) {
+            return nullptr;
+        }
+        return &it->second;
+    }
+
+    const Q1aRecord* FindRecord(const Submission& submission) const {
+        auto it = records.find(submission.id);
+        if (it == records.end() || it->second.released ||
+            it->second.token != submission.completionToken) {
+            return nullptr;
+        }
+        return &it->second;
+    }
+
+    static void ReleaseRecord(Q1aRecord& record) {
         record.commandList.Reset();
         record.gateFence.Reset();
         record.allocator.Reset();
@@ -183,31 +248,45 @@ struct Device::Impl {
     void ReleaseObjects() {
         queue.Reset();
         gateQueue.Reset();
-        fence.Reset();
+        completion.Reset();
         device.Reset();
         adapter.Reset();
         factory.Reset();
     }
 
-    bool WaitForSerial(uint64_t serial) {
-        if (!fence) {
+    bool WaitForCompletionValue(uint64_t serial, DWORD timeoutMilliseconds) {
+        if (!completion || !device) {
             return false;
         }
-        if (fence->GetCompletedValue() >= serial) {
+        if (FAILED(device->GetDeviceRemovedReason())) {
+            return false;
+        }
+        const uint64_t completed = completion->GetCompletedValue();
+        if (completed == kRemovedSentinel) {
+            return false;
+        }
+        if (completed >= serial) {
             return true;
         }
         HANDLE eventHandle = CreateEventExW(nullptr, nullptr, 0, EVENT_ALL_ACCESS);
         if (eventHandle == nullptr) {
             return false;
         }
-        const HRESULT setEvent = fence->SetEventOnCompletion(serial, eventHandle);
+        const HRESULT setEvent = completion->SetEventOnCompletion(serial, eventHandle);
         if (FAILED(setEvent)) {
             CloseHandle(eventHandle);
             return false;
         }
-        const DWORD wait = WaitForSingleObject(eventHandle, kWaitTimeoutMilliseconds);
+        const DWORD wait = WaitForSingleObject(eventHandle, timeoutMilliseconds);
         CloseHandle(eventHandle);
-        return wait == WAIT_OBJECT_0 && fence->GetCompletedValue() >= serial;
+        if (wait != WAIT_OBJECT_0) {
+            return false;
+        }
+        if (FAILED(device->GetDeviceRemovedReason())) {
+            return false;
+        }
+        const uint64_t after = completion->GetCompletedValue();
+        return after != kRemovedSentinel && after >= serial;
     }
 
     void UpdateDiagnostics() {
@@ -348,19 +427,15 @@ struct Device::Impl {
         adapterInfo.deviceId = description.DeviceId;
         adapterInfo.dedicatedVideoMemory =
             static_cast<uint64_t>(description.DedicatedVideoMemory);
-        adapterInfo.luid =
-            (static_cast<uint64_t>(static_cast<uint32_t>(description.AdapterLuid.HighPart))
-             << 32) |
-            static_cast<uint64_t>(static_cast<uint32_t>(description.AdapterLuid.LowPart));
         return Status::Ok;
     }
 
-    Status CreateBackendObjects(const DeviceOptions& options, std::string* error) {
+    Status CreateBackendObjects(std::string* error) {
         const HRESULT deviceResult = D3D12CreateDevice(
             adapter.Get(), D3D_FEATURE_LEVEL_11_0, __uuidof(ID3D12Device),
             reinterpret_cast<void**>(device.GetAddressOf()));
         if (FAILED(deviceResult)) {
-            const Status status = options.adapterClass == AdapterClass::Software
+            const Status status = adapterInfo.adapterClass == AdapterClass::Software
                                       ? Status::Unsupported
                                       : Status::Error;
             return Fail(status, error, ErrorWith("D3D12CreateDevice", deviceResult));
@@ -375,7 +450,7 @@ struct Device::Impl {
             &queueDescription, __uuidof(ID3D12CommandQueue),
             reinterpret_cast<void**>(queue.GetAddressOf()));
         if (FAILED(hr)) {
-            return Fail(Status::Error, error, ErrorWith("CreateCommandQueue(main)", hr));
+            return Fail(Status::Error, error, ErrorWith("CreateCommandQueue", hr));
         }
         hr = device->CreateCommandQueue(
             &queueDescription, __uuidof(ID3D12CommandQueue),
@@ -385,11 +460,562 @@ struct Device::Impl {
         }
         hr = device->CreateFence(
             0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence),
-            reinterpret_cast<void**>(fence.GetAddressOf()));
+            reinterpret_cast<void**>(completion.GetAddressOf()));
         if (FAILED(hr)) {
-            return Fail(Status::Error, error, ErrorWith("CreateFence(completion)", hr));
+            return Fail(Status::Error, error, ErrorWith("CreateFence", hr));
         }
         return Status::Ok;
+    }
+
+    void ConfigureDiagnostics(bool requestDebugLayer, bool requestGpuValidation) {
+        diagnostics = d3d12::DiagnosticReport{};
+        if (!requestDebugLayer && !requestGpuValidation) {
+            return;
+        }
+        diagnostics.debugLayer = d3d12::CheckState::NotRun;
+        if (requestGpuValidation) {
+            diagnostics.gpuBasedValidation = d3d12::CheckState::NotRun;
+        }
+
+        ComPtr<ID3D12Debug> debug;
+        const HRESULT debugResult = D3D12GetDebugInterface(
+            __uuidof(ID3D12Debug), reinterpret_cast<void**>(debug.GetAddressOf()));
+        if (FAILED(debugResult) || !debug) {
+            diagnostics.debugLayer = d3d12::CheckState::Skipped;
+            diagnostics.debugLayerDetail =
+                ErrorWith("D3D12GetDebugInterface", debugResult);
+            if (requestGpuValidation) {
+                diagnostics.gpuBasedValidation = d3d12::CheckState::Skipped;
+                diagnostics.gpuBasedValidationDetail =
+                    ErrorWith("D3D12GetDebugInterface (GPU-based validation)", debugResult);
+            }
+            return;
+        }
+
+        debug->EnableDebugLayer();
+        diagnostics.debugLayer = d3d12::CheckState::Run;
+        diagnostics.debugLayerDetail =
+            requestDebugLayer
+                ? "ID3D12Debug::EnableDebugLayer invoked"
+                : "ID3D12Debug::EnableDebugLayer invoked implicitly because GPU-based "
+                  "validation was requested";
+        if (!requestGpuValidation) {
+            return;
+        }
+
+        ComPtr<ID3D12Debug1> debug1;
+        const HRESULT debug1Result = debug.As(&debug1);
+        if (FAILED(debug1Result) || !debug1) {
+            diagnostics.gpuBasedValidation = d3d12::CheckState::Skipped;
+            diagnostics.gpuBasedValidationDetail = ErrorWith("ID3D12Debug1 query", debug1Result);
+            return;
+        }
+        debug1->SetEnableGPUBasedValidation(TRUE);
+        diagnostics.gpuBasedValidation = d3d12::CheckState::Run;
+        diagnostics.gpuBasedValidationDetail =
+            "ID3D12Debug1::SetEnableGPUBasedValidation(TRUE) invoked";
+    }
+
+    Status Initialize(const DeviceOptions& options, bool requestDebugLayer,
+                      bool requestGpuValidation, std::string* error) {
+        if (initialized) {
+            return Fail(Status::InvalidArgument, error, "Device::Initialize called twice");
+        }
+        records.clear();
+        nextCompletionValue = 1;
+        ConfigureDiagnostics(requestDebugLayer, requestGpuValidation);
+
+        Status status = SelectAdapter(options, error);
+        if (status != Status::Ok) {
+            ReleaseObjects();
+            return status;
+        }
+        status = CreateBackendObjects(error);
+        if (status != Status::Ok) {
+            ReleaseObjects();
+            return status;
+        }
+        initialized = true;
+        if (error != nullptr) {
+            error->clear();
+        }
+        return Status::Ok;
+    }
+
+    Status Submit(const ClearReadbackDesc& desc, bool gated, Submission* submission,
+                  std::string* error) {
+        if (submission == nullptr) {
+            return Fail(Status::InvalidArgument, error, "submission output is null");
+        }
+        *submission = Submission{};
+        if (!initialized || !device || !queue || !gateQueue || !completion) {
+            return Fail(Status::Error, error, "device is not initialized");
+        }
+        if (Lost(error)) {
+            return Status::DeviceLost;
+        }
+        if (desc.width == 0 || desc.height == 0) {
+            return Fail(Status::InvalidArgument, error, "clear/readback dimensions are zero");
+        }
+        if (desc.width > D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION ||
+            desc.height > D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION) {
+            return Fail(Status::InvalidArgument, error,
+                        "clear/readback dimensions exceed the texture limit");
+        }
+        if (desc.width >
+            std::numeric_limits<uint32_t>::max() / 4) {
+            return Fail(Status::InvalidArgument, error, "row stride overflows uint32");
+        }
+        if (desc.rows.size() != desc.height) {
+            return Fail(Status::InvalidArgument, error,
+                        "ClearReadbackDesc::rows must contain exactly one entry per row");
+        }
+        if (nextCompletionValue == kRemovedSentinel) {
+            return Fail(Status::Error, error, "completion value space exhausted");
+        }
+
+        Q1aRecord record;
+        if (!AllocateSubmissionId(&record.id)) {
+            return Fail(Status::Error, error, "submission identity space exhausted");
+        }
+        if (!AllocateCompletionToken(&record.token)) {
+            return Fail(Status::Error, error, "completion token space exhausted");
+        }
+        record.serial = nextCompletionValue++;
+        record.gated = gated;
+        record.width = desc.width;
+        record.height = desc.height;
+        record.tightRowStride = desc.width * 4;
+
+        HRESULT hr = S_OK;
+        D3D12_RESOURCE_DESC textureDescription{};
+        textureDescription.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+        textureDescription.Alignment = 0;
+        textureDescription.Width = desc.width;
+        textureDescription.Height = desc.height;
+        textureDescription.DepthOrArraySize = 1;
+        textureDescription.MipLevels = 1;
+        textureDescription.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        textureDescription.SampleDesc.Count = 1;
+        textureDescription.SampleDesc.Quality = 0;
+        textureDescription.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+        textureDescription.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+        D3D12_HEAP_PROPERTIES defaultHeap{};
+        defaultHeap.Type = D3D12_HEAP_TYPE_DEFAULT;
+        defaultHeap.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+        defaultHeap.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+        defaultHeap.CreationNodeMask = 1;
+        defaultHeap.VisibleNodeMask = 1;
+        D3D12_CLEAR_VALUE clearValue{};
+        clearValue.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        clearValue.Color[0] = 0.0f;
+        clearValue.Color[1] = 0.0f;
+        clearValue.Color[2] = 0.0f;
+        clearValue.Color[3] = 0.0f;
+        hr = device->CreateCommittedResource(
+            &defaultHeap, D3D12_HEAP_FLAG_NONE, &textureDescription,
+            kTextureInitialState, &clearValue, __uuidof(ID3D12Resource),
+            reinterpret_cast<void**>(record.texture.GetAddressOf()));
+        if (FAILED(hr)) {
+            return Fail(Status::Error, error,
+                        ErrorWith("CreateCommittedResource(render target)", hr));
+        }
+
+        D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDescription{};
+        rtvHeapDescription.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+        rtvHeapDescription.NumDescriptors = 1;
+        rtvHeapDescription.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+        rtvHeapDescription.NodeMask = 0;
+        hr = device->CreateDescriptorHeap(
+            &rtvHeapDescription, __uuidof(ID3D12DescriptorHeap),
+            reinterpret_cast<void**>(record.rtvHeap.GetAddressOf()));
+        if (FAILED(hr)) {
+            return Fail(Status::Error, error, ErrorWith("CreateDescriptorHeap", hr));
+        }
+
+        D3D12_RENDER_TARGET_VIEW_DESC rtvDescription{};
+        rtvDescription.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        rtvDescription.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+        rtvDescription.Texture2D.MipSlice = 0;
+        rtvDescription.Texture2D.PlaneSlice = 0;
+        device->CreateRenderTargetView(record.texture.Get(), &rtvDescription,
+                                       record.rtvHeap->GetCPUDescriptorHandleForHeapStart());
+
+        D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint{};
+        UINT rowCount = 0;
+        UINT64 rowSizeInBytes = 0;
+        UINT64 totalBytes = 0;
+        device->GetCopyableFootprints(&textureDescription, 0, 1, 0, &footprint, &rowCount,
+                                      &rowSizeInBytes, &totalBytes);
+        record.rowPitch = footprint.Footprint.RowPitch;
+        if (record.rowPitch < record.tightRowStride || totalBytes == 0 ||
+            rowCount != desc.height) {
+            return Fail(Status::Error, error,
+                        "GetCopyableFootprints returned an unexpected readback layout");
+        }
+        const UINT64 rowSpanBytes =
+            static_cast<UINT64>(record.rowPitch) * static_cast<UINT64>(desc.height);
+        const UINT64 allocationBytes = std::max(totalBytes, rowSpanBytes);
+        record.readbackBytes = allocationBytes;
+
+        D3D12_RESOURCE_DESC bufferDescription{};
+        bufferDescription.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+        bufferDescription.Alignment = 0;
+        bufferDescription.Width = allocationBytes;
+        bufferDescription.Height = 1;
+        bufferDescription.DepthOrArraySize = 1;
+        bufferDescription.MipLevels = 1;
+        bufferDescription.Format = DXGI_FORMAT_UNKNOWN;
+        bufferDescription.SampleDesc.Count = 1;
+        bufferDescription.SampleDesc.Quality = 0;
+        bufferDescription.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+        bufferDescription.Flags = D3D12_RESOURCE_FLAG_NONE;
+        D3D12_HEAP_PROPERTIES readbackHeap{};
+        readbackHeap.Type = D3D12_HEAP_TYPE_READBACK;
+        readbackHeap.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+        readbackHeap.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+        readbackHeap.CreationNodeMask = 1;
+        readbackHeap.VisibleNodeMask = 1;
+        hr = device->CreateCommittedResource(
+            &readbackHeap, D3D12_HEAP_FLAG_NONE, &bufferDescription,
+            kReadbackInitialState, nullptr, __uuidof(ID3D12Resource),
+            reinterpret_cast<void**>(record.readback.GetAddressOf()));
+        if (FAILED(hr)) {
+            return Fail(Status::Error, error,
+                        ErrorWith("CreateCommittedResource(readback)", hr));
+        }
+
+        hr = device->CreateCommandAllocator(
+            D3D12_COMMAND_LIST_TYPE_DIRECT, __uuidof(ID3D12CommandAllocator),
+            reinterpret_cast<void**>(record.allocator.GetAddressOf()));
+        if (FAILED(hr)) {
+            return Fail(Status::Error, error, ErrorWith("CreateCommandAllocator", hr));
+        }
+        hr = device->CreateCommandList(
+            0, D3D12_COMMAND_LIST_TYPE_DIRECT, record.allocator.Get(), nullptr,
+            __uuidof(ID3D12GraphicsCommandList),
+            reinterpret_cast<void**>(record.commandList.GetAddressOf()));
+        if (FAILED(hr)) {
+            return Fail(Status::Error, error, ErrorWith("CreateCommandList", hr));
+        }
+
+        const D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle =
+            record.rtvHeap->GetCPUDescriptorHandleForHeapStart();
+        for (uint32_t y = 0; y < desc.height; ++y) {
+            const ClearRow& row = desc.rows[y];
+            const FLOAT color[4] = {row.red / 255.0f, row.green / 255.0f,
+                                    row.blue / 255.0f, row.alpha / 255.0f};
+            const D3D12_RECT rect{0, static_cast<LONG>(y), static_cast<LONG>(desc.width),
+                                  static_cast<LONG>(y + 1)};
+            record.commandList->ClearRenderTargetView(rtvHandle, color, 1, &rect);
+        }
+        D3D12_RESOURCE_BARRIER barrier{};
+        barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+        barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+        barrier.Transition.pResource = record.texture.Get();
+        barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+        barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+        barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
+        record.commandList->ResourceBarrier(1, &barrier);
+
+        D3D12_TEXTURE_COPY_LOCATION destination{};
+        destination.pResource = record.readback.Get();
+        destination.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+        destination.PlacedFootprint = footprint;
+        D3D12_TEXTURE_COPY_LOCATION source{};
+        source.pResource = record.texture.Get();
+        source.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+        source.SubresourceIndex = 0;
+        record.commandList->CopyTextureRegion(&destination, 0, 0, 0, &source, nullptr);
+        hr = record.commandList->Close();
+        if (FAILED(hr)) {
+            return Fail(Status::Error, error, ErrorWith("ID3D12GraphicsCommandList::Close", hr));
+        }
+
+        // Journal and output storage are prepared before the submission so no
+        // allocation happens between ExecuteCommandLists and the published
+        // token. The journal is backend-private and read only by private tests.
+        record.journal.reserve(3);
+        record.journal.push_back(d3d12::JournalEntry{
+            "render-target", "UNKNOWN", PrivateStateName(kTextureInitialState),
+            "created for render-target use"});
+        record.journal.push_back(d3d12::JournalEntry{
+            "render-target", PrivateStateName(barrier.Transition.StateBefore),
+            PrivateStateName(barrier.Transition.StateAfter),
+            "per-row clear recorded, then moved for the copy"});
+        record.journal.push_back(d3d12::JournalEntry{
+            "readback-buffer", "UNKNOWN", PrivateStateName(kReadbackInitialState),
+            "created as the copy destination"});
+
+        if (record.gated) {
+            hr = device->CreateFence(
+                0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence),
+                reinterpret_cast<void**>(record.gateFence.GetAddressOf()));
+            if (FAILED(hr)) {
+                return Fail(Status::Error, error, ErrorWith("CreateFence(gate)", hr));
+            }
+            hr = queue->Wait(record.gateFence.Get(), 1);
+            if (FAILED(hr)) {
+                // Nothing was submitted; releasing the local record is safe.
+                return Fail(Status::Error, error, ErrorWith("CommandQueue::Wait(gate)", hr));
+            }
+        }
+
+        const uint32_t id = record.id;
+        const uint64_t token = record.token;
+        auto inserted = records.emplace(id, std::move(record));
+        if (!inserted.second) {
+            return Fail(Status::Error, error, "submission identity collision");
+        }
+        Q1aRecord& stored = inserted.first->second;
+        ID3D12CommandList* commandLists[] = {stored.commandList.Get()};
+        queue->ExecuteCommandLists(1, commandLists);
+        const HRESULT signalResult = queue->Signal(completion.Get(), stored.serial);
+        if (FAILED(signalResult)) {
+            // The list may be running and its signal was lost. Keep the record
+            // out of reach of callers; Shutdown quarantines it instead of
+            // destroying objects the GPU may still use.
+            stored.signalled = false;
+            std::string reason = ErrorWith("CommandQueue::Signal", signalResult);
+            const HRESULT removed = device->GetDeviceRemovedReason();
+            if (FAILED(removed)) {
+                reason += "; " + HrString(removed);
+            }
+            return Fail(Status::Error, error, reason);
+        }
+        stored.signalled = true;
+
+        submission->id = id;
+        submission->completionToken = token;
+        if (error != nullptr) {
+            error->clear();
+        }
+        return Status::Ok;
+    }
+
+    Status ReleaseGate(const Submission& submission, std::string* error) {
+        Q1aRecord* record = FindRecord(submission);
+        if (record == nullptr) {
+            return Fail(Status::InvalidArgument, error, "unknown or released submission");
+        }
+        if (!record->gated) {
+            return Fail(Status::InvalidArgument, error,
+                        "release gate called for an ungated submission");
+        }
+        if (record->gateReleased) {
+            if (error != nullptr) {
+                error->clear();
+            }
+            return Status::Ok;
+        }
+        if (!gateQueue || !record->gateFence) {
+            return Fail(Status::Error, error, "gate queue or gate object is unavailable");
+        }
+        const HRESULT hr = gateQueue->Signal(record->gateFence.Get(), 1);
+        if (FAILED(hr)) {
+            return Fail(Status::Error, error, ErrorWith("CommandQueue::Signal(gate)", hr));
+        }
+        record->gateReleased = true;
+        if (error != nullptr) {
+            error->clear();
+        }
+        return Status::Ok;
+    }
+
+    Status Readback(const Submission& submission, ReadbackResult* result,
+                    std::string* error) {
+        if (result == nullptr) {
+            return Fail(Status::InvalidArgument, error, "readback result is null");
+        }
+        *result = ReadbackResult{};
+        Q1aRecord* record = FindRecord(submission);
+        if (record == nullptr) {
+            return Fail(Status::InvalidArgument, error, "unknown or released submission");
+        }
+        if (!record->signalled) {
+            return Fail(Status::Error, error,
+                        "submission was submitted without a completion signal");
+        }
+        if (Lost(error)) {
+            return Status::DeviceLost;
+        }
+        if (!CompletionValueReached(record->serial)) {
+            return Fail(Status::NotReady, error,
+                        "readback requested before the completion token was reached");
+        }
+        if (!record->readback) {
+            return Fail(Status::Error, error, "readback storage is unavailable");
+        }
+
+        void* mapped = nullptr;
+        const HRESULT mapResult = record->readback->Map(0, nullptr, &mapped);
+        if (FAILED(mapResult) || mapped == nullptr) {
+            if (Lost(error)) {
+                return Status::DeviceLost;
+            }
+            return Fail(Status::Error, error,
+                        mapResult == S_OK
+                            ? std::string("ID3D12Resource::Map returned a null pointer")
+                            : ErrorWith("ID3D12Resource::Map", mapResult));
+        }
+        const size_t stagingBytes =
+            static_cast<size_t>(record->rowPitch) * static_cast<size_t>(record->height);
+        if (stagingBytes > record->readbackBytes) {
+            record->readback->Unmap(0, nullptr);
+            return Fail(Status::Error, error,
+                        "staging layout exceeds the readback allocation");
+        }
+        const auto* bytes = static_cast<const uint8_t*>(mapped);
+        result->width = record->width;
+        result->height = record->height;
+        result->rowStride = record->tightRowStride;
+        result->adapter = adapterInfo;
+        try {
+            result->pixels.resize(
+                static_cast<size_t>(record->tightRowStride) * record->height);
+            for (uint32_t y = 0; y < record->height; ++y) {
+                std::memcpy(result->pixels.data() +
+                                static_cast<size_t>(y) * record->tightRowStride,
+                            bytes + static_cast<size_t>(y) * record->rowPitch,
+                            record->tightRowStride);
+            }
+        } catch (const std::bad_alloc&) {
+            record->readback->Unmap(0, nullptr);
+            *result = ReadbackResult{};
+            return Fail(Status::OutOfMemory, error,
+                        "caller-owned readback bytes could not be allocated");
+        }
+        record->readback->Unmap(0, nullptr);
+        if (error != nullptr) {
+            error->clear();
+        }
+        return Status::Ok;
+    }
+
+    ReleaseStatus TryRelease(const Submission& submission, std::string* error) {
+        Q1aRecord* record = FindRecord(submission);
+        if (record == nullptr) {
+            if (error != nullptr) {
+                *error = "unknown or already released submission";
+            }
+            return ReleaseStatus::InvalidSubmission;
+        }
+        if (!record->signalled) {
+            if (error != nullptr) {
+                *error = "completion was never signalled; ownership is unproven";
+            }
+            return ReleaseStatus::RefusedOutstanding;
+        }
+        if (Lost(error)) {
+            return ReleaseStatus::RefusedOutstanding;
+        }
+        if (!CompletionValueReached(record->serial)) {
+            if (error != nullptr) {
+                *error = "completion token is outstanding";
+            }
+            return ReleaseStatus::RefusedOutstanding;
+        }
+        const uint32_t id = submission.id;
+        ReleaseRecord(*record);
+        records.erase(id);
+        if (error != nullptr) {
+            error->clear();
+        }
+        return ReleaseStatus::Released;
+    }
+
+    bool IsComplete(const Submission& submission) const {
+        const Q1aRecord* record = FindRecord(submission);
+        if (record == nullptr || !record->signalled) {
+            return false;
+        }
+        return CompletionValueReached(record->serial);
+    }
+
+    Status Shutdown() {
+        Status result = Status::Ok;
+        bool quarantine = false;
+
+        for (auto& entry : records) {
+            Q1aRecord& record = entry.second;
+            if (!record.released && record.gated && !record.gateReleased && gateQueue &&
+                record.gateFence) {
+                const HRESULT signalResult = gateQueue->Signal(record.gateFence.Get(), 1);
+                if (SUCCEEDED(signalResult)) {
+                    record.gateReleased = true;
+                } else {
+                    quarantine = true;
+                    result = Status::Error;
+                }
+            }
+        }
+
+        const auto deadline = std::chrono::steady_clock::now() +
+                              std::chrono::milliseconds(kShutdownTimeoutMilliseconds);
+        for (auto& entry : records) {
+            Q1aRecord& record = entry.second;
+            if (!record.released) {
+                if (!record.signalled) {
+                    quarantine = true;
+                    if (result == Status::Ok) {
+                        result = Status::Error;
+                    }
+                    continue;
+                }
+                if (record.gated && !record.gateReleased) {
+                    // The queue is still held on a gate that could not be
+                    // opened; waiting would burn the whole teardown budget.
+                    quarantine = true;
+                    if (result == Status::Ok) {
+                        result = Status::Error;
+                    }
+                    continue;
+                }
+                if (FAILED(device ? device->GetDeviceRemovedReason() : E_FAIL)) {
+                    quarantine = true;
+                    if (result == Status::Ok) {
+                        result = Status::DeviceLost;
+                    }
+                    continue;
+                }
+                const auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    deadline - std::chrono::steady_clock::now());
+                const bool completed =
+                    remaining.count() > 0 &&
+                    WaitForCompletionValue(record.serial,
+                                           static_cast<DWORD>(remaining.count()));
+                if (!completed) {
+                    quarantine = true;
+                    if (result == Status::Ok) {
+                        result = Status::Error;
+                    }
+                    continue;
+                }
+                ReleaseRecord(record);
+            }
+        }
+        if (quarantine) {
+            // Do not destroy objects whose last use is unproven. Move the
+            // records and the whole backend object set to a leaked store.
+            QuarantineStore* store = Quarantine();
+            for (auto& entry : records) {
+                store->records.push_back(std::move(entry.second));
+            }
+            records.clear();
+            store->device = std::move(device);
+            store->queue = std::move(queue);
+            store->gateQueue = std::move(gateQueue);
+            store->completion = std::move(completion);
+            store->adapter = std::move(adapter);
+            store->factory = std::move(factory);
+            initialized = false;
+            return result;
+        }
+
+        records.clear();
+        ReleaseObjects();
+        initialized = false;
+        return result;
     }
 };
 
@@ -407,6 +1033,8 @@ const char* ToString(Status value) {
     switch (value) {
     case Status::Ok:
         return "Ok";
+    case Status::NotReady:
+        return "NotReady";
     case Status::InvalidArgument:
         return "InvalidArgument";
     case Status::Unsupported:
@@ -433,37 +1061,58 @@ const char* ToString(ReleaseStatus value) {
     return "unknown";
 }
 
-const char* ToString(ResourceState value) {
-    switch (value) {
-    case ResourceState::Unknown:
-        return "Unknown";
-    case ResourceState::RenderTarget:
-        return "RENDER_TARGET";
-    case ResourceState::CopySource:
-        return "COPY_SOURCE";
-    case ResourceState::CopyDest:
-        return "COPY_DEST";
-    case ResourceState::Common:
-        return "COMMON";
-    }
-    return "unknown";
-}
+namespace d3d12 {
 
-const char* ToString(DiagnosticState value) {
+const char* ToString(CheckState value) {
     switch (value) {
-    case DiagnosticState::NotRequested:
+    case CheckState::NotRequested:
         return "NOT_REQUESTED";
-    case DiagnosticState::Run:
+    case CheckState::Run:
         return "RUN";
-    case DiagnosticState::Skipped:
+    case CheckState::Skipped:
         return "SKIPPED";
-    case DiagnosticState::NotRun:
+    case CheckState::NotRun:
         return "NOT_RUN";
-    case DiagnosticState::Failed:
+    case CheckState::Failed:
         return "FAILED";
     }
     return "unknown";
 }
+
+Status InitializeWithDiagnostics(Device& device, const DeviceOptions& options,
+                                 const DiagnosticRequest& request, std::string* error) {
+    return BackendAccess::Initialize(device, options, request.enableDebugLayer,
+                                     request.enableGpuBasedValidation, error);
+}
+
+Status SubmitWithGate(Device& device, const ClearReadbackDesc& desc,
+                      Submission* submission, std::string* error) {
+    return BackendAccess::SubmitGated(device, desc, submission, error);
+}
+
+Status ReleaseGate(Device& device, const Submission& submission, std::string* error) {
+    return BackendAccess::ReleaseGate(device, submission, error);
+}
+
+DiagnosticReport ReadDiagnostics(const Device& device) {
+    Device& mutableDevice = const_cast<Device&>(device);
+    return BackendAccess::Diagnostics(mutableDevice);
+}
+
+std::vector<JournalEntry> ReadJournal(const Device& device, const Submission& submission) {
+    return BackendAccess::Journal(device, submission);
+}
+
+RawReadback ReadRawReadback(const Device& device, const Submission& submission,
+                            std::string* error) {
+    return BackendAccess::RawReadback(device, submission, error);
+}
+
+FenceObservation ObserveFence(const Device& device, const Submission& submission) {
+    return BackendAccess::Observe(device, submission);
+}
+
+}  // namespace d3d12
 
 Device::Device() : impl_(std::make_unique<Impl>()) {}
 
@@ -472,119 +1121,11 @@ Device::~Device() {
 }
 
 Status Device::Initialize(const DeviceOptions& options, std::string* error) {
-    Impl& impl = *impl_;
-    if (impl.initialized) {
-        return Fail(Status::InvalidArgument, error, "Device::Initialize called twice");
-    }
-
-    impl.diagnostics = Diagnostics{};
-    impl.journal.clear();
-    impl.records.clear();
-    impl.nextFenceValue = 1;
-    if (options.enableDebugLayer) {
-        impl.diagnostics.debugLayer = DiagnosticState::NotRun;
-    }
-    if (options.enableGpuBasedValidation) {
-        impl.diagnostics.gpuBasedValidation = DiagnosticState::NotRun;
-    }
-
-    Status status = impl.SelectAdapter(options, error);
-    if (status != Status::Ok) {
-        impl.ReleaseObjects();
-        return status;
-    }
-
-    // GPU-based validation is only reachable through the debug interface, so a
-    // GBV-only request must still attempt enablement instead of reporting an
-    // un-attempted skip. When GBV is requested without an explicit debug-layer
-    // request, the debug layer is enabled implicitly and recorded as Run with
-    // that reason.
-    if (options.enableDebugLayer || options.enableGpuBasedValidation) {
-        ComPtr<ID3D12Debug> debug;
-        const HRESULT debugResult = D3D12GetDebugInterface(
-            __uuidof(ID3D12Debug), reinterpret_cast<void**>(debug.GetAddressOf()));
-        if (FAILED(debugResult)) {
-            if (options.enableDebugLayer) {
-                impl.diagnostics.debugLayer = DiagnosticState::Skipped;
-                impl.diagnostics.debugLayerDetail =
-                    ErrorWith("D3D12GetDebugInterface", debugResult);
-            }
-            if (options.enableGpuBasedValidation) {
-                impl.diagnostics.gpuBasedValidation = DiagnosticState::Skipped;
-                impl.diagnostics.gpuBasedValidationDetail =
-                    ErrorWith("D3D12GetDebugInterface (GPU-based validation)",
-                              debugResult);
-            }
-        } else {
-            debug->EnableDebugLayer();
-            impl.diagnostics.debugLayer = DiagnosticState::Run;
-            impl.diagnostics.debugLayerDetail =
-                options.enableDebugLayer
-                    ? "ID3D12Debug::EnableDebugLayer invoked"
-                    : "ID3D12Debug::EnableDebugLayer invoked implicitly because "
-                      "GPU-based validation was requested";
-            if (options.enableGpuBasedValidation) {
-                ComPtr<ID3D12Debug1> debug1;
-                const HRESULT debug1Result = debug.As(&debug1);
-                if (FAILED(debug1Result) || !debug1) {
-                    impl.diagnostics.gpuBasedValidation = DiagnosticState::Skipped;
-                    impl.diagnostics.gpuBasedValidationDetail =
-                        ErrorWith("ID3D12Debug1 query", debug1Result);
-                } else {
-                    debug1->SetEnableGPUBasedValidation(TRUE);
-                    impl.diagnostics.gpuBasedValidation = DiagnosticState::Run;
-                    impl.diagnostics.gpuBasedValidationDetail =
-                        "ID3D12Debug1::SetEnableGPUBasedValidation(TRUE) invoked";
-                }
-            }
-        }
-    }
-
-    status = impl.CreateBackendObjects(options, error);
-    if (status != Status::Ok) {
-        impl.ReleaseObjects();
-        return status;
-    }
-
-    impl.initialized = true;
-    impl.UpdateDiagnostics();
-    if (error != nullptr) {
-        error->clear();
-    }
-    return Status::Ok;
+    return impl_->Initialize(options, false, false, error);
 }
 
 Status Device::Shutdown() {
-    Impl& impl = *impl_;
-    Status result = Status::Ok;
-
-    for (auto& entry : impl.records) {
-        Impl::Record& record = entry.second;
-        if (!record.released && record.gated && !record.gateReleased && impl.gateQueue &&
-            record.gateFence) {
-            const HRESULT signalResult =
-                impl.gateQueue->Signal(record.gateFence.Get(), record.gateValue);
-            if (SUCCEEDED(signalResult)) {
-                record.gateReleased = true;
-            }
-        }
-    }
-    for (auto& entry : impl.records) {
-        Impl::Record& record = entry.second;
-        if (!record.released) {
-            if (impl.fence && record.serial != 0 && !impl.WaitForSerial(record.serial)) {
-                // The serial never completed. Report it rather than claiming a
-                // clean shutdown; the fixture still drops its references, which
-                // is test-process teardown, not a reusable device.
-                result = Status::Error;
-            }
-            impl.ReleaseRecord(record);
-        }
-    }
-    impl.records.clear();
-    impl.ReleaseObjects();
-    impl.initialized = false;
-    return result;
+    return impl_->Shutdown();
 }
 
 bool Device::IsInitialized() const {
@@ -595,431 +1136,130 @@ const AdapterInfo& Device::adapter() const {
     return impl_->adapterInfo;
 }
 
-const std::vector<StateTransition>& Device::stateJournal() const {
-    return impl_->journal;
+Status Device::SubmitClearReadback(const ClearReadbackDesc& desc, Submission* submission,
+                                   std::string* error) {
+    return impl_->Submit(desc, false, submission, error);
 }
 
-const Diagnostics& Device::diagnostics() const {
-    return impl_->diagnostics;
-}
-
-Status Device::SubmitClearReadback(const ClearReadbackDesc& desc,
-                                   const SubmissionOptions& options,
-                                   Submission* submission, std::string* error) {
-    Impl& impl = *impl_;
-    if (submission == nullptr) {
-        return Fail(Status::InvalidArgument, error, "submission output is null");
-    }
-    *submission = Submission{};
-    if (!impl.initialized || !impl.device || !impl.queue || !impl.fence ||
-        !impl.gateQueue) {
-        return Fail(Status::Error, error, "device is not initialized");
-    }
-    if (desc.width == 0 || desc.height == 0) {
-        return Fail(Status::InvalidArgument, error, "clear/readback dimensions are zero");
-    }
-    if (desc.width > D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION ||
-        desc.height > D3D12_REQ_TEXTURE2D_U_OR_V_DIMENSION) {
-        return Fail(Status::InvalidArgument, error,
-                    "clear/readback dimensions exceed the D3D12 texture limit");
-    }
-    if (desc.rows.size() != desc.height) {
-        return Fail(Status::InvalidArgument, error,
-                    "ClearReadbackDesc::rows must contain exactly one entry per row");
-    }
-
-    Impl::Record record;
-    // UINT64_MAX is reserved by D3D12 for device removal; never signal it.
-    if (impl.nextFenceValue == std::numeric_limits<uint64_t>::max()) {
-        return Fail(Status::Error, error, "completion serial space exhausted");
-    }
-    if (!AllocateSubmissionId(&record.id)) {
-        return Fail(Status::Error, error, "submission identity space exhausted");
-    }
-    record.serial = impl.nextFenceValue++;
-    record.gated = options.waitForCpuGate;
-    record.gateValue = options.waitForCpuGate ? 1 : 0;
-    record.width = desc.width;
-    record.height = desc.height;
-    record.tightRowPitch = desc.width * 4;
-    record.readbackBytes = 0;
-
-    HRESULT hr = S_OK;
-    D3D12_RESOURCE_DESC textureDescription{};
-    textureDescription.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-    textureDescription.Alignment = 0;
-    textureDescription.Width = desc.width;
-    textureDescription.Height = desc.height;
-    textureDescription.DepthOrArraySize = 1;
-    textureDescription.MipLevels = 1;
-    textureDescription.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    textureDescription.SampleDesc.Count = 1;
-    textureDescription.SampleDesc.Quality = 0;
-    textureDescription.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-    textureDescription.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-    D3D12_HEAP_PROPERTIES defaultHeap{};
-    defaultHeap.Type = D3D12_HEAP_TYPE_DEFAULT;
-    defaultHeap.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-    defaultHeap.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-    defaultHeap.CreationNodeMask = 1;
-    defaultHeap.VisibleNodeMask = 1;
-    D3D12_CLEAR_VALUE clearValue{};
-    clearValue.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    clearValue.Color[0] = 0.0f;
-    clearValue.Color[1] = 0.0f;
-    clearValue.Color[2] = 0.0f;
-    clearValue.Color[3] = 0.0f;
-    hr = impl.device->CreateCommittedResource(
-        &defaultHeap, D3D12_HEAP_FLAG_NONE, &textureDescription,
-        kRenderTargetInitialState, &clearValue, __uuidof(ID3D12Resource),
-        reinterpret_cast<void**>(record.texture.GetAddressOf()));
-    if (FAILED(hr)) {
-        return Fail(Status::Error, error,
-                    ErrorWith("CreateCommittedResource(render target)", hr));
-    }
-
-    D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDescription{};
-    rtvHeapDescription.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-    rtvHeapDescription.NumDescriptors = 1;
-    rtvHeapDescription.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-    rtvHeapDescription.NodeMask = 0;
-    hr = impl.device->CreateDescriptorHeap(
-        &rtvHeapDescription, __uuidof(ID3D12DescriptorHeap),
-        reinterpret_cast<void**>(record.rtvHeap.GetAddressOf()));
-    if (FAILED(hr)) {
-        return Fail(Status::Error, error, ErrorWith("CreateDescriptorHeap(RTV)", hr));
-    }
-
-    D3D12_RENDER_TARGET_VIEW_DESC rtvDescription{};
-    rtvDescription.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    rtvDescription.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-    rtvDescription.Texture2D.MipSlice = 0;
-    rtvDescription.Texture2D.PlaneSlice = 0;
-    impl.device->CreateRenderTargetView(record.texture.Get(), &rtvDescription,
-                                        record.rtvHeap->GetCPUDescriptorHandleForHeapStart());
-
-    D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint{};
-    UINT rowCount = 0;
-    UINT64 rowSizeInBytes = 0;
-    UINT64 totalBytes = 0;
-    impl.device->GetCopyableFootprints(&textureDescription, 0, 1, 0, &footprint, &rowCount,
-                                       &rowSizeInBytes, &totalBytes);
-    record.rowPitch = footprint.Footprint.RowPitch;
-    record.readbackBytes = totalBytes;
-    if (record.rowPitch < record.tightRowPitch || totalBytes == 0) {
-        return Fail(Status::Error, error,
-                    "GetCopyableFootprints returned an invalid readback footprint");
-    }
-    if (rowCount != desc.height) {
-        return Fail(Status::Error, error,
-                    "GetCopyableFootprints returned an unexpected row count");
-    }
-    // D3D12's totalBytes excludes the padding after the last row. Q1a keeps a
-    // raw row-pitched staging copy, so reserve the full rowPitch * height span
-    // as well; the copy still writes only the footprint total.
-    const UINT64 rowSpanBytes =
-        static_cast<UINT64>(record.rowPitch) * static_cast<UINT64>(desc.height);
-    const UINT64 allocationBytes = std::max(totalBytes, rowSpanBytes);
-    record.readbackBytes = allocationBytes;
-
-    D3D12_RESOURCE_DESC bufferDescription{};
-    bufferDescription.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-    bufferDescription.Alignment = 0;
-    bufferDescription.Width = allocationBytes;
-    bufferDescription.Height = 1;
-    bufferDescription.DepthOrArraySize = 1;
-    bufferDescription.MipLevels = 1;
-    bufferDescription.Format = DXGI_FORMAT_UNKNOWN;
-    bufferDescription.SampleDesc.Count = 1;
-    bufferDescription.SampleDesc.Quality = 0;
-    bufferDescription.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-    bufferDescription.Flags = D3D12_RESOURCE_FLAG_NONE;
-    D3D12_HEAP_PROPERTIES readbackHeap{};
-    readbackHeap.Type = D3D12_HEAP_TYPE_READBACK;
-    readbackHeap.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-    readbackHeap.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-    readbackHeap.CreationNodeMask = 1;
-    readbackHeap.VisibleNodeMask = 1;
-    hr = impl.device->CreateCommittedResource(
-        &readbackHeap, D3D12_HEAP_FLAG_NONE, &bufferDescription,
-        kReadbackInitialState, nullptr, __uuidof(ID3D12Resource),
-        reinterpret_cast<void**>(record.readback.GetAddressOf()));
-    if (FAILED(hr)) {
-        return Fail(Status::Error, error,
-                    ErrorWith("CreateCommittedResource(readback)", hr));
-    }
-
-    hr = impl.device->CreateCommandAllocator(
-        D3D12_COMMAND_LIST_TYPE_DIRECT, __uuidof(ID3D12CommandAllocator),
-        reinterpret_cast<void**>(record.allocator.GetAddressOf()));
-    if (FAILED(hr)) {
-        return Fail(Status::Error, error, ErrorWith("CreateCommandAllocator", hr));
-    }
-    hr = impl.device->CreateCommandList(
-        0, D3D12_COMMAND_LIST_TYPE_DIRECT, record.allocator.Get(), nullptr,
-        __uuidof(ID3D12GraphicsCommandList),
-        reinterpret_cast<void**>(record.commandList.GetAddressOf()));
-    if (FAILED(hr)) {
-        return Fail(Status::Error, error, ErrorWith("CreateCommandList", hr));
-    }
-
-    const D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle =
-        record.rtvHeap->GetCPUDescriptorHandleForHeapStart();
-    for (uint32_t y = 0; y < desc.height; ++y) {
-        const ClearRow& row = desc.rows[y];
-        const FLOAT color[4] = {row.red / 255.0f, row.green / 255.0f, row.blue / 255.0f,
-                                row.alpha / 255.0f};
-        const D3D12_RECT rect{0, static_cast<LONG>(y), static_cast<LONG>(desc.width),
-                              static_cast<LONG>(y + 1)};
-        record.commandList->ClearRenderTargetView(rtvHandle, color, 1, &rect);
-    }
-    D3D12_RESOURCE_BARRIER transition{};
-    transition.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-    transition.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-    transition.Transition.pResource = record.texture.Get();
-    transition.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-    transition.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
-    transition.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
-    record.commandList->ResourceBarrier(1, &transition);
-
-    D3D12_TEXTURE_COPY_LOCATION destination{};
-    destination.pResource = record.readback.Get();
-    destination.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
-    destination.PlacedFootprint = footprint;
-    D3D12_TEXTURE_COPY_LOCATION source{};
-    source.pResource = record.texture.Get();
-    source.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-    source.SubresourceIndex = 0;
-    record.commandList->CopyTextureRegion(&destination, 0, 0, 0, &source, nullptr);
-    hr = record.commandList->Close();
-    if (FAILED(hr)) {
-        return Fail(Status::Error, error, ErrorWith("ID3D12GraphicsCommandList::Close", hr));
-    }
-
-    if (record.gated) {
-        // A distinct fence per submission prevents a signal for a later gate
-        // from satisfying an earlier wait on the same monotonic fence.
-        hr = impl.device->CreateFence(
-            0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence),
-            reinterpret_cast<void**>(record.gateFence.GetAddressOf()));
-        if (FAILED(hr)) {
-            return Fail(Status::Error, error, ErrorWith("CreateFence(gate)", hr));
-        }
-        hr = impl.queue->Wait(record.gateFence.Get(), record.gateValue);
-        if (FAILED(hr)) {
-            return Fail(Status::Error, error, ErrorWith("CommandQueue::Wait(gate)", hr));
-        }
-    }
-    ID3D12CommandList* commandLists[] = {record.commandList.Get()};
-    impl.queue->ExecuteCommandLists(1, commandLists);
-    const HRESULT signalResult = impl.queue->Signal(impl.fence.Get(), record.serial);
-    const uint32_t id = record.id;
-    const uint64_t serial = record.serial;
-    const bool gated = record.gated;
-    impl.records.emplace(id, std::move(record));
-    if (FAILED(signalResult)) {
-        return Fail(Status::Error, error, ErrorWith("CommandQueue::Signal", signalResult));
-    }
-
-    impl.journal.push_back(
-        StateTransition{"render-target", ResourceState::Unknown,
-                        ToResourceState(kRenderTargetInitialState),
-                        "created as a D3D12 render target"});
-    impl.journal.push_back(
-        StateTransition{"render-target", ToResourceState(transition.Transition.StateBefore),
-                        ToResourceState(transition.Transition.StateAfter),
-                        "per-row clear recorded; transitioned for texture copy"});
-    impl.journal.push_back(
-        StateTransition{"readback-buffer", ResourceState::Unknown,
-                        ToResourceState(kReadbackInitialState),
-                        "created as a D3D12 copy destination"});
-    impl.UpdateDiagnostics();
-
-    submission->id = id;
-    submission->completionSerial = serial;
-    submission->gated = gated;
-    if (error != nullptr) {
-        error->clear();
-    }
-    return Status::Ok;
-}
-
-Status Device::ReleaseGate(const Submission& submission, std::string* error) {
-    Impl& impl = *impl_;
-    Impl::Record* record = impl.FindRecord(submission);
-    if (record == nullptr || record->released) {
-        return Fail(Status::InvalidArgument, error, "unknown or released submission");
-    }
-    if (!record->gated) {
-        return Fail(Status::InvalidArgument, error,
-                    "ReleaseGate called for an ungated submission");
-    }
-    if (record->gateReleased) {
-        if (error != nullptr) {
-            error->clear();
-        }
-        return Status::Ok;
-    }
-    if (!impl.gateQueue || !record->gateFence) {
-        return Fail(Status::Error, error, "gate queue or gate fence is unavailable");
-    }
-    const HRESULT hr = impl.gateQueue->Signal(record->gateFence.Get(), record->gateValue);
-    if (FAILED(hr)) {
-        return Fail(Status::Error, error, ErrorWith("CommandQueue::Signal(gate)", hr));
-    }
-    record->gateReleased = true;
-    impl.UpdateDiagnostics();
-    if (error != nullptr) {
-        error->clear();
-    }
-    return Status::Ok;
-}
-
-Status Device::Wait(const Submission& submission, std::string* error) {
-    Impl& impl = *impl_;
-    Impl::Record* record = impl.FindRecord(submission);
-    if (record == nullptr || record->released) {
-        return Fail(Status::InvalidArgument, error, "unknown or released submission");
-    }
-    if (record->gated && !record->gateReleased) {
-        return Fail(Status::InvalidArgument, error,
-                    "submission is gated; ReleaseGate must be called before Wait");
-    }
-    if (!impl.WaitForSerial(record->serial)) {
-        return Fail(Status::Error, error, "timed out or failed waiting for the completion fence");
-    }
-    impl.UpdateDiagnostics();
-    if (error != nullptr) {
-        error->clear();
-    }
-    return Status::Ok;
+bool Device::IsComplete(const Submission& submission) const {
+    return impl_->IsComplete(submission);
 }
 
 Status Device::Readback(const Submission& submission, ReadbackResult* result,
                         std::string* error) {
-    Impl& impl = *impl_;
-    if (result == nullptr) {
-        return Fail(Status::InvalidArgument, error, "readback result is null");
-    }
-    *result = ReadbackResult{};
-    Impl::Record* record = impl.FindRecord(submission);
-    if (record == nullptr || record->released) {
-        return Fail(Status::InvalidArgument, error, "unknown or released submission");
-    }
-    if (!impl.fence || impl.fence->GetCompletedValue() < record->serial) {
-        return Fail(Status::InvalidArgument, error,
-                    "readback requested before the completion serial was reached");
-    }
-    if (!record->readback) {
-        return Fail(Status::InvalidArgument, error, "readback resource is unavailable");
-    }
+    return impl_->Readback(submission, result, error);
+}
 
+ReleaseStatus Device::TryRelease(const Submission& submission, std::string* error) {
+    return impl_->TryRelease(submission, error);
+}
+
+Status BackendAccess::Initialize(Device& device, const DeviceOptions& options,
+                                 bool requestDebugLayer, bool requestGpuValidation,
+                                 std::string* error) {
+    return device.impl_->Initialize(options, requestDebugLayer, requestGpuValidation, error);
+}
+
+Status BackendAccess::SubmitGated(Device& device, const ClearReadbackDesc& desc,
+                                  Submission* submission, std::string* error) {
+    return device.impl_->Submit(desc, true, submission, error);
+}
+
+Status BackendAccess::ReleaseGate(Device& device, const Submission& submission,
+                                  std::string* error) {
+    return device.impl_->ReleaseGate(submission, error);
+}
+
+d3d12::DiagnosticReport BackendAccess::Diagnostics(Device& device) {
+    device.impl_->UpdateDiagnostics();
+    return device.impl_->diagnostics;
+}
+
+std::vector<d3d12::JournalEntry> BackendAccess::Journal(const Device& device,
+                                                        const Submission& submission) {
+    const Q1aRecord* record = device.impl_->FindRecord(submission);
+    if (record == nullptr) {
+        return {};
+    }
+    return record->journal;
+}
+
+d3d12::RawReadback BackendAccess::RawReadback(const Device& device,
+                                              const Submission& submission,
+                                              std::string* error) {
+    d3d12::RawReadback raw;
+    const Q1aRecord* record = device.impl_->FindRecord(submission);
+    if (record == nullptr) {
+        if (error != nullptr) {
+            *error = "unknown or released submission";
+        }
+        return raw;
+    }
+    if (!record->signalled || !record->readback) {
+        if (error != nullptr) {
+            *error = "submission has no readable storage";
+        }
+        return raw;
+    }
+    Device& mutableDevice = const_cast<Device&>(device);
+    if (mutableDevice.impl_->Lost(error)) {
+        return raw;
+    }
+    if (!mutableDevice.impl_->CompletionValueReached(record->serial)) {
+        if (error != nullptr) {
+            *error = "completion token is outstanding";
+        }
+        return raw;
+    }
     void* mapped = nullptr;
     const HRESULT mapResult = record->readback->Map(0, nullptr, &mapped);
     if (FAILED(mapResult) || mapped == nullptr) {
-        return Fail(Status::Error, error, ErrorWith("ID3D12Resource::Map", mapResult));
+        if (error != nullptr) {
+            *error = ErrorWith("ID3D12Resource::Map", mapResult);
+        }
+        return raw;
     }
-
-    result->width = record->width;
-    result->height = record->height;
-    result->rowPitch = record->rowPitch;
-    result->tightRowPitch = record->tightRowPitch;
-    result->adapter = impl.adapterInfo;
     const size_t stagingBytes =
         static_cast<size_t>(record->rowPitch) * static_cast<size_t>(record->height);
     if (stagingBytes > record->readbackBytes) {
         record->readback->Unmap(0, nullptr);
-        return Fail(Status::Error, error,
-                    "staging row pitch exceeds the readback allocation (rowPitch=" +
-                        std::to_string(record->rowPitch) + ", height=" +
-                        std::to_string(record->height) + ", stagingBytes=" +
-                        std::to_string(stagingBytes) + ", allocation=" +
-                        std::to_string(record->readbackBytes) + ")");
+        if (error != nullptr) {
+            *error = "staging layout exceeds the readback allocation";
+        }
+        return raw;
     }
     const auto* bytes = static_cast<const uint8_t*>(mapped);
-    result->staging.assign(bytes, bytes + stagingBytes);
-    result->pixels.resize(static_cast<size_t>(record->tightRowPitch) * record->height);
-    for (uint32_t y = 0; y < record->height; ++y) {
-        std::memcpy(result->pixels.data() + static_cast<size_t>(y) * record->tightRowPitch,
-                    bytes + static_cast<size_t>(y) * record->rowPitch,
-                    record->tightRowPitch);
+    raw.width = record->width;
+    raw.height = record->height;
+    raw.stagingPitch = record->rowPitch;
+    raw.tightRowStride = record->tightRowStride;
+    try {
+        raw.staging.assign(bytes, bytes + stagingBytes);
+    } catch (const std::bad_alloc&) {
+        record->readback->Unmap(0, nullptr);
+        if (error != nullptr) {
+            *error = "raw staging bytes could not be allocated";
+        }
+        return d3d12::RawReadback{};
     }
     record->readback->Unmap(0, nullptr);
-    impl.UpdateDiagnostics();
     if (error != nullptr) {
         error->clear();
     }
-    return Status::Ok;
+    return raw;
 }
 
-ReleaseStatus Device::TryRelease(const Submission& submission, std::string* error) {
-    Impl& impl = *impl_;
-    Impl::Record* record = impl.FindRecord(submission);
-    if (record == nullptr || record->released) {
-        if (error != nullptr) {
-            *error = "unknown or already released submission";
-        }
-        return ReleaseStatus::InvalidSubmission;
+d3d12::FenceObservation BackendAccess::Observe(const Device& device,
+                                               const Submission& submission) {
+    d3d12::FenceObservation observation;
+    const Q1aRecord* record = device.impl_->FindRecord(submission);
+    if (record == nullptr || !device.impl_->completion) {
+        return observation;
     }
-    if (record->gated && !record->gateReleased) {
-        if (error != nullptr) {
-            *error = "submission is gated; completion is outstanding";
-        }
-        return ReleaseStatus::RefusedOutstanding;
-    }
-    if (!impl.fence || impl.fence->GetCompletedValue() < record->serial) {
-        if (error != nullptr) {
-            *error = "completion serial is outstanding";
-        }
-        return ReleaseStatus::RefusedOutstanding;
-    }
-    impl.ReleaseRecord(*record);
-    if (error != nullptr) {
-        error->clear();
-    }
-    return ReleaseStatus::Released;
-}
-
-uint64_t Device::CompletedSerial(const Submission& submission) const {
-    const Impl& impl = *impl_;
-    const Impl::Record* record = impl.FindRecord(submission);
-    if (record == nullptr || record->released || !impl.fence) {
-        return 0;
-    }
-    return impl.fence->GetCompletedValue();
-}
-
-bool Device::IsCompleted(const Submission& submission) const {
-    const Impl& impl = *impl_;
-    const Impl::Record* record = impl.FindRecord(submission);
-    if (record == nullptr || record->released || !impl.fence) {
-        return false;
-    }
-    return impl.fence->GetCompletedValue() >= record->serial;
-}
-
-Status Device::ClearAndReadback(const ClearReadbackDesc& desc, ReadbackResult* result,
-                                std::string* error) {
-    if (result == nullptr) {
-        return Fail(Status::InvalidArgument, error, "readback result is null");
-    }
-    Submission submission;
-    Status status =
-        SubmitClearReadback(desc, SubmissionOptions{}, &submission, error);
-    if (status != Status::Ok) {
-        return status;
-    }
-    status = Wait(submission, error);
-    if (status != Status::Ok) {
-        TryRelease(submission, nullptr);
-        return status;
-    }
-    status = Readback(submission, result, error);
-    const ReleaseStatus release = TryRelease(submission, nullptr);
-    if (status == Status::Ok && release != ReleaseStatus::Released) {
-        return Fail(Status::Error, error, "completed submission was not released");
-    }
-    return status;
+    observation.signalValue = record->serial;
+    const uint64_t completed = device.impl_->completion->GetCompletedValue();
+    observation.completedValue = completed == kRemovedSentinel ? 0 : completed;
+    return observation;
 }
 
 }  // namespace rhi
