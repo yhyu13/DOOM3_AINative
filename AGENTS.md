@@ -160,6 +160,17 @@ independently verified here. The practices below limit avoidable output without 
    exit $s
    ```
 
+6. **Isolate independent work and long-running commands when useful.** For a bounded, independent
+   investigation or experiment, use a subagent when the harness supports it; request a concise report
+   with evidence, relevant paths, and unresolved questions rather than full tool output. Subagents use
+   their own context, but their reports enter the parent context and their work still consumes tokens;
+   they do not replace issue, worktree, file-ownership, or review rules. Do small, dependent lookups
+   inline instead of delegating just to save context.
+7. **Run long builds or tests in the background when the harness supports it.** Redirect full output
+   to a worktree-local log as above, preserve the exit code, and inspect a bounded summary on completion.
+   Background execution alone does not guarantee output isolation or lower token use; avoid repeatedly
+   polling or reading the full log. Report failures and use the actual exit code as evidence.
+
 If output must exceed ~200 lines to be useful, write it to a temp file and `read` the slice you need
 instead of letting it enter the transcript.
 
