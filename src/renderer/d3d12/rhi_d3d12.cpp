@@ -737,42 +737,50 @@ struct Device::Impl {
             return Fail(Status::Error, error, ErrorWith("ID3D12GraphicsCommandList::Close", hr));
         }
 
-        // Journal and output storage are prepared before the submission so no
+        // Journal and map storage are prepared before the submission so no
         // allocation happens between ExecuteCommandLists and the published
         // token. The journal is backend-private and read only by private tests.
-        record.journal.reserve(3);
-        record.journal.push_back(d3d12::JournalEntry{
-            "render-target", "UNKNOWN", PrivateStateName(kTextureInitialState),
-            "created for render-target use"});
-        record.journal.push_back(d3d12::JournalEntry{
-            "render-target", PrivateStateName(barrier.Transition.StateBefore),
-            PrivateStateName(barrier.Transition.StateAfter),
-            "per-row clear recorded, then moved for the copy"});
-        record.journal.push_back(d3d12::JournalEntry{
-            "readback-buffer", "UNKNOWN", PrivateStateName(kReadbackInitialState),
-            "created as the copy destination"});
+        const uint32_t id = record.id;
+        const uint64_t token = record.token;
+        Q1aRecord* storedRecord = nullptr;
+        try {
+            record.journal.reserve(3);
+            record.journal.push_back(d3d12::JournalEntry{
+                "render-target", "UNKNOWN", PrivateStateName(kTextureInitialState),
+                "created for render-target use"});
+            record.journal.push_back(d3d12::JournalEntry{
+                "render-target", PrivateStateName(barrier.Transition.StateBefore),
+                PrivateStateName(barrier.Transition.StateAfter),
+                "per-row clear recorded, then moved for the copy"});
+            record.journal.push_back(d3d12::JournalEntry{
+                "readback-buffer", "UNKNOWN", PrivateStateName(kReadbackInitialState),
+                "created as the copy destination"});
+            auto inserted = records.emplace(id, std::move(record));
+            if (!inserted.second) {
+                return Fail(Status::Error, error, "submission identity collision");
+            }
+            storedRecord = &inserted.first->second;
+        } catch (const std::bad_alloc&) {
+            return Fail(Status::OutOfMemory, error,
+                        "submission bookkeeping could not be allocated");
+        }
+        Q1aRecord& stored = *storedRecord;
 
-        if (record.gated) {
+        if (stored.gated) {
             hr = device->CreateFence(
                 0, D3D12_FENCE_FLAG_NONE, __uuidof(ID3D12Fence),
-                reinterpret_cast<void**>(record.gateFence.GetAddressOf()));
+                reinterpret_cast<void**>(stored.gateFence.GetAddressOf()));
             if (FAILED(hr)) {
+                records.erase(id);
                 return Fail(Status::Error, error, ErrorWith("CreateFence(gate)", hr));
             }
-            hr = queue->Wait(record.gateFence.Get(), 1);
+            hr = queue->Wait(stored.gateFence.Get(), 1);
             if (FAILED(hr)) {
-                // Nothing was submitted; releasing the local record is safe.
+                // Nothing was submitted; removing the record is safe.
+                records.erase(id);
                 return Fail(Status::Error, error, ErrorWith("CommandQueue::Wait(gate)", hr));
             }
         }
-
-        const uint32_t id = record.id;
-        const uint64_t token = record.token;
-        auto inserted = records.emplace(id, std::move(record));
-        if (!inserted.second) {
-            return Fail(Status::Error, error, "submission identity collision");
-        }
-        Q1aRecord& stored = inserted.first->second;
         ID3D12CommandList* commandLists[] = {stored.commandList.Get()};
         queue->ExecuteCommandLists(1, commandLists);
         const HRESULT signalResult = queue->Signal(completion.Get(), stored.serial);

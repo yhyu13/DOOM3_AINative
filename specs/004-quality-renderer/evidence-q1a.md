@@ -6,7 +6,7 @@ adapter and the Microsoft Basic Render Driver (WARP). The header/public-test gat
 The debug layer and GPU-based validation were **attempted and are SKIPPED** on this machine
 (`hr=0x887A002D`), so full Q1 is still blocked; this record does not mark them passing.
 Independent review round 1 requested evidence corrections (no code defect); the corrections
-are in this revision and a second reviewer pass is recorded in [review-q1a.md](./review-q1a.md).
+are in this revision; round 2 accepted the Q1a code and evidence at `369c47b` in [review-q1a.md](./review-q1a.md). A post-review allocation guard is disclosed there.
 
 **History and supersession**: the 2026-10-27 acceptance in this file described the
 pre-amendment seam, where resource states, the journal, staging pitch and fence values were
@@ -208,7 +208,7 @@ of the restored implementation.
 | Removed-device sentinel handling | NOT RUN | — | static audit only: `UINT64_MAX` is not completion and the private observation carries `deviceRemoved`; no removal fault injection is claimed | source audit |
 | Issue #11 body sync | NOT RUN | — | the authenticated account lacks `UpdateIssue`; the mirror `issue-q1a.md` is authoritative | — |
 | Independent review, round 1 | RUN | — | changes requested on evidence/process only; no blocking code defect | `review-q1a.md` |
-| Independent review, round 2 | NOT RUN | — | second pass pending | `review-q1a.md` |
+| Independent review, round 2 | RUN | PASS | ACCEPT at `369c47b`; fresh Debug/Release 7/7, validator suite, M5 reproduced | `review-q1a.md` |
 
 ### Q1a acceptance mapping
 
@@ -225,7 +225,7 @@ of the restored implementation.
 | Debug/GBV opt-in, attempted, distinct RUN/SKIPPED/NOT RUN | PASS for reporting; checks SKIPPED | test 7; `hr=0x887A002D` |
 | Evidence records commands, exits, config, adapter, skipped, logs, red/green/mutation, changed files | PASS | this file, including "Changed files" |
 | Clean submodule; no data/binaries/build output tracked | PASS | submodule porcelain empty; build trees are ignored |
-| Independent review | NOT RUN | round 1 changes applied; round 2 pending |
+| Independent review | PASS | round 2 ACCEPT at `369c47b`; post-review allocation guard disclosed |
 
 ## Changed files
 
@@ -262,7 +262,7 @@ replacement is `tests/renderer/d3d12/rhi_diagnostics_test.cpp`.
 | T018 retirement red/green and wait-idle shortcut | PASS | M4 and the private wait-idle control |
 | T019 opt-in diagnostics and adapter reporting | PASS for behavior; debug/GBV SKIPPED | `validation_executed=0`; full Q1 remains blocked |
 | T020 fresh Q1a run with full retained logs | PASS | `build-q1a-fresh`, rebuild after fixes, repeats, validator suite |
-| T021 independent review and rerun | NOT RUN | round 1 changes applied; round 2 pending |
+| T021 independent review and rerun | PASS | round 2 ACCEPT at `369c47b`; the post-review N2 guard is author-verified only |
 
 ## What Q1a does not prove
 
@@ -311,4 +311,4 @@ Use a new, non-existing build directory for a fresh run. The fixture reads
 - **Review decision and unresolved items**: round 1 requested evidence/process changes only
   (no blocking code defect): commit the corrected evidence, replace the stale review, add the
   red and changed-files records, and fix several wording/robustness items. Those changes are
-  applied here. A second pass is pending; until it records ACCEPT, T021 remains NOT RUN.
+  applied here. Round 2 independently reran the full suite and returned ACCEPT at `369c47b`. A post-review `std::bad_alloc` guard in `Submit` (finding N2) is a defensive change after that acceptance; the author rebuilt and reran Debug/Release 7/7, but that delta is not independently re-reviewed.
