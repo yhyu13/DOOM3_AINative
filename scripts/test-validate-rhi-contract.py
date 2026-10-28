@@ -282,11 +282,13 @@ class SurfaceAndHeaderGate(ValidatorTestCase):
              "#include <d3d12.h>\n"
              "enum class ResourceState { RENDER_TARGET };\n"
              "uint64_t fenceValue;\nuint64_t GetCompletedValue();\n"
+             "uint64_t luid;\nbool enableGpuBasedValidation;\n"
              "struct ID3D12Device;\nDXGI_FORMAT format;\n"
              "ComPtr<IUnknown> device;\n"),
         ])
         for label in ("D3D12", "ID3D12*", "DXGI", "IUnknown", "ComPtr",
-                      "ResourceState", "fence/fenceValue", "RENDER_TARGET"):
+                      "ResourceState", "fence/fenceValue", "RENDER_TARGET",
+                      "LUID", "debug layer/GBV"):
             self.assertIn(
                 "prohibited D3D12 vocabulary in engine-facing header "
                 "src\\renderer\\rhi\\rhi.h: " + label, errors)

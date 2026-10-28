@@ -75,7 +75,8 @@ PROHIBITED_CORE = (
     ("queryHeap", r"queryheap"),
     ("pipeline library", r"pipelinelibrary|pipeline_library"),
     ("DRED", r"\bdred\b"),
-    ("debug layer/GBV", r"debuglayer|gpuvalidation|\bgbv\b"),
+    ("debug layer/GBV", r"debuglayer|gpubased|gpuvalidation|\bgbv\b"),
+    ("LUID", r"\bluid\b"),
     ("Present", r"\bpresent\b"),
     ("transition", r"\btransition"),
     ("barrier", r"\bbarrier"),
@@ -374,6 +375,11 @@ def self_test(docs):
         "adapter, device, capabilities, limits,", "adapter, device, fenceValue, limits,", 1)
     cases.append(("prohibited noun in portable surface", mutant,
                   "prohibited D3D12 vocabulary in " + SURFACE_INFO + ": fence/fenceValue"))
+    mutant = dict(docs)
+    mutant["contracts/rhi-foundation.md"] = mutant["contracts/rhi-foundation.md"].replace(
+        "adapter, device, capabilities, limits,", "adapter, device, luid, limits,", 1)
+    cases.append(("prohibited LUID in portable surface", mutant,
+                  "prohibited D3D12 vocabulary in " + SURFACE_INFO + ": LUID"))
     # Synthetic drive letter: a negative-control fixture, not a machine path.
     mutant = dict(docs)
     mutant["data-model.md"] = "Q:\\fixture\\checkout\n" + mutant["data-model.md"]
