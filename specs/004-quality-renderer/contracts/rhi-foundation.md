@@ -2,13 +2,41 @@
 
 **Status**: Design for incremental implementation; no operation is available until implemented and tested.
 
-**Scope**: A backend-neutral RHI boundary and a data-independent D3D12 vertical slice. This does not define a game renderer or claim completion of the full Q1 gate.
+**Scope**: A three-tier RHI boundary — a portable WebGPU-subset core, a D3D12-private implementation and optional native extensions — plus a data-independent D3D12 vertical slice. This does not define a game renderer or claim completion of the full Q1 gate.
 
-## Two tiers and the engine adapter
+## Three tiers: portable core, D3D12-private backend, native extensions
 
 The **portable core** is a deliberately bounded, WebGPU-subset-oriented logical contract: it is designed to be implementable over WebGPU, not a statement that every operation, format or limit below is supported by any browser. The same eventual ordered engine adapter targets this core; separate native D3D12 and future web WebGPU backends lower it independently. The adapter does not wrap individual GL calls and never accepts a D3D12 handle. A core operation is usable on a target only after that target implements it, probes/enables the required capability and limits, and passes its own tests. Q1a exercises only the first seam below, not the full core or portability.
 
+The **D3D12 private implementation** owns every native mechanism needed to lower the core on Windows: fences and fence values, resource transitions/barriers and the state journal, command allocators/lists, descriptor heaps/ranges and root signatures, query heaps, the swap chain, a pipeline library, and the debug layer, GPU-based validation and DRED. None of these is a core operation. Only the D3D12 backend and its own tests may depend on them; tests reach them through a backend-private diagnostic hook that engine, scene and material code must not include.
+
 An **optional native extension tier** exposes individually negotiated, backend-specific functionality through a separate interface. Native interop, provider calls, DXR, multiple queues and bindless access are not core operations or implicit device features. A native backend may implement the core without any extension. Extension presence, enabled features and actual execution are separate facts. Neither a native D3D12 run nor this design establishes a web backend, WebGPU DXR/DLSS, shader translation, a WASM retail-data fit, or performance.
+
+| Tier | Contents | Who may depend on it |
+|---|---|---|
+| Portable core | Adapter/device/capabilities; buffers; textures, views and samplers; shader modules as backend blobs; pipeline layouts and immutable bindings; one-shot recorders; render/compute passes with declared uses; copies; asynchronous pitch-aware readback; opaque completion tokens; surface; typed errors; device loss; one ordered queue | Engine adapter, scene/material code, every backend, future profiles |
+| D3D12 private implementation | Fences and fence values; transitions/barriers and the state journal; command allocators/lists; descriptor heaps/ranges and root signatures; query heaps; swap chain; pipeline library; debug layer, GPU-based validation and DRED | The D3D12 backend only; its tests through a private hook |
+| Native extension capabilities | Native interop leases; an authorized provider; DXR; multiple queues/async compute; bindless; sparse resources and aliasing | Native-only code behind explicit capability negotiation; never engine/scene code and never the web profile |
+
+### Tier mapping from the previous contract
+
+| Previous 004 / native concept | Tier after this amendment | Action |
+|---|---|---|
+| Adapter/device creation, adapter class including software | Core | Explicit selection; a software adapter is labelled, never assumed |
+| Texture/buffer creation and per-subresource uses | Core | Usages declared at creation; views validated against the enabled profile |
+| Readback row pitch and staging footprint | Core (D3D12 staging layout is private) | Caller-owned bytes after copy; staging pitch/padding are never conflated with the CPU stride |
+| Public resource states, `RENDER_TARGET`/`COPY_SOURCE`, state journal | D3D12 private | Backend-private test hook; the public API speaks passes, declared uses and dependencies |
+| Fence value and `GetCompletedValue() < signalValue` | D3D12 private | The public API returns an opaque completion token; the outstanding-release assertion is made in the backend hook |
+| Command allocators/lists and reset | D3D12 private | One-shot recorder per frame from a backend arena; no public reset |
+| Descriptor heaps/ranges and root signatures | D3D12 private | Immutable bindings identified by (group, binding); the native mapping must be deterministic and collision-free |
+| Swap chain and presentation | D3D12 private; core `surface` | The core exposes a surface and a frame-boundary acquire; no public `Present` operation |
+| HLSL source and DXC as the public shader input | D3D12 build detail | A core shader module is a backend blob; source/toolchain permissions and per-target validation are separate |
+| Debug layer and GPU-based validation as a cross-backend gate | D3D12 private capability | Separate D3D12 gate; a web profile has its own uncaptured-error gate; neither proves the other |
+| One direct queue | Core | One ordered queue; multiple queues are a native extension |
+| Native-provider interop | Native extension | Restricted, time-bounded lease; never a core handle or an implicit privilege |
+| Device removal and error model | Core | Typed `unsupported`/`invalid-usage`/`out-of-memory`/`device-lost`; no HRESULT in the core |
+
+**Terminology note.** FR-005's "fence-based retirement" names a D3D12 mechanism. On the portable seam the same requirement is *backend-proven retirement*: a successful completion token may prove it; an error, a cancelled observation or a device-loss notification alone does not. The D3D12 backend proves it with fences privately. SC-002's "release attempt while a fence is still outstanding" is satisfied by the public outstanding-completion-token assertion plus the D3D12-private fence-value assertion; neither half alone is the whole check.
 
 ## Portable core semantics
 
@@ -48,6 +76,8 @@ The table defines *selection policy*, not observed capabilities. `Core` means in
 | `native-multi-queue` | Native extension | Queue creation, cross-queue ordering and retirement | Explicitly select the single ordered core queue; otherwise `unsupported` | Cross-queue hazard and lifetime tests |
 | `native-bindless` | Native extension | Backend-specific descriptor indexing, binding and residency limits | Explicitly select implemented bounded bindings; otherwise `unsupported` | Target descriptor bounds and lifetime tests |
 
+Backend-private mechanisms — fences and fence values, transitions/barriers and the state journal, command allocators/lists, descriptor heaps/ranges and root signatures, the swap chain, and debug layer/GPU-based validation/DRED — are not selection targets and have no row above. They are the D3D12 lowering of core rows and are exercised only through the backend's private hook; a target that does not implement them simply has no such tier. Shader compilation is likewise not a selectable feature: it is governed by the shader contract below and evidenced per target.
+
 ### Native interop and provider boundary
 
 Native handles never cross the portable core. A separate opt-in extension may hand a native backend/provider a restricted, time-bounded lease after validating backend, device, resource identity, subresource, declared input/output access, required initial/final states, queue ownership, synchronization and authorization. The bridge retains the resources throughout the lease and outstanding submitted work; the recipient must not retain handles outside the agreed window. On return, report actual state/ownership and invalidate or restore affected backend caches before further core work. Failure or device loss is explicit; no unverified state is silently assumed. The concrete provider ABI, queue handoff and legal/distribution obligations remain unconfirmed until the actual authorized SDK is reviewed; an unavailable provider is NOT RUN. Multi-queue and bindless are separate opt-in extensions, not incidental privileges of a provider.
@@ -61,25 +91,44 @@ Native handles never cross the portable core. A separate opt-in extension may ha
 
 ## Public boundary
 
-The first executable boundary is a small C++ API that lets a client:
+The first executable boundary is a small C++ API whose client-facing surface names no D3D12 type, fence, fence value, resource state, command allocator or list, descriptor heap or range, root signature, swap chain or HRESULT. Q1a's public test uses exactly this seam. It lets a client:
 
-1. Select an explicitly named adapter class (hardware or software), create a device and observe a meaningful unsupported/error result.
-2. Create an explicitly described 2D colour resource and record a clear plus a transfer to a readable CPU result.
-3. Submit the commands, wait for their fence and inspect the resulting pixels. The caller owns neither native COM objects nor backend descriptor internals. This native Q1a fixture wait is not a portable browser requirement.
-4. Release client handles and shut down safely, including after incomplete initialization; GPU-owned objects, command allocators and upload/readback storage remain alive until their submitted work completes.
+1. Select an explicitly named adapter class (hardware or software), request a device and observe a meaningful unsupported/error result plus the enabled capability profile.
+2. Create an explicitly described 2D colour resource and record a clear plus a copy into readback storage.
+3. Submit an ordered recording and observe completion asynchronously through an opaque, device-scoped completion token (poll, callback or future with a bounded timeout). The caller receives no fence value and cannot reset a native command allocator.
+4. Read back caller-owned bytes after the producing submission completes; no raw pointer with unspecified lifetime.
+5. Release client handles and shut down safely, including after incomplete initialization; backend-owned objects, command recording storage and upload/readback storage remain alive until their submitted work completes.
 
 Exact function names are implementation choices; tests must use the same public boundary that an eventual renderer client uses. The backend-specific implementation owns D3D12/DXGI types. Do not add speculative operations merely to make the interface look complete.
+
+The D3D12 backend additionally provides a **backend-private diagnostic hook**, used only by its own tests: it exposes the recorded state journal and the fence value and signal value for the outstanding-release assertion. The hook is not part of the portable core and must not be reachable from engine, scene or material code. The native Q1a fixture may use a bounded blocking wait in that private path; the portable contract does not require it.
+
+## Header gate: no D3D12 vocabulary in engine-facing headers
+
+Before Q2, and before any new public core header is merged, every header under `src/renderer/rhi/**` must pass both a review and a lexical scan. The core's declared surface for this gate is:
+
+```portable-core-surface
+adapter, device, capabilities, limits,
+buffer, texture, view, sampler, shader-module (backend blob),
+pipeline-layout, bind-group, binding (group index, binding index),
+recorder, render-pass, compute-pass, copy, readback, completion-token,
+surface, queue, error-scope, error-category, device-loss
+```
+
+The scan rejects these nouns in that surface: fence value and completed-value accessors, resource state and transition/barrier names, command allocator/list and reset, descriptor heap/range and root signature, swap chain and present, `D3D12_*`, `ID3D12*`, `HRESULT`, and HLSL/DXC as the shader-module input (including source paths or compiler includes). A field or function with no mapping to a WebGPU-shaped operation in the tier mapping above belongs to the D3D12-private tier or a native extension, not to the core.
+
+The gate is lexical and structural; it is not a design review and it does not prove that a WebGPU backend exists. `scripts/validate-rhi-contract.py` performs the same scan over the fenced block above today and over `src/renderer/rhi/**` once those headers exist, and reports that the header scan was NOT RUN when the directory is absent.
 
 ## First vertical-slice acceptance
 
 - Configure/build the standalone fixture without the engine target copy, game data or proprietary NVIDIA SDK. The installed Windows SDK and Visual Studio C++ tools are required.
 - On an available explicitly selected adapter, clear a synthetic RGBA8 texture using a **per-row distinct pattern** (at least two rows differ, and the row index is recoverable from the expected bytes), read it back, and compare every row against independently specified byte values. Expected values are derived by the test from the pattern definition, never from the renderer's output. Allow only the documented UNORM rounding tolerance.
 - Account for D3D12 readback row pitch. A tightly packed CPU output stride of `width * 4` is valid; that is not the same as the GPU staging footprint's row pitch. Include three negative controls that must fail: (a) using `width * 4` as the staging row stride when the returned row pitch is larger, (b) an off-by-one source-row offset, and (c) repeating row 0 for every row. If a control is genuinely inapplicable on a conforming implementation, record it as NOT APPLICABLE with the reason; do not count it as a pass.
-- Declare and implement the Q1a state sequence rather than leaving it implicit: the colour resource is created for render-target use, cleared in `RENDER_TARGET`, transitioned to `COPY_SOURCE`, and the readback buffer is in `COPY_DEST`. The backend keeps a state journal for the resource and a test asserts the recorded sequence. A general public transition API remains Q1b work, but the Q1a implementation must perform the correct transitions.
-- Submit at least two independent submissions. At least one release/reset attempt must occur while its submission fence is still unsignalled: assert `GetCompletedValue() < signalValue` at the moment of release. A test that waits idle before every release is not evidence. Use a controlled gate or a deliberately long command so the outstanding condition is deterministic, and include a negative control that shows the test fails if the wait-idle shortcut is used.
-- Readback results cross the public boundary as caller-owned bytes copied after the producing fence signals. If an implementation instead exposes a mapped view, the public contract must state a single validity window and a test must prove it; a raw pointer with unspecified lifetime is not acceptable.
+- Declare and implement the Q1a state sequence rather than leaving it implicit: the colour resource is created for render-target use, cleared in the D3D12 render-target state, transitioned to its copy-source state, and the readback buffer is in a copy-destination state. The D3D12 backend keeps a **private** state journal and a backend-private test asserts the recorded sequence. The public test asserts only the completed readback and must not name a state. A general declared-use/ordering API remains Q1b work; the portable seam never exposes a public transition or barrier operation.
+- Submit at least two independent submissions. At least one release attempt must occur while the submission is still in flight. The public test asserts, through the completion token only, that the submission was not complete when release was attempted. The D3D12 backend-private hook additionally asserts `GetCompletedValue() < signalValue` at that moment and retains both values in the log; the public test must not name a fence type or value. A test that waits idle before every release is not evidence. Use a controlled gate or a deliberately long command so the outstanding condition is deterministic, and include a negative control that shows the test fails if the wait-idle shortcut is used.
+- Readback results cross the public boundary as caller-owned bytes copied after the producing submission completes. If an implementation instead exposes a mapped view, the public contract must state a single validity window and a test must prove it; a raw pointer with unspecified lifetime is not acceptable.
 - Report hardware versus software adapter and the check result. Attempt each adapter class that is present; at least one adapter must actually execute the clear/readback test. Adapter unavailability is SKIPPED/NOT RUN, not PASS. A software run is a functional check, not hardware performance evidence.
-- Debug layer and GPU-based validation: the fixture must expose opt-in requests, attempt enablement, capture messages into the retained test log, and record absence/failure distinctly. Reporting "unavailable" without attempting enablement is not evidence. Debug-layer and GPU-based validation are separate from functional execution and must not be marked passing without actually running.
+- Debug layer and GPU-based validation: the fixture must expose opt-in requests, attempt enablement, capture messages into the retained test log, and record absence/failure distinctly. Reporting "unavailable" without attempting enablement is not evidence. This is a D3D12-private capability, not a core feature or a cross-backend gate; debug-layer and GPU-based validation are separate from functional execution and must not be marked passing without actually running.
 - Retain the full CTest log (`-V` or `--output-junit`/`--output-log`), including successful test output, adapter identity and executed/skipped checks. `--output-on-failure` alone retains only failures.
 - Failures expose an actionable stage/error; device creation alone is not counted as a successful rendering or readback test.
 
@@ -95,7 +144,7 @@ This policy changes the previous ambiguous task wording, not the higher-level sp
 
 ## Foundation growth required for full Q1
 
-After Q1a, extend the same boundary by independently tested slices for draw/pipeline and shader compilation, compute dispatch, multiple colour attachments, shader-readable depth, motion/validity and overlay resources, a general public transition/UAV-ordering API (beyond Q1a's internal clear/copy transitions), frame slots, resize, persistent history/reset and diagnostics. Before declaring Q1 complete, run zero-unwaived-error debug-layer and GPU-based-validation checks on an environment where those checks actually execute.
+After Q1a, extend the same boundary by independently tested slices for draw/pipeline and shader compilation, compute dispatch, multiple colour attachments, shader-readable depth, motion/validity and overlay resources, a general declared-use and pass-dependency API (not a public native transition or barrier API), frame slots, resize, persistent history/reset and diagnostics. Before declaring Q1 complete, run zero-unwaived-error debug-layer and GPU-based-validation checks on an environment where those checks actually execute; that gate is D3D12-private and is not evidence for any other target.
 
 The frame graph consumes declared resource accesses and pass dependencies; it is not a facade that hides synchronization or assumes an aliased resource is safe. Device/queue/resources are not tied to deferred shading or an optional provider. Native-provider access is a restricted, explicitly declared boundary with resource states and state-cache invalidation/restoration, and is deferred until an actual authorized SDK contract is available.
 

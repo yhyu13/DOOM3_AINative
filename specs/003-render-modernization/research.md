@@ -545,6 +545,24 @@ These **supersede the former research recommendations**, not the unchanged spec'
 | D8 | DXR hybrid effects and a path-traced showcase/reference are stretch capabilities | They fail motion, art-direction or measured performance goals |
 | D9 | Future Vulkan/web/mobile profiles share semantics and declared fallbacks, not a GL3 ceiling | Portability becomes the overriding product goal |
 
+### Amendment 2026-10-28 (Refs #20, #11)
+
+This amendment records a later decision; it does not rewrite D1–D9.
+
+- **D2 is refined, not reversed.** D3D12 remains the first *implementation*, but "backend-neutral
+  bounded RHI" is now a **three-tier** contract: a portable WebGPU-subset core, a D3D12-private
+  implementation and optional native extensions (`specs/004-quality-renderer/contracts/rhi-foundation.md`).
+  HLSL/DXC are a D3D12 build detail, **not** the public shader input and not the portable shader
+  contract: a core shader module is a backend blob, and native HLSL/DXC compilation does not prove
+  WebGPU support. No public core type, field or function may require a D3D12 noun.
+- **D9 is applied.** The future web profile targets the portable core through a WebGPU backend, with
+  its own capability/fallback table, shader compilation/validation and real-scene evidence; DXR,
+  an authorized neural provider, multi-queue and bindless access are native extensions. No browser
+  implementation exists and this amendment claims none.
+- **Unchanged:** D3's custom-RHI ownership choice, D4's motion/depth/history requirements, D6's
+  optional-provider boundary, and the evidence, pristine-source, legal-data, one-writer and review
+  rules remain in force.
+
 **Before `/speckit.plan`, reconcile `spec.md` (not edited by this review):**
 
 - Problem/assumptions (`:15-18,395-398`): remove the obsolete red-build/no-baseline premise.
