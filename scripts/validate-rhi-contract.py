@@ -178,6 +178,24 @@ def excluded_path(rel):
     ))
 
 
+HEADER_SUFFIXES = (".h", ".hh", ".hpp", ".hxx", ".inl")
+TEST_SUFFIXES = (".cpp", ".cc", ".cxx", ".h", ".hh", ".hpp")
+
+
+def scan_files(root, suffixes, base):
+    """Return (path relative to base, text) for scannable, non-prohibited paths."""
+    files = []
+    if not root.is_dir():
+        return files
+    for path in sorted(root.rglob("*")):
+        if not path.is_file() or path.suffix.lower() not in suffixes:
+            continue
+        rel = path.relative_to(base)
+        if excluded_path(rel):
+            continue
+        files.append((rel, path.read_text(encoding="utf-8", errors="replace")))
+    return files
+
 def header_scan_errors(files, kind="engine-facing header"):
     """Scan (relative path, text) pairs for prohibited public-header nouns."""
     errors = []
@@ -430,33 +448,14 @@ def main():
     errors = validate(docs)
     renderer = ROOT / "src" / "renderer"
     test_root = ROOT / "tests" / "renderer"
-    private_parts = {"d3d12", "ext"}
-    header_files = []
+    header_files = scan_files(renderer, HEADER_SUFFIXES, ROOT)
     if renderer.is_dir():
-        for path in sorted(renderer.rglob("*")):
-            if not path.is_file() or path.suffix.lower() not in (".h", ".hh", ".hpp", ".hxx", ".inl"):
-                continue
-            if private_parts & {part.lower() for part in path.relative_to(ROOT).parts}:
-                continue
-            header_files.append((
-                path.relative_to(ROOT),
-                path.read_text(encoding="utf-8", errors="replace"),
-            ))
         errors.extend(header_scan_errors(header_files))
         if not header_files:
             errors.append(
                 "header gate: src/renderer exists but contains no scannable engine-facing header")
-    test_files = []
+    test_files = scan_files(test_root, TEST_SUFFIXES, ROOT)
     if test_root.is_dir():
-        for path in sorted(test_root.rglob("*")):
-            if not path.is_file() or path.suffix.lower() not in (".cpp", ".cc", ".cxx", ".h", ".hh", ".hpp"):
-                continue
-            if private_parts & {part.lower() for part in path.relative_to(ROOT).parts}:
-                continue
-            test_files.append((
-                path.relative_to(ROOT),
-                path.read_text(encoding="utf-8", errors="replace"),
-            ))
         errors.extend(header_scan_errors(test_files, "public test unit"))
     if renderer.is_dir():
         header_note = (

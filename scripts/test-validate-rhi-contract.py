@@ -13,6 +13,7 @@ Usage:
 from pathlib import Path
 import importlib.util
 import sys
+import tempfile
 import unittest
 
 
@@ -360,6 +361,34 @@ class SurfaceAndHeaderGate(ValidatorTestCase):
         self.assertTrue(validator.excluded_path(Path("tests/renderer/ext/x.cpp")))
         self.assertFalse(validator.excluded_path(Path("src/renderer/rhi/ext/x.h")))
         self.assertFalse(validator.excluded_path(Path("tests/renderer/sub/ext/x.cpp")))
+    def test_scanner_excludes_only_documented_prefixes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            files = {
+                "src/renderer/rhi/rhi.h": "struct TextureView;",
+                "src/renderer/rhi/ext/private.h": "struct TextureView;",
+                "src/renderer/d3d12/x.h": "struct ID3D12Device;",
+                "src/renderer/ext/x.h": "struct ID3D12Device;",
+                "tests/renderer/rhi_clear_test.cpp": "int x;",
+                "tests/renderer/sub/ext/x.cpp": "int x;",
+                "tests/renderer/d3d12/x.cpp": "int x;",
+            }
+            for name, text in files.items():
+                path = base / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(text, encoding="utf-8")
+            headers = validator.scan_files(
+                base / "src" / "renderer", validator.HEADER_SUFFIXES, base)
+            tests = validator.scan_files(
+                base / "tests" / "renderer", validator.TEST_SUFFIXES, base)
+            self.assertEqual(
+                [Path("src/renderer/rhi/ext/private.h"),
+                 Path("src/renderer/rhi/rhi.h")],
+                [path for path, _ in headers])
+            self.assertEqual(
+                [Path("tests/renderer/rhi_clear_test.cpp"),
+                 Path("tests/renderer/sub/ext/x.cpp")],
+                [path for path, _ in tests])
     def test_missing_sparse_aliasing_row_is_invalid(self):
         name = "contracts/rhi-foundation.md"
         row = next(line for line in self.docs[name].splitlines(keepends=True)
