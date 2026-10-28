@@ -58,7 +58,7 @@ PROHIBITED_CORE = (
     ("D3D12", r"d3d12"),
     ("ID3D12*", r"id3d12"),
     ("DXGI", r"dxgi"),
-    ("DX12 path", r"\bdx12\b"),
+    ("DX12 path", r"dx12"),
     ("IUnknown", r"\biunknown\b"),
     ("ComPtr", r"\bcomptr\b"),
     ("WRL", r"\bwrl\b"),
@@ -154,12 +154,28 @@ def fenced_blocks(text, info):
 
 
 def prohibited_errors(text, where):
-    """Lexical gate: report every D3D12-private noun found in `text`."""
+    """Lexical gate: report every D3D12-private noun found in `text`.
+
+    Matching is case-insensitive and also runs on a separator-stripped copy, so
+    `completion_serial`, `queue-value` and `present_frame` are caught without
+    changing the clean-name checks.
+    """
+    normalized = text.replace("_", "").replace("-", "")
     errors = []
     for label, pattern in PROHIBITED_CORE:
-        if re.search(pattern, text, re.IGNORECASE):
+        if (re.search(pattern, text, re.IGNORECASE)
+                or re.search(pattern, normalized, re.IGNORECASE)):
             errors.append("prohibited D3D12 vocabulary in " + where + ": " + label)
     return errors
+
+
+def excluded_path(rel):
+    """Only the four documented private prefixes are excluded."""
+    s = rel.as_posix().lower()
+    return s.startswith((
+        "src/renderer/d3d12/", "src/renderer/ext/",
+        "tests/renderer/d3d12/", "tests/renderer/ext/",
+    ))
 
 
 def header_scan_errors(files, kind="engine-facing header"):

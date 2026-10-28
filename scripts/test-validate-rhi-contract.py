@@ -316,16 +316,29 @@ class SurfaceAndHeaderGate(ValidatorTestCase):
             "uint64_t luid_high;": "LUID family",
             "bool EnableGPUOnlyValidation;": "GPU validation/based",
             "struct ValidationFlags { int x; };": "validation flags/layer",
+            "struct ValidationLayer { int x; };": "validation flags/layer",
             "enum class Usage { CopySource };": "CopySource/CopyDest",
             "enum class Usage { RenderTarget };": "RenderTarget",
             "struct Presentation {};": "Present*",
             "void PresentFrame();": "Present*",
             "struct CmdList;": "commandAllocator/List/CmdList",
+            "struct CommandList;": "commandAllocator/List/CmdList",
             "void ResetAllocator();": "Reset*",
             "uint64_t completionSerial;": "completion serial/value",
+            "uint64_t completion_serial;": "completion serial/value",
+            "uint64_t queue_value;": "queue value",
+            "uint64_t signal_value;": "signalValue",
+            "uint64_t get_completed_value;": "GetCompletedValue",
             "void* nativeHandle;": "native/raw handle",
             '#include "dx12/device.h"': "DX12 path",
             "struct DebugFlags { int x; };": "debug layer/flags",
+            "struct DescriptorHeap;": "descriptorHeap/descriptorRange",
+            "struct RootSignature;": "rootSignature",
+            "struct SwapChain;": "swapChain",
+            "struct QueryHeap;": "queryHeap",
+            "void native_dx12();": "DX12 path",
+            "struct DX12Helper;": "DX12 path",
+            "void useDx12();": "DX12 path",
         }
         for text, label in cases.items():
             errors = validator.header_scan_errors(
@@ -340,6 +353,13 @@ class SurfaceAndHeaderGate(ValidatorTestCase):
         errors = validator.header_scan_errors(
             [(Path("src/renderer/rhi/rhi.h"), clean)])
         self.assertEqual([], errors)
+    def test_only_documented_private_prefixes_are_excluded(self):
+        self.assertTrue(validator.excluded_path(Path("src/renderer/d3d12/x.h")))
+        self.assertTrue(validator.excluded_path(Path("src/renderer/ext/x.h")))
+        self.assertTrue(validator.excluded_path(Path("tests/renderer/d3d12/x.cpp")))
+        self.assertTrue(validator.excluded_path(Path("tests/renderer/ext/x.cpp")))
+        self.assertFalse(validator.excluded_path(Path("src/renderer/rhi/ext/x.h")))
+        self.assertFalse(validator.excluded_path(Path("tests/renderer/sub/ext/x.cpp")))
     def test_missing_sparse_aliasing_row_is_invalid(self):
         name = "contracts/rhi-foundation.md"
         row = next(line for line in self.docs[name].splitlines(keepends=True)

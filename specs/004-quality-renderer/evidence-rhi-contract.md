@@ -5,7 +5,7 @@
 ## Identity and scope
 
 - **Stage and claim**: Spec 004 Q0/Q1 prerequisites — the three-tier RHI contract (T004) and the reusable evidence record (T005). Claim: the portable core, D3D12-private tier, native extensions, capability/fallback matrix, shader contract, header/test gate, amended Q1a seam and evidence fields are defined, and their structure and lexical boundaries are validated. No renderer operation is claimed by this evidence.
-- **Source identity**: worktree `docs-20-t004-t005-signoff`, branch `docs/20-t004-t005-signoff`, base `origin/main` `8638db8` (the merged Q1a change). The content under review is `5c9af34` (`5c9af3427ed0aabcca63562e617ef2df50643cad`); the sign-off block and this record follow that commit. Submodule `doom3_orig/doom3` is initialized at `a9c49da5afb18201d31e3f0a429a037e56ce2b9a` (`heads/master`); its porcelain is empty.
+- **Source identity**: worktree `docs-20-t004-t005-signoff`, branch `docs/20-t004-t005-signoff`, base `origin/main` `8638db8` (the merged Q1a change). The 5c9af34 sign-off was withdrawn after a second reviewer found header-gate bypasses; the next frozen commit is the review candidate. Submodule `doom3_orig/doom3` is initialized at `a9c49da5afb18201d31e3f0a429a037e56ce2b9a` (`heads/master`); its porcelain is empty.
 - **Data identity and rights**: no game data used. Inputs are tracked Markdown and Python sources plus the merged Q1a public header and tests.
 - **Scene and inputs**: none; this stage has no renderer, device or scene.
 - **Exclusions and limitations**: no GPU, build, engine integration or browser run. The validator checks document structure and a lexical vocabulary boundary only — not technical truth, permissions, whether any matrix row is implementable, or whether a noun list is complete for a future API. A renamed private concept can still pass, and a core header placed outside `src/renderer/` is outside the scan roots; the contract requires core headers under `src/renderer/`, and the semantic field mapping review is the control. Q1a execution evidence is `evidence-q1a.md`.
@@ -36,18 +36,18 @@
   | 9 | `(Get-FileHash scripts/validate-rhi-contract.py).Hash` | 0 | `signoff-validator-sha.log` |
   | 10 | Header/test scan over the merged Q1a files | 0 | `signoff-validate.log`: `RUN over 1 header(s) and 3 public test file(s)` |
 
-- **Retained logs and artifacts**: `signoff-validate.log` (17 in-memory controls, 0 failed), `signoff-tests.log` (40 behavioral tests, `OK`), `signoff-mutations.log` (11 mutants rejected; restored validator passes 40 tests), `signoff-check.log` (with `exit=0`), `signoff-tables.log` (36 tables, 0 malformed), `signoff-links.log` (19 links, 0 missing), `signoff-validator-sha.log` (SHA-256 `C3B4C162C4E695462D8BC6027CB1467D96C046193BE352F795721354CFE642A3`), and `build-rhi-contract-mutations/`.
-- **Negative controls**: 17 in-memory self-tests (missing file, missing field, empty field, missing results columns, missing contract section, wrong tier, empty cell, six separator forms, missing surface block, prohibited noun in the surface, prohibited LUID in the surface, drive-letter path); 11 source mutants; 40 behavioral tests including 14 identifier-embedded private forms (`AdapterLuid`, `luid_high`, `GPUOnlyValidation`, `ValidationFlags`, `CopySource`, `RenderTarget`, `Presentation`, `PresentFrame`, `CmdList`, `ResetAllocator`, `completionSerial`, `nativeHandle`, `dx12` include, `DebugFlags`) and clean controls (`CompletionToken`, `CopyTexture`, `fluidDensity`, `presentationTime`, `resetFrameCounter`); plus directory-gating fixtures for a prohibited include, a prohibited public test, the `d3d12/`/`ext/` exclusions and an empty header directory.
+- **Retained logs and artifacts**: `signoff-validate.log` (17 in-memory controls, 0 failed), `signoff-tests.log` (41 behavioral tests, `OK`), `signoff-mutations.log` (11 mutants rejected; restored validator passes 41 tests), `signoff-check.log` (with `exit=0`), `signoff-tables.log` (36 tables, 0 malformed), `signoff-links.log` (19 links, 0 missing), `signoff-validator-sha.log` (SHA-256 `66D8D94EC84CB4ED9432AF583FADFCC793EE3C4F7C8C5627AE11AB48AD09E1CF`), and `build-rhi-contract-mutations/`.
+- **Negative controls**: 17 in-memory self-tests (missing file, missing field, empty field, missing results columns, missing contract section, wrong tier, empty cell, six separator forms, missing surface block, prohibited noun in the surface, prohibited LUID in the surface, drive-letter path); 11 source mutants; 41 behavioral tests including 14 identifier-embedded private forms (`AdapterLuid`, `luid_high`, `GPUOnlyValidation`, `ValidationFlags`, `CopySource`, `RenderTarget`, `Presentation`, `PresentFrame`, `CmdList`, `ResetAllocator`, `completionSerial`, `nativeHandle`, `dx12` include, `DebugFlags`) and clean controls (`CompletionToken`, `CopyTexture`, `fluidDensity`, `presentationTime`, `resetFrameCounter`); plus directory-gating fixtures for a prohibited include, a prohibited public test, the `d3d12/`/`ext/` exclusions and an empty header directory.
 
 ## Per-check results
 
 | Check / target | Execution | Outcome | Reason or observed result | Artifact / log reference |
 |---|---|---|---|---|
 | Validator structure and lexical gate | RUN | PASS | Seven files present and nonempty; required sections and eleven matrix rows; template fields; portable surface clean; no drive-letter path in the owned files | `build-t004-evidence/signoff-validate.log` |
-| Validator behavioral suite | RUN | PASS | 40 tests, `OK` | `build-t004-evidence/signoff-tests.log` |
+| Validator behavioral suite | RUN | PASS | 41 tests, `OK` | `build-t004-evidence/signoff-tests.log` |
 | Validator in-memory negative controls | RUN | PASS | 17/17 detected, 0 failed | `build-t004-evidence/signoff-validate.log` |
-| Source mutation controls | RUN | PASS | 11/11 mutants rejected by the expected test; restored validator passes 40 tests; digest retained | `build-t004-evidence/signoff-mutations.log`, `signoff-validator-sha.log` |
-| Identifier-embedded gate controls | RUN | PASS | 14 asserted private spellings (17 probes including variants) rejected; 6 clean names accepted | `build-t004-evidence/signoff-tests.log` |
+| Source mutation controls | RUN | PASS | 11/11 mutants rejected by the expected test; restored validator passes 41 tests; digest retained | `build-t004-evidence/signoff-mutations.log`, `signoff-validator-sha.log` |
+| Identifier-embedded gate controls | RUN | PASS | 27 asserted private spellings (17 additional probes including variants) rejected; 6 clean names accepted | `build-t004-evidence/signoff-tests.log` |
 | Whitespace, working tree | RUN | PASS | `git diff --check` exit 0; the CRLF notice is not a whitespace failure | `build-t004-evidence/signoff-check.log` |
 | Whitespace, committed delta | RUN | PASS | `git diff --check origin/main...HEAD` exit 0 | `build-t004-evidence/freeze-commit-check.log` |
 | Whitespace, new files (pre-commit) | RUN | PASS | `--no-index --check` exit 1 for each new file; this is a difference, not a whitespace proof | command table above |
@@ -62,11 +62,11 @@
 | Empty header directory | RUN | PASS | An existing `src/renderer/rhi/` with no header → exit 1, `contains no scannable header` | `build-t004-evidence/empty-header-dir.log` |
 | Pristine submodule | RUN | PASS | Initialized at `a9c49da`; porcelain empty | command table above |
 | GitHub issue #11 body sync | RUN | PASS | Amended body applied with the owner account; the blocking edge still names the T004/T005 sign-off and is removed after it | issue #11 |
-| Adversarial reviews | RUN | PASS | Six agent reviews plus one sign-off round returned changes-requested; findings resolved. The final non-author sign-off on `5c9af34` APPROVED T004, T005 and the T013 policy | `review-rhi-contract.md` |
+| Adversarial reviews | RUN | — | Six agent reviews plus sign-off rounds returned changes-requested; the 5c9af34 sign-off was withdrawn after new gate bypasses were found. Re-review pending; T013 remains approved | `review-rhi-contract.md` |
 | GPU, build, engine or browser execution | NOT RUN | — | Out of scope for T004/T005; Q1a evidence is separate | `evidence-q1a.md` |
 
 ## Independent review
 
-- **Independent reviewer**: final sign-off reviewer (fresh-context agent, non-author), 2026-10-28, on `5c9af34`; see `review-rhi-contract.md`. This is an agent sign-off, not a human review.
+- **Independent reviewer**: sign-off on `5c9af34` was withdrawn; re-review pending on the next frozen commit. This is an agent review, not a human review.
 - **Review scope and commands**: contract, matrix, shader contract, Q1a seam, evidence, validator and the commands above, including an explicit decision on the T013 expected-row/digest/tolerance policy.
-- **Review decision and unresolved items**: APPROVED for T004, T005 and T013; the human/owner caveat, Q7a/T088 and downstream stage evidence remain open. Recorded in `review-rhi-contract.md`.
+- **Review decision and unresolved items**: T013 approved; T004/T005 sign-off withdrawn; re-review pending. The human/owner caveat and Q7a/T088 remain open. Recorded in `review-rhi-contract.md`.
