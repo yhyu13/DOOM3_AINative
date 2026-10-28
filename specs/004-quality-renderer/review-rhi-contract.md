@@ -1,8 +1,8 @@
 # Review: three-tier RHI contract and evidence template (T004, T005)
 
-**Status**: Review record for issue #20. It records reviews by agents that did not author the change, the findings they raised, and what was changed in response. It is **not** a human sign-off and it does not check T004 or T005. The final decision is pending; unresolved items are listed at the end.
+**Status**: Review record for issue #20. It records six agent reviews and two sign-off rounds, their findings and resolution. The sign-off is an **agent** review, not a human reviewer; that caveat is carried into the decision. The final sign-off block is appended only after the reviewer approves the frozen commit.
 
-**Revision reviewed**: the uncommitted working tree of `docs/20-rhi-contract-foundation`, based on `origin/main` `f2589e6`, plus `specs/005-web-renderer/research.md` (untracked at review time).
+**Revision reviewed**: branch `docs/20-t004-t005-signoff`, based on `origin/main` `8638db8` (the merged Q1a change), at the gate-broadening commit named in the sign-off block. The merged Q1a header and public tests are present and scanned.
 
 ## Reviewers and scope
 
@@ -77,17 +77,28 @@
 - **Scope:** 005, the 003 §11 amendment and the issue #11 mirror are outside issue #20's file list but are explicitly assigned by the coordinating S0 brief; they are included on that authorization and disclosed in the PR rather than treated as issue #20 scope.
 - **The gate omitted private nouns.** Added query heap, pipeline library, DRED and debug layer/GPU-based validation. Public-test scanning now excludes both `tests/renderer/d3d12/` and `tests/renderer/ext/`; T016/T019 private tests and T059/T061 provider files were moved to those directories.
 - **Core wording still said "reset".** Replaced with discard/release; the data-model command-submission entity now names recording storage and binding allocation, not allocator/descriptor.
-- **Evidence list and link artifact.** The self-test list now matches the 16 actual cases; the link check is retained as `final6-links.log`.
+- **Evidence list and link artifact.** The self-test list now matches the 17 actual cases; the link check is retained as `signoff-links.log`.
 - **SC-008 / T088.** Stated that T088 is a pre-Q2 conformance spike, not target-support evidence.
 - **004 research / 003 D2.** Added the backend-proven-retirement wording and a D2 pointer to the dated amendment.
 - **T004 review file.** Named `review-rhi-contract.md` in T004.
 - **005 terminology.** `core-present` → `core-surface-acquire`, completion handle/handle → completion token, and the public-test claim corrected to "no longer requires them in the public test". Publication and checklist status now say "merge pending".
 - **T088 placement.** The task format note records T088 as the one task whose text places it before Q2 despite its cross-cutting phase.
+### 9. Sign-off round 1 (two non-author reviewers)
+
+- **Gate overfit.** Identifier-embedded forms (`AdapterLuid`, `luid_high`, `GPUOnlyValidation`, `ValidationFlags`, `CopySource`, `RenderTarget`, `Presentation`, `PresentFrame`, `CmdList`, `ResetAllocator`, `completionSerial`, `nativeHandle`, a `dx12` include, `DebugFlags`) passed the token-exact patterns. The gate now uses identifier-aware patterns, 14 bypass forms are rejected, and five portable names remain clean (40 behavioral tests).
+- **Gate scope.** The scan now covers all engine-facing headers under `src/renderer/` except `d3d12/` and `ext/`, and public test units include `.cc`/`.cxx`.
+- **Evidence artifacts.** The four fixture logs are regenerated in this worktree, the check log records `exit=0`, the validator SHA-256 is retained, and duplicate/absent references were removed.
+- **Submodule claim.** Corrected: initialized at `a9c49da`, porcelain empty.
+- **Counts and status.** 17 self-tests, 40 behavioral tests, 11 mutants; six reviews and two sign-off rounds; the premature "final sign-off" wording is removed.
+- **Mirror divergence.** `issue-q1a.md` is reverted to `origin/main` in this PR; the live issue #11 body is updated only after the sign-off, so the mirror cannot claim a state that is not live.
+- **T013 policy.** The final sign-off scope explicitly requires an APPROVE/REJECT decision on the expected-row/digest/tolerance policy.
+- **Other fixes.** Q1a's public boundary now promises adapter info rather than the full capability profile; T012 names the broadened noun set; T005's traceability note is updated with the sign-off.
+- **Residual risk.** The gate is a lexical tripwire, not a proof: a renamed private concept or a transitive include can still pass. The semantic field-to-WebGPU mapping (T004/Q7a) remains the control.
 ## Checks run for this review
 
-- `py -3 -I scripts/validate-rhi-contract.py --self-test` → exit 0; 16/16 in-memory negative controls detected.
-- `py -3 -I scripts/test-validate-rhi-contract.py` → exit 0; 38 tests, `OK`.
-- `py -3 -I scripts/test-validate-rhi-contract-mutations.py` → exit 0; 11/11 mutants rejected; restored validator passes 38 tests.
+- `py -3 -I scripts/validate-rhi-contract.py --self-test` → exit 0; 17/17 in-memory negative controls detected.
+- `py -3 -I scripts/test-validate-rhi-contract.py` → exit 0; 40 tests, `OK`.
+- `py -3 -I scripts/test-validate-rhi-contract-mutations.py` → exit 0; 11/11 mutants rejected; restored validator passes 40 tests.
 - Header/test gate exercised end-to-end on temporary fixtures: a header containing `#include <d3d12.h>` → exit 1 with `D3D12` and `ID3D12*`; a public test unit containing `ID3D12Device` → exit 1; the same content under `tests/renderer/d3d12/` → exit 0; an empty header directory → exit 1 with `contains no scannable header`; a clean header → exit 0. All temporary paths were removed.
 - `git diff --check` → exit 0; new files checked with `--no-index` (exit 1 = difference).
 - `git -C doom3_orig/doom3 status --porcelain` → empty.
@@ -96,11 +107,11 @@
 ## Unresolved items
 
 1. **Human/independent sign-off is not recorded.** The reviewers above are agents; the repository's rule is an independent reviewer who did not write the change. T004 and T005 stay unchecked until that sign-off is recorded.
-2. **Issue #11 body still needs the mirrored text.** `gh issue edit 11` failed with GraphQL `UpdateIssue` permission denied. Apply `specs/004-quality-renderer/issue-q1a.md` with an account that can edit issues.
-3. **The header gate has not scanned a real public header.** The scan works end-to-end on a temporary header, but `src/renderer/rhi/**` does not exist, so the Q7a/T088 gate remains NOT RUN for the actual implementation.
+2. **Resolved:** the amended issue #11 body was applied with the owner account on 2026-10-28T11:10Z; the mirror is `specs/004-quality-renderer/issue-q1a.md`.
+3. **Resolved for the lexical gate:** the merged Q1a header and three public test files are scanned (`RUN`, exit 0). The semantic WebGPU mapping and conformance spike (Q7a/T088) remain NOT RUN.
 4. **Q7a conformance spike is not built.** The plan now names it (T088); no Dawn/pinned-browser fixture, shader compile or browser frame exists.
-5. **A final re-check by a reviewer who did not write the fixes is pending.** All three reviews returned changes-requested and their findings are addressed above, but the repository rule is an independent reviewer, not the author; this record is not complete until that re-check and a human/owner sign-off are recorded.
+5. **A final re-check by a reviewer who did not write the fixes is pending.** The six reviews and the two sign-off rounds returned changes-requested; their findings are addressed above. This record is not complete until a non-author reviewer approves the frozen commit and a human/owner sign-off is recorded.
 
 ## Decision
 
-**CHANGES REQUESTED → re-review pending.** The blocking findings above are addressed in the reviewed tree; the outstanding items are the independent sign-off, the live issue update, and the three final reviewer passes.
+**CHANGES REQUESTED → re-review pending.** The blocking findings above are addressed in the reviewed tree; the outstanding items are the non-author sign-off and the human/owner caveat.

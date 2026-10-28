@@ -287,8 +287,8 @@ class SurfaceAndHeaderGate(ValidatorTestCase):
              "ComPtr<IUnknown> device;\n"),
         ])
         for label in ("D3D12", "ID3D12*", "DXGI", "IUnknown", "ComPtr",
-                      "ResourceState", "fence/fenceValue", "RENDER_TARGET",
-                      "LUID", "debug layer/GBV"):
+                      "ResourceState", "fence/fenceValue", "RenderTarget",
+                      "LUID family", "GPU validation/based"):
             self.assertIn(
                 "prohibited D3D12 vocabulary in engine-facing header "
                 "src\\renderer\\rhi\\rhi.h: " + label, errors)
@@ -308,6 +308,38 @@ class SurfaceAndHeaderGate(ValidatorTestCase):
         ])
         self.assertEqual([], errors)
 
+    def test_identifier_embedded_private_forms_are_prohibited(self):
+        prefix = ("prohibited D3D12 vocabulary in engine-facing header "
+                  "src\\renderer\\rhi\\rhi.h: ")
+        cases = {
+            "uint64_t adapterLuid;": "LUID family",
+            "uint64_t luid_high;": "LUID family",
+            "bool EnableGPUOnlyValidation;": "GPU validation/based",
+            "struct ValidationFlags { int x; };": "validation flags/layer",
+            "enum class Usage { CopySource };": "CopySource/CopyDest",
+            "enum class Usage { RenderTarget };": "RenderTarget",
+            "struct Presentation {};": "Present*",
+            "void PresentFrame();": "Present*",
+            "struct CmdList;": "commandAllocator/List/CmdList",
+            "void ResetAllocator();": "Reset*",
+            "uint64_t completionSerial;": "completion serial/value",
+            "void* nativeHandle;": "native/raw handle",
+            '#include "dx12/device.h"': "DX12 path",
+            "struct DebugFlags { int x; };": "debug layer/flags",
+        }
+        for text, label in cases.items():
+            errors = validator.header_scan_errors(
+                [(Path("src/renderer/rhi/rhi.h"), text)])
+            self.assertIn(prefix + label, errors, text)
+
+    def test_portable_names_still_pass(self):
+        clean = (
+            "struct TextureView;\nstruct CompletionToken;\nvoid CopyTexture();\n"
+            "float fluidDensity;\nint presentationTime;\nvoid resetFrameCounter();\n"
+            "struct AdapterInfo;\n")
+        errors = validator.header_scan_errors(
+            [(Path("src/renderer/rhi/rhi.h"), clean)])
+        self.assertEqual([], errors)
     def test_missing_sparse_aliasing_row_is_invalid(self):
         name = "contracts/rhi-foundation.md"
         row = next(line for line in self.docs[name].splitlines(keepends=True)

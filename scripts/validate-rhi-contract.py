@@ -58,6 +58,7 @@ PROHIBITED_CORE = (
     ("D3D12", r"d3d12"),
     ("ID3D12*", r"id3d12"),
     ("DXGI", r"dxgi"),
+    ("DX12 path", r"\bdx12\b"),
     ("IUnknown", r"\biunknown\b"),
     ("ComPtr", r"\bcomptr\b"),
     ("WRL", r"\bwrl\b"),
@@ -65,22 +66,28 @@ PROHIBITED_CORE = (
     ("fence/fenceValue", r"fence"),
     ("GetCompletedValue", r"getcompletedvalue"),
     ("signalValue", r"signalvalue"),
+    ("completion serial/value", r"completion(serial|value)"),
+    ("queue value", r"queuevalue"),
     ("ResourceState", r"resourcestate"),
-    ("RENDER_TARGET", r"render_target"),
-    ("COPY_SOURCE/COPY_DEST", r"copy_(source|dest)"),
-    ("commandAllocator/commandList", r"command(allocator|list)"),
+    ("RenderTarget", r"render[_-]?target"),
+    ("CopySource/CopyDest", r"copy[_-]?(source|dest)"),
+    ("commandAllocator/List/CmdList", r"command(allocator|list)|cmdlist"),
     ("descriptorHeap/descriptorRange", r"descriptor(heap|range)"),
     ("rootSignature", r"rootsignature"),
     ("swapChain", r"swapchain"),
     ("queryHeap", r"queryheap"),
     ("pipeline library", r"pipelinelibrary|pipeline_library"),
     ("DRED", r"\bdred\b"),
-    ("debug layer/GBV", r"debuglayer|gpubased|gpuvalidation|\bgbv\b"),
-    ("LUID", r"\bluid\b"),
-    ("Present", r"\bpresent\b"),
+    ("debug layer/flags", r"debug\w*(layer|flags)"),
+    ("GPU validation/based", r"gpu\w*(validation|based)"),
+    ("validation flags/layer", r"validation(flags|layer)"),
+    ("GBV", r"\bgbv\b"),
+    ("LUID family", r"(?<!f)luid"),
+    ("native/raw handle", r"native[_-]?handle|raw[_-]?handle"),
+    ("Present*", r"\bpresent\b|\bpresentation\b|\bpresentframe\b"),
     ("transition", r"\btransition"),
     ("barrier", r"\bbarrier"),
-    ("Reset", r"\breset\b"),
+    ("Reset*", r"reset(allocator|list|command|cmd)"),
     ("HLSL", r"\bhlsl\b"),
     ("DXC", r"\bdxc\b"),
 )
@@ -379,7 +386,7 @@ def self_test(docs):
     mutant["contracts/rhi-foundation.md"] = mutant["contracts/rhi-foundation.md"].replace(
         "adapter, device, capabilities, limits,", "adapter, device, luid, limits,", 1)
     cases.append(("prohibited LUID in portable surface", mutant,
-                  "prohibited D3D12 vocabulary in " + SURFACE_INFO + ": LUID"))
+                  "prohibited D3D12 vocabulary in " + SURFACE_INFO + ": LUID family"))
     # Synthetic drive letter: a negative-control fixture, not a machine path.
     mutant = dict(docs)
     mutant["data-model.md"] = "Q:\\fixture\\checkout\n" + mutant["data-model.md"]
@@ -405,45 +412,48 @@ def main():
         except (OSError, UnicodeError) as exc:
             print("ERROR reading", path, ":", exc, file=sys.stderr)
     errors = validate(docs)
-    rhi = ROOT / "src" / "renderer" / "rhi"
+    renderer = ROOT / "src" / "renderer"
     test_root = ROOT / "tests" / "renderer"
+    private_parts = {"d3d12", "ext"}
     header_files = []
-    if rhi.is_dir():
-        for path in sorted(rhi.rglob("*")):
-            if path.is_file() and path.suffix.lower() in (".h", ".hpp", ".hxx", ".inl"):
-                header_files.append((
-                    path.relative_to(ROOT),
-                    path.read_text(encoding="utf-8", errors="replace"),
-                ))
+    if renderer.is_dir():
+        for path in sorted(renderer.rglob("*")):
+            if not path.is_file() or path.suffix.lower() not in (".h", ".hpp", ".hxx", ".inl"):
+                continue
+            if private_parts & {part.lower() for part in path.relative_to(ROOT).parts}:
+                continue
+            header_files.append((
+                path.relative_to(ROOT),
+                path.read_text(encoding="utf-8", errors="replace"),
+            ))
         errors.extend(header_scan_errors(header_files))
         if not header_files:
-            errors.append("header gate: src/renderer/rhi exists but contains no scannable header")
+            errors.append(
+                "header gate: src/renderer exists but contains no scannable engine-facing header")
     test_files = []
     if test_root.is_dir():
         for path in sorted(test_root.rglob("*")):
-            if not path.is_file() or path.suffix.lower() not in (".cpp", ".h", ".hpp"):
+            if not path.is_file() or path.suffix.lower() not in (".cpp", ".cc", ".cxx", ".h", ".hpp"):
                 continue
-            if "d3d12" in [part.lower() for part in path.relative_to(ROOT).parts]:
-                continue
-            if "ext" in [part.lower() for part in path.relative_to(ROOT).parts]:
+            if private_parts & {part.lower() for part in path.relative_to(ROOT).parts}:
                 continue
             test_files.append((
                 path.relative_to(ROOT),
                 path.read_text(encoding="utf-8", errors="replace"),
             ))
         errors.extend(header_scan_errors(test_files, "public test unit"))
-    if rhi.is_dir():
+    if renderer.is_dir():
         header_note = (
             "header scan: RUN over " + str(len(header_files)) + " header(s)"
             + (" and " + str(len(test_files)) + " public test file(s)" if test_root.is_dir() else "")
         )
     elif test_root.is_dir():
         header_note = (
-            "header scan: NOT RUN (src/renderer/rhi absent); "
+            "header scan: NOT RUN (src/renderer absent); "
             "public test scan: RUN over " + str(len(test_files)) + " file(s)"
         )
     else:
-        header_note = "header/test scan: NOT RUN (src/renderer/rhi and tests/renderer absent; Q7a/T088)"
+        header_note = "header/test scan: NOT RUN (src/renderer and tests/renderer absent; Q7a/T088)"
     if errors:
         for error in errors:
             print("FAIL:", error)
