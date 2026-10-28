@@ -5,6 +5,10 @@
 *.sh  text eol=lf
 *.png binary
 *.jpg binary
+
+# The generated deck is hashed byte-for-byte by verify_variants.py. Do not let
+# core.autocrlf turn its LF into CRLF on checkout.
+showcase/index.html text eol=lf
 *.pk4 binary
 *.pk3 binary
 *.wasm binary
