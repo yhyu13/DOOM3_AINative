@@ -72,6 +72,10 @@ PROHIBITED_CORE = (
     ("descriptorHeap/descriptorRange", r"descriptor(heap|range)"),
     ("rootSignature", r"rootsignature"),
     ("swapChain", r"swapchain"),
+    ("queryHeap", r"queryheap"),
+    ("pipeline library", r"pipelinelibrary|pipeline_library"),
+    ("DRED", r"\bdred\b"),
+    ("debug layer/GBV", r"debuglayer|gpuvalidation|\bgbv\b"),
     ("Present", r"\bpresent\b"),
     ("transition", r"\btransition"),
     ("barrier", r"\bbarrier"),
@@ -414,6 +418,8 @@ def main():
             if not path.is_file() or path.suffix.lower() not in (".cpp", ".h", ".hpp"):
                 continue
             if "d3d12" in [part.lower() for part in path.relative_to(ROOT).parts]:
+                continue
+            if "ext" in [part.lower() for part in path.relative_to(ROOT).parts]:
                 continue
             test_files.append((
                 path.relative_to(ROOT),

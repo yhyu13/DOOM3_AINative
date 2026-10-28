@@ -12,7 +12,7 @@
 | Consistency audit (fresh-context agent) | Did not author; separate context | 004 documents, 003 §11, 005 research, scripts, cross-references, stale claims | CHANGES REQUESTED; fixes applied, re-audit pending |
 | Engine-citation audit (fresh-context agent) | Did not author; separate context | Every `File.cpp:line` citation in 005 §2 against submodule `a9c49da` | CHANGES REQUESTED; fixes applied and spot-checked |
 | Contract review (fresh-context agent) | Did not author; separate context | Issue #20 criteria, tiers, matrix, Q1a seam, header gate, T013, validator claims | CHANGES REQUESTED; 16 findings addressed, re-check pending |
-| Cross-document review (fresh-context agent) | Did not author; separate context | Contradictions, anchors, task IDs, status claims, scope drift | running |
+| Cross-document review (fresh-context agent) | Did not author; separate context | Contradictions, anchors, task IDs, status claims, scope drift | CHANGES REQUESTED; findings addressed, re-check pending |
 | WebGPU claims review (fresh-context agent) | Did not author; separate context | Limits, usage scopes, shader input, ray tracing, availability claims | CHANGES REQUESTED; 3 factual errors corrected |
 
 ## Findings and resolution
@@ -70,6 +70,19 @@
 - `rg16float` is a core renderable/blendable format; only its storage-texture use needs `texture-formats-tier1`. The §3.2 row now says that and agrees with §4.1.
 - The caniuse figures were wrong: the live caniuse-db data fetched 2026-10-28 reports 85.8% full and 3.66% partial, not 2.02%/87.82%, and the comparison with an "earlier 3.66%" was backwards. The fixed text records the fetch date.
 - The G-buffer byte arithmetic counted an `rgba8unorm` render target as 4 B; the render-target byte cost is 8 B, so the named four-attachment layout is 28 B, not 16 B. The "fits in 32 B" conclusion is unchanged, and depth is explicitly excluded from the limit.
+### 8. Cross-document consistency review
+
+- **Counts and logs were stale.** Refreshed to 38 tests, 11 mutants, eleven matrix rows, and `final6-*` logs produced at the tested commit.
+- **The zero-file rule was asymmetric.** The contract now fails only an existing header directory with no scannable header; the public-test scan reports its count and may be zero before the first fixture.
+- **Scope:** 005, the 003 §11 amendment and the issue #11 mirror are outside issue #20's file list but are explicitly assigned by the coordinating S0 brief; they are included on that authorization and disclosed in the PR rather than treated as issue #20 scope.
+- **The gate omitted private nouns.** Added query heap, pipeline library, DRED and debug layer/GPU-based validation. Public-test scanning now excludes both `tests/renderer/d3d12/` and `tests/renderer/ext/`; T016/T019 private tests and T059/T061 provider files were moved to those directories.
+- **Core wording still said "reset".** Replaced with discard/release; the data-model command-submission entity now names recording storage and binding allocation, not allocator/descriptor.
+- **Evidence list and link artifact.** The self-test list now matches the 16 actual cases; the link check is retained as `final6-links.log`.
+- **SC-008 / T088.** Stated that T088 is a pre-Q2 conformance spike, not target-support evidence.
+- **004 research / 003 D2.** Added the backend-proven-retirement wording and a D2 pointer to the dated amendment.
+- **T004 review file.** Named `review-rhi-contract.md` in T004.
+- **005 terminology.** `core-present` → `core-surface-acquire`, completion handle/handle → completion token, and the public-test claim corrected to "no longer requires them in the public test". Publication and checklist status now say "merge pending".
+- **T088 placement.** The task format note records T088 as the one task whose text places it before Q2 despite its cross-cutting phase.
 ## Checks run for this review
 
 - `py -3 -I scripts/validate-rhi-contract.py --self-test` → exit 0; 16/16 in-memory negative controls detected.
@@ -86,7 +99,7 @@
 2. **Issue #11 body still needs the mirrored text.** `gh issue edit 11` failed with GraphQL `UpdateIssue` permission denied. Apply `specs/004-quality-renderer/issue-q1a.md` with an account that can edit issues.
 3. **The header gate has not scanned a real public header.** The scan works end-to-end on a temporary header, but `src/renderer/rhi/**` does not exist, so the Q7a/T088 gate remains NOT RUN for the actual implementation.
 4. **Q7a conformance spike is not built.** The plan now names it (T088); no Dawn/pinned-browser fixture, shader compile or browser frame exists.
-5. **The final cross-document consistency review is still running.** The contract and WebGPU reviews returned changes-requested and their findings are addressed above; the consistency pass and a re-check of the fixes are pending. This record is not complete until they are appended.
+5. **A final re-check by a reviewer who did not write the fixes is pending.** All three reviews returned changes-requested and their findings are addressed above, but the repository rule is an independent reviewer, not the author; this record is not complete until that re-check and a human/owner sign-off are recorded.
 
 ## Decision
 

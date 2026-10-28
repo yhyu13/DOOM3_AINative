@@ -536,7 +536,7 @@ These **supersede the former research recommendations**, not the unchanged spec'
 | ID | New recommendation [proposal] | Revisit if |
 |---|---|---|
 | D1 | Preserve the working native classic-data port as the reference; no automatic dhewm3 rebase | An adoption spike proves substantial benefits without unacceptable data/mod/provenance changes |
-| D2 | D3D12-first backend-neutral bounded RHI for the desktop flagship; HLSL/DXC | Target constraints favour another API, or required authorised NR is Vulkan-only: add/select Vulkan NR profile or explicitly remove DLSS 5 from D3D12 shipping scope |
+| D2 | D3D12-first backend-neutral bounded RHI for the desktop flagship; HLSL/DXC (qualified by the 2026-10-28 amendment below: three-tier core, HLSL is not the public input) | Target constraints favour another API, or required authorised NR is Vulkan-only: add/select Vulkan NR profile or explicitly remove DLSS 5 from D3D12 shipping scope |
 | D3 | Custom bounded RHI for deliberate design ownership, explicit frame resources/graph from the first backend; algorithms above it; NVRHI is an equally credible pixel-quality alternative | A prototype shows custom ownership adds no useful benefit over NVRHI plus our frame graph/renderer |
 | D4 | Motion vectors, readable depth, rendered-history identity and HUD separation are initial design requirements | Never remove silently; any limitation needs a tested policy |
 | D5 | Hybrid deferred opaque PBR + forward/legacy-special path; compatibility mode remains | A source-backed alternative handles materials/transparency better in measured tests |

@@ -14,7 +14,7 @@
 
 ## D2 — Independent synthetic first slice
 
-**Decision**: Keep initial RHI/backend code in the superproject and compile a standalone synthetic test project; start with an offscreen clear/readback and fence-backed retirement, then add one verified capability at a time.
+**Decision**: Keep initial RHI/backend code in the superproject and compile a standalone synthetic test project; start with an offscreen clear/readback and backend-proven retirement (D3D12 fences privately; an opaque completion token in the portable core), then add one verified capability at a time.
 
 **Rationale**: The root native build has configure-time target-copy/patch work. A game-data-free fixture isolates device, state and lifetime correctness without claiming game integration. The exact public boundary and incomplete Q1a/Q1 distinction are in [the foundation contract](./contracts/rhi-foundation.md).
 
@@ -22,7 +22,7 @@
 
 ## D3 — Explicit verification and safe local execution
 
-**Decision**: Test actual outputs and fence/resource behavior on hardware and software adapters separately; report debug-layer and GPU-based-validation availability independently. Build in a fresh worktree-local directory and do not blindly run existing smoke/export helpers.
+**Decision**: Test actual outputs and retirement/resource behavior on hardware and software adapters separately; report debug-layer and GPU-based-validation availability independently. Build in a fresh worktree-local directory and do not blindly run existing smoke/export helpers.
 
 **Rationale**: During local investigation the root `build/` cache pointed at another worktree, so it is not a valid fresh baseline. The [native verifier](../../scripts/verify-win11-amd64.ps1) exports patches to a temporary directory instead of overwriting tracked patch/manifest files, and fails closed on `A`/`D` manifest rows of that temporary export (its expectations are self-generated, so this is not proof of canonical-patch provenance; see T084); [smoke](../../scripts/smoke-win11-amd64.ps1) and [run](../../scripts/run-win11-amd64.ps1) stop only processes whose executable path matches the resolved executable, require `-StopExisting` to do so, and refuse a non-empty output directory without `-Clean`. A zero verifier exit may still coexist with a SKIPPED smoke. These behaviors must not be hidden or triggered against unrelated user work.
 

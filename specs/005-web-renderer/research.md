@@ -4,7 +4,7 @@
 performance measurement was performed. This document is not a port claim and is not an approved
 specification.
 
-**Published**: 2026-10-28 as research by the S0 contract change (Refs #20), together with the
+**Publication**: intended for 2026-10-28 as research by the S0 contract change (Refs #20), together with the
 three-tier amendment to `specs/004-quality-renderer/contracts/rhi-foundation.md`. Publication does
 not approve this research or execute anything in it. The `02_renderer.md`, ROADMAP and AGENTS
 corrections listed in §10's S0 row are outside that contract decision and remain open.
@@ -74,9 +74,9 @@ are out of scope.
 | Game data | Not in the repository; EULA-bound | No retail-scene parity, screenshot or timing exists |
 | Native build | Win11 x64 CMake flow exists; historical captures exist | Reference renderer is buildable in principle, not re-run for this document |
 
-The 004 contract now defines a three-tier RHI — a portable WebGPU-subset core, a D3D12-private backend and native extensions — while the implementation remains a Windows/D3D12 flagship with the browser at Q7. The browser still has no WebGPU backend design, no probed limits table, no async pipeline-compilation plan, no canvas model and no browser evidence gate; the amended core does specify device loss and a `surface`/`core-present` operation, but no browser implementation exists. This document fills that gap at research level; it does not promote Q7 into an implemented profile.
+The 004 contract now defines a three-tier RHI — a portable WebGPU-subset core, a D3D12-private backend and native extensions — while the implementation remains a Windows/D3D12 flagship with the browser at Q7. The browser still has no WebGPU backend design, no probed limits table, no async pipeline-compilation plan, no canvas model and no browser evidence gate; the amended core does specify device loss and a `surface`/`core-surface-acquire` operation, but no browser implementation exists. This document fills that gap at research level; it does not promote Q7 into an implemented profile.
 
-The 003/004 documents were published by PR #10 (commit `1e15790`), and this 005 research is published by the S0 contract change (Refs #20). A worktree created from `origin/main` can see them only after that change merges; nothing here should be cited as a shared baseline before then. Engine citations in §2 are against the pristine submodule at `a9c49da5afb18201d31e3f0a429a037e56ce2b9a`; line numbers drift when the submodule is bumped.
+The 003/004 documents were published by PR #10 (commit `1e15790`), and this 005 research is published by the S0 contract change (Refs #20; merge pending). A worktree created from `origin/main` can see them only after that change merges; nothing here should be cited as a shared baseline before then. Engine citations in §2 are against the pristine submodule at `a9c49da5afb18201d31e3f0a429a037e56ce2b9a`; line numbers drift when the submodule is bumped.
 
 ---
 
@@ -334,7 +334,7 @@ The RHI must be split before Q2:
 
 | Tier | Contents | Who may depend on it |
 |---|---|---|
-| **Portable core** | Adapter/device/capabilities; buffers; textures/views/samplers; shader modules as backend blobs; pipeline layouts and immutable bind groups; one-shot recorders; render/compute passes with declared attachments and bindings; copies; asynchronous pitch-aware readback; opaque submission handles; `Surface`; error scopes; device loss; one queue | Engine adapter, scene/material code, both backends, browser profile |
+| **Portable core** | Adapter/device/capabilities; buffers; textures/views/samplers; shader modules as backend blobs; pipeline layouts and immutable bind groups; one-shot recorders; render/compute passes with declared attachments and bindings; copies; asynchronous pitch-aware readback; opaque completion tokens; `Surface`; error scopes; device loss; one queue | Engine adapter, scene/material code, both backends, browser profile |
 | **D3D12 private implementation** | Fences and fence values; resource transitions/barriers and state journal; command allocators/lists; descriptor heaps/ranges/root signatures; query heaps; swap chain; `ID3D12PipelineLibrary`; debug layer, GPU-based validation, DRED | D3D12 backend only; tests may inspect through a backend-private hook |
 | **Native extension capabilities** | DXR/ray tracing; DLSS/NR provider; multi-queue/async compute; bindless; sparse resources; resource aliasing; native-provider interop | Native-only code behind explicit capability queries; **never** scene/material code and never the web profile |
 
@@ -360,7 +360,7 @@ Before the 2026-10-28 amendment, the 004 contract was D3D12-first in substance e
 | 004 / RHI concept | WebGPU reality | Decision |
 |---|---|---|
 | `RENDER_TARGET` / `COPY_SOURCE` state journal | No app-facing transition API; usage declared at creation/binding and validated in usage scopes | Make the journal a D3D12-backend-internal test hook; public API speaks passes/attachments |
-| Fence value + `GetCompletedValue() < signalValue` | One queue; progress only via `onSubmittedWorkDone()` or `mapAsync`; no fence objects or values | `Submit` returns an opaque completion handle; `Wait`/`IsComplete`; ring of handles for frame slots. The outstanding-release test moves inside the D3D12 backend |
+| Fence value + `GetCompletedValue() < signalValue` | One queue; progress only via `onSubmittedWorkDone()` or `mapAsync`; no fence objects or values | `Submit` returns an opaque completion token; `Wait`/`IsComplete`; a ring of tokens for frame slots. The outstanding-release test moves inside the D3D12 backend |
 | Command allocators/lists | Encoder -> single-use command buffer; no allocator/reset | One-shot recorder allocated per frame from an arena; no public reset |
 | Descriptor ranges/root signatures | Bind groups + pipeline layouts; no heaps/ranges | Immutable bind groups; 4 groups, 16 sampled textures/stage, 12 UBOs/stage, 64 KiB UBO, 256-byte dynamic offset |
 | Adapter class incl. software adapter | Adapter or null; fallback is a hint; info may be empty/redacted | Capability table; software adapter is labeled, not assumed |
@@ -381,7 +381,7 @@ Before the 2026-10-28 amendment, the 004 contract was D3D12-first in substance e
 
 - The state sequence is still executed and asserted, but as a D3D12-backend-internal hook.
 - The outstanding-fence release test asserts `GetCompletedValue() < signalValue` inside the D3D12
-  backend; the public test asserts a completion handle is outstanding.
+  backend; the public test asserts a completion token is outstanding.
 - A WebGPU variant uses `onSubmittedWorkDone`, error scopes, `copyTextureToBuffer` with a 256-byte
   `bytesPerRow`, and `mapAsync`.
 - `width * 4` as a staging stride is a D3D12 negative control; on WebGPU it is **not applicable**
@@ -828,7 +828,7 @@ still-unamended D2 line continue to conflict with the amended 004 contract.
 | Step | Work | Exit evidence |
 |---|---|---|
 | S0 | Publish 003/004 through a branch/PR; correct `02_renderer.md`'s four errors; mark 003's D3D12 prohibition and GL-first checklist as superseded; rewrite ROADMAP section 5 and AGENTS' web-migration self-description | **Partially done (2026-10-28):** 003/004 are published (#10), and this document plus the three-tier contract amendment and the amended issue #11 mirror are the S0 contract decision (Refs #20). The live issue body is not yet updated (the current token lacks issue-write permission). Still open: `02_renderer.md`, the 003 spec/checklist supersession, ROADMAP section 5 and the AGENTS web-migration wording. Exit evidence: tracked docs; no implementation worktree depends on an untracked spec once this change merges. |
-| S1 | Amend Q1a: portable headers, completion handles, D3D12-private fence/state journal, WebGPU-shaped test seam | **Contract amended (Refs #20); implementation and tests remain issue #11.** Exit evidence still required: Q1a test passes on D3D12; header review shows no D3D12 nouns |
+| S1 | Amend Q1a: portable headers, completion tokens, D3D12-private fence/state journal, WebGPU-shaped test seam | **Contract amended (Refs #20); implementation and tests remain issue #11.** Exit evidence still required: Q1a test passes on D3D12; header review shows no D3D12 nouns |
 | S2 | **Q7a / Q1a.5 WebGPU conformance spike**, before Q2: Dawn-native fixture + pinned-Chrome canvas fixture; adapter/device, buffer, texture, bind group, one MRT pass, one compute dispatch, `copyTextureToBuffer` with 256 pitch + `mapAsync`, surface configure/`getCurrentTexture`, device-loss path | Every public header field maps to a WebGPU operation; no D3D12 noun required; captured browser frame; zero uncaptured errors |
 | S3 | Q1b dual-target: draw/compute/MRT/readable depth/motion/validity/overlay/frame slots/resize/history; WGSL module + pipeline-layout checks | D3D12 and WebGPU fixtures; D3D12 GBV gate separate; browser error-scope gate |
 | S4 | Q2 engine adapter + classic path on both: port `RB_ExecuteBackEndCommands` and `draw_common`; ARB2 order; offscreen splits; async readback; residency; GUI pass | GL vs D3D12 vs WebGPU parity captures with predeclared tolerances; no-D3D12-vocabulary review; browser classic frame |
@@ -887,7 +887,7 @@ programme. A conformance spike before Q2 costs little and prevents public-header
 
 - A browser port, WebGPU support or browser compatibility from Q1a/Q1b/Q2 or from a
   backend-neutral header.
-- That the Q1a/Q1b contract is portable in practice; Q1a still runs only on D3D12, even though the amended public acceptance no longer names fence, state-journal, debug-layer or GBV mechanisms — they are D3D12-private.
+- That the Q1a/Q1b contract is portable in practice; Q1a still runs only on D3D12, even though the amended public acceptance no longer requires fence, state-journal, debug-layer or GBV mechanisms in the public test — they are D3D12-private.
 - That WebGPU supports DXR, DLSS 5/NR, bindless, multi-queue, sparse resources, resource aliasing,
   depth bounds, polygon mode, fixed-function alpha/texgen, L8/LA8/A8, or guaranteed BC.
 - That retail `glprogs` or translated ARB programs are distributable.
@@ -947,12 +947,12 @@ parity or legal clearance.
 ## Appendix A: Q1a contract amendments (summary)
 
 1. Public API: adapter/device, buffer, texture/view/sampler, shader module blob, pipeline layout,
-   bind group, one-shot recorder, render/compute pass, copy, async readback, submission handle,
+   bind group, one-shot recorder, render/compute pass, copy, async readback, completion token,
    surface, capabilities, error/device-loss.
 2. D3D12-private: fences, transitions/state journal, allocators, descriptor heaps, root signatures,
    query heaps, swap chain, PSO library, debug layer/GBV/DRED.
 3. Q1a test: clear a distinct-per-row RGBA8 texture, copy, read back; assert bytes; assert a
-   release while the completion handle is outstanding; run hardware/software adapters separately;
+   release while the completion token is outstanding; run hardware/software adapters separately;
    retain the full CTest log.
 4. WebGPU variant: same logical test with `copyTextureToBuffer` 256-byte pitch, `mapAsync`, error
    scopes and `onSubmittedWorkDone`; no D3D12 state names.
@@ -976,7 +976,8 @@ parity or legal clearance.
 
 ## Appendix C: Decision checklist before implementation
 
-- [x] 003/004 published (#10); 003 §11 carries the dated three-tier refinement.
+- [x] 003/004 published (#10).
+- [ ] 003 §11 amendment is on `origin/main` (this change; merge pending).
 - [ ] 003's wider superseded text and `02_renderer.md`'s four errors corrected.
 - [ ] Primary deliverable stated: native, browser, or both.
 - [x] RHI split into portable core + D3D12-private + native extensions — design contract only (issue #20); no implementation.

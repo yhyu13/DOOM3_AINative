@@ -39,7 +39,7 @@ Evidence files: `evidence-rhi-contract.md`, `evidence-q0.md`, `evidence-q1a.md`,
 | SC-005 | T049–T057, T086 | `quality-rubric.md`, `evidence-q4.md` | Planned; budgets set after measurement; T086 independent ordering precedes Q4 review, optional provider branch does not block it |
 | SC-006 | T055, T058–T062 | `provider-clearance.md`, `evidence-q5.md` | Planned; T059 observes clean default configure/build/run for attempted NVIDIA downloads and inspects dependencies/artifacts, separately from the off-path test; incomplete observation is NOT RUN; optional provider claim requires actual authorization and evidence |
 | SC-007 | T063–T070 | `evidence-q6.md` | Planned |
-| SC-008 | T071–T075 | `evidence-q7.md` | Planned; per claimed target only |
+| SC-008 | T071–T075 | `evidence-q7.md` | Planned; per claimed target only. T088 is a pre-Q2 conformance spike, not target-support evidence, so it is not an SC-008 task. |
 
 ## Known coverage limits
 
