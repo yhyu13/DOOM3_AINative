@@ -33,10 +33,13 @@ int RunGatedOutstanding(Device& device) {
     const FenceObservation observation =
         doom3::rhi::d3d12::ObserveFence(device, submission);
     q1a_test::Log("PRIVATE_LIFETIME completed_value=%llu signal_value=%llu "
-                  "public_is_complete=%s",
+                  "device_removed=%s public_is_complete=%s",
                   static_cast<unsigned long long>(observation.completedValue),
                   static_cast<unsigned long long>(observation.signalValue),
+                  observation.deviceRemoved ? "true" : "false",
                   completePublic ? "true" : "false");
+    ok &= q1a_test::Require(!observation.deviceRemoved,
+                            "the device was removed before the in-flight observation");
     ok &= q1a_test::Require(!completePublic,
                             "public completion token reported complete before the gate");
     ok &= q1a_test::Require(

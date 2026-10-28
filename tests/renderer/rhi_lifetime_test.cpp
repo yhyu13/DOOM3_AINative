@@ -98,7 +98,10 @@ int RunLifetime(Device& device) {
     // submission is queued behind the first, so at least one attempt must land
     // while its token is still incomplete.
     bool observedOutstanding = false;
-    const Submission* order[] = {&second, &first};
+    bool firstReleased = false;
+    bool secondReleased = false;
+    Submission* order[] = {&second, &first};
+    bool* released[] = {&secondReleased, &firstReleased};
     const char* labels[] = {"second", "first"};
     for (int attempt = 0; attempt < 2; ++attempt) {
         const Submission& candidate = *order[attempt];
@@ -108,7 +111,9 @@ int RunLifetime(Device& device) {
                       "reason=%s",
                       labels[attempt], complete ? "true" : "false",
                       doom3::rhi::ToString(release), error.c_str());
-        if (!complete && release == ReleaseStatus::RefusedOutstanding) {
+        if (release == ReleaseStatus::Released) {
+            *released[attempt] = true;
+        } else if (!complete && release == ReleaseStatus::RefusedOutstanding) {
             observedOutstanding = true;
         }
     }
@@ -117,37 +122,46 @@ int RunLifetime(Device& device) {
         "no release attempt observed an incomplete completion token; the in-flight "
         "assertion was not exercised");
 
-    ok &= q1a_test::Require(q1a_test::WaitComplete(device, first),
-                            "first completion token was not reached");
-    ok &= q1a_test::Require(q1a_test::WaitComplete(device, second),
-                            "second completion token was not reached");
-
-    ReadbackResult firstReadback;
-    status = device.Readback(first, &firstReadback, &error);
-    q1a_test::Log("LIFETIME first_readback=%s reason=%s",
-                  doom3::rhi::ToString(status), error.c_str());
-    ok &= q1a_test::Require(status == Status::Ok, "first Readback failed");
-    if (status == Status::Ok) {
-        ok &= CompareSampledRows(firstReadback, kLargeHeight, &error);
+    int readbacks = 0;
+    if (!firstReleased) {
+        ok &= q1a_test::Require(q1a_test::WaitComplete(device, first),
+                                "first completion token was not reached");
+        ReadbackResult firstReadback;
+        status = device.Readback(first, &firstReadback, &error);
+        q1a_test::Log("LIFETIME first_readback=%s reason=%s",
+                      doom3::rhi::ToString(status), error.c_str());
+        ok &= q1a_test::Require(status == Status::Ok, "first Readback failed");
+        if (status == Status::Ok) {
+            ++readbacks;
+            ok &= CompareSampledRows(firstReadback, kLargeHeight, &error);
+        }
+        const ReleaseStatus release = device.TryRelease(first, &error);
+        ok &= q1a_test::Require(release == ReleaseStatus::Released,
+                                "first completed submission was not released");
+    } else {
+        q1a_test::Log("LIFETIME first_readback skipped=released_by_in_flight_attempt");
     }
 
-    ReadbackResult secondReadback;
-    status = device.Readback(second, &secondReadback, &error);
-    q1a_test::Log("LIFETIME second_readback=%s reason=%s",
-                  doom3::rhi::ToString(status), error.c_str());
-    ok &= q1a_test::Require(status == Status::Ok, "second Readback failed");
-    if (status == Status::Ok) {
-        ok &= CompareSampledRows(secondReadback, kLargeHeight, &error);
+    if (!secondReleased) {
+        ok &= q1a_test::Require(q1a_test::WaitComplete(device, second),
+                                "second completion token was not reached");
+        ReadbackResult secondReadback;
+        status = device.Readback(second, &secondReadback, &error);
+        q1a_test::Log("LIFETIME second_readback=%s reason=%s",
+                      doom3::rhi::ToString(status), error.c_str());
+        ok &= q1a_test::Require(status == Status::Ok, "second Readback failed");
+        if (status == Status::Ok) {
+            ++readbacks;
+            ok &= CompareSampledRows(secondReadback, kLargeHeight, &error);
+        }
+        const ReleaseStatus release = device.TryRelease(second, &error);
+        ok &= q1a_test::Require(release == ReleaseStatus::Released,
+                                "second completed submission was not released");
+    } else {
+        q1a_test::Log("LIFETIME second_readback skipped=released_by_in_flight_attempt");
     }
-
-    const ReleaseStatus firstRelease = device.TryRelease(first, &error);
-    const ReleaseStatus secondRelease = device.TryRelease(second, &error);
-    q1a_test::Log("LIFETIME releases first=%s second=%s",
-                  doom3::rhi::ToString(firstRelease),
-                  doom3::rhi::ToString(secondRelease));
-    ok &= q1a_test::Require(firstRelease == ReleaseStatus::Released &&
-                                secondRelease == ReleaseStatus::Released,
-                            "completed submissions were not released");
+    ok &= q1a_test::Require(readbacks > 0,
+                            "both large submissions were released before readback");
 
     // Readback before completion is NotReady, not a silent success. Submit a
     // third copy and poll it, but first assert the immediate state is honest on

@@ -64,6 +64,9 @@ struct RawReadback {
 struct FenceObservation {
     uint64_t completedValue = 0;
     uint64_t signalValue = 0;
+    // True when the backend reports its removed-device sentinel. A removed
+    // device is not completion evidence and must not be read as progress.
+    bool deviceRemoved = false;
 };
 
 }  // namespace d3d12

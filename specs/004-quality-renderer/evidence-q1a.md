@@ -1,481 +1,314 @@
 # Q1a evidence: D3D12 RHI clear/readback foundation
 
-**Status: remediation is incomplete; do not merge or treat Q1a as accepted.** The
-2026-10-28 results and blockers below supersede the historical acceptance claims
-in this document. The existing independent review predates these changes and is
-not a review of the current worktree. Q1, browser and game integration are not
-complete.
+**Status**: Q1a implemented against the amended three-tier contract (Refs #20, #11).
+Debug and Release runs execute the public and private fixtures on both an Intel hardware
+adapter and the Microsoft Basic Render Driver (WARP). The header/public-test gate passes.
+The debug layer and GPU-based validation were **attempted and are SKIPPED** on this machine
+(`hr=0x887A002D`), so full Q1 is still blocked; this record does not mark them passing.
+Independent review round 1 requested evidence corrections (no code defect); the corrections
+are in this revision and a second reviewer pass is recorded in [review-q1a.md](./review-q1a.md).
 
-## 2026-10-28 partial remediation
+**History and supersession**: the 2026-10-27 acceptance in this file described the
+pre-amendment seam, where resource states, the journal, staging pitch and fence values were
+public. Issue #20 changed the contract into portable core, D3D12-private backend and native
+extensions. That acceptance and its review are superseded. The 2026-10-28 partial
+remediation was also incomplete and was never merged. Everything below was measured from
+the commit named in "Source identity"; no earlier result is reused as current evidence.
 
-This worktree started clean on `feat/11-q1a-rhi-clear-readback` at `cda817a`.
-The changes below address the observed gate and handle aliases only. In particular,
-**ownership after a fence wait or queue-signal failure is not guaranteed**, so
-remediation stopped rather than claiming the safety cases fixed.
+## Identity and scope
 
-| Check | Debug result | Release result | Evidence |
+- **Stage and claim**: spec 004 Q1a (issue #11), tasks T012–T021. Claim: a standalone,
+  synthetic 4×4 RGBA8 per-row clear, a correctly row-pitched readback exposed as tightly
+  packed caller bytes, a recorded backend-private state journal, an opaque completion token,
+  and release that refuses while the producing submission is still running. Q1a only.
+- **Source identity**: worktree `feat-11-q1a-rhi-clear-readback`, branch
+  `feat/11-q1a-rhi-clear-readback`, code commit `1c0187bd5309747df3c968b29842c8fc75685421`
+  plus the evidence/fix commit that carries this file. Rebased on `origin/main`
+  `1703655464a6c93ebf14825b4ee16da456b2650d`. Submodule `doom3_orig/doom3` at
+  `a9c49da5afb18201d31e3f0a429a037e56ce2b9a`, porcelain empty. No engine target copy, root
+  CMake change or engine source edit is part of this claim.
+- **Data identity and rights**: no game data. The only inputs are literal 8-bit channel
+  values and a synthetic 4×4 or 2048×2048 description generated in the test source. The
+  source in this repository is GPL-3.0-or-later; no third-party asset or SDK component is
+  redistributed.
+- **Scene and inputs**: offscreen only. The small fixture is 4×4 with four distinct literal
+  rows; the lifetime fixture submits two 2048×2048 descriptions whose rows cycle through the
+  same four colours. No window, camera, map, model or texture file is loaded.
+- **Exclusions and limitations**: no draw, compute, multiple attachments, readable depth,
+  motion/validity, frame graph, resize, window presentation, engine integration, browser or
+  WebGPU backend, PBR/GI, DXR/DLSS, or performance claim. A D3D12 Q1a pass is not browser
+  portability evidence. The debug layer and GPU-based validation did not execute here.
+
+## Environment and configuration
+
+- **Toolchain and configuration**: Windows 11 x64; Visual Studio 2022 Professional,
+  MSVC 19.44.35228.0; Windows SDK 10.0.26100.0; CMake 3.31.6-msvc6; Git 2.25.0.windows.1;
+  PowerShell 5.1; Python 3.14.4 via `py -3 -I`. Generator "Visual Studio 17 2022", `-A x64`;
+  Debug and Release; `/W4 /permissive- /EHsc`; C++17.
+- **Adapter and driver**: hardware `Intel(R) Graphics`, vendor 0x8086, device 0x7D67,
+  134,217,728 bytes reported dedicated video memory, driver 32.0.101.8331; software
+  `Microsoft Basic Render Driver` (WARP), vendor 0x1414, device 0x008C. Adapter class and
+  index are selected explicitly; out-of-range selection is exercised as a failed setup path.
+- **Capability and fallback**: one ordered work queue plus a **private gate-signal queue**
+  used only to make the private in-flight test deterministic; committed render-target
+  texture, CPU-visible readback buffer, copy, and an opaque completion token. No fallback is
+  auto-selected. A missing software adapter is SKIPPED, not passed. Debug layer and GPU-based
+  validation are opt-in backend-private requests; absence is recorded, never converted into
+  success.
+- **Shader provenance and build**: N/A. Q1a records no pipeline, shader module, compiler or
+  HLSL/DXC input; the slice uses fixed-function clears and a texture copy.
+
+## Procedure and retained artifacts
+
+- **Predeclared tolerances**: per-channel 8-bit UNORM absolute difference ≤ 1, fixed before
+  the run. Rows are tightly packed at exactly `width * 4` bytes, no staging padding. Hash
+  rule: FNV-1a 64 over each canonical expected row, published as constants before execution:
+
+  | Row | Canonical bytes (RGBA, repeated) | Published digest |
+  |---|---|---|
+  | 0 | `00 40 80 FF` | `0x06B23876A7A2A8C5` |
+  | 1 | `FF BF 80 40` | `0xA5581568C728313D` |
+  | 2 | `20 60 A0 E0` | `0x6C69B69DA236AC65` |
+  | 3 | `10 80 F0 30` | `0xF0FBAA39868107A5` |
+
+  The test recomputes each digest from the literal row and fails on mismatch; actual raw row
+  hashes are logged for diagnosis only and are not required to equal the expected digest.
+  A controlled one-step difference must pass and a controlled two-step difference must fail.
+- **Commands and exits** (worktree root, fresh directory `build-q1a-fresh`):
+  1. `cmake -S tests/renderer -B build-q1a-fresh -G "Visual Studio 17 2022" -A x64` → 0,
+     log `build-q1a-fresh-configure.log`.
+  2. `cmake --build build-q1a-fresh --config Debug -- -m` → 0,
+     log `build-q1a-fresh/build-Debug.log`; no warning or error line.
+  3. `ctest --test-dir build-q1a-fresh -C Debug --no-tests=error -V --output-junit
+     build-q1a-fresh/junit-Debug.xml` → 0; 7/7 passed, log
+     `build-q1a-fresh/ctest-Debug.log`, JUnit
+     `build-q1a-fresh/build-q1a-fresh/junit-Debug.xml` (`tests=7 failures=0 skipped=0`).
+  4. Same build and CTest for Release → 0; 7/7 passed; log
+     `build-q1a-fresh/build-Release.log`, `build-q1a-fresh/ctest-Release.log`,
+     JUnit `build-q1a-fresh/build-q1a-fresh/junit-Release.xml`
+     (`tests=7 failures=0 skipped=0`).
+  5. After the review-driven robustness edits, both configurations were rebuilt and retested
+     in the same directory → 0 each; logs `build-q1a-fresh/rebuild-Debug.log`,
+     `rebuild-Release.log`, `ctest-Debug.log`, `ctest-Release.log`; no warning line.
+  6. Ten repeated Debug runs → exit 0 each; logs `build-q1a-fresh/repeat-1.log` …
+     `repeat-10.log`.
+  7. `py -3 -I scripts/validate-rhi-contract.py` → 0; "header scan: RUN over 1 header(s)
+     and 3 public test file(s)".
+  8. `py -3 -I scripts/validate-rhi-contract.py --self-test` → 0; 16/16 negative controls
+     detected; log `build-q1a/validator-selftest.log`.
+  9. `py -3 -I scripts/test-validate-rhi-contract.py` → 0; 38 tests `OK`; log
+     `build-q1a/validator-tests.log`.
+  10. `py -3 -I scripts/test-validate-rhi-contract-mutations.py` → 0; 11 protected behaviours
+      rejected one at a time, restored suite 38 tests exit 0; log
+      `build-q1a/validator-mutations.log`.
+  11. `git -C doom3_orig/doom3 status --porcelain` → empty.
+- **Retained logs and artifacts**: all paths above are worktree-local and git-ignored.
+  Readback diagnostics: `build-q1a/q1a-evidence/q1a-clear-hardware.bmp` and
+  `q1a-clear-software.bmp` (12,342 bytes each), PNG conversions (241 bytes each), a local
+  HTML dashboard and a Playwright full-page screenshot `evidence-gallery.png` (80,308 bytes).
+  Those images are diagnostic artifacts, not tracked deliverables and not visual-quality
+  evidence. JUnit `skipped=0` is a CTest-level count; internal validation checks that were
+  SKIPPED are recorded separately below and are not converted into passes.
+- **Negative controls**: see the control table below. Each control is required to be
+  detected; a genuinely inapplicable control is recorded as NOT APPLICABLE and does not
+  count as a pass.
+
+### Red runs without an implemented backend
+
+The amended 7-test suite and the amended implementation were produced in the same rewrite,
+so there is no historical "tests committed before code" checkout for this exact suite. To
+keep the T013/T016 red requirement real rather than asserted, the final suite was run against
+a deliberately stubbed backend and against behavioral mutations:
+
+| Red condition | Test | Exit | Observed assertion |
 |---|---|---|---|
-| Fresh configure | exit 0 | same configuration | `build-r1/configure.log` |
-| Build | exit 0 | exit 0 | `build-r1/final-build-debug.log`, `final-build-release.log` |
-| Full CTest | exit 0, 7/7 | exit 0, 7/7 | `build-r1/final-ctest-debug.log`, `final-ctest-release.log`; JUnit `final-debug.xml`, `final-release.xml` |
-| Actual adapters | Intel hardware and Microsoft Basic Render Driver (WARP), both executed | same | full CTest logs; per-adapter summaries |
-| Debug layer and GPU-based validation | SKIPPED (`0x887A002D`) | SKIPPED (`0x887A002D`) | diagnostics cases in full logs; not a validation pass |
+| M0a backend stub (submit refuses every request) | `rhi.q1a.clear_readback` | 8 | `SubmitClearReadback failed`; `device is not initialized` |
+| M0b backend stub | `rhi.q1a.outstanding_release` | 8 | `first SubmitClearReadback failed` |
+| M1 every row cleared with row 0's colour | `rhi.q1a.clear_readback` | 8 | rows 1–3 exceed tolerance |
+| M2 public copy walks with tight stride as source pitch | `rhi.q1a.clear_readback` | 8 | rows 1–3 read as zero bytes |
+| M5 outstanding refusal removed | `rhi.q1a.outstanding_release` | 8 | no in-flight attempt observed; both large submissions released before readback |
+| M6 published digest corrupted | `rhi.q1a.clear_readback` | 8 | expected-data integrity assertion |
 
-The first attempted fresh build directory, `build-rhi-004-remediation-20261028`,
-failed to configure with MSBuild `FTK1011` file-tracker path errors (exit 1);
-its `configure.log` is retained. The shorter, separately created `build-r1`
-configured successfully. Full Git Bash commands, tool selection and the
-isolated red-check recipes are retained in `build-r1/commands.txt`. The principal
-commands, from the worktree root with the Visual Studio bundled CMake/CTest, are:
+Logs: `build-q1a/mutations/M0a_stub_backend_clear-test.log`, `M0b_stub_backend_lifetime-test.log`,
+`M1_repeat_row_zero-test.log`, `M2_wrong_source_stride-test.log`,
+`M5_no_outstanding_refusal-test.log`, `M6_expected_digest-test.log`.
+
+### Control ownership
+
+| Control | Owner test | Observed |
+|---|---|---|
+| off-by-one source-row offset | `rhi.q1a.negative_controls` (public) | APPLICABLE, detected on 4/4 rows |
+| repeat row 0 | `rhi.q1a.negative_controls` (public) | APPLICABLE, detected on 3/3 rows |
+| packed row-length misread (`width * 4 - 1`) | `rhi.q1a.negative_controls` (public) | APPLICABLE, detected on 3 rows |
+| staging-pitch misread (`width * 4` over raw staging) | `rhi.q1a.staging_pitch` (D3D12-private) | APPLICABLE; pitch 256 vs tight 16; detected on 3 rows |
+| in-flight release, public token half | `rhi.q1a.outstanding_release` | two submissions; both attempts before completion returned `RefusedOutstanding` |
+| in-flight release, private fence half | `rhi.q1a.outstanding_release_private` | `completedValue=0 < signalValue=1`, `deviceRemoved=false`; `RefusedOutstanding` |
+| wait-idle-before-release shortcut | private control + mutation M4 | the shortcut reports `Released`; the main assertion fails under M4 |
+| expected-data digest integrity | `rhi.q1a.clear_readback` | four digests match their literal rows; mutation M6 fails |
+| tolerance pair | `rhi.q1a.clear_readback` | one-step accepted, two-step rejected |
+| state sequence | `rhi.q1a.state_journal` (D3D12-private) | exact three-entry order below |
+
+State journal observed on both adapters:
 
 ```text
-cmake -S tests/renderer -B build-r1 -G "Visual Studio 17 2022" -A x64
-cmake --build build-r1 --config Debug -- -m
-ctest --test-dir build-r1 -C Debug --no-tests=error -V --output-junit final-debug.xml
-cmake --build build-r1 --config Release -- -m
-ctest --test-dir build-r1 -C Release --no-tests=error -V --output-junit final-release.xml
+[0] render-target    UNKNOWN        -> RENDER_TARGET  created for render-target use
+[1] render-target    RENDER_TARGET  -> COPY_SOURCE    per-row clear recorded, moved for the copy
+[2] readback-buffer  UNKNOWN        -> COPY_DEST      created as the copy destination
 ```
 
-### New regression slices
+The public tests never name a state, journal entry, staging pitch or fence value. The
+deterministic in-flight proof uses a backend-private gate; the public test additionally makes
+a bounded observation with two queued 2048×2048 submissions and never waits before a release
+attempt. Because a release attempt can legitimately succeed on a submission that has already
+finished, the public test tracks which submissions were released and only waits on and reads
+back the ones that are still owned; it requires at least one readback and at least one
+incomplete-token refusal. If both attempts finish before the CPU reaches them, the test fails
+a bounded observation (it cannot false-pass).
 
-| Behavior | Red, before fix | Green, unchanged test | Isolated red-check |
-|---|---|---|---|
-| Signal only gate 2 while gate 1 remains closed | `reverse-red.log`: CTest exit 8; both adapters completed gate 1 and allowed readback | `reverse-green.log`: exit 0; neither completed and readback was rejected on both adapters | `reverse-mutant.log`: exit 8 on both adapters; original shared-fence backend from `HEAD` |
-| Foreign and pre-reinitialization handles | `identity-red.log`: exit 8; both adapters accepted foreign and stale handles in all six tested operations | `identity-green.log`: exit 0; both handles rejected in all six operations on both adapters | `identity-mutant.log`: exit 8 on both adapters; retained pre-identity-fix backend |
+### Mutation controls (Debug, then restored)
 
-All logs and SHA-256 manifests above are in `build-r1/`; isolated copies are
-`build-r1/reverse-mutant/` and `build-r1/identity-mutant/`, built in `build-m1/`
-and `build-m2/` respectively. Mutation backend hashes are
-`fc1357bb6d4bedbdbddf6e8705ca352fed711b9955d8c82dcddeb6f2edd19614` and
-`d72cb1cbd1351741a2ed1a995bad59dd248492579e246b791fcbadd184670696`.
-The gate test uses a bounded one-second observation interval; the red runs show
-that the old failure did manifest, but absence of completion in a bounded window
-is not a proof for every scheduler. Normal post-release waits and teardown ran;
-shutdown specifically with gate 1 closed and gate 2 signalled is not separately
-asserted. ID and completion-serial exhaustion guards and tampered-handle fields
-have not been fault-injected or sensitivity-tested.
-
-### Open blockers and proposed fault seam
-
-- `GetCompletedValue() == UINT64_MAX` is still treated as completion; shutdown
-  still releases records after an unsuccessful wait. A failed queue `Signal`
-  after `ExecuteCommandLists` and an allocation failure while recording an
-  already-submitted command also need ownership-safe handling, including the
-  destructor. None of those paths has an adequate sensitivity test.
-- A narrow test-build-only D3D-call shim could force an underreported completion,
-  `SetEventOnCompletion`/wait failure, the removal sentinel, or a post-execute
-  `Signal` failure while exercising the existing `Device` methods. Underreporting
-  completion and suppressing a signal before the real call avoids inducing
-  machine-wide GPU removal. Recovery tests must restore the real calls and
-  demonstrate completion before freeing resources. Observing ownership after a
-  destructor requires a test-only lifetime observer or another agreed seam;
-  this changes the observable testing boundary and has not been approved or
-  implemented. The current API alone cannot prove that destroyed objects retained
-  native resources. Do not infer safety from these proposed tests.
-- Software device creation and debug-interface failures can still be
-  misclassified as `Unsupported`/`SKIPPED`; enabling the process-global debug
-  layer with an existing D3D12 device also remains unresolved. Debug/GBV did not
-  run here.
-- The old M5b control below timed out and dropped outstanding resources; it is
-  **not** valid evidence of a completed wait-idle-before-release shortcut. A safe,
-  reproducible replacement is still required. The historical T016/T018 red
-  provenance also remains insufficient.
-- Issue #11 accepts per-byte comparison with a one-step UNORM tolerance; T013
-  additionally says to check row hashes. The current test logs hashes but does
-  not assert them. Strict hash equality is not equivalent to tolerated bytes;
-  reconciliation requires a contract decision outside this issue's writable
-  scope. This discrepancy remains open.
-- The current patch has not received the required new independent review and is
-  not committed, pushed or ready to merge.
-
-### Files changed in this remediation
-
-- `src/renderer/d3d12/rhi_d3d12.cpp`
-- `tests/renderer/CMakeLists.txt`
-- `tests/renderer/rhi_lifetime_test.cpp`
-- `specs/004-quality-renderer/evidence-q1a.md`
-
-## Historical 2026-10-27 evidence (superseded where contradicted above)
-
-This evidence covers **Q1a only**. It does not complete Q1, User Story 2, the
-renderer programme or any later gate.
-
-## Issue, branch and baseline
-
-| Item | Value |
-|---|---|
-| Issue | #11, Q1a slice only (Q1b-Q7 are not started) |
-| Branch | `feat/11-q1a-rhi-clear-readback` |
-| Baseline commit | `0dd454e7b9acbb4ac30a471c15fc1ed8d68fb258` (= `origin/main` when the branch was cut) |
-| Baseline status | clean worktree at the baseline commit; no tracked modification before the Q1a files were added |
-| Submodule state | `doom3_orig/doom3` clean at `a9c49da5afb18201d31e3f0a429a037e56ce2b9a` |
-| Worktree | dedicated issue worktree; final build in git-ignored `build-rhi-004-fresh/` |
-| Writer / reviewer | implementation agent wrote the slice; a separate reviewer agent wrote `review-q1a.md` |
-
-## Scope
-
-The implemented slice is a standalone, synthetic, offscreen D3D12 fixture:
-
-- a backend-neutral public seam in `src/renderer/rhi/rhi.h`;
-- a D3D12 backend in `src/renderer/d3d12/rhi_d3d12.cpp`;
-- a standalone CMake/CTest project in `tests/renderer/` with five named tests.
-
-It uses no engine target copy, no game data, no proprietary SDK and no network
-download. It does not integrate with either DOOM executable, does not create a
-window or swap chain, and makes no performance claim.
-
-## Environment
-
-| Item | Value |
-|---|---|
-| OS | Windows 11 Pro 10.0.22631, x64 |
-| Compiler | MSVC 14.44.35207 (Visual Studio 2022 17.14) |
-| Windows SDK | 10.0.26100.0 (D3D12 and DXGI headers) |
-| CMake / CTest | 3.31.6-msvc6, Visual Studio-bundled |
-| Generator | Visual Studio 17 2022, x64 |
-| Game data | none |
-| NVIDIA SDK / DLSS | not installed, not required |
-
-## Commands, exit codes and retained logs
-
-Run from the repository root of the issue worktree. The build directory is
-git-ignored and was deleted and recreated for this final run. These are the Q1a
-commands from `quickstart.md`, executed with the Visual Studio-bundled CMake/CTest
-and the Windows SDK selected by the generator; the fresh directory is
-`build-rhi-004-fresh`, and verbose output plus JUnit retains every successful case.
-
-| Step | Command | Exit | Retained log / artifact |
-|---|---|---|---|
-| Configure | `cmake -S tests/renderer -B build-rhi-004-fresh -G "Visual Studio 17 2022" -A x64` | 0 | `build-rhi-004-fresh/build-configure.log` |
-| Build Debug | `cmake --build build-rhi-004-fresh --config Debug -- -m` | 0 | `build-rhi-004-fresh/build-debug.log` |
-| Test Debug | `ctest --test-dir build-rhi-004-fresh -C Debug --no-tests=error -V --output-on-failure --output-junit q1a-junit-debug.xml` | 0 | `build-rhi-004-fresh/q1a-ctest-debug.log`, `build-rhi-004-fresh/q1a-junit-debug.xml` |
-| Build Release | `cmake --build build-rhi-004-fresh --config Release -- -m` | 0 | `build-rhi-004-fresh/build-release.log` |
-| Test Release | `ctest --test-dir build-rhi-004-fresh -C Release --no-tests=error -V --output-on-failure --output-junit q1a-junit-release.xml` | 0 | `build-rhi-004-fresh/q1a-ctest-release.log`, `build-rhi-004-fresh/q1a-junit-release.xml` |
-| Repeat stability | `ctest --test-dir build-rhi-004-fresh -C Debug --no-tests=error`, ten times | 0 each | `build-rhi-004-fresh/repeat-1..10.log`, `repeat-summary.log` |
-
-Debug result: `100% tests passed, 0 tests failed out of 5`, total 1.02 s.
-Release result: `100% tests passed, 0 tests failed out of 5`, total 1.06 s.
-Ten additional Debug runs had zero failures (`repeat-summary.log`). Both JUnit
-files report `tests="5" failures="0" disabled="0" skipped="0"`. The Debug build
-and Release build logs contain no `warning C####` or `error C####` line.
-
-Per-test Debug times: 0.14, 0.12, 0.12, 0.23, 0.41 s. Per-test Release times:
-0.16, 0.14, 0.14, 0.24, 0.37 s. Each CTest test has `SKIP_RETURN_CODE 77`,
-`TIMEOUT 120` and `RHI_EVIDENCE_DIR` pointing inside its own build directory.
-
-## Red evidence before implementation
-
-A compiling stub produced a real behavioral failure, not a compile error. Retained
-at `build-rhi-004/q1a-red.log`: the run reported
-`0% tests passed, 5 tests failed out of 5` and the invoking shell observed CTest
-exit 8 (the raw log does not embed the shell exit code; 8 is CTest's standard
-test-failure code, and the mutation logs do record their exits). All five tests
-failed:
-
-```
-1/5 Test #1: rhi.q1a.clear_readback ..............***Failed
-2/5 Test #2: rhi.q1a.state_journal ...............***Failed
-3/5 Test #3: rhi.q1a.negative_controls ...........***Failed
-4/5 Test #4: rhi.q1a.fence_outstanding_release ...***Failed
-5/5 Test #5: rhi.q1a.diagnostics .................***Failed
-0% tests passed, 5 tests failed out of 5
-```
-
-For tests 1-3 the log shows, for both hardware and software,
-`ADAPTER ... FAILED status=Error reason=Q1a backend stub: not implemented` and
-`ASSERTION FAILED: adapter initialization failed for <class>`; each summary is
-`pass=0 fail=2 skip=0`. Test 4 adds two
-`ASSERTION FAILED: out-of-range adapter index did not return Unsupported` failures
-from the incomplete-initialization check, with `INCOMPLETE_INIT ... status=Error
-reason=Q1a backend stub: not implemented`.
-
-Test 5 in that red log predates the final diagnostics rewrite: it exercised one
-request combination (both flags) rather than the final four combinations, and
-failed at `ASSERTION FAILED: diagnostics Initialize failed` with
-`DIAGNOSTICS_SUMMARY pass=0 fail=2 skip=0`. The four-combination test was written
-after the backend existed, so there is no red run for its final form; its
-assertions are instead exercised against two adapter classes and the skipped/error
-paths described below. The red record for T013/T016 is tests 1-4.
-
-## Green evidence
-
-### Adapters present
-
-| Class | Name | Vendor | Device | Dedicated VRAM | LUID |
-|---|---|---|---|---|---|
-| hardware | Intel(R) Graphics | 0x8086 | 0x7d67 | 134217728 | 0x000000000001725f |
-| software | Microsoft Basic Render Driver (WARP) | 0x1414 | 0x008c | 0 | 0x00000000000176b1 |
-
-The fixture enumerates four hardware adapters and requests index 0; the software
-class uses `IDXGIFactory4::EnumWarpAdapter`. Both classes actually executed the
-clear/readback path (`ADAPTER hardware RESULT PASS`, `ADAPTER software RESULT
-PASS`, `SUMMARY pass=2 fail=0 skip=0` in each affected test). A software pass is a
-functional check, not hardware performance evidence.
-
-### `rhi.q1a.clear_readback`
-
-Two independent ungated submissions per adapter. The log contains, for each
-adapter and each submission:
-
-- `submit_status=Ok`; ids 1 and 2; completion serials 1 and 2; `gated=false`;
-- `completed_before_wait=false` before `Wait` (logged, not asserted, because a
-  conforming GPU may finish early);
-- `row_pitch=256`, `tight=16`, `staging_bytes=1024` for a 4x4 RGBA8 target;
-- four row comparisons against hard-coded expected bytes with tolerance 1 UNORM
-  step: `mismatches=0 max_delta=0` on every row, on both adapters;
-- `release_status=Released` for both submissions.
-
-The log compares each row against hard-coded expected bytes and records hashes
-of both sides: `06b23876a7a2a8c5` (`004080ff...`), `a5581568c728313d`
-(`ffbf8040...`), `6c69b69da236ac65` (`2060a0e0...`) and `f0fbaa39868107a5`
-(`1080f030...`). In this run every `actual_hash` equalled its `expected_hash`
-and every row logged `max_delta=0`, but the test's pass condition is
-`mismatches=0` at a tolerance of one UNORM step, not hash equality. The expected
-bytes are literal constants in `tests/renderer/q1a_test_support.h`; they are
-not derived from the readback.
-
-### `rhi.q1a.state_journal`
-
-The journal records exactly three ordered transitions per adapter:
-
-```
-render-target   Unknown       -> RENDER_TARGET  created as a D3D12 render target
-render-target   RENDER_TARGET -> COPY_SOURCE    per-row clear recorded; transitioned for texture copy
-readback-buffer Unknown       -> COPY_DEST      created as a D3D12 copy destination
-```
-
-The test asserts `journal.size() == 3` and each entry's resource, `from` and `to`
-state in order, not merely the presence of a transition. The journal entries are
-derived from the same `D3D12_RESOURCE_STATES` values passed to
-`CreateCommittedResource` and to the transition barrier, not from a separate
-hand-written description. Both adapters passed, and submit/wait/readback/release
-statuses were logged as `Ok/Ok/Ok/Released`.
-
-### `rhi.q1a.negative_controls`
-
-The controls consume the raw row-pitched staging bytes, not the already-tight
-pixels:
-
-| Control | Applicable | Detected | Detail |
-|---|---|---|---|
-| `wrong_stride` (`width * 4` as staging stride) | yes | yes | mismatched 3/4 rows |
-| `off_by_one_row` | yes | yes | mismatched 4/4 rows |
-| `repeat_row_0` | yes | yes | mismatched 3/4 rows |
-
-`NEGATIVE_CONTROL_SUMMARY applicable=3 all_detected=true` on both adapters. A
-control that were inapplicable would be reported NOT APPLICABLE with its reason
-and would not count as a pass; none were inapplicable on these adapters.
-
-### `rhi.q1a.fence_outstanding_release`
-
-The fixture submits a gated submission and a second submission queued behind it on
-the same queue. Logged values on both adapters:
-
-```
-gated_serial=1 completed_before_release=0
-release_gated_outstanding=RefusedOutstanding   reason=submission is gated; completion is outstanding
-release_ungated_outstanding=RefusedOutstanding reason=completion serial is outstanding
-wait_before_gate_status=InvalidArgument
-release_gate_status=Ok                          reason=
-wait_gated_status=Ok                            reason=
-release_gated_complete=Released                 reason=
-wait_ungated_status=Ok                          reason=
-release_ungated_complete=Released               reason=
-release_bogus=InvalidSubmission                 reason=unknown or already released submission
-```
-
-The second release is the required attempt at `GetCompletedValue() < signalValue`
-(0 < 1 at the gate; the second submission is deterministically behind it). The
-gated submission's readback was also compared with the same per-byte assertion
-(`mismatches=0`, `max_delta=0`; tolerance one UNORM step). Successful
-`ReleaseGate` and `Wait` calls assert `error.empty()`, so a stale error string
-cannot survive a successful call.
-
-The same test also covers two lifetime edges:
-
-```
-SHUTDOWN submit_status=Ok serial=1 gated=true reason=
-SHUTDOWN status=Ok
-SHUTDOWN second_status=Ok
-INCOMPLETE_INIT class=hardware status=Unsupported reason=adapterIndex 9999 is out of range for hardware; found 4 adapter(s)
-INCOMPLETE_INIT class=hardware first_shutdown=Ok second_shutdown=Ok
-INCOMPLETE_INIT class=software status=Unsupported reason=adapterIndex 9999 is out of range for software; found 1 adapter(s)
-INCOMPLETE_INIT class=software first_shutdown=Ok second_shutdown=Ok
-```
-
-`Shutdown()` with an unreleased gated submission opens the gate, waits for the
-serial and returns `Ok`; `IsInitialized()` is false afterwards and a second
-`Shutdown()` is also `Ok`. Failed initialization (out-of-range index) leaves the
-device uninitialized and two consecutive `Shutdown()` calls clean. If a wait
-during teardown fails, `Shutdown()` returns `Error`; that path is implemented but
-was not triggered in this run.
-
-### `rhi.q1a.diagnostics`
-
-Each adapter class runs four opt-in combinations, each on a fresh device:
-
-| Class | Combo | debug layer | GPU-based validation | Captured messages |
+| Mutation | Target test | Build | Test exit | Observed failure |
 |---|---|---|---|---|
-| hardware | `none` | NOT_REQUESTED | NOT_REQUESTED | 0 |
-| hardware | `debug_only` | SKIPPED | NOT_REQUESTED | 0 |
-| hardware | `gbv_only` | NOT_REQUESTED | SKIPPED | 0 |
-| hardware | `both` | SKIPPED | SKIPPED | 0 |
-| software | `none` | NOT_REQUESTED | NOT_REQUESTED | 0 |
-| software | `debug_only` | SKIPPED | NOT_REQUESTED | 0 |
-| software | `gbv_only` | NOT_REQUESTED | SKIPPED | 0 |
-| software | `both` | SKIPPED | SKIPPED | 0 |
+| M0a submit stub (always the uninitialized error) | `rhi.q1a.clear_readback` | 0 | 8 | `SubmitClearReadback failed` |
+| M0b submit stub | `rhi.q1a.outstanding_release` | 0 | 8 | `first SubmitClearReadback failed` |
+| M1 clear every row with row 0's colour | `rhi.q1a.clear_readback` | 0 | 8 | rows 1–3 exceed tolerance (`max_delta` 255, 32, 207) |
+| M2 walk the public copy with the tight stride as source pitch | `rhi.q1a.clear_readback` | 0 | 8 | rows 1–3 read as zero bytes (`max_delta` 255, 224, 240) |
+| M3 record `COPY_DEST` instead of `COPY_SOURCE` in the journal | `rhi.q1a.state_journal` | 0 | 8 | exact-sequence assertion fails; entry 1 is `RENDER_TARGET -> COPY_DEST` |
+| M4 bounded wait/timeout before release, then release regardless | `rhi.q1a.outstanding_release_private` | 0 | 8 | `in_flight_release=Released` after the wait; "release was not refused while the completion was outstanding" |
+| M5 remove the outstanding refusal | `rhi.q1a.outstanding_release` | 0 | 8 | no in-flight attempt observed; both large submissions released before readback |
+| M6 corrupt one published expected digest | `rhi.q1a.clear_readback` | 0 | 8 | "published expected digest does not match its canonical row"; the test process still continues and fails at the end |
+| M7 walk raw staging with the real pitch in the control | `rhi.q1a.staging_pitch` | 0 | 8 | `staging_pitch APPLICABLE detected=NO` |
 
-`DIAGNOSTICS_SUMMARY pass=8 fail=0 skip=0`. Observed details:
+After each mutation the source was restored and rebuilt; the final restored run is 7/7 green
+(`build-q1a/after-mutations.log`, exit 0). M4 intentionally spends the 30 s teardown budget
+per adapter in the mutated code and took about 180 s; this is a property of the mutation, not
+of the restored implementation.
 
-```
-debug_detail=D3D12GetDebugInterface failed (hr=0x887A002D)
-gpu_validation_detail=D3D12GetDebugInterface (GPU-based validation) failed (hr=0x887A002D)
-```
+## Per-check results
 
-`0x887A002D` is `DXGI_ERROR_SDK_COMPONENT_MISSING`: the debug layer is not
-installed on this machine. Every requested case still executed a real
-clear/readback and compared it (`work_status=Ok reason=`). The test enforces that
-a requested diagnostic is `Run` or `Skipped`, never `NotRun`; that
-`GBV=Run` implies `debug=Run`; that an unrequested diagnostic is
-`NotRequested`; and that a GBV-only request leaves the debug layer
-`NotRequested` or `Run`, never an unattempted skip.
+| Check / target | Execution | Outcome | Reason or observed result | Artifact / log reference |
+|---|---|---|---|---|
+| Standalone configure, Debug build | RUN | PASS | exit 0; no warning or error | `build-q1a-fresh-configure.log`, `build-q1a-fresh/build-Debug.log` |
+| Standalone configure, Release build | RUN | PASS | exit 0; no warning or error | `build-q1a-fresh/build-Release.log` |
+| Full CTest, Debug | RUN | PASS | 7/7, 0 failed | `build-q1a-fresh/ctest-Debug.log` |
+| Full CTest, Release | RUN | PASS | 7/7, 0 failed | `build-q1a-fresh/ctest-Release.log` |
+| Repeated Debug runs | RUN | PASS | 10/10 exit 0 | `build-q1a-fresh/repeat-1..10.log` |
+| Header/public-test lexical gate | RUN | PASS | scan over 1 header and 3 public test files; exit 0 | validator output above |
+| Validator self-tests and mutation suite | RUN | PASS | 16/16, 38 tests, 11 protected behaviours | `build-q1a/validator-*.log` |
+| `rhi.q1a.clear_readback`, Intel | RUN | PASS | 4×4 per-row pattern; every row within tolerance; digest integrity OK | test 1 in `ctest-Debug.log` |
+| `rhi.q1a.clear_readback`, WARP | RUN | PASS | same bytes; functional check only | test 1 in `ctest-Debug.log` |
+| `rhi.q1a.negative_controls`, both adapters | RUN | PASS | three public controls applicable and detected | test 2 in `ctest-Debug.log` |
+| `rhi.q1a.state_journal`, both adapters | RUN | PASS | exact three-entry sequence; render target never a copy destination | test 3 in `ctest-Debug.log` |
+| `rhi.q1a.staging_pitch`, both adapters | RUN | PASS | pitch 256, tight 16; control detected 3 rows | test 4 in `ctest-Debug.log` |
+| `rhi.q1a.outstanding_release`, both adapters | RUN | PASS | two submissions; at least one incomplete-token release attempt; `NotReady` before completion | test 5 in `ctest-Debug.log` |
+| `rhi.q1a.outstanding_release_private`, both adapters | RUN | PASS | `completedValue=0 < signalValue=1`, `deviceRemoved=false`; `RefusedOutstanding`; gate released, readback correct | test 6 in `ctest-Debug.log` |
+| `rhi.q1a.diagnostics`, four opt-in combinations, both adapters | RUN | PASS | requests attempted and recorded; `cases_pass=8 validation_executed=0`; no unwaived message | test 7 in `ctest-Debug.log` |
+| Debug layer actually enabled | SKIPPED | — | `D3D12GetDebugInterface failed (hr=0x887A002D)`, both adapters, all requested combinations | test 7 in `ctest-Debug.log` |
+| GPU-based validation actually enabled | SKIPPED | — | same missing SDK component; recorded SKIPPED, never PASS | test 7 in `ctest-Debug.log` |
+| Removed-device sentinel handling | NOT RUN | — | static audit only: `UINT64_MAX` is not completion and the private observation carries `deviceRemoved`; no removal fault injection is claimed | source audit |
+| Issue #11 body sync | NOT RUN | — | the authenticated account lacks `UpdateIssue`; the mirror `issue-q1a.md` is authoritative | — |
+| Independent review, round 1 | RUN | — | changes requested on evidence/process only; no blocking code defect | `review-q1a.md` |
+| Independent review, round 2 | NOT RUN | — | second pass pending | `review-q1a.md` |
 
-**The debug layer and GPU-based validation are SKIPPED, not PASS.** They do not
-count as validation evidence, and they block the full Q1 gate as defined in the
-specification. The diagnostics struct also carries a bounded message-text
-capture (up to eight `severity: description` strings) from `ID3D12InfoQueue`;
-with the debug interface unavailable the device exposes no info queue, so the
-observed counts are `captured=0 message_count=0` in all eight cases. No
-message-count or message-content claim is made beyond those zeros.
+### Q1a acceptance mapping
 
-## Screenshot evidence
-
-Each successful submission wrote a 4x4 image scaled 16x into a bottom-up 24-bit
-BMP (12,342 bytes each):
-
-- `build-rhi-004-fresh/q1a-evidence/q1a-clear-hardware-0.bmp`
-- `build-rhi-004-fresh/q1a-evidence/q1a-clear-hardware-1.bmp`
-- `build-rhi-004-fresh/q1a-evidence/q1a-clear-software-0.bmp`
-- `build-rhi-004-fresh/q1a-evidence/q1a-clear-software-1.bmp`
-
-A header/pixel parser confirmed for all four: `BM` signature, file size 12,342,
-DIB header 40, 64x64, 1 plane, 24 bpp, row stride 192, and top-to-bottom bands
-`#004080`, `#FFBF80`, `#2060A0`, `#1080F0`. Each was converted to a 241-byte
-PNG in the same directory (same base name, `.png`) and inspected visually: both
-adapters show four distinct horizontal bands in that order. This is visual
-confirmation of the per-row clear; the byte comparison above is the authoritative
-check.
-
-Playwright and browser tests are **not applicable** to Q1a: there is no web page,
-DOM, browser build or WebGPU backend in this slice.
-
-## Historical mutation evidence — M5b is invalid
-
-The historical M5b run ignored a timeout and freed outstanding resources. Its
-failure does **not** establish a valid completed wait-idle negative control;
-the original interpretation below is retained only as historical context.
-
-Each mutation was applied to `src/renderer/d3d12/rhi_d3d12.cpp`, rebuilt and run
-against the unchanged test, then restored and rebuilt. Logs are under
-`build-rhi-004/mutations/`. Every log for the seven mutations in the table contains
-`=== BUILD exit=0 ===`, `=== CTEST exit=8 ===` and `=== RESTORE build exit=0 ===`;
-after the run the source again contains both `TryRelease` refusal strings and no
-`Deliberate mutation` marker. The final fresh run above was executed afterwards,
-serially, with no mutation script in flight.
-
-| ID | Deliberate break | Test | Result |
-|---|---|---|---|
-| M1 | Readback packing uses `tightRowPitch` instead of the returned `rowPitch` | `rhi.q1a.clear_readback` | exit 8; row 0 passes, rows 1-3 `mismatches=16` each (`actual` all zero), both adapters FAIL |
-| M2 | Every clear uses `desc.rows[0]` instead of `desc.rows[y]` | `rhi.q1a.clear_readback` | exit 8; row 0 passes, row 1 `mismatches=12`, rows 2-3 `mismatches=16`, both adapters FAIL |
-| M3 | Remove the `RENDER_TARGET -> COPY_SOURCE` journal record | `rhi.q1a.state_journal` | exit 8; `journal_size=2`; "does not contain exactly three", "not ... in that order" and "lacks RENDER_TARGET -> COPY_SOURCE" all fail on both adapters |
-| M3c | Duplicate the readback-buffer journal entry | `rhi.q1a.state_journal` | exit 8; `journal_size=4`; both the exact-count and exact-sequence assertions fail on both adapters |
-| M3b | Transition barrier's `StateAfter` changed from `COPY_SOURCE` to `RENDER_TARGET` | `rhi.q1a.state_journal` | exit 8; `SubmitClearReadback failed`, `journal_size=0`; all five positive journal assertions fail on both adapters (the negative not-copied check is vacuous on an empty journal) |
-| M4 | Remove both refusals from `TryRelease` | `rhi.q1a.fence_outstanding_release` | exit 8; both outstanding releases wrongly `Released`; 12 failed assertions per adapter; CTest reports `***Timeout 120.03 sec` |
-| M5b | Wait-idle shortcut: `TryRelease` waits for the completion serial instead of refusing | `rhi.q1a.fence_outstanding_release` | exit 8 in 60.47 s; gated release still refused, `release_ungated_outstanding=Released` while queued behind the closed gate; 4 failed assertions per adapter |
-
-An earlier attempt (`build-rhi-004/mutations/M5_wait_idle_before_release.log`)
-passed in 60.12 s with CTest exit 0. Its driver was overwritten when M5b was
-defined, so the exact M5a source change is not retained; the long wait is
-consistent with waiting on the gate before applying the fence refusal, which is
-not the shortcut the contract forbids, so a pass is the correct outcome for that
-mutant. The retained log is kept only as the record of why it was rejected. The
-final table uses the actual shortcut, M5b, which the test detects.
-
-After restoration, the fresh Debug and Release runs above are green.
-
-## Acceptance mapping
-
-| Issue #11 criterion | Evidence |
-|---|---|
-| Standalone configure/build in a fresh worktree-local directory, no target copy, game data or proprietary SDK | Commands above; `build-rhi-004-fresh` created fresh; no `targets/` changes |
-| CTest exits 0 with at least one adapter actually executing | 5/5 passed in Debug and Release; per-adapter `RESULT PASS`; adapter identities logged |
-| `rhi.q1a.clear_readback` | Four exact row comparisons per adapter, row pitch and staging bytes, BMPs |
-| `rhi.q1a.state_journal` | Exact three-entry count and ordered sequence on both adapters |
-| `rhi.q1a.negative_controls` | 3/3 applicable and detected on both adapters |
-| `rhi.q1a.fence_outstanding_release` | Serial 1 / completed 0; both releases refused; stale-error checks; shutdown with outstanding work; incomplete-init shutdown; M5b negative control |
-| Debug layer and GBV opt-in, captured, RUN/SKIPPED/NOT RUN distinct, never passed when unavailable | Four combinations per class; requested diagnostics are SKIPPED with `0x887A002D`, unrequested ones NOT_REQUESTED; functional work still executed |
-| This evidence file | This document |
-| Clean submodule, no game data/binaries/build output tracked | `git -C doom3_orig/doom3 status --porcelain` empty; `git status --porcelain -uall` lists only source, test and evidence files |
-| Independent review | [review-q1a.md](./review-q1a.md) |
+| Acceptance criterion | Result | Evidence |
+|---|---|---|
+| Configure/build without engine target copy, data or proprietary SDK | PASS | fresh configure/build logs; CMake links only `d3d12 dxgi` |
+| No backend noun in the public header or public tests; header gate exits 0 | PASS | validator: 1 header, 3 public test files |
+| Debug CTest exits 0 and an adapter actually executed | PASS | 7/7; Intel and WARP both ran the clear/readback |
+| 4×4 per-row clear/readback with independent bytes, correct private sequence, no native state in the public test | PASS | `rhi.q1a.clear_readback`; journal test is private |
+| State journal through the private hook | PASS | `rhi.q1a.state_journal` |
+| Negative controls with named owners; staging pitch private | PASS | three public + one private control; table above |
+| Two submissions, in-flight release through the token, private fence assertion, wait-idle control, incomplete-init shutdown | PASS with scope note | public and private lifetime tests; M4. Incomplete setup is exercised by an out-of-range adapter index, which fails before backend objects exist; a post-device-creation failure is not fault-injected |
+| T013 digests and tolerance | PASS with scope note | published digests, integrity check, one-step/two-step pair, M6. The red evidence is a stub/mutation of the final suite, not a historical pre-implementation checkout |
+| Debug/GBV opt-in, attempted, distinct RUN/SKIPPED/NOT RUN | PASS for reporting; checks SKIPPED | test 7; `hr=0x887A002D` |
+| Evidence records commands, exits, config, adapter, skipped, logs, red/green/mutation, changed files | PASS | this file, including "Changed files" |
+| Clean submodule; no data/binaries/build output tracked | PASS | submodule porcelain empty; build trees are ignored |
+| Independent review | NOT RUN | round 1 changes applied; round 2 pending |
 
 ## Changed files
 
-- `src/renderer/rhi/rhi.h` (new)
-- `src/renderer/d3d12/rhi_d3d12.cpp` (new)
-- `tests/renderer/CMakeLists.txt` (new)
-- `tests/renderer/q1a_test_support.h` (new)
-- `tests/renderer/rhi_clear_test.cpp` (new)
-- `tests/renderer/rhi_lifetime_test.cpp` (new)
-- `tests/renderer/rhi_diagnostics_test.cpp` (new)
-- `specs/004-quality-renderer/evidence-q1a.md` (new, this file)
-- `specs/004-quality-renderer/review-q1a.md` (new, independent reviewer)
+```text
+A  specs/004-quality-renderer/evidence-q1a.md
+A  specs/004-quality-renderer/review-q1a.md
+A  src/renderer/d3d12/d3d12_private.h
+A  src/renderer/d3d12/rhi_d3d12.cpp
+A  src/renderer/rhi/rhi.h
+A  tests/renderer/CMakeLists.txt
+A  tests/renderer/d3d12/private_test_support.h
+A  tests/renderer/d3d12/rhi_d3d12_test.cpp
+A  tests/renderer/d3d12/rhi_diagnostics_test.cpp
+A  tests/renderer/d3d12/rhi_lifetime_private_test.cpp
+A  tests/renderer/q1a_test_support.h
+A  tests/renderer/rhi_clear_test.cpp
+A  tests/renderer/rhi_lifetime_test.cpp
+```
 
-No engine source, submodule, target copy, root CMake file or game data is changed.
+No engine source, submodule, target copy, root CMake file or game data is changed. The
+obsolete public `tests/renderer/rhi_diagnostics_test.cpp` was removed; its private
+replacement is `tests/renderer/d3d12/rhi_diagnostics_test.cpp`.
 
-## Repository and legal hygiene
+## Task status (T012–T021)
 
-Verified on 2026-10-27 from the issue worktree:
-
-- `git -C doom3_orig/doom3 status --porcelain` and
-  `git diff --submodule=short -- doom3_orig/doom3` are both empty; the submodule is
-  unmodified at `a9c49da5afb18201d31e3f0a429a037e56ce2b9a`.
-- `git ls-tree -r HEAD` lists no `.pk4`, `.pk3`, `.pak`, `.exe`, `.dll`, `.lib`,
-  `.obj` or `.pdb` path. The only tracked images are six `docs/media/*.jpg` files
-  and `showcase/assets/hero-redacted.png` plus `showcase/preview.png`; all predate
-  this branch, which adds no binary file.
-- No tracked path matches `nvidia`, `ngx`, `nrd` or `dlss`.
-- Tracked `targets/` holds only the `win11-amd64` scaffolding (`README.md`,
-  `CMakeLists.txt`, `CMakePresets.json`, `sources.cmake`, one `.cpp`, a patch and
-  a patch manifest); no `targets/*/doom3` source copy is tracked.
-- A drive-letter path scan over the seven new source and test files returns no
-  match; the fixture reads `RHI_EVIDENCE_DIR` from the environment instead of
-  embedding a machine path.
-- At evidence time `git status --porcelain -uall` listed exactly the nine new
-  files above, and `origin/main` was
-  `0dd454e7b9acbb4ac30a471c15fc1ed8d68fb258`.
+| Task | Status | Note |
+|---|---|---|
+| T012 standalone CMake/CTest and public seam | PASS | public header contains no backend vocabulary |
+| T013 public clear test, digests, tolerance pair, three controls | PASS; red is controlled | stub/mutation reds, not a historical pre-implementation log |
+| T014 adapter selection, submission, token, private journal and pitched readback | PASS | journal and pitch are private |
+| T015 break/restore row indexing, stride and journal; record controls | PASS | M1, M2, M3, M7 |
+| T016 lifetime public test and private companion | PASS; red is controlled | two submissions; public token half; private fence half; stub/M5 reds |
+| T017 fence-associated ownership without wait-idle releases | PASS | M4 fails the main assertion |
+| T018 retirement red/green and wait-idle shortcut | PASS | M4 and the private wait-idle control |
+| T019 opt-in diagnostics and adapter reporting | PASS for behavior; debug/GBV SKIPPED | `validation_executed=0`; full Q1 remains blocked |
+| T020 fresh Q1a run with full retained logs | PASS | `build-q1a-fresh`, rebuild after fixes, repeats, validator suite |
+| T021 independent review and rerun | NOT RUN | round 1 changes applied; round 2 pending |
 
 ## What Q1a does not prove
 
-- It does not prove draw, compute, multiple render targets, readable depth,
-  velocity/validity, overlays, presentation, resize, history or frame graphs.
-- It does not prove engine integration, parity with the classic renderer, visual
-  quality, frames per second, memory use or hardware performance.
-- The debug layer and GPU-based validation did not run on this machine. Full Q1
-  requires zero-unwaived-error runs on an environment where they actually execute.
-- The backend-neutral header is a boundary, not evidence of a WebGPU, Vulkan or
-  browser port. Browsers do not expose D3D12; a future web backend would need a
-  separately designed and tested backend. Q1a proves only the D3D12 path on this
-  machine.
+- It does not prove draw, compute, multiple attachments, readable depth, motion/validity,
+  overlays, resize, history, frame graphs or window presentation.
+- It does not prove engine integration, classic-renderer parity, visual quality, frame rate,
+  memory use or hardware performance.
+- The debug layer and GPU-based validation did not run. Full Q1 requires them to execute with
+  zero unwaived errors on an environment where they are available.
+- The portable header is a boundary, not a WebGPU, Vulkan or browser backend. Browsers do not
+  expose D3D12; a web backend needs a separately designed and tested implementation.
 - A software-adapter pass is a functional check only.
+- The public in-flight observation is bounded; the deterministic proof is the private gated
+  test, which still makes its public assertion through the completion token alone.
+- Device removal is not fault-injected. A failed signal or unproven wait is quarantined into
+  a per-device leaked store, and `Shutdown` keeps returning an error until a new `Initialize`;
+  this path is inspected, not exercised by a failing device.
 
 ## Reproduce
 
 ```powershell
-cmake -S tests/renderer -B build-rhi-004-fresh -G "Visual Studio 17 2022" -A x64
-cmake --build build-rhi-004-fresh --config Debug -- -m
-ctest --test-dir build-rhi-004-fresh -C Debug --no-tests=error -V --output-on-failure --output-junit q1a-junit-debug.xml
+cmake -S tests/renderer -B build-q1a-fresh -G "Visual Studio 17 2022" -A x64
+cmake --build build-q1a-fresh --config Debug -- -m
+ctest --test-dir build-q1a-fresh -C Debug --no-tests=error -V --output-junit build-q1a-fresh/junit-Debug.xml
+cmake --build build-q1a-fresh --config Release -- -m
+ctest --test-dir build-q1a-fresh -C Release --no-tests=error -V --output-junit build-q1a-fresh/junit-Release.xml
+py -3 -I scripts/validate-rhi-contract.py
+py -3 -I scripts/validate-rhi-contract.py --self-test
+py -3 -I scripts/test-validate-rhi-contract.py
+py -3 -I scripts/test-validate-rhi-contract-mutations.py
 ```
 
-Choose a new, non-existing build directory if the tree is not fresh. The test
-fixture itself sets `RHI_EVIDENCE_DIR`; a manual executable run writes BMPs to the
-current directory unless that variable is set.
+Use a new, non-existing build directory for a fresh run. The fixture reads
+`RHI_EVIDENCE_DIR`; a manual executable run without it writes images to the current directory.
+
+## Independent review
+
+- **Independent reviewer**: round 1 was an agent reviewer with a fresh context that did not
+  write the code. It reran the validator and its self-tests, built Debug and Release in its own
+  `build-q1a-review` directory, ran all seven CTest cases with JUnit, inspected the public and
+  private split, and reproduced M2 and M4 with exact file backups and clean rebuilds. Agent
+  review does not replace a human sign-off.
+- **Review scope and commands**: code commit `1c0187b`, the amended contract and issue mirror,
+  the full public/private test tree, fresh configure/build/CTest in both configurations,
+  validator self-tests, evidence path/exit/hash checks, and two reproduced mutations.
+- **Review decision and unresolved items**: round 1 requested evidence/process changes only
+  (no blocking code defect): commit the corrected evidence, replace the stale review, add the
+  red and changed-files records, and fix several wording/robustness items. Those changes are
+  applied here. A second pass is pending; until it records ACCEPT, T021 remains NOT RUN.

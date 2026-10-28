@@ -16,6 +16,11 @@ using doom3::rhi::d3d12::DiagnosticRequest;
 
 namespace {
 
+// Counts cases where a requested validation capability actually executed. A
+// case can PASS while this stays zero: the pass is for correct opt-in
+// reporting, not for validation execution.
+int gValidationExecuted = 0;
+
 void LogMessages(const char* label, const DiagnosticReport& report) {
     q1a_test::Log("DIAGNOSTICS %s captured=%zu message_count=%u", label,
                   report.messages.size(), report.messageCount);
@@ -60,6 +65,14 @@ int RunCase(AdapterClass adapterClass, bool requestDebug, bool requestGpuValidat
     q1a_test::Log("DIAGNOSTICS debug_detail=%s", requested.debugLayerDetail.c_str());
     q1a_test::Log("DIAGNOSTICS gpu_validation_detail=%s",
                   requested.gpuBasedValidationDetail.c_str());
+    const bool validationExecuted =
+        requested.debugLayer == CheckState::Run ||
+        requested.gpuBasedValidation == CheckState::Run;
+    if (validationExecuted) {
+        ++gValidationExecuted;
+    }
+    q1a_test::Log("DIAGNOSTICS validation_executed=%s",
+                  validationExecuted ? "true" : "false");
     LogMessages("requested", requested);
 
     if (requestDebug) {
@@ -169,8 +182,10 @@ int main() {
                                                                            : "FAIL"));
         }
     }
-    q1a_test::Log("DIAGNOSTICS_SUMMARY pass=%d fail=%d skip=%d", passes, failures,
-                  skips);
+    q1a_test::Log("DIAGNOSTICS_SUMMARY cases_pass=%d fail=%d skip=%d "
+                  "validation_executed=%d (a case pass is opt-in reporting, not a "
+                  "validation run)",
+                  passes, failures, skips, gValidationExecuted);
     if (failures > 0) {
         return 1;
     }

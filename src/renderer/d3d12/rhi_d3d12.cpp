@@ -169,9 +169,10 @@ struct QuarantineStore {
     ComPtr<IDXGIFactory1> factory;
 };
 
-QuarantineStore* Quarantine() {
-    static QuarantineStore* store = new QuarantineStore();
-    return store;
+QuarantineStore* NewQuarantineStore() {
+    // A fresh leaked store per quarantined device preserves every unproven
+    // object set instead of overwriting an earlier one.
+    return new QuarantineStore();
 }
 
 }  // namespace
@@ -190,6 +191,9 @@ struct Device::Impl {
 
     uint64_t nextCompletionValue = 1;
     bool initialized = false;
+    // Sticky after a teardown whose last use could not be proved. A later
+    // Shutdown keeps reporting failure until a new Initialize resets it.
+    bool cleanupIncomplete = false;
 
     bool CompletionValueReached(uint64_t serial) const {
         if (!completion || !device) {
@@ -523,6 +527,7 @@ struct Device::Impl {
         }
         records.clear();
         nextCompletionValue = 1;
+        cleanupIncomplete = false;
         ConfigureDiagnostics(requestDebugLayer, requestGpuValidation);
 
         Status status = SelectAdapter(options, error);
@@ -933,6 +938,9 @@ struct Device::Impl {
     }
 
     Status Shutdown() {
+        if (cleanupIncomplete) {
+            return Status::Error;
+        }
         Status result = Status::Ok;
         bool quarantine = false;
 
@@ -997,7 +1005,7 @@ struct Device::Impl {
         if (quarantine) {
             // Do not destroy objects whose last use is unproven. Move the
             // records and the whole backend object set to a leaked store.
-            QuarantineStore* store = Quarantine();
+            QuarantineStore* store = NewQuarantineStore();
             for (auto& entry : records) {
                 store->records.push_back(std::move(entry.second));
             }
@@ -1009,6 +1017,7 @@ struct Device::Impl {
             store->adapter = std::move(adapter);
             store->factory = std::move(factory);
             initialized = false;
+            cleanupIncomplete = true;
             return result;
         }
 
@@ -1258,7 +1267,8 @@ d3d12::FenceObservation BackendAccess::Observe(const Device& device,
     }
     observation.signalValue = record->serial;
     const uint64_t completed = device.impl_->completion->GetCompletedValue();
-    observation.completedValue = completed == kRemovedSentinel ? 0 : completed;
+    observation.completedValue = completed;
+    observation.deviceRemoved = completed == kRemovedSentinel;
     return observation;
 }
 
