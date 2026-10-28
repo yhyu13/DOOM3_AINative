@@ -242,5 +242,67 @@ class ParserRobustness(ValidatorTestCase):
         self.assertIn("unknown matrix row: native-secret", validator.validate(docs))
 
 
+class SurfaceAndHeaderGate(ValidatorTestCase):
+    def test_declared_surface_is_clean(self):
+        blocks = validator.fenced_blocks(
+            self.docs["contracts/rhi-foundation.md"], validator.SURFACE_INFO)
+        self.assertEqual(1, len(blocks))
+        self.assertEqual([], validator.prohibited_errors(blocks[0], validator.SURFACE_INFO))
+
+    def test_prohibited_noun_in_surface_is_invalid(self):
+        docs = self.changed("contracts/rhi-foundation.md",
+                            "adapter, device, capabilities, limits,",
+                            "adapter, device, fenceValue, limits,")
+        self.assertIn(
+            "prohibited D3D12 vocabulary in portable-core-surface: fence/fenceValue",
+            validator.validate(docs))
+
+    def test_missing_surface_block_is_invalid(self):
+        docs = self.changed("contracts/rhi-foundation.md",
+                            "```portable-core-surface\n", "```text\n")
+        self.assertIn("missing fenced portable-core-surface block", validator.validate(docs))
+
+    def test_duplicate_surface_block_is_invalid(self):
+        name = "contracts/rhi-foundation.md"
+        body = validator.fenced_blocks(self.docs[name], validator.SURFACE_INFO)[0]
+        docs = dict(self.docs)
+        docs[name] = (docs[name] + "\n```" + validator.SURFACE_INFO + "\n"
+                      + body + "```\n")
+        self.assertIn("ambiguous portable-core-surface block: expected exactly one",
+                      validator.validate(docs))
+
+    def test_absolute_path_in_owned_document_is_invalid(self):
+        docs = self.changed("data-model.md", "# Design model: Quality-first rendering",
+                            "Q:\\fixture\\checkout\n\n# Design model: Quality-first rendering")
+        self.assertIn("machine-specific absolute path in data-model.md", validator.validate(docs))
+
+    def test_header_scan_detects_each_private_noun(self):
+        errors = validator.header_scan_errors([
+            (Path("src/renderer/rhi/rhi.h"),
+             "enum class ResourceState { RENDER_TARGET };\n"
+             "uint64_t fenceValue;\nuint64_t GetCompletedValue();\n"
+             "struct ID3D12Device;\n"),
+        ])
+        self.assertIn(
+            "prohibited D3D12 vocabulary in engine-facing header "
+            "src\\renderer\\rhi\\rhi.h: ResourceState", errors)
+        self.assertIn(
+            "prohibited D3D12 vocabulary in engine-facing header "
+            "src\\renderer\\rhi\\rhi.h: fence/fenceValue", errors)
+        self.assertIn(
+            "prohibited D3D12 vocabulary in engine-facing header "
+            "src\\renderer\\rhi\\rhi.h: RENDER_TARGET", errors)
+        self.assertIn(
+            "prohibited D3D12 vocabulary in engine-facing header "
+            "src\\renderer\\rhi\\rhi.h: ID3D12*", errors)
+
+    def test_header_scan_accepts_portable_names(self):
+        errors = validator.header_scan_errors([
+            (Path("src/renderer/rhi/rhi.h"),
+             "struct TextureView;\nstruct CompletionToken;\nvoid CopyTexture();\n"),
+        ])
+        self.assertEqual([], errors)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

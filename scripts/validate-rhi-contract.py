@@ -31,9 +31,11 @@ FIELDS = {
     ),
 }
 CONTRACT_SECTIONS = (
-    "Two tiers and the engine adapter", "Portable core semantics",
+    "Three tiers: portable core, D3D12-private backend, native extensions",
+    "Tier mapping from the previous contract", "Portable core semantics",
     "Capability and fallback matrix", "Native interop and provider boundary",
     "Shader source, build and validation contract", "Public boundary",
+    "Header gate: no D3D12 vocabulary in engine-facing headers",
     "First vertical-slice acceptance", "T013 row-hash and tolerance policy",
     "Foundation growth required for full Q1",
 )
@@ -48,6 +50,31 @@ MATRIX_HEADER = (
     "Operation", "Tier", "Capability / limit to check",
     "Explicit selectable fallback or unsupported", "Evidence required",
 )
+SURFACE_INFO = "portable-core-surface"
+# Lexical gate only: these are the D3D12-private nouns that must not reach the
+# engine-facing core surface. Each entry is (diagnostic label, regex).
+PROHIBITED_CORE = (
+    ("D3D12_*", r"d3d12_"),
+    ("ID3D12*", r"id3d12"),
+    ("HRESULT", r"hresult"),
+    ("fence/fenceValue", r"fence"),
+    ("GetCompletedValue", r"getcompletedvalue"),
+    ("signalValue", r"signalvalue"),
+    ("ResourceState", r"resourcestate"),
+    ("RENDER_TARGET", r"render_target"),
+    ("COPY_SOURCE/COPY_DEST", r"copy_(source|dest)"),
+    ("commandAllocator/commandList", r"command(allocator|list)"),
+    ("descriptorHeap/descriptorRange", r"descriptor(heap|range)"),
+    ("rootSignature", r"rootsignature"),
+    ("swapChain", r"swapchain"),
+    ("Present", r"\bpresent\b"),
+    ("transition", r"\btransition"),
+    ("barrier", r"\bbarrier"),
+    ("Reset", r"\breset\b"),
+    ("HLSL", r"\bhlsl\b"),
+    ("DXC", r"\bdxc\b"),
+)
+ABS_PATH = re.compile(r"(?<![A-Za-z0-9])[A-Za-z]:[\\/]")
 
 
 def visible_markdown(text):
@@ -99,6 +126,31 @@ def section(text, title):
         text, re.MULTILINE | re.DOTALL,
     )
     return match.group(1) if match else None
+
+
+def fenced_blocks(text, info):
+    """Return the bodies of fenced blocks whose info string is exactly `info`."""
+    pattern = (
+        r"^ {0,3}```" + re.escape(info) + r"[ \t]*\r?\n(.*?)^ {0,3}```[ \t]*$"
+    )
+    return re.findall(pattern, text, re.MULTILINE | re.DOTALL)
+
+
+def prohibited_errors(text, where):
+    """Lexical gate: report every D3D12-private noun found in `text`."""
+    errors = []
+    for label, pattern in PROHIBITED_CORE:
+        if re.search(pattern, text, re.IGNORECASE):
+            errors.append("prohibited D3D12 vocabulary in " + where + ": " + label)
+    return errors
+
+
+def header_scan_errors(files):
+    """Scan (relative path, text) pairs for prohibited public-header nouns."""
+    errors = []
+    for path, text in files:
+        errors.extend(prohibited_errors(text, "engine-facing header " + str(path)))
+    return errors
 
 
 def table_cells(line):
@@ -246,6 +298,17 @@ def validate(docs):
             errors.append("missing matrix row: " + name)
         elif len(found[name]) > 1 and found[name][1] != tier:
             errors.append("wrong tier for matrix row: " + name)
+    raw_contract = docs.get("contracts/rhi-foundation.md", "")
+    surface_blocks = fenced_blocks(raw_contract, SURFACE_INFO)
+    if not surface_blocks:
+        errors.append("missing fenced " + SURFACE_INFO + " block")
+    elif len(surface_blocks) > 1:
+        errors.append("ambiguous " + SURFACE_INFO + " block: expected exactly one")
+    else:
+        errors.extend(prohibited_errors(surface_blocks[0], SURFACE_INFO))
+    for name, text in docs.items():
+        if ABS_PATH.search(text):
+            errors.append("machine-specific absolute path in " + name)
     return errors
 
 
@@ -292,6 +355,21 @@ def self_test(docs):
         mutant["contracts/rhi-foundation.md"] = mutant["contracts/rhi-foundation.md"].replace(
             "|---|---|---|---|---|", replacement, 1)
         cases.append((label, mutant, "invalid matrix separator"))
+    mutant = dict(docs)
+    mutant["contracts/rhi-foundation.md"] = mutant["contracts/rhi-foundation.md"].replace(
+        "```" + SURFACE_INFO + "\n", "```\n", 1)
+    cases.append(("missing portable surface block", mutant,
+                  "missing fenced " + SURFACE_INFO + " block"))
+    mutant = dict(docs)
+    mutant["contracts/rhi-foundation.md"] = mutant["contracts/rhi-foundation.md"].replace(
+        "adapter, device, capabilities, limits,", "adapter, device, fenceValue, limits,", 1)
+    cases.append(("prohibited noun in portable surface", mutant,
+                  "prohibited D3D12 vocabulary in " + SURFACE_INFO + ": fence/fenceValue"))
+    # Synthetic drive letter: a negative-control fixture, not a machine path.
+    mutant = dict(docs)
+    mutant["data-model.md"] = "Q:\\fixture\\checkout\n" + mutant["data-model.md"]
+    cases.append(("machine-specific absolute path", mutant,
+                  "machine-specific absolute path in data-model.md"))
     for name, mutant, expected in cases:
         if expected not in validate(mutant):
             print("FAIL self-test:", name, "was not detected")
@@ -312,12 +390,29 @@ def main():
         except (OSError, UnicodeError) as exc:
             print("ERROR reading", path, ":", exc, file=sys.stderr)
     errors = validate(docs)
+    rhi = ROOT / "src" / "renderer" / "rhi"
+    headers = []
+    if rhi.is_dir():
+        for path in sorted(rhi.rglob("*")):
+            if path.is_file() and path.suffix.lower() in (".h", ".hpp", ".hxx", ".inl"):
+                headers.append((
+                    path.relative_to(ROOT),
+                    path.read_text(encoding="utf-8", errors="replace"),
+                ))
+        errors.extend(header_scan_errors(headers))
+        header_note = (
+            "header scan: RUN over " + str(len(headers)) + " file(s)"
+            if headers else
+            "header scan: RUN over 0 files (no public header found; gate not exercised)"
+        )
+    else:
+        header_note = "header scan: NOT RUN (src/renderer/rhi absent; Q7a/T088)"
     if errors:
         for error in errors:
             print("FAIL:", error)
         return 1
-    print("PASS: seven required files, template fields and ten matrix rows have the required structure")
-    print("NOTE: structure only; independent semantic review and target execution are NOT RUN by this check")
+    print("PASS: seven required files, template fields, ten matrix rows, tier sections and the portable-core surface have the required structure")
+    print("NOTE: structure and lexical gate only; independent semantic review and target execution are NOT RUN by this check; " + header_note)
     return self_test(docs) if args.self_test else 0
 
 
