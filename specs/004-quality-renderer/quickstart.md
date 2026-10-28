@@ -8,7 +8,29 @@
 - The standalone first slice uses synthetic data only; it does not require a DOOM 3 target copy, game assets, NVIDIA SDK or Internet download.
 - Use a fresh build directory in the implementation worktree. Never use the root checkout's existing `build/` cache: during planning it pointed at another worktree. `run-win11-amd64.ps1 -Build` now refuses a cache whose `CMAKE_HOME_DIRECTORY` is a different checkout.
 - Keep `doom3_orig/doom3` clean and do not modify game data. Check `git status --short` and `git -C doom3_orig/doom3 status --porcelain` before and after work.
-- Do not run the native evidence scripts blindly. `scripts/verify-win11-amd64.ps1` exports patches to a fresh temporary directory and fails SC-006b on added/deleted rows; `scripts/smoke-win11-amd64.ps1` stops only processes whose executable path matches the resolved executable, requires `-StopExisting` (exit 12), and refuses a non-empty `-OutDir` without `-Clean` (exit 11); `scripts/run-win11-amd64.ps1` checks/stops that same executable before `-Build`, requires `-StopExisting` (exit 8), and refuses a non-empty `-OutDir` without `-Clean` (exit 9). Obtain consent before terminating a process or replacing output, and never delete game data.
+- Do not run the native evidence scripts blindly. `scripts/verify-win11-amd64.ps1` exports patches to a fresh temporary directory and fails SC-006b on added/deleted rows of the manifest it exports, but that manifest and its expected hashes are both regenerated from the current target copy, so a pass is self-consistency only and does not show that the copy matches the stored canonical patch (T084 owns that gap); `scripts/smoke-win11-amd64.ps1` stops only processes whose executable path matches the resolved executable, requires `-StopExisting` (exit 12), and refuses a non-empty `-OutDir` without `-Clean` (exit 11); `scripts/run-win11-amd64.ps1` checks/stops that same executable before `-Build`, requires `-StopExisting` (exit 8), and refuses a non-empty `-OutDir` without `-Clean` (exit 9). Obtain consent before terminating a process or replacing output, and never delete game data.
+
+## Documentation contract and evidence-template validation
+
+From the root of this issue's own worktree, with Python 3 available, run:
+
+```powershell
+py -3 -I scripts/validate-rhi-contract.py --self-test
+if ($LASTEXITCODE -ne 0) { throw "Documentation validation failed: $LASTEXITCODE" }
+py -3 -I scripts/test-validate-rhi-contract.py
+if ($LASTEXITCODE -ne 0) { throw "Validator behavior tests failed: $LASTEXITCODE" }
+git diff --check
+if ($LASTEXITCODE -ne 0) { throw "Tracked diff whitespace check failed: $LASTEXITCODE" }
+# Until these new files are tracked, Git's no-index check reports 1 for a clean difference.
+git diff --no-index --check -- /dev/null specs/004-quality-renderer/evidence-template.md
+if ($LASTEXITCODE -ne 1) { throw "Template no-index whitespace check failed: $LASTEXITCODE" }
+git diff --no-index --check -- /dev/null scripts/validate-rhi-contract.py
+if ($LASTEXITCODE -ne 1) { throw "Validator no-index whitespace check failed: $LASTEXITCODE" }
+```
+
+Retain complete command output and each exit code in a fresh worktree-local ignored `build-*/` directory. The validator checks that the seven owned specification files exist and are nonempty, required contract sections and all ten named capability/fallback matrix rows have the specified tiers and five nonempty cells, the matrix and results headers have an adjacent separator of the matching cell count, and required evidence-template sections, fields, result markers and table columns exist. Tables, fields and headings inside fenced code blocks or HTML comments do not count, rows must be contiguous with their header, and an extra empty edge cell is invalid. Its in-memory negative controls remove a file/field/section or result columns, blank a field/cell, change a tier and corrupt or separate the delimiters; each must be detected. `scripts/test-validate-rhi-contract.py` re-runs those families plus Markdown visibility and contiguity cases against the validator file itself, so a regression in the validator fails the suite. Neither command checks the truth, adequacy or execution of those fields, permissions, a backend or a review; both are structural checks, not a Markdown parser. `git diff --check` covers tracked changes, not untracked new files; the no-index checks above cover the new files and expect exit 1 for the difference, not for a whitespace failure.
+
+A different reviewer must inspect and record, in the authorized issue/PR review record: (1) every matrix row's capability, tier, explicit selectable fallback/unsupported and target evidence; (2) binding-group/index mapping and limits, conservative render/compute usage scopes, ordering, backend-proven retirement distinct from error/loss observation, async readback and native-lease lifetime, including Q1a's state/fence/diagnostic gates; (3) shader provenance, permissions and per-target compilation/execution; (4) the proposed T013 canonical expected-row integrity and per-byte tolerance policy; (5) T041–T047 and T085 before Q3 review, and the conditional T086 provider branch; and (6) the evidence template's identity, permissions, commands/exits, thresholds, result distinctions, exclusions and independent-review fields, plus the validator output and limitations. Record reviewer identity, decision and each unresolved item. A successful structural command is not this review and cannot mark T004 or T005 complete.
 
 ## Q1a — Standalone RHI fixture (planned)
 
@@ -65,7 +87,7 @@ Follow the existing [native target documentation](../../targets/win11-amd64/READ
 - **Q1b/Q1**: Extend the fixture to draw/compute/MRT/depth/velocity/overlay and resize/history/lifetime tests. The full gate requires the debug layer and GPU-based validation to have actually run with zero unwaived errors.
 - **Q2/Q3**: Run documented GL/new-backend scene comparisons and analytic camera/rigid/skinned history tests; predeclare comparison thresholds and unsupported material cases.
 - **Q4**: Review the legal hero set and moving sequences with recorded art, resource and performance evidence.
-- **Q5**: Run the actual authorized SDK create/evaluate on the chosen backend only after access, hardware and distribution review. Otherwise report NOT RUN and test the complete off path.
+- **Q5**: Separately test the complete off path and observe clean default configure, build **and run** for attempted NVIDIA downloads (including failed/blocked attempts and child processes); inspect linked/bundled components independently. Record the observation method, coverage, commands, exits and retained logs; missing or insufficient observation is NOT RUN for that phase, not evidence of no attempt. Run the actual authorized SDK create/evaluate on the chosen backend only after access, hardware and distribution review; otherwise that provider check is NOT RUN.
 - **Q6/Q7**: Capture a converged path-traced reference and dynamic case, or exercise each actual future target with a documented capability/fallback table. A compile or feature flag alone is not a pass.
 
 Exact commands for Q1b–Q7 must be added when their implementations and fixtures exist. Each stage issue owns updating the commands for its own scope; T079 only re-runs commands already documented here. These are acceptance outlines, not already runnable tests.

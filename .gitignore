@@ -29,6 +29,8 @@ obj/
 cmake-build-*/
 CMakeFiles/
 CMakeCache.txt
+__pycache__/
+*.pyc
 *.sln.docstates
 *.suo
 *.user
