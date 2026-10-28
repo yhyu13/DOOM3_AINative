@@ -13,6 +13,7 @@ Usage:
 from pathlib import Path
 import importlib.util
 import sys
+import tempfile
 import unittest
 
 
@@ -282,11 +283,13 @@ class SurfaceAndHeaderGate(ValidatorTestCase):
              "#include <d3d12.h>\n"
              "enum class ResourceState { RENDER_TARGET };\n"
              "uint64_t fenceValue;\nuint64_t GetCompletedValue();\n"
+             "uint64_t luid;\nbool enableGpuBasedValidation;\n"
              "struct ID3D12Device;\nDXGI_FORMAT format;\n"
              "ComPtr<IUnknown> device;\n"),
         ])
         for label in ("D3D12", "ID3D12*", "DXGI", "IUnknown", "ComPtr",
-                      "ResourceState", "fence/fenceValue", "RENDER_TARGET"):
+                      "ResourceState", "fence/fenceValue", "RenderTarget",
+                      "LUID family", "GPU validation/based"):
             self.assertIn(
                 "prohibited D3D12 vocabulary in engine-facing header "
                 "src\\renderer\\rhi\\rhi.h: " + label, errors)
@@ -306,6 +309,86 @@ class SurfaceAndHeaderGate(ValidatorTestCase):
         ])
         self.assertEqual([], errors)
 
+    def test_identifier_embedded_private_forms_are_prohibited(self):
+        prefix = ("prohibited D3D12 vocabulary in engine-facing header "
+                  "src\\renderer\\rhi\\rhi.h: ")
+        cases = {
+            "uint64_t adapterLuid;": "LUID family",
+            "uint64_t luid_high;": "LUID family",
+            "bool EnableGPUOnlyValidation;": "GPU validation/based",
+            "struct ValidationFlags { int x; };": "validation flags/layer",
+            "struct ValidationLayer { int x; };": "validation flags/layer",
+            "enum class Usage { CopySource };": "CopySource/CopyDest",
+            "enum class Usage { RenderTarget };": "RenderTarget",
+            "struct Presentation {};": "Present*",
+            "void PresentFrame();": "Present*",
+            "struct CmdList;": "commandAllocator/List/CmdList",
+            "struct CommandList;": "commandAllocator/List/CmdList",
+            "void ResetAllocator();": "Reset*",
+            "uint64_t completionSerial;": "completion serial/value",
+            "uint64_t completion_serial;": "completion serial/value",
+            "uint64_t queue_value;": "queue value",
+            "uint64_t signal_value;": "signalValue",
+            "uint64_t get_completed_value;": "GetCompletedValue",
+            "void* nativeHandle;": "native/raw handle",
+            '#include "dx12/device.h"': "DX12 path",
+            "struct DebugFlags { int x; };": "debug layer/flags",
+            "struct DescriptorHeap;": "descriptorHeap/descriptorRange",
+            "struct RootSignature;": "rootSignature",
+            "struct SwapChain;": "swapChain",
+            "struct QueryHeap;": "queryHeap",
+            "void native_dx12();": "DX12 path",
+            "struct DX12Helper;": "DX12 path",
+            "void useDx12();": "DX12 path",
+        }
+        for text, label in cases.items():
+            errors = validator.header_scan_errors(
+                [(Path("src/renderer/rhi/rhi.h"), text)])
+            self.assertIn(prefix + label, errors, text)
+
+    def test_portable_names_still_pass(self):
+        clean = (
+            "struct TextureView;\nstruct CompletionToken;\nvoid CopyTexture();\n"
+            "float fluidDensity;\nint presentationTime;\nvoid resetFrameCounter();\n"
+            "struct AdapterInfo;\n")
+        errors = validator.header_scan_errors(
+            [(Path("src/renderer/rhi/rhi.h"), clean)])
+        self.assertEqual([], errors)
+    def test_only_documented_private_prefixes_are_excluded(self):
+        self.assertTrue(validator.excluded_path(Path("src/renderer/d3d12/x.h")))
+        self.assertTrue(validator.excluded_path(Path("src/renderer/ext/x.h")))
+        self.assertTrue(validator.excluded_path(Path("tests/renderer/d3d12/x.cpp")))
+        self.assertTrue(validator.excluded_path(Path("tests/renderer/ext/x.cpp")))
+        self.assertFalse(validator.excluded_path(Path("src/renderer/rhi/ext/x.h")))
+        self.assertFalse(validator.excluded_path(Path("tests/renderer/sub/ext/x.cpp")))
+    def test_scanner_excludes_only_documented_prefixes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            files = {
+                "src/renderer/rhi/rhi.h": "struct TextureView;",
+                "src/renderer/rhi/ext/private.h": "struct TextureView;",
+                "src/renderer/d3d12/x.h": "struct ID3D12Device;",
+                "src/renderer/ext/x.h": "struct ID3D12Device;",
+                "tests/renderer/rhi_clear_test.cpp": "int x;",
+                "tests/renderer/sub/ext/x.cpp": "int x;",
+                "tests/renderer/d3d12/x.cpp": "int x;",
+            }
+            for name, text in files.items():
+                path = base / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(text, encoding="utf-8")
+            headers = validator.scan_files(
+                base / "src" / "renderer", validator.HEADER_SUFFIXES, base)
+            tests = validator.scan_files(
+                base / "tests" / "renderer", validator.TEST_SUFFIXES, base)
+            self.assertEqual(
+                [Path("src/renderer/rhi/ext/private.h"),
+                 Path("src/renderer/rhi/rhi.h")],
+                [path for path, _ in headers])
+            self.assertEqual(
+                [Path("tests/renderer/rhi_clear_test.cpp"),
+                 Path("tests/renderer/sub/ext/x.cpp")],
+                [path for path, _ in tests])
     def test_missing_sparse_aliasing_row_is_invalid(self):
         name = "contracts/rhi-foundation.md"
         row = next(line for line in self.docs[name].splitlines(keepends=True)
