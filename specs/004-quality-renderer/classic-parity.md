@@ -200,13 +200,13 @@ A skipped, not-run or unsupported row never counts as parity.
 
 | Case | Decision | Consequence |
 |---|---|---|
-| `megaTexture.vfp` | **Unsupported in milestone 1** (the S2 classic-shader decision D-003, `specs/008-classic-shaders/plan.md`; not yet merged). The portable RHI does not model tiled/sparse feedback and uploads. | A material requesting it must report `UNSUPPORTED` with material/stage/key. It is not drawn as a silent fallback and does not count as parity. |
+| `megaTexture.vfp` | **Unsupported in milestone 1** (S2 classic-shader decision D-003, **not yet landed**). The portable RHI does not model tiled/sparse feedback and uploads. | A material requesting it must report `UNSUPPORTED` with material/stage/key. It is not drawn as a silent fallback and does not count as parity. |
 | Any material-declared program outside the manifest | Fail-loud resolver (S2) | Report the material, stage, key and code; no draw. |
 | Removed backends (R200/NV20/NV10) | Not authored | Report `UNSUPPORTED` if data references them; do not invent parity. |
 | Retail RoE / mod content | Not tested | Out of scope; no claim. |
 
-`specs/008-classic-shaders/` is an S2 artifact and is untracked at the time of writing. Do not depend
-on it until it lands; this row is a decision reference, not an implementation claim.
+The S2 decision is **not on this branch**; this row is a decision reference, not an implementation
+claim. Cite the S2 issue/PR when it lands.
 
 ---
 
@@ -399,9 +399,3 @@ unchecked.
 here. The category thresholds in §6 are the measured final13 ceilings; HUD/ROI thresholds are still
 pending and are marked so. The source anchors are from the pinned submodule and should be re-checked
 on a bump. The test files named in §11 are planned and are explicitly marked as not existing.
-
-
-
-
-
-

@@ -350,4 +350,3 @@ passes. The design is usable now; the claim is not.
 **Self-check**: every expected value comes from `tools/motion_fixtures.py`; the table is checked by
 `--check`; the tolerance is derived from binary16 precision, not from a renderer result. No GPU,
 engine or game data was used.
-

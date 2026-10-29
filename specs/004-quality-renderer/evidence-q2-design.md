@@ -26,13 +26,13 @@ ceilings and the merge/freshness condition.
 
 | File | SHA-256 |
 |---|---|
-| `specs/004-quality-renderer/classic-parity.md` | `F9A98B42B7A38825118CF3129558361AA6263D114EAFBB18D3DA0BFDBACC9DF9` |
-| `specs/004-quality-renderer/engine-integration.md` | `C2320731E2D7F0EF89553100056CF03B6045540DC2292C9D77ABCC37F013796F` |
-| `specs/004-quality-renderer/motion-fixtures.md` | `1C9D28511FD4DE1AC1DA1AA8D55C9727CF89F783DF3B74385098E6D903C6B4EB` |
-| `tests/renderer/motion-fixtures.md` | `1C9D28511FD4DE1AC1DA1AA8D55C9727CF89F783DF3B74385098E6D903C6B4EB` |
-| `specs/004-quality-renderer/tools/motion_fixtures.py` | `C9ABE895933BAFCDC7E077C9A186011938F42EF76E89C6A04E4EAD2230E8B06A` |
-| `specs/004-quality-renderer/tools/verify-q2-design.py` | `A21BF824590E59069EB15AAF33ED738DDF161629E82ACA66070E530AF30F991D` |
-| `specs/004-quality-renderer/review-q2-design.md` | `638E99981FD2116A9546C0C2EF5D0CE71F7577CD92491C85E0FDEE24D6683B0E` |
+| `specs/004-quality-renderer/classic-parity.md` | `7DC6E162278398A693CE152FBED24FFB5CC2A41FF56AF71314F44B3627DCFEDD` |
+| `specs/004-quality-renderer/engine-integration.md` | `1EE1DACEEA05C88615A6232BDF928CC350F81CCFAA0F326CD82056E6264F0637` |
+| `specs/004-quality-renderer/motion-fixtures.md` | `9E13C9D0A689932CBD6A5B23301E73990C422BD151B8F0A50B9D16060B19EEBA` |
+| `tests/renderer/motion-fixtures.md` | `9E13C9D0A689932CBD6A5B23301E73990C422BD151B8F0A50B9D16060B19EEBA` |
+| `specs/004-quality-renderer/tools/motion_fixtures.py` | `A81E8FA076578B21CAB2607A1D65EF5FD0077639CB607B15096967618C6A1997` |
+| `specs/004-quality-renderer/tools/verify-q2-design.py` | `CB56B96933B8F9678F5B544F96E2E640D52153D8146A5524661B75B364BD9F38` |
+| `specs/004-quality-renderer/review-q2-design.md` | `5CB0A55C1D21A14BC8A816DA735D5850407F9EBB11F71E9361D0DBD2F1031FBC` |
 
 Hashes identify this change set. They will change if the documents are edited; recompute before
 using them to identify a different revision.
@@ -222,7 +222,7 @@ The three design documents and the T041 delivery copy were rendered to a static 
 Screenshots (git-ignored, worktree-local):
 
 - `build-q2-design/screenshots/index.png` (1440×1000)
-- `build-q2-design/screenshots/classic-parity.png` (1440×13200)
+- `build-q2-design/screenshots/classic-parity.png` (1440×13175)
 - `build-q2-design/screenshots/engine-integration.png` (1440×13849)
 - `build-q2-design/screenshots/motion-fixtures.png` (1440×10360)
 - `build-q2-design/screenshots/motion-fixtures-tests.png` (1440×10360)
@@ -242,6 +242,7 @@ does not prove semantic correctness.
 | Q1/Q1a/T088 | **Q1a** built and CTest 7/7 (Debug/Release); **Q1b/Q1 and T088 not run**; Q2 remains blocked |
 | T037/T038 fixtures | **Not authored**; the matrix rows are `NOT RUN` |
 | Q1a tracker drift | Q1a is merged (PR #18) and its evidence/review are on `main`, but **T012–T021 remain unchecked** in `tasks.md`. This is tracker drift; S4 does not tick another session's tasks. |
+| Q0 tracker drift | Q0 `final13` is established and committed on the S1 branch, but **T009–T011 remain unchecked** on `main`; the Q0 merge/reconcile is pending. |
 | Independent human review | **None**; the adversarial reviews are AI, recorded in `review-q2-design.md` |
 | Delivery | S4 files are committed on branch `docs/s4-q2-design-final13`; **no PR** was requested |
 | Game data | None read or stored; Q0 identity is cited only |
@@ -258,21 +259,5 @@ captures do not exist, HUD/ROI controls are pending, and no independent reviewer
 T033 is design-complete with a real build-wiring probe, but the real adapter/selector/run do not
 exist. T041's fixture document is delivered byte-identically at `tests/renderer/motion-fixtures.md`;
 its C++ consumer tests and T048 have not run.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 

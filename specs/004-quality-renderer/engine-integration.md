@@ -494,8 +494,3 @@ path is delivered. The CMake wiring is marked proposed; the anchors are current 
 The executed checks are the synthetic probe and the target-structure probe in §8.1, recorded in
 `evidence-q2-design.md` §7/§7.1. The target-structure probe used a stub adapter and a git-ignored
 copy of the target CMake; it proves build wiring, not engine rendering or a running game.
-
-
-
-
-

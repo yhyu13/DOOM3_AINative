@@ -64,7 +64,7 @@ A third fresh-context pass verified the Round 2 fixes and found four remaining i
 The reviewer independently verified the CMake ordering, the 30-reference count, the 16:9 pair,
 the RG16F word, the new fixtures, the self-test, and the O-01 anchor.
 
-No fourth independent pass was run after the Round 3 dispositions. This file does **not** claim
+At that point, no fourth independent pass had been run after the Round 3 dispositions. This file does **not** claim
 that the Round 3 findings are externally verified; it records what was changed.
 
 ### 3.1 Post-review change: Q1a merged
@@ -105,8 +105,9 @@ dispositions:
 A fifth pass found two remaining fork/superproject wording contradictions and three minor staleness
 items. All were fixed: "a new adapter" and "future fork file" now refer to engine-side files only;
 the historical review row says "superproject adapter"; a historical S0 "absent" row is annotated as
-superseded; the two top crops were regenerated; the `NOMINMAX` explanation was checked. No sixth
-independent pass was run. The verification is recorded here, not turned into an acceptance claim.
+superseded; the two top crops were regenerated; the `NOMINMAX` explanation was checked. At that
+point, no sixth independent pass had been run. The verification is recorded here, not turned into an
+acceptance claim.
 
 ## 3.4 Round 6 — final13 parity update, BLOCKED
 
@@ -127,6 +128,16 @@ superseded (ceilings and all-four PASS unchanged), and that the Q0 files were co
 branch rather than untracked. The S4 docs were corrected to `final13`, its four recorded values, and
 "committed on the S1 branch, not merged to `main`"; a second commit records the correction. An eighth
 pass was run on that state.
+
+## 3.6 Round 8 — final13 committed, PASS (minor findings)
+
+The eighth fresh-context pass reviewed the committed final13 state (`f35b354`) and returned
+**PASS** on substance, with minor findings: trailing blank lines at EOF (so the whitespace claim did
+not reproduce), the first commit message still named final11 (true at that commit), the Round 8
+verdict was not yet recorded, the S2 `megaTexture` row cited an untracked path, and the T009–T011
+tracker drift was not disclosed. The EOFs, S2 citation, Q0 drift disclosure and this section were
+fixed; the first commit message is retained as the historical first commit rather than rewritten.
+No ninth pass was run.
 
 ---
 
@@ -154,9 +165,4 @@ pass was run on that state.
 - The documents do not claim an engine build, a Q2 capture, a Q3 execution, or acceptance.
 
 **Verdict**: not approved. The design is reviewable; the completion claim is not.
-
-
-
-
-
 
