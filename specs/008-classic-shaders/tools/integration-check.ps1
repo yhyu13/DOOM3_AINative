@@ -26,6 +26,7 @@ $ErrorActionPreference = 'Stop'
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $specDir = Split-Path -Parent $scriptDir
+$repoRoot = Split-Path -Parent (Split-Path -Parent $specDir)
 . (Join-Path $scriptDir 'resolver-model.ps1')
 
 if (-not $CensusPath) { $CensusPath = Join-Path $specDir 'census.json' }
@@ -38,6 +39,8 @@ $census = Get-Content -LiteralPath $CensusPath -Raw -Encoding UTF8 | ConvertFrom
 $plan = Get-Content -LiteralPath $PlanPath -Raw -Encoding UTF8 | ConvertFrom-Json
 $provenanceText = Get-Content -LiteralPath (Join-Path $specDir 'provenance.md') -Raw -Encoding UTF8
 $provenanceIds = @([regex]::Matches($provenanceText, 'PV-\d{3}') | ForEach-Object { $_.Value } | Sort-Object -Unique)
+
+$problems = New-Object System.Collections.ArrayList
 
 # Map key -> provenance id from the register table in provenance.md. Group records (PV-008,
 # PV-009) list several keys in one row, so membership alone is not enough: the id must belong to
@@ -56,8 +59,6 @@ foreach ($line in ($provenanceText -split "`n")) {
         }
     }
 }
-
-$problems = New-Object System.Collections.ArrayList
 
 # ---------------------------------------------------------------- 1. documented census shape
 $expected = [ordered]@{
@@ -131,6 +132,13 @@ foreach ($e in $plan.entries) {
         [void]$problems.Add("plan entry '$key' has no row in the provenance register")
     } elseif ($prov -ne $expectedProv) {
         [void]$problems.Add("plan entry '$key' uses '$prov' but the register assigns '$expectedProv'")
+    }
+    $planSource = Get-Prop $e 'source'
+    if ($planSource) {
+        $fullSource = Join-Path $repoRoot ($planSource -replace '/', '\')
+        if (-not (Test-Path -LiteralPath $fullSource)) {
+            [void]$problems.Add("plan entry '$key' names a source that does not exist: $planSource")
+        }
     }
 }
 

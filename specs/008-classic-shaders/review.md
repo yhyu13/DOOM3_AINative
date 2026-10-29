@@ -142,16 +142,80 @@ These are the four claims a careless summary would overstate. The documents mark
 
 ---
 
+## 3.1 Round 3: source-truth audit and gate mutation testing (2026-10-29)
+
+Two independent agents audited the package while the implementation was written: one read every cited
+engine line and compared it with the claim, the other mutation-tested the six gates on a scratch copy
+of the tree. Neither was told what to find. They found 25 defects, 8 of them gates that could report
+success with their own subject broken. All 25 are fixed below; every gate fix has a mutation control
+that fails where it used to pass.
+
+### 3.1.1 Source-truth findings
+
+| Id | Severity | Defect | Fix |
+|---|---|---|---|
+| S-1 | blocking | `abi.md` claimed `c[4].w` was undefined for interactions and that `c[4]`/`c[5]` had two meanings. The engine writes `localLightOrigin[3] = 0` and `localViewOrigin[3] = 1` (`neo/renderer/tr_render.cpp:732-735`). The conclusion (no single global UBO) survived, its stated reason did not. | §3.1 now says `w = 0` / `w = 1` on both paths and cites the writes; §4 narrows the collision to `c[6..8]` and fragment `c[0..1]`. The ABI header comment was corrected too. |
+| S-2 | non-blocking | `c[0]` screen-copy scale cited `draw_common.cpp:608`, which sits inside `#if 0` and computes a different formula. The anchor assertion passed on dead code. | cited `draw_common.cpp:612-622`, and `anchors.json` moved from 608 to 622. |
+| S-3 | non-blocking | `shader_status` sample said `manifest=13 … absent=6`; §4.2 defines 14 keys with 7 absent. | sample is now `manifest=14 owned=0 stub=6 unsupported=1 absent=7`, and §4.2 states the 14 explicitly. |
+| S-4 | nit | the "path prefix significant" row cited only `draw_arb2.cpp:470` (extension strip), which does not show prefix handling. | row now cites 470 and 481 and says "only the extension is stripped". |
+| S-5 | nit | `census.md` said `targets/win11-amd64/doom3/base` is empty; it holds `default.cfg`. | reworded; the skip conclusion is unchanged. |
+| S-6 | nit | the `bumpyEnvironment`/`environment` rows cited only the fragment bind lines. | now `213-215` and `222-224`. |
+| S-7 | nit (latent) | the `non-ARB2` rule ignored the compiled-backend map, so a backend dropped from the build would keep its entries out of `dead`. | rule 3 now consults `$compiled`, and the bind scan covers headers as well as `.cpp`. |
+
+### 3.1.2 Gate defects: eight gates that could not see their own subject fail
+
+| Id | Gate | Defect (mutation that passed) | Fix |
+|---|---|---|---|
+| G-1 | `verify-docs` | deleting `anchors.json` skipped the whole content layer | file is now required; the run fails closed |
+| G-2 | `verify-docs` | the "not cited in prose" failure was appended *after* the failure test, so it was never reported | failure test moved to the end |
+| G-3 | `verify-docs` | the anchor count was compared with a number in the same file, so shrinking both passed | fixed floor `$ExpectedAnchorCount = 70` |
+| G-4 | `verify-docs` | prose anchors were range-checked only, which C4/V5a exploited | documented in the output as `LIMIT:`; the 70 registered anchors are content-checked and all 70 must be cited |
+| G-5 | `resolver-conformance` | only the count (14) and id uniqueness were asserted, so swapping R-014 for a trivial case passed | exact id set `R-001…R-014` required |
+| G-6 | `resolver-conformance` | `request.target` was never read, so a vector could declare a stage it did not exercise | a stated target must match the stage its keyword implies |
+| G-7 | `census` | bind sites in headers were invisible, and plain mode warned then exited 0 when a block was missing | source scan covers `.h/.hpp/.inl`; a missing block exits 1; `$compiled` feeds the non-ARB2 rule |
+| G-8 | `provenance-check` | three whole files were allowlisted and only the two header strings were detected, so a full ARB body appended to `provenance.md` passed | line-scoped allowance (prose/table/comment/inline code) plus an opcode-body heuristic (`>= 4` opcode lines) |
+| G-9 | `integration-check` | `$problems` was used before it was created, and a plan entry could name a nonexistent source | initialized first; plan sources are now stat'ed |
+| G-10 | `report.ps1` | a gate stderr aborted the run before writing, leaving the previous all-green `report.html` in place; "DOCS OK … 0 content assertions" counted as a pass | previous artifact deleted first, gates wrapped, git metadata tolerant, per-gate coverage floors (18 census entries, 14 vectors, 18 requests, 10 000 fuzz requests, 70 content assertions, 100 tracked files) |
+| G-11 | `fuzz-resolver` | the alphabet had no backslash, so removing separator folding survived | backslash added; distinct requests rose from 10 160 to 10 162 |
+
+### 3.1.3 Mutation controls proving the fixes
+
+Run against a scratch copy of the tree (the repository was not modified):
+
+| Mutation | Before | After |
+|---|---|---|
+| delete `tools/anchors.json` | exit 0, `0 content assertions` | exit 1, `anchors.json missing` |
+| delete one anchor and set `count: 69` | exit 0 | exit 1, floor not met |
+| replace R-014 with a trivial passing case (still 14 ids) | exit 0 | exit 1, `id set drift` |
+| set R-001 `target: "ps"` with `keyword: vertexProgram` | exit 0 | exit 1, `implies vs but target is ps` |
+| append a full `!!ARBfp1.0 … END` body to `provenance.md` | exit 0 | exit 1, header line + opcode body |
+| add a bind site in `neo/renderer/draw_foo.h` | exit 0, `VPROG_AMBIENT … dead` | exit 1, `unclassified bind source` |
+| delete `resolver-conformance.ps1` and run the report | exit 1 but the old 6/6 `report.html` stayed on disk | exit 1, `report.html` rebuilt as `4/6`, FAIL badge present |
+
+The last row is the one that mattered most: the committed evidence artifact could read "6/6 passing"
+for a tree where a gate was failing.
+
+### 3.1.4 Findings that remain open, stated rather than fixed
+
+| Id | Limitation | Why it stays |
+|---|---|---|
+| L-1 | Prose anchors that are not in `anchors.json` are range-checked only | registering all 124 citations would make `anchors.json` a copy of the prose; the 70 chosen are the ones whose wording matters |
+| L-2 | `census.ps1` compares generated blocks, not arbitrary prose; "five distinct files" is protected by an anchor, not by the extractor | a prose claim is a document problem; the anchor set is the enforced subset |
+| L-3 | The provenance gate can still miss a body written in a form that matches no opcode | it is a blunt gate by design; review is the second layer |
+| L-4 | `report.ps1` cannot detect a gate that lies about itself in a way that satisfies its own floor | a floor is a lower bound; the alternative is re-implementing each gate inside the report |
+
+---
+
 ## 4. Known weaknesses
 
 | Weakness | Impact | Plan |
 |---|---|---|
 | Runtime census blocked | completeness unproven | T-031 when authorized data exists |
 | No legal review | the clean-room position is conservative but not adjudicated | T-032 |
-| Toolchain not pinned | shader builds are not yet reproducible | T-023 before the first program |
+| Tint/Emscripten never pinned (DXC is) | no WGSL validation, so no program can be `owned` yet | pin Tint, then re-run `reflect.ps1` on the WGSL side |
 | Owner is a role, not a person | the first implementation PR needs an independent reviewer | `ownership.md` §10 Q4 |
-| ABI is source-derived, not compiled | a wrong packing rule surfaces only at first compile | T-020/T-026 |
-| Tier B variant bound is arithmetic, not observed | 42 is an upper bound; the shipped subset is unknown | T-028 + runtime census |
+| ABI is source-derived, not observed | the headers compile and reflect cleanly, but no retail program has been compared | T-027 parity, on authorized data |
+| Tier B ships nothing yet | the 42-variant bound compiles, but `variants.json` is empty until the census runs | T-028 + T-031 |
 | The old renderer doc still says "~12 programs" | a reader may trust the older number | this package supersedes it for the census; do not edit the 003/004 docs from here |
 
 ---
@@ -169,16 +233,18 @@ An independent reviewer should be able to answer **yes** to each:
    tolerant cases?
 7. Is the key-normalization rule consistent with `StripFileExtension` and `Icmp`?
 8. Is the ABI's dual-write collision explained, and does it forbid a single global UBO?
-9. Is the provenance register honest that nothing is authored and no hash exists?
+9. Does every `compiled` record carry a hash that `shaders/tools/provenance-record.ps1` reproduces, and is `owned` still zero?
 10. Does the package avoid editing `003`/`004`/`005`?
 11. Are the blocked gates reported as blocked, not as done?
 12. Is the screenshot labeled as a rendering of the census, not behavioural evidence?
+13. Do the shader gates (`compile.ps1`, `reflect.ps1`, `manifest-check.ps1`, `provenance-record.ps1`, `verify-golden.ps1`) pass from a clean checkout, and does `verify-golden.ps1` show the blobs are deterministic?
+14. Does `tests/shader` build warning-free at `/W4` and pass all six cases, including the mutation control in `evidence/implementation.md`?
 
 ---
 
 ## 6. Verdict
 
-**Independently reviewed twice; all 14 blocking findings fixed (7 + 7).** The facts are source-anchored
+**Reviewed three times; all 39 findings fixed (7 + 7 specification, 7 source-truth, 18 gate).** The facts are source-anchored
 and machine-checked; the resolver semantics are executable; the legal boundary is conservative and
 explicit. It is ready for a human review pass, not for implementation without the T-021/T-022
 issue.

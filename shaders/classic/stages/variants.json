@@ -1,0 +1,15 @@
+{
+  "schema": "doom3-stage-variants/1",
+  "comment": "Tier B shipping set. A variant is emitted only when the material census observed the combination (ownership.md section 3.1: 'the actual shipped subset is whatever the material census observes'). The runtime census is BLOCKED (tasks.md T-031), so this list is empty by rule, not by omission. The 42-variant bound itself is proven by compile.ps1 -ProveBound.",
+  "bound": { "texgen": 7, "alphatest": 2, "vertexcolor": 3, "product": 42 },
+  "texgenModes": {
+    "0": "explicit",
+    "1": "diffuseCube",
+    "2": "reflectCube",
+    "3": "skyboxCube",
+    "4": "wobbleSkyCube",
+    "5": "screen",
+    "6": "screen2"
+  },
+  "variants": []
+}

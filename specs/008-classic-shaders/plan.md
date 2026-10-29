@@ -1,6 +1,6 @@
 # Implementation plan: classic shaders
 
-**Status**: plan **complete for review**. No implementation task has started.
+**Status**: plan **complete for review**; Phase C and part of Phase D are implemented (2026-10-29). The engine-integration half of Phase C is still open — see `tasks.md` section B.
 **Companion**: [`spec.md`](spec.md) (requirements), [`tasks.md`](tasks.md) (execution).
 
 This plan converts the S2 workstream — program census, provenance, fail-loud resolver, HLSL library

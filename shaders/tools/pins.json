@@ -1,0 +1,33 @@
+{
+  "schema": "doom3-shader-toolchain/1",
+  "comment": "Pinned shader toolchain for spec 008 (task T-023). An unpinned toolchain makes 'it compiled yesterday' meaningless, so every field here is recorded and verified before a compile run.",
+  "dxc": {
+    "release": "v1.9.2609",
+    "asset": "dxc_2026_09_29.zip",
+    "assetSha256": "AD31B1FC8443175D204F77A611FDB3EF2EC42759BDC2F1167368DE24A4A7E7F1",
+    "compilerVersion": "1.9.2609.5",
+    "compilerVersionLine": "dxcompiler.dll: 1.9(5512-01b62ad4)(1.9.2609.5) - 1.9.2609.5 (01b62ad47)",
+    "url": "https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.9.2609/dxc_2026_09_29.zip",
+    "cacheRelativePath": "shaders/tools/.cache/dxc"
+  },
+  "profiles": {
+    "dxil": { "vs": "vs_6_0", "ps": "ps_6_0" },
+    "spirv": {
+      "arguments": ["-spirv", "-fvk-use-dx-layout", "-fspv-target-env=vulkan1.1"],
+      "environment": "vulkan1.1",
+      "reason": "Tint/Dawn consume SPIR-V 1.4-era modules; vulkan1.1 is the environment DXC produced in the verified runs"
+    }
+  },
+  "gaps": [
+    {
+      "tool": "tint",
+      "status": "not pinned",
+      "why": "no Tint/Dawn binary is available in this environment, so SPIR-V -> WGSL translation and WGSL validation cannot run; recorded as a gap in evidence/implementation.md rather than assumed"
+    },
+    {
+      "tool": "spirv-cross / spirv-dis",
+      "status": "not pinned",
+      "why": "cross-backend constant-offset comparison needs a SPIR-V disassembler; the DXIL side is checked by reflect.ps1 and the SPIR-V side is compile-only until a disassembler is pinned"
+    }
+  ]
+}

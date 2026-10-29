@@ -1,0 +1,294 @@
+{
+    "schema":  "doom3-shader-provenance/1",
+    "comment":  "Machine-readable form of the register in specs/008-classic-shaders/provenance.md sections 3 and 4. Status ladder: planned (no file) -\u003e compiled (file exists and both targets compile, but the ownership.md section 5 checklist is incomplete) -\u003e authored (every section 5 criterion met, manifest says owned) -\u003e reviewed. A hash is recorded as soon as a file exists so a later edit cannot silently inherit an older record.",
+    "generated_by":  "shaders/tools/provenance-record.ps1",
+    "date":  "2026-10-29",
+    "records":  [
+                    {
+                        "id":  "PV-001",
+                        "key":  "interaction",
+                        "stages":  [
+                                       "vs",
+                                       "ps"
+                                   ],
+                        "status":  "compiled",
+                        "source_class":  "authored",
+                        "authored_by":  "spec 008 implementation workstream",
+                        "inputs":  [
+                                       "specs/008-classic-shaders/abi.md",
+                                       "ARB_vertex_program (public specification)",
+                                       "ARB_fragment_program (public specification)",
+                                       "independent implementation"
+                                   ],
+                        "retail_text_consulted":  "no",
+                        "derivative_work_review":  "not-required",
+                        "files":  [
+                                      {
+                                          "path":  "shaders/classic/programs/interaction.hlsl",
+                                          "sha256":  "B9FB5BD21BE37B4E4879569729C95EF5F344E3A6A375520165564865E5DF6A56"
+                                      }
+                                  ],
+                        "reviewer":  "pending (independent review required for the first engine PR)",
+                        "unmet_owned_criteria":  [
+                                                     "WGSL validation through Tint",
+                                                     "reflection gate (met: shaders/tools/reflect.ps1)",
+                                                     "parity capture (T-027)"
+                                                 ],
+                        "notes":  "Five authored decisions D-I1..D-I5 are recorded in the program header; parity is unverified."
+                    },
+                    {
+                        "id":  "PV-002",
+                        "key":  "environment",
+                        "stages":  [
+                                       "vs",
+                                       "ps"
+                                   ],
+                        "status":  "compiled",
+                        "source_class":  "authored",
+                        "authored_by":  "spec 008 implementation workstream",
+                        "inputs":  [
+                                       "specs/008-classic-shaders/abi.md",
+                                       "ARB_vertex_program (public specification)",
+                                       "ARB_fragment_program (public specification)",
+                                       "independent implementation"
+                                   ],
+                        "retail_text_consulted":  "no",
+                        "derivative_work_review":  "not-required",
+                        "files":  [
+                                      {
+                                          "path":  "shaders/classic/programs/environment.hlsl",
+                                          "sha256":  "B7D3324326B72D21F1E17C2A7D98AAF80AB00B413D0D85F356AB0EA3856AD98C"
+                                      }
+                                  ],
+                        "reviewer":  "pending",
+                        "unmet_owned_criteria":  [
+                                                     "WGSL validation through Tint",
+                                                     "parity capture (T-027)"
+                                                 ],
+                        "notes":  "Authored decisions D-E1 in the program header."
+                    },
+                    {
+                        "id":  "PV-003",
+                        "key":  "bumpyenvironment",
+                        "stages":  [
+                                       "vs",
+                                       "ps"
+                                   ],
+                        "status":  "compiled",
+                        "source_class":  "authored",
+                        "authored_by":  "spec 008 implementation workstream",
+                        "inputs":  [
+                                       "specs/008-classic-shaders/abi.md",
+                                       "ARB_vertex_program (public specification)",
+                                       "ARB_fragment_program (public specification)",
+                                       "independent implementation"
+                                   ],
+                        "retail_text_consulted":  "no",
+                        "derivative_work_review":  "not-required",
+                        "files":  [
+                                      {
+                                          "path":  "shaders/classic/programs/bumpyenvironment.hlsl",
+                                          "sha256":  "33FAF181015E1B17F40FFC12CFD96792DB68C88196F00BE8BFD92B43C0D1EBF2"
+                                      }
+                                  ],
+                        "reviewer":  "pending",
+                        "unmet_owned_criteria":  [
+                                                     "WGSL validation through Tint",
+                                                     "parity capture (T-027)"
+                                                 ],
+                        "notes":  "Authored decisions D-E1 and D-B1 in the program header."
+                    },
+                    {
+                        "id":  "PV-004",
+                        "key":  "shadow",
+                        "stages":  [
+                                       "vs"
+                                   ],
+                        "status":  "compiled",
+                        "source_class":  "authored",
+                        "authored_by":  "spec 008 implementation workstream",
+                        "inputs":  [
+                                       "specs/008-classic-shaders/abi.md",
+                                       "ARB_vertex_program (public specification)",
+                                       "independent implementation"
+                                   ],
+                        "retail_text_consulted":  "no",
+                        "derivative_work_review":  "not-required",
+                        "files":  [
+                                      {
+                                          "path":  "shaders/classic/programs/shadow.hlsl",
+                                          "sha256":  "5E6B18C79A0BDC8438D733A6BB2A5F738EDE62BED2B2EE27FB9BCF45F93D7CD5"
+                                      }
+                                  ],
+                        "reviewer":  "pending",
+                        "unmet_owned_criteria":  [
+                                                     "WGSL validation through Tint",
+                                                     "stencil-volume parity capture (T-027)"
+                                                 ],
+                        "notes":  "Homogeneous w carries the infinite extrusion; the reading of shadowCache_t.w is an inference from idVec4 usage and is stated in the file header."
+                    },
+                    {
+                        "id":  "PV-005",
+                        "key":  "arbfp_glasswarp",
+                        "stages":  [
+                                       "ps"
+                                   ],
+                        "status":  "compiled",
+                        "source_class":  "authored",
+                        "authored_by":  "spec 008 implementation workstream",
+                        "inputs":  [
+                                       "specs/008-classic-shaders/abi.md",
+                                       "ARB_fragment_program (public specification)",
+                                       "independent implementation"
+                                   ],
+                        "retail_text_consulted":  "no",
+                        "derivative_work_review":  "not-required",
+                        "files":  [
+                                      {
+                                          "path":  "shaders/classic/programs/arbfp_glasswarp.hlsl",
+                                          "sha256":  "E2CDEA3D0498A6B12928B246A8A926D96AEF73BBF7E61A5FE76ABB99ACB76846"
+                                      }
+                                  ],
+                        "reviewer":  "pending",
+                        "unmet_owned_criteria":  [
+                                                     "WGSL validation through Tint",
+                                                     "parity capture (T-027)",
+                                                     "scratchImage (unit 2) is bound but unused: recorded parity gap D-G2"
+                                                 ],
+                        "notes":  "Fragment-only program; the vertex stage is the generic Tier B stage, checked by reflect.ps1."
+                    },
+                    {
+                        "id":  "PV-006",
+                        "key":  "test",
+                        "stages":  [
+                                       "vs",
+                                       "ps"
+                                   ],
+                        "status":  "compiled",
+                        "source_class":  "authored",
+                        "authored_by":  "spec 008 implementation workstream",
+                        "inputs":  [
+                                       "specs/008-classic-shaders/abi.md",
+                                       "ARB_vertex_program (public specification)",
+                                       "ARB_fragment_program (public specification)",
+                                       "independent implementation"
+                                   ],
+                        "retail_text_consulted":  "no",
+                        "derivative_work_review":  "not-required",
+                        "files":  [
+                                      {
+                                          "path":  "shaders/classic/programs/test.hlsl",
+                                          "sha256":  "23D07FA295BB9DAA6DCE8185EBFC88CF58665DEF3C1F53488CFEC05959DDE772"
+                                      }
+                                  ],
+                        "reviewer":  "pending",
+                        "unmet_owned_criteria":  [
+                                                     "debug-only visualiser: not a parity program by design",
+                                                     "WGSL validation through Tint"
+                                                 ],
+                        "notes":  "Debug-only visualiser for r_testARBProgram; excluded from any parity comparison."
+                    },
+                    {
+                        "id":  "PV-007",
+                        "key":  "megatexture",
+                        "stages":  [
+                                       "vs",
+                                       "ps"
+                                   ],
+                        "status":  "decided: unsupported",
+                        "source_class":  "not-authored",
+                        "authored_by":  "n/a",
+                        "inputs":  [
+                                       "specs/008-classic-shaders/plan.md D-003"
+                                   ],
+                        "retail_text_consulted":  "no",
+                        "derivative_work_review":  "not-required",
+                        "files":  [
+
+                                  ],
+                        "reviewer":  "n/a",
+                        "unmet_owned_criteria":  [
+                                                     "out of milestone 1 by decision D-003"
+                                                 ],
+                        "notes":  "Virtual texturing needs tiled/sparse feedback the portable RHI does not model."
+                    },
+                    {
+                        "id":  "PV-008",
+                        "keys":  [
+                                     "ambientlight",
+                                     "arbvp_glasswarp"
+                                 ],
+                        "stages":  [
+                                       "vs",
+                                       "ps"
+                                   ],
+                        "status":  "decided: absent",
+                        "source_class":  "not-authored",
+                        "authored_by":  "n/a",
+                        "inputs":  [
+                                       "specs/008-classic-shaders/census.md section 5.2"
+                                   ],
+                        "retail_text_consulted":  "no",
+                        "derivative_work_review":  "not-required",
+                        "files":  [
+
+                                  ],
+                        "reviewer":  "n/a",
+                        "unmet_owned_criteria":  [
+                                                     "no compiled bind site"
+                                                 ],
+                        "notes":  "Group record: nothing is authored, so a per-file record would imply work that does not exist."
+                    },
+                    {
+                        "id":  "PV-009",
+                        "keys":  [
+                                     "r200_interaction",
+                                     "nv20_bumpandlight",
+                                     "nv20_diffusecolor",
+                                     "nv20_specularcolor",
+                                     "nv20_diffuseandspecularcolor"
+                                 ],
+                        "stages":  [
+                                       "vs"
+                                   ],
+                        "status":  "decided: absent",
+                        "source_class":  "not-authored",
+                        "authored_by":  "n/a",
+                        "inputs":  [
+                                       "specs/008-classic-shaders/census.md section 5.2"
+                                   ],
+                        "retail_text_consulted":  "no",
+                        "derivative_work_review":  "not-required",
+                        "files":  [
+
+                                  ],
+                        "reviewer":  "n/a",
+                        "unmet_owned_criteria":  [
+                                                     "backend scheduled for deletion"
+                                                 ],
+                        "notes":  "Group record for the R200 and NV20 removal set."
+                    }
+                ],
+    "shared_headers":  [
+                           {
+                               "path":  "shaders/classic/include/d3_abi.hlsli",
+                               "sha256":  "6567FB982E3BF85337DC0AA73FF366FEB178D32F5B6650F45BEDDA45341A6CA5",
+                               "why":  "ABI constants and bindings; every program depends on it"
+                           },
+                           {
+                               "path":  "shaders/classic/include/d3_input.hlsli",
+                               "sha256":  "2A4F90AF07E8DCD81068C5A4D90E1EECEBDBFBB10A2A69B4C6A01C94C2D7F563",
+                               "why":  "vertex and inter-stage signatures"
+                           },
+                           {
+                               "path":  "shaders/classic/include/d3_arb.hlsli",
+                               "sha256":  "526E637CC405B125B36DC9DDBA20CD66135E6FAC2728EABC7500ADF4F287C94F",
+                               "why":  "ARB opcode emulation"
+                           },
+                           {
+                               "path":  "shaders/classic/stages/generic_texgen.hlsl",
+                               "sha256":  "26F43D2AB16E2CCA29AF7E518071F503D638550939245ADCB072926C8EFDC2BE",
+                               "why":  "Tier B stage shader and the vertex stage glasswarp pairs with"
+                           }
+                       ]
+}

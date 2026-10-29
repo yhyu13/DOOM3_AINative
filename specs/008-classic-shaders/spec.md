@@ -1,8 +1,10 @@
 # Feature specification: classic shader census, provenance and fail-loud resolution
 
 **Feature**: `008-classic-shaders`
-**Status**: specification **complete for review** (2026-10-28). No engine code, no shader, and no
-runtime census exists yet.
+**Status**: specification **complete and reviewed three times**; implementation **partly done**
+(2026-10-29). Six authored programs compile for DXIL and SPIR-V, the resolver core is implemented and
+tested standalone, and the shader toolchain is pinned. No engine wiring, no `owned` program, no parity
+capture, and no runtime census exists yet — see `tasks.md` section B and `evidence/implementation.md`.
 **Input**: the S2 workstream of the renderer plan: program census, provenance, fail-loud resolver,
 HLSL library ownership.
 

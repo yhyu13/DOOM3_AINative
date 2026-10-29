@@ -97,10 +97,10 @@ that is an implementation choice to be verified by parity, not a fact from this 
 
 | Slot | Writer | Value | Lifetime |
 |---:|---|---|---|
-| c[0] | `RB_SetProgramEnvironment` | `(w / potW, h / potH, 0, 1)` screen-copy scale (write at `neo/renderer/draw_common.cpp:608`) | per frame |
+| c[0] | `RB_SetProgramEnvironment` | `(w / potW, h / potH, 0, 1)` screen-copy scale (live write at `neo/renderer/draw_common.cpp:612-622`; the `#if 0` branch at `neo/renderer/draw_common.cpp:587-609` computes `(w-1)/pot` and is never compiled) | per frame |
 | c[1] | `RB_SetProgramEnvironment` | world-space view origin, `w=1` (write at `neo/renderer/draw_common.cpp:641`) | per frame |
-| c[4] | **dual writer** | light origin in model space | interaction (`w` not defined) and shadow space (`w=0`) |
-| c[5] | **dual writer** | view origin in model space, `w=1` (space write at `neo/renderer/draw_common.cpp:664`) | per space and per interaction |
+| c[4] | **dual writer** | light origin in model space; `w = 0` on both paths (`neo/renderer/tr_render.cpp:732-735`, shadow at `neo/renderer/draw_common.cpp:1063`) | per interaction and per shadow space |
+| c[5] | **dual writer** | view origin in model space, `w=1` on both paths (space write at `neo/renderer/draw_common.cpp:664`) | per space and per interaction |
 | c[6..8] | **dual writer** | light projection S/T/Q per interaction; model-matrix columns per space | see §4 |
 | c[9] | `RB_ARB2_DrawInteraction` | falloff S plane | per interaction |
 | c[10..11] | `RB_ARB2_DrawInteraction` | bump texture matrix S/T | per interaction |
@@ -113,7 +113,13 @@ that is an implementation choice to be verified by parity, not a fact from this 
 The slot numbers are declared in `neo/renderer/tr_local.h:1368`. Anchors: `neo/renderer/draw_common.cpp:579` (frame), `neo/renderer/draw_common.cpp:653` (space),
 `neo/renderer/draw_arb2.cpp:67` (interaction), `neo/renderer/draw_arb2.cpp:94` (colour policy).
 The shadow-space write of c[4] with `w = 0` is at `neo/renderer/draw_common.cpp:1063`; the
-per-interaction write of c[5] is at `neo/renderer/draw_arb2.cpp:70`.
+per-interaction writes of c[4] and c[5] are at `neo/renderer/draw_arb2.cpp:69` and
+`neo/renderer/draw_arb2.cpp:70`.
+
+Both paths write `c[4].w = 0` and `c[5].w = 1`: the interaction builder sets them explicitly
+(`neo/renderer/tr_render.cpp:734-735`) and the shadow path sets `w = 0` again on purpose. The `w`
+component is therefore *not* a reason to split the constant buffer; the dual writers of `c[6..8]` and
+fragment `c[0..1]` are (see §4).
 
 ### 3.2 Fragment program environment
 
@@ -135,21 +141,18 @@ Anchors: `neo/renderer/draw_common.cpp:625` (fragment c[0]), `neo/renderer/draw_
 
 ## 4. The collision that forbids one global constant buffer
 
-`c[4]`, `c[5]`, `c[6..8]` and fragment `c[0..1]` are written by different producers with different
-meanings:
+`c[6..8]` and fragment `c[0..1]` are written by different producers with different meanings:
 
-- `c[4]` carries the light origin, but the interaction call passes an `idVec3` to a four-float
-  parameter write (`neo/renderer/draw_arb2.cpp:69`), so the fourth component has no defined value;
-  an interaction shader must not depend on it. The shadow path writes `w = 0` explicitly
-  (`neo/renderer/draw_common.cpp:1063`) because projecting to infinity needs a direction, not a
-  point.
-- `c[5]` is the model-space view origin, written per space and again per interaction.
 - During an interaction, `c[6..8]` are light projection planes S/T/Q
   (`neo/renderer/draw_arb2.cpp:71`).
 - During a generic new-style stage, `c[6..8]` are model-matrix columns for local → global
   transforms (`neo/renderer/draw_common.cpp:672`).
 - Fragment `c[0..1]` are screen-copy/window scale per frame, then diffuse/specular colour per
   interaction (`neo/renderer/draw_common.cpp:625`, `neo/renderer/draw_arb2.cpp:108`).
+
+`c[4]`, `c[5]`, `c[9..17]` keep one meaning across the interaction and shadow paths (`w` included, as
+corrected in §3.1); `c[4].w = 0` and `c[5].w = 1` on both. The collision that forbids a single global
+buffer is the overlapping, differently-typed use of `c[6..8]` and of fragment `c[0..1]`.
 
 A single "frame constants" UBO cannot express this. Each program family gets its own constant
 buffer layout:

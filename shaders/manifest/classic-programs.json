@@ -1,0 +1,122 @@
+{
+  "schema": "doom3-classic-programs/1",
+  "comment": "Shipping manifest for spec 008. 14 keys = the 13 distinct static glprogs files plus the data-forced megaTexture.vfp (resolver.md 4.2). A key is `owned` only when every criterion in ownership.md section 5 is met; until then the spec's fallback status is `stub` and `notes` states which criterion is unmet. Do not edit status by hand without the evidence listed in ownership.md section 6.",
+  "programs": [
+    {
+      "key": "interaction",
+      "stages": ["vs", "ps"],
+      "status": "stub",
+      "provenance": "PV-001",
+      "source": "shaders/classic/programs/interaction.hlsl",
+      "entry": { "vs": "vs_main", "ps": "ps_main" },
+      "arity": { "vertexParms": 0, "fragmentMaps": 7 },
+      "notes": "authored and compiled to DXIL + SPIR-V; not owned: WGSL validation, reflection gate, parity capture"
+    },
+    {
+      "key": "environment",
+      "stages": ["vs", "ps"],
+      "status": "stub",
+      "provenance": "PV-002",
+      "source": "shaders/classic/programs/environment.hlsl",
+      "entry": { "vs": "vs_main", "ps": "ps_main" },
+      "arity": { "vertexParms": 0, "fragmentMaps": 2 },
+      "notes": "authored and compiled to DXIL + SPIR-V; not owned: WGSL validation, reflection gate, parity capture"
+    },
+    {
+      "key": "bumpyenvironment",
+      "stages": ["vs", "ps"],
+      "status": "stub",
+      "provenance": "PV-003",
+      "source": "shaders/classic/programs/bumpyenvironment.hlsl",
+      "entry": { "vs": "vs_main", "ps": "ps_main" },
+      "arity": { "vertexParms": 0, "fragmentMaps": 2 },
+      "notes": "authored and compiled to DXIL + SPIR-V; not owned: WGSL validation, reflection gate, parity capture"
+    },
+    {
+      "key": "shadow",
+      "stages": ["vs"],
+      "status": "stub",
+      "provenance": "PV-004",
+      "source": "shaders/classic/programs/shadow.hlsl",
+      "entry": { "vs": "vs_main" },
+      "arity": { "vertexParms": 0, "fragmentMaps": 0 },
+      "notes": "authored and compiled to DXIL + SPIR-V; not owned: WGSL validation, reflection gate, stencil-volume parity capture"
+    },
+    {
+      "key": "arbfp_glasswarp",
+      "stages": ["ps"],
+      "status": "stub",
+      "provenance": "PV-005",
+      "source": "shaders/classic/programs/arbfp_glasswarp.hlsl",
+      "entry": { "ps": "ps_main" },
+      "arity": { "vertexParms": 0, "fragmentMaps": 3 },
+      "notes": "authored and compiled to DXIL + SPIR-V; not owned: WGSL validation, reflection gate, heat-haze parity capture"
+    },
+    {
+      "key": "test",
+      "stages": ["vs", "ps"],
+      "status": "stub",
+      "provenance": "PV-006",
+      "source": "shaders/classic/programs/test.hlsl",
+      "entry": { "vs": "vs_main", "ps": "ps_main" },
+      "arity": { "vertexParms": 0, "fragmentMaps": 7 },
+      "notes": "debug-only visualiser (r_testARBProgram, default off); compiled for both targets, not a parity program"
+    },
+    {
+      "key": "megatexture",
+      "stages": ["vs", "ps"],
+      "status": "unsupported",
+      "provenance": "PV-007",
+      "notes": "virtual texturing needs tiled/sparse feedback the portable RHI does not model; decision D-003"
+    },
+    {
+      "key": "ambientlight",
+      "stages": ["vs", "ps"],
+      "status": "absent",
+      "provenance": "PV-008",
+      "notes": "dead engine entry: the only bind site is draw_exp.cpp, which is not compiled"
+    },
+    {
+      "key": "arbvp_glasswarp",
+      "stages": ["vs"],
+      "status": "absent",
+      "provenance": "PV-008",
+      "notes": "dead engine entry: no bind site anywhere; only the fragment program is bound"
+    },
+    {
+      "key": "r200_interaction",
+      "stages": ["vs"],
+      "status": "absent",
+      "provenance": "PV-009",
+      "notes": "R200 backend only; backend scheduled for deletion"
+    },
+    {
+      "key": "nv20_bumpandlight",
+      "stages": ["vs"],
+      "status": "absent",
+      "provenance": "PV-009",
+      "notes": "NV20 backend only; backend scheduled for deletion"
+    },
+    {
+      "key": "nv20_diffusecolor",
+      "stages": ["vs"],
+      "status": "absent",
+      "provenance": "PV-009",
+      "notes": "NV20 backend only; backend scheduled for deletion"
+    },
+    {
+      "key": "nv20_specularcolor",
+      "stages": ["vs"],
+      "status": "absent",
+      "provenance": "PV-009",
+      "notes": "NV20 backend only; backend scheduled for deletion"
+    },
+    {
+      "key": "nv20_diffuseandspecularcolor",
+      "stages": ["vs"],
+      "status": "absent",
+      "provenance": "PV-009",
+      "notes": "NV20 backend only; backend scheduled for deletion"
+    }
+  ]
+}
