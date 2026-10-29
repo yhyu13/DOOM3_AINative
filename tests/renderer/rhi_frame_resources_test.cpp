@@ -99,7 +99,7 @@ int RunFrameResources(Device& device) {
             q1b_test::Log("FRAME %u does not carry its own tint %.2f", i, tints[i]);
             return 1;
         }
-        q1b_test::Log("SLOT frame %u kept tint %.2f after all four were in flight", i,
+        q1b_test::Log("SLOT frame %u kept tint %.2f after four submissions", i,
                       tints[i]);
     }
     q1b_test::Log("SLOT upload storage isolated across four in-flight frames");

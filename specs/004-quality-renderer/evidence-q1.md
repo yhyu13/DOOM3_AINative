@@ -218,16 +218,18 @@ first command.
 | T028 | PASS | Window surface, resize, minimize/restore, destroy, restart |
 | T029 | PASS | Declared accesses, pass order and invalid uses |
 | T030 | PARTIAL | All fixtures ran and fault-injected removal passes; debug layer and GPU-based validation are SKIPPED, so the task stays open |
-| T031 | BLOCKED | Independent review performed (`review-q1.md`); remains open because the debug layer and GPU-based validation do not execute |
+| T031 | REVIEW COMPLETE / NOT SATISFIED | Independent review of `35ce54e` in `review-q1.md`; T031 stays open because the debug layer and GPU-based validation do not execute |
 
 ## Limitations and open items
 
 1. **Full Q1 remains blocked.** The debug layer and GPU-based validation could
    not be enabled (`0x887A002D`). No unwaived-error claim is possible. T030 is
    recorded as executed with those two checks SKIPPED; T031 cannot be satisfied
-   by the author.
-2. **The independent review is not done.** `review-q1.md` records the author's
-   self-review and explicitly does not count as T031.
+   until the gate actually executes.
+2. **The independent review is complete but T031 is not satisfied.**
+   `review-q1.md` is the independent review of `35ce54e`; T031 stays open because
+   T030's debug-layer and GPU-based validation gate is unmet. The author
+   self-review is `review-q1-self.md`.
 3. **Shader input is backend-declared program text.** The public seam carries
    opaque bytes, but the C++ fixtures embed a program whose language is a
    D3D12-backend capability. The Q7a mapping gate still has to decide the

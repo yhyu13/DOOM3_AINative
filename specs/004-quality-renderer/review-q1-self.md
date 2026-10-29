@@ -2,7 +2,7 @@
 
 Author: the S5 implementer session.
 Date: 2026-10-29.
-Worktree: `feat/22-q1b-q1-rhi` from `origin/main` at `d9bf1caa`.
+Worktree: `feat/22-q1b-q1-rhi`, rebased onto `origin/main` at `29a1e37`.
 
 **This is not T031.** T031 requires a different reviewer who reruns the work.
 This document records the author's own inspection and deliberately does not
