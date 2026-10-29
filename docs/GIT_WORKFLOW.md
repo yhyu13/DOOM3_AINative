@@ -60,9 +60,9 @@ git check-ignore -q .kilo/worktrees; if (-not $?) { Add-Content .git\info\exclud
 
 | Role | Owns | Never does |
 |---|---|---|
-| Coordinator | issue breakdown, spec-kit flow, file-ownership map, integration, merge, submodule bump | implement a worker ticket in the same worktree |
-| Worker | exactly one worktree and one issue: implement + prove + PR | touch another worker's paths, review own work, merge |
-| Reviewer | independent adversarial review of the PR diff | be the author or the merge button |
+| Coordinator | issue breakdown, spec-kit flow, file-ownership map, integration, submodule bump | implement a worker ticket in the same worktree |
+| Worker | exactly one worktree and one issue: implement + prove + PR; may merge after independent review per `AGENTS.md` §11, except submodule/build-system changes | touch another worker's paths, review own work, merge without independent approval |
+| Reviewer | independent adversarial review of the PR diff; records `APPROVED` or blocking findings with the reviewed SHA | be the author, share the author's worktree/session, or be prompted to produce a predetermined verdict |
 
 Handoffs are files/artifacts, not chat:
 
@@ -118,7 +118,7 @@ gh pr create --draft --base main --title "feat(audio): WebAudio shim (#42)" --bo
 # 5. review (reviewer, never the author): load the code-review skill, fixed point origin/main
 gh pr ready 42
 
-# 6. merge (coordinator), squash only
+# 6. merge (author or coordinator, after independent review; head must equal reviewed SHA), squash only
 gh pr merge 42 --squash
 
 # 7. cleanup from the parent checkout (script = git worktree remove + prune)
@@ -201,11 +201,23 @@ $env:D3_BUILD = Join-Path $env:WORKTREE_PATH 'build'
 - Never close an issue on your own: no `gh issue close`, and no `Closes`/`Fixes`/`Resolves #N`
   in the PR body or commit message unless the user approved closing that issue. The user closes
   the issue after checking the result.
-- Every PR gets a coordinator review. `doom3_orig/doom3/` submodule bumps and build-system changes also require
-  one **independent** reviewer (never the author) who reruns the verification command.
+- Every PR gets an **independent** review (never the author, never a reviewer sharing the author's
+  worktree or session). A fresh-context subagent reviewer must run in its own Agent Manager
+  session/worktree, receive only the diff/specs/verification command, rerun that command, and
+  record its verdict verbatim in a PR comment with session ID and reviewed SHA. The author may
+  merge after that review; see `AGENTS.md` §11.
+- The PR head at merge must equal the reviewed SHA, and the merge base of the reviewed SHA and
+  current `origin/main` must still be the current `origin/main`. Any commit, rebase, force-push or
+  advance of `origin/main` after review voids the approval and requires a new review.
+- `doom3_orig/doom3/` submodule bumps and build-system changes are **not self-mergeable**: they
+  require **owner sign-off** (the human repository owner, not a coordinator/reviewer/worker agent)
+  in addition to independent review. Record it as a PR comment from the owner or an
+  `owner-sign-off:` line quoting that comment verbatim.
 - Reviewer runs the `code-review` skill pinned at `origin/main...HEAD`; comments cite file:line.
-- Merge only when: CI/verification green, review approved, no out-of-scope paths touched,
-  no uncommitted submodule dirt, PR body complete.
+- Merge only when: CI/verification green, independent review approved with the reviewed SHA, the
+  head still equal to it, the merge base still equal to current `origin/main`, `MERGEABLE` / `CLEAN`
+  against current `origin/main`, clean main worktree, no out-of-scope paths, no uncommitted submodule
+  dirt, PR body complete.
 
 ```markdown
 ## Evidence
@@ -252,7 +264,7 @@ Red lines (max 10, no exceptions):
 5. Never edit `doom3_orig/doom3/` without a fork branch and a recorded submodule bump.
 6. Never merge with red verification; draft PRs stay draft.
 7. Never write outside the issue's in-scope paths.
-8. Never let a reviewer review their own diff.
+8. Never let a reviewer review their own diff or share the author's worktree/session; approval must name the reviewed SHA.
 9. Never commit secrets, tokens, or absolute machine paths.
 10. Never delete another worker's worktree or branch.
 
@@ -267,6 +279,8 @@ Start (per worker):
 Finish (before merge):
 
 - [ ] Verification command rerun in the worktree, output pasted into the PR body.
-- [ ] `git fetch origin` + rebase done; `git status` clean; no submodule dirt.
-- [ ] PR has `Refs #N` (no closing keyword unless approved), evidence, risk/rollback; reviewer approved.
+- [ ] `git fetch origin` + rebase done; `git status` clean; no submodule dirt. A late rebase invalidates the prior review; obtain a new one.
+- [ ] PR has `Refs #N` (no closing keyword unless approved), evidence, risk/rollback; independent reviewer approved at the reviewed SHA, and the head still equals that SHA.
+- [ ] `gh pr view <N> --json mergeable,mergeStateStatus` reports `MERGEABLE` / `CLEAN`; the merge base of the reviewed SHA and `origin/main` is still current `origin/main`.
+- [ ] Submodule bump or build-system change: `owner-sign-off:` recorded verbatim, or N/A.
 - [ ] After merge: `remove-worktree.ps1`, then `git worktree prune`; branch deleted only if merged.

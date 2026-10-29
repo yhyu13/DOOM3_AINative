@@ -81,6 +81,28 @@ own licences (see `THIRD_PARTY_NOTICES.md`). Game data is not covered and must n
     `Closes #N` / `Fixes #N` / `Resolves #N` in a PR body or commit message unless the user
     explicitly approved closing that issue. Otherwise link with `Refs #N`. A merged PR proves the
     work, not the decision to close the issue.
+11. **An agent may merge its own PR after independent review.** The author may squash-merge only when
+    all of the following hold:
+    - The PR contains an `APPROVED` verdict from a reviewer that is not the author and did not share
+      the author's session or worktree. A fresh-context subagent may serve only if it runs in its own
+      Agent Manager session/worktree, receives only the diff, the relevant specs and the verification
+      command, reruns that command, and records its verdict verbatim in a PR comment with its session
+      ID and the reviewed SHA. The authoring session must not write, rewrite or paraphrase that
+      verdict. This is a process control, not cryptographic identity; do not claim more.
+    - The PR head at merge equals the reviewed SHA, and the merge base of the reviewed SHA and current
+      `origin/main` is still the current `origin/main`. Any new commit, rebase, force-push, or advance
+      of `origin/main` after the review voids the approval and requires a new review.
+    - Submodule bumps (`doom3_orig/doom3`) and build-system changes are excluded from self-merge:
+      they require **owner sign-off** in addition to independent review. Here "owner" means the human
+      repository owner (the user), not a coordinator, reviewer or worker agent; the sign-off is a PR
+      comment from the owner or an `owner-sign-off:` line in the PR body quoting it verbatim.
+    - The merge gates in non-negotiable 8 (above) hold: `git fetch origin`, `MERGEABLE` / `CLEAN`
+      against current `origin/main`, the documented verification command or required checks pass, the
+      main worktree is clean and current, `git merge-tree` shows no conflict, no out-of-scope paths,
+      and no game data, build output or unexplained submodule dirt.
+    - No issue is closed without permission.
+    If any condition fails, do not merge: rebase, re-review, or stop. This grants merge authority, not
+    permission to bypass evidence, file ownership, or the user's stop instructions.
 
 ## Spec-driven flow
 

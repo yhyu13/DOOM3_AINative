@@ -82,7 +82,10 @@ Do not rewrite the global credential helper; never put a token in a tracked file
    `targets/win11-amd64/patches/all-changes.patch` and `all-changes.manifest.txt`.
 9. **Commit** only your owned paths, push the branch, open a **draft** PR with the body template in
    `docs/GIT_WORKFLOW.md` §8.
-10. **Review** by someone who is not the author, then mark ready and squash-merge.
+10. **Review** by an independent non-author in its own session/worktree; it records `APPROVED` with
+    the reviewed SHA. Then the author or coordinator may squash-merge only when the head still equals
+    that SHA, the merge base still equals current `origin/main`, and the gates in `AGENTS.md` §11
+    hold. Submodule bumps and build-system changes also need human owner sign-off.
 11. **Clean up** from the parent checkout: `.\scripts\remove-worktree.ps1 -Path .kilo\worktrees\<slug>`
     then `git worktree prune`.
 
@@ -102,8 +105,11 @@ untracked, the evidence block is text.
   commit inherits those messages — so those keywords are the same act as `gh issue close`. Use
   **`Refs #N`** and let the user close the issue; only write a closing keyword when the user
   explicitly asked to close that issue.
-- Merge only when verification is green, review is approved, no out-of-scope path was touched, and
-  no uncommitted submodule dirt remains.
+- Merge only when verification is green, an independent review is approved with the reviewed SHA,
+  the head still equals that SHA, the merge base still equals current `origin/main`, GitHub reports
+  `MERGEABLE` / `CLEAN`, no out-of-scope path was touched, and no uncommitted submodule dirt remains.
+- Submodule bumps and build-system changes additionally need human owner sign-off recorded verbatim;
+  see `AGENTS.md` §11.
 
 ## Engine and port rules
 
@@ -124,9 +130,9 @@ untracked, the evidence block is text.
 
 ## Testing and review
 
-- The **reviewer is never the author**, reruns the issue's verification command (or the closest
-  reproducible subset, stating what was not rerun and why), and keeps the review read-only apart from
-  the report.
+- The **reviewer is never the author** and does not share the author's session/worktree. It reruns the
+  issue's verification command (or states exactly what was not rerun and why), keeps the review
+  read-only apart from the report, and records `APPROVED` with the reviewed SHA.
 - Reviews use the `code-review` skill against `origin/main...HEAD`; comments cite `file:line`.
 - Severity vocabulary, as used in `specs/001-win11-amd64-native-build/review.md`:
   **BLOCKER** (cannot merge: the artifact or the reviewable evidence is wrong),
@@ -145,7 +151,8 @@ untracked, the evidence block is text.
 4. Use the shared board for material findings that change another agent's decisions — not for
    progress narration, and never as a substitute for your final report.
 5. Never `git stash`: stashes are shared across worktrees and silently corrupt parallel work.
-6. Never push, merge, or close an issue unless the user asked for it in this task.
+6. Never push, merge, or close an issue unless the user asked for it in this task, except a normal PR
+   merge that satisfies `AGENTS.md` §11; never close an issue without the user's permission.
 7. Verify by running the command and quoting real output (exit code plus the line). If it could not
    be run, say `not run` and why.
 8. Do not write absolute machine paths into tracked files. Use `<repo-root>`, `<data-root>`,

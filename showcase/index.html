@@ -1574,7 +1574,7 @@
     { n: 4, label: 'BUILD', x: 1010, y: 455, detail: 'work happens in the target copy. The pristine submodule stays read-only; engine changes land as a reviewed bump.' },
     { n: 5, label: 'VERIFY', x: 1275, y: 560, detail: 'run the contract command and keep the output. A green claim without a log is not evidence.' },
     { n: 6, label: 'REVIEW', x: 1535, y: 455, detail: 'a reviewer who did not write the code reruns the verification and checks the diff against the spec.' },
-    { n: 7, label: 'MERGE', x: 1745, y: 560, detail: 'squash only. The PR carries Closes #N, the evidence block and the rollback path. No self-merge.' }
+    { n: 7, label: 'MERGE', x: 1745, y: 560, detail: 'squash only. The PR carries Refs #N, the evidence block and the rollback path. Merge only after independent review and the AGENTS.md §11 gates.' }
   ];
 
   const EDGES = [
