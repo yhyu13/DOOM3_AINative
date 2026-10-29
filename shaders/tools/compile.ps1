@@ -8,6 +8,10 @@
 
       DXIL   <out>/<key>/<stage>.dxil   plus the disassembly <stage>.asm used by reflect.ps1
       SPIR-V <out>/<key>/<stage>.spv    with -fvk-use-dx-layout -fspv-target-env=vulkan1.1
+      WGSL   <out>/<key>/<stage>.wgsl   translated from the SPIR-V by the pinned Tint, then re-parsed
+                                        and regenerated to prove the emitted WGSL is valid
+
+  Every stage therefore has to pass three independent tools before it is reported OK.
 
   Tier B variants listed in shaders/classic/stages/variants.json are compiled with their defines.
   -ProveBound ignores that list and compiles the full 7 x 2 x 3 = 42 cross product into a scratch
@@ -62,9 +66,41 @@ if ($versionLine -notlike "*$($pins.dxc.compilerVersion)*") {
     exit 3
 }
 
+# --- pinned translator ----------------------------------------------------------------------------
+$tint = Join-Path $repo ($pins.tint.cacheRelativePath -replace '/', '\')
+$tint = Join-Path $tint 'bin\tint.exe'
+if (-not (Test-Path -LiteralPath $tint)) {
+    & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'get-toolchain.ps1')
+    if ($LASTEXITCODE -ne 0) { Write-Host 'ERROR: toolchain unavailable' -ForegroundColor Red; exit 2 }
+}
+if (-not (Test-Path -LiteralPath $tint)) {
+    Write-Host 'ERROR: tint still missing after get-toolchain.ps1' -ForegroundColor Red
+    exit 3
+}
+$tintHelp = (& $tint --help 2>&1 | Out-String)
+if ($tintHelp -notmatch 'Usage: tint') {
+    Write-Host 'ERROR: tint does not answer --help; the pinned binary is not usable' -ForegroundColor Red
+    exit 3
+}
+$tintVersion = $pins.tint.dawnCommit
+
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 $results = New-Object System.Collections.Generic.List[object]
 $failures = 0
+
+# Source hashes must mean the same thing on every checkout. `.gitattributes` pins shaders/** to LF, but a
+# tree checked out before that rule still holds CRLF; normalising here keeps compile-goldens.json from
+# recording a platform-specific hash (and makes it agree with provenance-record.ps1).
+$sha256 = [System.Security.Cryptography.SHA256]::Create()
+function Get-CanonicalHash([string]$path) {
+    $bytes = [System.IO.File]::ReadAllBytes($path)
+    $canonical = New-Object System.Collections.Generic.List[byte]($bytes.Length)
+    for ($i = 0; $i -lt $bytes.Length; $i++) {
+        if ($bytes[$i] -eq 13 -and ($i + 1) -lt $bytes.Length -and $bytes[$i + 1] -eq 10) { continue }
+        $canonical.Add($bytes[$i])
+    }
+    return [System.BitConverter]::ToString($sha256.ComputeHash($canonical.ToArray())).Replace('-', '')
+}
 
 function Invoke-Compile {
     param(
@@ -79,6 +115,7 @@ function Invoke-Compile {
     $dxil = Join-Path $DestDir "$Stage.dxil"
     $asm = Join-Path $DestDir "$Stage.asm"
     $spv = Join-Path $DestDir "$Stage.spv"
+    $wgsl = Join-Path $DestDir "$Stage.wgsl"
 
     $dxilArgs = @('-T', $Profile, '-E', "${Stage}_main", '-I', $include, '-Fo', $dxil, '-Fc', $asm) + $ExtraArgs + @($Source)
     $null = & $dxc @dxilArgs 2>&1
@@ -90,7 +127,24 @@ function Invoke-Compile {
     $spvExit = $LASTEXITCODE
     if (-not (Test-Path -LiteralPath $spv)) { $spvExit = 1 }
 
-    $ok = ($dxilExit -eq 0) -and ($spvExit -eq 0)
+    $wgslExit = 1
+    if ($spvExit -eq 0) {
+        $translateArgs = @($pins.tint.translationArguments) + @($spv, '-o', $wgsl)
+        $null = & $tint @translateArgs 2>&1
+        $wgslExit = $LASTEXITCODE
+        if (-not (Test-Path -LiteralPath $wgsl)) { $wgslExit = 1 }
+        if ($wgslExit -eq 0) {
+            # Re-parse and regenerate the emitted WGSL: an invalid module fails here, not in the browser.
+            $roundTrip = Join-Path $DestDir "$Stage.wgsl.validate"
+            $validateArgs = @($pins.tint.translationArguments) + @($wgsl, '-o', $roundTrip)
+            $null = & $tint @validateArgs 2>&1
+            $validateExit = $LASTEXITCODE
+            if (Test-Path -LiteralPath $roundTrip) { Remove-Item -LiteralPath $roundTrip -Force }
+            if ($validateExit -ne 0) { $wgslExit = 3 }
+        }
+    }
+
+    $ok = ($dxilExit -eq 0) -and ($spvExit -eq 0) -and ($wgslExit -eq 0)
     $results.Add([pscustomobject]@{
             key       = $Key
             stage     = $Stage
@@ -99,14 +153,16 @@ function Invoke-Compile {
             defines   = ($ExtraArgs -join ' ')
             dxil_exit = $dxilExit
             spv_exit  = $spvExit
+            wgsl_exit = $wgslExit
             dxil_sha  = if (Test-Path -LiteralPath $dxil) { (Get-FileHash -LiteralPath $dxil -Algorithm SHA256).Hash } else { '' }
             spv_sha   = if (Test-Path -LiteralPath $spv) { (Get-FileHash -LiteralPath $spv -Algorithm SHA256).Hash } else { '' }
-            source_sha = if (Test-Path -LiteralPath $Source) { (Get-FileHash -LiteralPath $Source -Algorithm SHA256).Hash } else { '' }
+            wgsl_sha  = if (Test-Path -LiteralPath $wgsl) { (Get-FileHash -LiteralPath $wgsl -Algorithm SHA256).Hash } else { '' }
+            source_sha = if (Test-Path -LiteralPath $Source) { Get-CanonicalHash $Source } else { '' }
         })
     if ($ok) {
-        Write-Host ("  OK    {0,-20} {1,-3} dxil={2} spv={3}" -f $Key, $Stage, $dxilExit, $spvExit)
+        Write-Host ("  OK    {0,-20} {1,-3} dxil={2} spv={3} wgsl={4}" -f $Key, $Stage, $dxilExit, $spvExit, $wgslExit)
     } else {
-        Write-Host ("  FAIL  {0,-20} {1,-3} dxil={2} spv={3}" -f $Key, $Stage, $dxilExit, $spvExit) -ForegroundColor Red
+        Write-Host ("  FAIL  {0,-20} {1,-3} dxil={2} spv={3} wgsl={4}" -f $Key, $Stage, $dxilExit, $spvExit, $wgslExit) -ForegroundColor Red
         $script:failures++
     }
 }
@@ -132,6 +188,7 @@ if ($ProveBound) {
         schema    = 'doom3-shader-compile/1'
         mode      = 'bound-proof'
         dxc       = $pins.dxc.compilerVersion
+        tint      = $tintVersion
         variants  = $count
         compiles  = $results.Count
         failures  = $failures
@@ -139,7 +196,7 @@ if ($ProveBound) {
     }
     $summary | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $OutDir 'compile-summary.json')
     if ($failures -ne 0) { Write-Host "BOUND PROOF FAILED: $failures compile(s) failed" -ForegroundColor Red; exit 1 }
-    Write-Host "BOUND PROOF OK: $count variants x 2 stages = $($results.Count) compiles, 0 failures"
+    Write-Host "BOUND PROOF OK: $count variants x 2 stages = $($results.Count) compiles (DXIL + SPIR-V + WGSL), 0 failures"
     exit 0
 }
 
@@ -197,6 +254,7 @@ $summary = [pscustomobject]@{
     schema      = 'doom3-shader-compile/1'
     mode        = 'shipping'
     dxc         = $pins.dxc.compilerVersion
+    tint        = $tintVersion
     programs    = $selected.Count
     variants    = $variantCount
     compiles    = $results.Count
@@ -209,5 +267,5 @@ if ($failures -ne 0) {
     Write-Host "COMPILE FAILED: $failures of $($results.Count) stage compiles" -ForegroundColor Red
     exit 1
 }
-Write-Host "COMPILE OK: $($selected.Count) programs, $variantCount Tier B variants, $($results.Count) stage compiles, dxc $($pins.dxc.compilerVersion)"
+Write-Host "COMPILE OK: $($selected.Count) programs, $variantCount Tier B variants, $($results.Count) stage compiles (DXIL + SPIR-V + WGSL), dxc $($pins.dxc.compilerVersion), tint $($tintVersion.Substring(0, 8))"
 exit 0

@@ -178,6 +178,6 @@ The check is intentionally blunt. A false positive is cheaper than a leaked reta
 1. **Legal review is outstanding.** No counsel has reviewed the derivative-work position.
 2. **The runtime census is blocked on authorized data** ([`census.md`](census.md) §7), so the
    material-declared program set is unknown.
-3. **Authoring has started and stopped at `compiled`.** All six programs exist, compile for both targets and are hashed; none is `owned`, because WGSL validation through Tint and parity capture are still missing (see `evidence/implementation.md`).
+3. **Authoring has started and stopped at `compiled`.** All six programs exist, compile to DXIL, SPIR-V and validated WGSL, and are hashed; none is `owned`, because the rendered comparison in `ownership.md` §5 criterion 5 (T-027) needs authorized data and a running classic backend (see `evidence/implementation.md`).
 4. **The BFG reference question is unresolved and deliberately unexercised.** Nothing from it has
    been read for this work.

@@ -13,8 +13,9 @@
        inter-stage struct cannot drift between the two stages. arbFP_glasswarp is checked against the
        generic Tier B vertex stage, because the engine binds only a fragment program for it.
 
-  This is a *declared-vs-used* check on the DXIL side. It is not a substitute for WGSL validation: no
-  Tint binary is available, which pins.json records as a gap.
+  This is a *declared-vs-used* check on the DXIL side. It is not a substitute for WGSL validation:
+  compile.ps1 translates each stage to WGSL with the pinned Tint and re-parses it, and pins.json
+  records that pin. Reflection stays DXIL-side because it reads the disassembly.
 
   Fail-closed: a missing disassembly, an undeclared binding, an undeclared semantic, or a mismatched
   inter-stage signature exits 1.

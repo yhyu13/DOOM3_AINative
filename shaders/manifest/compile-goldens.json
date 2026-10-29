@@ -2,60 +2,73 @@
     "schema":  "doom3-shader-goldens/1",
     "dxc":  "1.9.2609.5",
     "asset":  "dxc_2026_09_29.zip",
+    "tint":  "106704a9ac3fc21b1580ea85aea302ac17d416f1",
+    "tintAssetSha256":  "2B082C284F078B9F91A91A6B2CF805FA42C18F60B8DCAAB70476A5E5E24B74EE",
     "stages":  {
                    "shadow/vs":  {
                                      "dxil":  "B51DD89600796364EC09BE78C8CEB9A396F45607CC41C60E5B38DB96476F1827",
                                      "spv":  "70DA3D18B1CCA823E08C2CD37CC6313FD8AC6C69ABCA9BD6447FAF2597C5C4FB",
+                                     "wgsl":  "7D4930F69C14F89C85568D9237B495B6D92BDCAFB660815E6777E4F1535989B0",
                                      "source":  "5E6B18C79A0BDC8438D733A6BB2A5F738EDE62BED2B2EE27FB9BCF45F93D7CD5"
                                  },
                    "bumpyenvironment/vs":  {
                                                "dxil":  "DD44C671461B2FE6826575148649BB31D8F357924F223BFF9D34E7C58B6FA83E",
                                                "spv":  "EB4F3663D699C694379CC1794E0AEE320B2819BFD7B0276A26FC1770C84104C4",
+                                               "wgsl":  "8736302DA1047D7F7CBA5EC058E572552A0CCE02F55F8DE011CA98910A5F96C0",
                                                "source":  "33FAF181015E1B17F40FFC12CFD96792DB68C88196F00BE8BFD92B43C0D1EBF2"
                                            },
                    "generic_texgen/vs":  {
                                              "dxil":  "FC9D73240D24475BC2C3BD385D2CDE07C0FBEF32B07AC2AFA87C52B7A5522425",
                                              "spv":  "3E77E85B0640368CDBDB7FE8836B428FF31C0148AF51371F94DF8B4721686091",
+                                             "wgsl":  "5FE877954819217EBBE26C842CA59D6357760E1BDEB6B2AE6BEB6BD39FDD8754",
                                              "source":  "26F43D2AB16E2CCA29AF7E518071F503D638550939245ADCB072926C8EFDC2BE"
                                          },
                    "environment/ps":  {
                                           "dxil":  "6CE58300F39BC07E0B161B29D5A9063BC8441988DE5B20FC62CA48A94820A8D1",
                                           "spv":  "4D5BAEABED9D3B0A9F87C9248A22B36CEF043023989230DDD6ACB50E7712A1CA",
+                                          "wgsl":  "1B440A967DA6873D4CCED3E0399C1E8E259C6EFC1D1737641D587492218303F2",
                                           "source":  "B7D3324326B72D21F1E17C2A7D98AAF80AB00B413D0D85F356AB0EA3856AD98C"
                                       },
                    "interaction/vs":  {
                                           "dxil":  "87ABE760E578CFF1E11101DD3BBF801DE3C4B6324E0F89D16FC5CD03A3D4488C",
                                           "spv":  "12693C2AD86326D40A091CD8510D5E5B157EDE7A616839CD51003EFF98F50DCD",
+                                          "wgsl":  "F2683B1D1CD9E7E5485794C52BA832B7F28DEEC500A75519FD8A6CB3A954D23C",
                                           "source":  "B9FB5BD21BE37B4E4879569729C95EF5F344E3A6A375520165564865E5DF6A56"
                                       },
                    "arbfp_glasswarp/ps":  {
                                               "dxil":  "DE2A6E93263442E3EABC4E12E4915271988802302D30A305638C868AD5E5A492",
                                               "spv":  "CC9D78C700089902A21F071D094E812F4EDD6291499BEE94DF4F295DEED140F3",
+                                              "wgsl":  "00B19652314926202A2C1C7E1BD484F48C92C8A68D8EC49C33A3A75BA192F36E",
                                               "source":  "E2CDEA3D0498A6B12928B246A8A926D96AEF73BBF7E61A5FE76ABB99ACB76846"
                                           },
                    "bumpyenvironment/ps":  {
                                                "dxil":  "9F27AC3FC175E7FB7362B88B4651CAA7242EF837E8A47809769E41F4BF3601E5",
                                                "spv":  "6F45B47AD9EACD265AE91789594B42E9405FBA8515D951E51548297BD8FD75D7",
+                                               "wgsl":  "00368634016AD2DAF3538E9D23256D62BD627B4EF9938F752B27FE127AF94148",
                                                "source":  "33FAF181015E1B17F40FFC12CFD96792DB68C88196F00BE8BFD92B43C0D1EBF2"
                                            },
                    "test/ps":  {
                                    "dxil":  "68CACB3960A58FA0311669B234CD350E2A2BBCB8425EFF1B9FB0C6BA87122495",
                                    "spv":  "90C7DB65134BAC72A396536610A0B90CD19DFE35FF8535CA1345F7109CA1A133",
+                                   "wgsl":  "417BEA5A0FC37589BD08DBF990E13BDE56B8FBE9935CA67DF74A077F2A988736",
                                    "source":  "23D07FA295BB9DAA6DCE8185EBFC88CF58665DEF3C1F53488CFEC05959DDE772"
                                },
                    "environment/vs":  {
                                           "dxil":  "DD44C671461B2FE6826575148649BB31D8F357924F223BFF9D34E7C58B6FA83E",
                                           "spv":  "EB4F3663D699C694379CC1794E0AEE320B2819BFD7B0276A26FC1770C84104C4",
+                                          "wgsl":  "8736302DA1047D7F7CBA5EC058E572552A0CCE02F55F8DE011CA98910A5F96C0",
                                           "source":  "B7D3324326B72D21F1E17C2A7D98AAF80AB00B413D0D85F356AB0EA3856AD98C"
                                       },
                    "test/vs":  {
                                    "dxil":  "87ABE760E578CFF1E11101DD3BBF801DE3C4B6324E0F89D16FC5CD03A3D4488C",
                                    "spv":  "12693C2AD86326D40A091CD8510D5E5B157EDE7A616839CD51003EFF98F50DCD",
+                                   "wgsl":  "F2683B1D1CD9E7E5485794C52BA832B7F28DEEC500A75519FD8A6CB3A954D23C",
                                    "source":  "23D07FA295BB9DAA6DCE8185EBFC88CF58665DEF3C1F53488CFEC05959DDE772"
                                },
                    "interaction/ps":  {
                                           "dxil":  "91137717C6D25210E7E151FB7F58CE0E442E6878E1E678393435C608A809C47E",
                                           "spv":  "1E3AE8DA39F8507EF2FC2BF8E77950F8D608BEFA8409C176EA83408E721195BF",
+                                          "wgsl":  "6DAA227E18484FE5F63DAE58896401184F8489D642CC83C5416DF65A03FB803F",
                                           "source":  "B9FB5BD21BE37B4E4879569729C95EF5F344E3A6A375520165564865E5DF6A56"
                                       }
                }

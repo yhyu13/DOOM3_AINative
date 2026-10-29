@@ -43,9 +43,9 @@ TOOLCHAIN OK: dxc 1.9.2609.5 at shaders/tools/.cache/dxc/bin/x64/dxc.exe
 ```
 
 The release asset hash is verified before extraction and the compiler's own version string must match
-the pin, so a substituted compiler fails closed with exit 3. `pins.json` also records the two tools
-that are **not** pinned — Tint and a SPIR-V disassembler — with the reason, rather than implying that
-WGSL validation happens.
+the pin, so a substituted compiler fails closed with exit 3. Tint is pinned the same way from a Dawn
+release; it has no `--version`, so its identity is the asset SHA-256 plus the Dawn commit (see §11).
+One tool stays unpinned and is recorded as a gap: a SPIR-V disassembler.
 
 ---
 
@@ -115,8 +115,9 @@ texture or sampler, no undeclared semantic, and — the check that catches real 
 fragment input signature equals its vertex output signature**. `shadow` shows one input and one output
 because the shadow path carries only `POSITION0`; that is the ABI, not a truncation.
 
-Limit, stated rather than hidden: this is the DXIL side only. Cross-backend constant offsets cannot be
-compared until a SPIR-V disassembler is pinned, and WGSL cannot be produced without Tint.
+Limit, stated rather than hidden: this is the DXIL side only. The WGSL side is validated separately by
+`compile.ps1` (Tint translation plus a re-parse), but cross-backend constant offsets still cannot be
+compared until a SPIR-V disassembler is pinned.
 
 ---
 
@@ -240,8 +241,8 @@ choice rather than re-deriving it.
 |---|---|---|
 | Engine wiring of the resolver (draw gate, material parse, init order) | not done | engine files; `plan.md` §5 assigns them to a separate renderer issue |
 | `shader_status` / `shader_reload` as console commands | core only | registration is an engine file; the counters and status line exist and are tested |
-| WGSL validation | not done | no Tint binary; recorded in `pins.json` as a gap |
-| `owned` status for any program | none | needs WGSL validation and parity; `stub` is the honest status |
+| WGSL validation | done in §11 | pinned Tint translates every SPIR-V stage and re-parses the emitted WGSL |
+| `owned` status for any program | none | WGSL is validated, but `ownership.md` §5 criterion 5 needs a rendered comparison (T-027); `stub` is the honest status |
 | Parity capture (T-027) | blocked | needs authorized retail data and a classic backend |
 | Runtime census (T-031) | blocked | no `*.pk4`; data is EULA-bound |
 | Tier B shipping variants | none | populated only from the census, which is blocked |
@@ -294,3 +295,94 @@ exit 1
 
 R-012 flips with R-004 because those two vectors share the same expected tuple. The repository fixture
 was hashed before and after and did not change; the unmutated run is green (`14/14 passed`).
+---
+
+## 11. Tint pin and WGSL validation (T-023, T-030)
+
+### 11.1 The pin
+
+```powershell
+powershell -NoProfile -File shaders/tools/get-toolchain.ps1
+```
+
+```text
+TOOLCHAIN OK: dxc 1.9.2609.5 at shaders/tools/.cache/dxc/bin/x64/dxc.exe
+  asset sha256 verified: AD31B1FC8443175D204F77A611FDB3EF2EC42759BDC2F1167368DE24A4A7E7F1
+  reported: dxcompiler.dll: 1.9(5512-01b62ad4)(1.9.2609.5) - 1.9.2609.5 (01b62ad47)
+TOOLCHAIN OK: tint 106704a9ac3f at shaders/tools/.cache/tint/bin/tint.exe
+  asset sha256 verified: 2B082C284F078B9F91A91A6B2CF805FA42C18F60B8DCAAB70476A5E5E24B74EE
+  version: no --version in this build; the pin is the asset hash plus the Dawn commit
+```
+
+Tint ships inside Dawn's release tarball (~118 MB). `get-toolchain.ps1` verifies the tarball hash, then
+extracts exactly one member, `<root>/bin/tint.exe`, and checks that it answers `--help`. This build
+rejects `--version`, so the identity is the asset SHA-256 plus the Dawn commit in the asset name; a
+substituted binary fails before it can translate anything.
+
+### 11.2 Every stage now has three artefacts
+
+```powershell
+powershell -NoProfile -File shaders/tools/compile.ps1 -All
+```
+
+```text
+  OK    interaction          vs  dxil=0 spv=0 wgsl=0
+  OK    interaction          ps  dxil=0 spv=0 wgsl=0
+  OK    environment          vs  dxil=0 spv=0 wgsl=0
+  OK    environment          ps  dxil=0 spv=0 wgsl=0
+  OK    bumpyenvironment     vs  dxil=0 spv=0 wgsl=0
+  OK    bumpyenvironment     ps  dxil=0 spv=0 wgsl=0
+  OK    shadow               vs  dxil=0 spv=0 wgsl=0
+  OK    arbfp_glasswarp      ps  dxil=0 spv=0 wgsl=0
+  OK    test                 vs  dxil=0 spv=0 wgsl=0
+  OK    test                 ps  dxil=0 spv=0 wgsl=0
+  OK    generic_texgen       vs  dxil=0 spv=0 wgsl=0
+COMPILE OK: 6 programs, 0 Tier B variants, 11 stage compiles (DXIL + SPIR-V + WGSL), dxc 1.9.2609.5, tint 106704a9
+```
+
+`wgsl=0` means two things ran: `tint --format wgsl <stage>.spv -o <stage>.wgsl`, and then
+`tint --format wgsl <stage>.wgsl -o <stage>.wgsl.validate`, a re-parse and regeneration of the emitted
+module. The second step is the validation: a module that parses cannot carry an unknown identifier, a
+type mismatch or a missing binding. The intermediate file is deleted.
+
+The bound proof covers the whole Tier B cross product through the same three tools:
+
+```text
+BOUND PROOF OK: 42 variants x 2 stages = 84 compiles (DXIL + SPIR-V + WGSL), 0 failures
+```
+
+### 11.3 Goldens now cover WGSL, and the pin is recorded
+
+```powershell
+powershell -NoProfile -File shaders/tools/verify-golden.ps1
+```
+
+```text
+GOLDEN OK: 11 stage hashes (DXIL, SPIR-V, WGSL) deterministic across two runs and equal to the recorded goldens (dxc 1.9.2609.5, tint 106704a9ac3f)
+```
+
+`compile-goldens.json` gained a `wgsl` hash per stage and the Tint commit; the source hash is now computed
+on canonical bytes (CRLF collapsed to LF), so it agrees with `provenance.json` instead of recording the
+checkout convention. Spot-check: `interaction/ps` source `B9FB5BD2…` in both files.
+
+### 11.4 Negative controls
+
+| Mutation | Result |
+|---|---|
+| feed tint a WGSL file that is not WGSL (`not wgsl`) | exit 1, `error: unexpected token` |
+| replace the `interaction/ps` WGSL golden with zeros, run `verify-golden.ps1` | exit 1, `interaction/ps: WGSL hash drift` |
+| restore the golden, re-run | exit 0 |
+
+The second control matters: before this change the golden file had no WGSL column, so a translation that
+silently produced the wrong module would still have been "green".
+
+### 11.5 What this does not prove
+
+- **No program is `owned`.** `ownership.md` §5 criterion 5 needs a rendered comparison; T-027 is blocked
+  on authorized data and a running classic backend. The manifest still says `stub`, `owned=0`.
+- **No behavioural evidence.** Nothing here says a program draws correctly; it says the same source
+  compiles to three targets and the WGSL parses.
+- **Emscripten is not pinned by this file.** The web target owns that pin; this library never invokes
+  `emcc`.
+- **SPIR-V constants are not compared.** No SPIR-V disassembler is pinned, so `reflect.ps1` still reads
+  the DXIL side only.
