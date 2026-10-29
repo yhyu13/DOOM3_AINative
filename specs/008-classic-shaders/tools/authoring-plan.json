@@ -1,0 +1,20 @@
+{
+  "schema": "doom3-classic-authoring-plan/1",
+  "note": "Authoring backlog, NOT a shipping resolver manifest. target_status 'authored' means 'to be authored'; it is mapped to resolver status 'owned' only in the integration test.",
+  "entries": [
+    { "key": "interaction", "stages": ["vs", "ps"], "target_status": "authored", "provenance": "PV-001", "source": "shaders/classic/programs/interaction.hlsl", "entry": { "vs": "vs_main", "ps": "ps_main" }, "arity": { "vertexParms": 0, "fragmentMaps": 7 } },
+    { "key": "environment", "stages": ["vs", "ps"], "target_status": "authored", "provenance": "PV-002", "source": "shaders/classic/programs/environment.hlsl", "entry": { "vs": "vs_main", "ps": "ps_main" }, "arity": { "vertexParms": 0, "fragmentMaps": 2 } },
+    { "key": "bumpyenvironment", "stages": ["vs", "ps"], "target_status": "authored", "provenance": "PV-003", "source": "shaders/classic/programs/bumpyenvironment.hlsl", "entry": { "vs": "vs_main", "ps": "ps_main" }, "arity": { "vertexParms": 0, "fragmentMaps": 2 } },
+    { "key": "shadow", "stages": ["vs"], "target_status": "authored", "provenance": "PV-004", "source": "shaders/classic/programs/shadow.hlsl", "entry": { "vs": "vs_main" }, "arity": { "vertexParms": 0, "fragmentMaps": 0 } },
+    { "key": "arbfp_glasswarp", "stages": ["ps"], "target_status": "authored", "provenance": "PV-005", "source": "shaders/classic/programs/arbfp_glasswarp.hlsl", "entry": { "ps": "ps_main" }, "arity": { "vertexParms": 0, "fragmentMaps": 3 } },
+    { "key": "test", "stages": ["vs", "ps"], "target_status": "authored", "provenance": "PV-006", "source": "shaders/classic/programs/test.hlsl", "entry": { "vs": "vs_main", "ps": "ps_main" }, "optional": true },
+    { "key": "megatexture", "stages": ["vs", "ps"], "target_status": "unsupported", "provenance": "PV-007", "notes": "virtual texturing needs tiled/sparse feedback; out of milestone 1" },
+    { "key": "ambientlight", "stages": ["vs", "ps"], "target_status": "absent", "provenance": "PV-008", "notes": "dead engine entry: only non-compiled draw_exp.cpp binds it" },
+    { "key": "arbvp_glasswarp", "stages": ["vs"], "target_status": "absent", "provenance": "PV-008", "notes": "loaded but never bound" },
+    { "key": "r200_interaction", "stages": ["vs"], "target_status": "absent", "provenance": "PV-009", "notes": "R200 backend scheduled for deletion" },
+    { "key": "nv20_bumpandlight", "stages": ["vs"], "target_status": "absent", "provenance": "PV-009", "notes": "NV20 backend scheduled for deletion" },
+    { "key": "nv20_diffusecolor", "stages": ["vs"], "target_status": "absent", "provenance": "PV-009", "notes": "NV20 backend scheduled for deletion" },
+    { "key": "nv20_specularcolor", "stages": ["vs"], "target_status": "absent", "provenance": "PV-009", "notes": "NV20 backend scheduled for deletion" },
+    { "key": "nv20_diffuseandspecularcolor", "stages": ["vs"], "target_status": "absent", "provenance": "PV-009", "notes": "NV20 backend scheduled for deletion" }
+  ]
+}
