@@ -5,13 +5,19 @@ Status: Q1b implementation and fixtures T022–T029 have been executed locally, 
 enabled on this machine (`D3D12GetDebugInterface` returns `0x887A002D`), so both
 are recorded as SKIPPED. T031's independent review was performed and is
 recorded in `review-q1.md`; T031 remains open because T030's gate is unmet.
-The author self-review is `review-q1-self.md`. No claim is
-made for Q1, game parity, DXR, DLSS, WebGPU or a shipped renderer.
+The author self-review is `review-q1-self.md`. The Q1b code is merged to `main`
+(`f1e4feb`), and the gate was re-run there on 2026-10-29 with the same result;
+the owner has accepted the residual recorded below. **That acceptance does not
+turn the SKIPPED checks into a pass.** No claim is made for Q1, game parity,
+DXR, DLSS, WebGPU or a shipped renderer.
 
 Worktree: `feat/22-q1b-q1-rhi`, rebased onto `origin/main` at
-`582b3ff` (current main, after T089), after the earlier `9f103e6` and
-`29a1e37` bases; the previous `docs-22-q1b-fixture-contract` checkout at `964d358`
-was removed and not reused. One writer, one worktree, one build directory.
+`582b3ff` (the branch base, after T089; `main` has since advanced to
+`f1e4feb`), after the earlier `9f103e6` and `29a1e37` bases; the previous
+`docs-22-q1b-fixture-contract` checkout at `964d358` was removed and not reused.
+One writer, one worktree, one build directory. The post-merge re-run below was
+executed in the main worktree at `f1e4feb` with the git-ignored
+`build-q1-accept-20261029`.
 
 ## Environment
 
@@ -248,6 +254,69 @@ a Q1b functional failure and not a WebGPU claim. A follow-up mapping update
 (T089b or the Q7a owner) is required before any Q7/WebGPU statement; merging
 this PR without it leaves that gate red.
 
+## Post-merge gate verification on `main` (2026-10-29)
+
+Q1b was merged as `f1e4feb` (PR #39). T030 was re-run on the merged `main`, not
+on the pre-merge branch, because a pass on a feature branch says nothing about
+what `main` executes.
+
+| Item | Observed |
+|---|---|
+| Checkout | `main` at `f1e4feb666d24f44b3515d583afe338d3493a0af`; `git status --porcelain` empty |
+| Configure | `cmake -S tests/renderer -B build-q1-accept-20261029 -G "Visual Studio 17 2022" -A x64` → 0 |
+| Build | `cmake --build build-q1-accept-20261029 --config Release -- -m` → 0 (0 `error`, 0 `warning C` lines) |
+| Suite | `ctest --test-dir build-q1-accept-20261029 -C Release --no-tests=error` → 0, 17/17 |
+| Diagnostics | `q1a_diagnostics_test.exe` → 0; `debug=SKIPPED`, `gpu_validation=SKIPPED`, `debug_detail=D3D12GetDebugInterface failed (hr=0x887A002D)`, `validation_executed=0`, `cases_pass=8 fail=0 skip=0` |
+| Adapters | hardware (`Intel(R) Graphics`) and software (`Microsoft Basic Render Driver`) both return `0x887A002D` |
+| Contract validator | `py -3 -I scripts/validate-rhi-contract.py --self-test` → 0 |
+| Fixture validator | `py -3 -I scripts/validate-q1b-fixtures.py` → 0 |
+| Mapping validator | `py -3 -I scripts/validate-webgpu-mapping.py` → **1**: `INVALID: 62 problem(s); 57/119 declarations mapped` |
+
+`DIAGNOSTICS_CASE ... result=PASS` in that output means the opt-in reporting was
+correct; it is not a validation run. The same case reports
+`validation_executed=false`. Logs are worktree-local and git-ignored:
+`build-q1-accept-20261029/build-Release.log`, `ctest-Release.log`,
+`ctest-Release-junit.xml`, `diagnostics.log`.
+
+### Why the environment cannot be fixed from this session
+
+`d3d12SDKLayers.dll` is absent from `C:\Windows\System32`, and the shell is not
+elevated (`IsInRole(Administrator)` is false; `Get-WindowsOptionalFeature
+-Online` fails with "requires elevation"). The Graphics Tools capability
+therefore cannot be installed here. The unblock remains, on an elevated host:
+
+```powershell
+Add-WindowsCapability -Online -Name Tools.Graphics.DirectX~~~~0.0.1.0
+```
+
+then rerun `rhi.q1a.diagnostics` and the Q1b fixtures and require `debug=RUN`
+and `gpu_validation=RUN`.
+
+### Owner acceptance of the residual (2026-10-29)
+
+The repository owner explicitly accepted the residual on 2026-10-29 during the
+Q1 gate review, on condition that it is recorded as a residual and not as a
+pass.
+
+- Accepted residual: the debug layer and GPU-based validation were never
+  executed on this host, so **no zero-unwaived-error result exists for Q1**.
+- Not accepted: any statement that Q1 passed, that T030/T031 are satisfied, or
+  that validated D3D12 usage underpins S8/WebGPU. Those remain false.
+- Scope: the Q1 gate only. It does not waive the red mapping gate below, which
+  stays owned by the open issue #36 (T089/T089b).
+- Re-open condition: any later Q1, S8 or WebGPU claim that depends on validated
+  D3D12 usage must re-run the gate on a host with Graphics Tools installed.
+
+### Mapping gate on merged `main`
+
+`validate-webgpu-mapping.py` exits 1 on `f1e4feb`: 62 unmapped declarations,
+`57/119` mapped, including `ShaderModule`, `Pipeline`, `Surface`,
+`GraphicsPipelineDesc` and their fields. This is the same gap named above; the
+merge landed the declarations without the mapping table, so the gate is red on
+`main`, not only on the branch. Issue #36 (T089) remains open and owns the
+reconciliation; no new issue is opened for it. Until it lands, no Q7/S8
+statement may cite the mapping gate as green.
+
 ## Fixture document validation
 
 `tests/renderer/q1b-fixtures.md` is the T022 worked-expectation document. It
@@ -276,7 +345,7 @@ first command.
 | T027 | PASS | Motion/validity, history reset and composition order |
 | T028 | PASS | Window surface, resize, minimize/restore, destroy, restart |
 | T029 | PASS | Declared accesses, pass order and invalid uses |
-| T030 | SKIPPED / OPEN | All fixtures and fault-injected removal pass; debug layer and GPU-based validation still report `0x887A002D` and `validation_executed=0` after the current-main rebase; the Agility SDK attempt could not load the system layers and no OS feature was installed |
+| T030 | SKIPPED / OPEN | All fixtures and fault-injected removal pass; debug layer and GPU-based validation still report `0x887A002D` and `validation_executed=0` after the current-main rebase and again on merged `main` (`f1e4feb`, 2026-10-29); the Agility SDK attempt could not load the system layers and no OS feature was installed. Residual accepted by the owner; still not a PASS |
 | T031 | REVIEW COMPLETE / NOT SATISFIED | Independent review of `35ce54e` in `review-q1.md`; T031 stays open because the debug layer and GPU-based validation do not execute |
 
 ## Limitations and open items
@@ -284,7 +353,9 @@ first command.
 1. **Full Q1 remains blocked.** The debug layer and GPU-based validation could
    not be enabled (`0x887A002D`). No unwaived-error claim is possible. T030 is
    recorded as executed with those two checks SKIPPED; T031 cannot be satisfied
-   until the gate actually executes.
+   until the gate actually executes. The owner accepted this residual on
+   2026-10-29; the acceptance records a known gap, it does not convert SKIPPED
+   into PASS.
 2. **The independent review is complete but T031 is not satisfied.**
    `review-q1.md` is the independent review of `35ce54e`; T031 stays open because
    T030's debug-layer and GPU-based validation gate is unmet. The author
