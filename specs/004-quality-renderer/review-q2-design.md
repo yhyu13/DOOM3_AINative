@@ -146,7 +146,7 @@ No ninth pass was run. After the PASS, T032/T033/T041 were ticked as design deli
 | Item | Status |
 |---|---|
 | Q0 `baseline-final13` establishes all four categories with measured ceilings | **Resolved**; T032 category thresholds are fixed. HUD/ROI controls (T-05/06/08/09) remain pending |
-| Engine build wiring is probed with a stub adapter (both EXEs, `/MT`); real adapter/engine run/selection and T035/T036/T083 are **not done**. Q1a is merged/tested but Q1b/Q1/T088 are not run | Build wiring is not engine integration; out of S4 scope |
+| Engine build wiring is probed with a stub adapter (both EXEs, `/MT`); real adapter/engine run/selection and T035/T036/T083 are **not done**. Q1a is merged/tested but Q1b/Q1 and the Q7a encoder leg are not run; the Q7a lexical/structural gate and browser spike executed afterwards in issue #35 | Build wiring is not engine integration; out of S4 scope |
 | T037/T038 fixtures (`fixture-*`, `hud-control`) | **Not authored**; rows are `NOT RUN` |
 | T041 fixture document at `tests/renderer/motion-fixtures.md` | **Delivered** byte-identically; C++ consumer tests (T042/T044/T046) and T048 remain pending |
 | Q1a tracker drift: merged PR #18, but T012–T021 remain unchecked | **Resolved** by PR #30 (T012–T021 checked) |
