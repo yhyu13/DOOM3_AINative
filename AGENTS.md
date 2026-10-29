@@ -108,7 +108,7 @@ renderer, or the submodule.
 | uv / uvx | 0.12.13 — use for spec-kit and Python tooling |
 | python / py | bare `python` is 2.7.16; `py` resolves 3.14.4 — use `uv run --python 3.12 ...` or `py -3` |
 | specify | `uvx --from git+https://github.com/github/spec-kit.git specify ...` |
-| emcc / emsdk | not installed yet (see `docs/ROADMAP.md` M2) |
+| emcc / emsdk | 6.0.13 installed via emsdk, per host, outside the repo (see `tests/webgpu/emscripten/README.md`); its bundled Python 3 must precede a system Python 2 on `PATH` |
 | gh | 2.100.0, on `PATH`, authenticated (workspace owner) — see `docs/GIT_WORKFLOW.md` §0 |
 
 ## Working in a worktree

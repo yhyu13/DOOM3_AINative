@@ -40,7 +40,7 @@ const REQUIRED = [
 const OPTIONAL_NOT_RUN = new Set(["A1-software-adapter"]);
 
 function parseArgs(argv) {
-  const args = { repeat: 1, out: path.join(ROOT, "build", "webgpu-q7a"), evidence: null, headed: false, timeout: 90000, browser: null };
+  const args = { repeat: 1, out: path.join(ROOT, "build", "webgpu-q7a"), evidence: null, headed: false, timeout: 90000, browser: null, page: "conformance.html", root: HERE };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const next = () => {
@@ -54,6 +54,8 @@ function parseArgs(argv) {
     else if (a === "--evidence") args.evidence = path.resolve(next());
     else if (a === "--headed") args.headed = true;
     else if (a === "--timeout") args.timeout = parseInt(next(), 10);
+    else if (a === "--page") args.page = next();
+    else if (a === "--root") args.root = path.resolve(next());
     else if (a === "--help" || a === "-h") {
       console.log("node tests/webgpu/run-conformance.mjs [--browser <path>] [--repeat <n>] [--out <dir>] [--evidence <dir>] [--headed] [--timeout <ms>]");
       process.exit(0);
@@ -77,7 +79,7 @@ function findBrowser(explicit) {
 }
 
 function serveStatic(root) {
-  const types = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".json": "application/json" };
+  const types = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".json": "application/json", ".wasm": "application/wasm", ".data": "application/octet-stream", ".png": "image/png" };
   const server = http.createServer((req, res) => {
     const url = new URL(req.url, "http://127.0.0.1");
     const rel = decodeURIComponent(url.pathname === "/" ? "/conformance.html" : url.pathname);
@@ -155,7 +157,7 @@ async function runOnce({ browserPath, args, httpPort, logs, attempt, nonce }) {
     "--disable-extensions",
     "--enable-unsafe-webgpu",
     "--hide-scrollbars",
-    `http://127.0.0.1:${httpPort}/conformance.html?run=${nonce}`,
+    `http://127.0.0.1:${httpPort}/${args.page}?run=${nonce}`,
   ];
   logs.push(`[attempt ${attempt}] launch: "${browserPath}" ${chromeArgs.filter((a) => !a.startsWith("--user-data-dir")).join(" ")}`);
   const child = spawn(browserPath, chromeArgs, { stdio: "ignore" });
@@ -173,7 +175,7 @@ async function runOnce({ browserPath, args, httpPort, logs, attempt, nonce }) {
     const target = await waitFor(async () => {
       const r = await fetch(`http://127.0.0.1:${cdpPort}/json/list`);
       const list = await r.json();
-      return list.find((t) => t.type === "page" && t.url.includes("/conformance.html")) || null;
+      return list.find((t) => t.type === "page" && t.url.includes("/" + args.page)) || null;
     }, { timeout: 20000, label: "conformance page target" });
 
     const cdp = connectCdp(target.webSocketDebuggerUrl);
@@ -227,7 +229,7 @@ async function main() {
   }
   fs.mkdirSync(args.out, { recursive: true });
   const logs = [];
-  const { server, port } = await serveStatic(HERE);
+  const { server, port } = await serveStatic(args.root);
   const runs = [];
   let exitCode = 0;
   try {
@@ -243,7 +245,7 @@ async function main() {
       }
       runs.push(run);
       const { failed, missing } = summarize(run.result);
-      console.log(`attempt ${attempt}: ${run.version}  ${run.result.summary.pass} pass / ${run.result.summary.fail} fail / ${run.result.summary.notRun} not run  (${run.result.elapsedMs} ms)`);
+      console.log(`attempt ${attempt}: ${run.version}  ${run.result.summary.pass} pass / ${run.result.summary.fail} fail / ${run.result.summary.notRun} not run  (${run.result.elapsedMs ?? "n/a"} ms)`);
       for (const c of run.result.checks) console.log(`  ${c.status === "PASS" ? "PASS" : c.status === "FAIL" ? "FAIL" : "NOTRUN"}  ${c.id}  ${c.observed ? JSON.stringify(c.observed).slice(0, 160) : c.detail.slice(0, 160)}`);
       if (missing.length) console.log(`  missing required checks: ${missing.join(", ")}`);
       if (failed.length) console.log(`  required checks not PASS: ${failed.join(", ")}`);
