@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """Structural and anchor checks for the S4 Q2 design documents.
 
 This is a checker, not a technical review. It verifies:

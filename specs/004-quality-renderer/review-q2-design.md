@@ -1,4 +1,4 @@
-﻿# Q2/Q3 design review log (S4: T032, T033, T041 design)
+# Q2/Q3 design review log (S4: T032, T033, T041 design)
 
 Status: **author-recorded review log**, 2026-10-28. The reviews below were performed by
 fresh-context AI subagents, not by a human and not by a different team. They are useful adversarial
@@ -98,7 +98,7 @@ dispositions:
 | Adapter ownership contradicted itself: `src/renderer/rhi/engine_scene_adapter.cpp` vs `neo/renderer/d3d12/...` | Standardized on the T035 superproject adapter compiled into `doom3_engine`; the fork only owns dispatch/glue |
 | The visual pack predated the final documents | Re-rendered and re-captured after the final doc edits |
 | C2589 was attributed to `std::max`/`std::min` | Corrected to the `max` macro breaking `std::numeric_limits<uint64_t>::max()` |
-| Q1a merged but T012–T021 unchecked | Disclosed as tracker drift; not ticked by S4 |
+| Q1a merged but T012–T021 unchecked | Disclosed as tracker drift; later resolved by PR #30 |
 
 ## 3.3 Round 5 — final blocker check, BLOCKED
 
@@ -126,12 +126,12 @@ A seventh pass reviewed commit `a2915ef`. It found that the S1 Q0 evidence had a
 `baseline-final13` two seconds before the S4 commit, so the committed `final11` values were
 superseded (ceilings and all-four PASS unchanged), and that the Q0 files were committed on the S1
 branch rather than untracked. The S4 docs were corrected to `final13`, its four recorded values, and
-"committed on the S1 branch, not merged to `main`"; a second commit records the correction. An eighth
-pass was run on that state.
+"committed on the S1 branch, not merged to `main`"; a second commit records the correction. Q0 was
+subsequently merged by PR #31 and T006–T011 were checked. An eighth pass was run on that state.
 
 ## 3.6 Round 8 — final13 committed, PASS (minor findings)
 
-The eighth fresh-context pass reviewed the committed final13 state (`f35b354`) and returned
+The eighth fresh-context pass reviewed the then-current final13 commit and returned
 **PASS** on substance, with minor findings: trailing blank lines at EOF (so the whitespace claim did
 not reproduce), the first commit message still named final11 (true at that commit), the Round 8
 verdict was not yet recorded, the S2 `megaTexture` row cited an untracked path, and the T009–T011
@@ -149,7 +149,7 @@ No ninth pass was run. After the PASS, T032/T033/T041 were ticked as design deli
 | Engine build wiring is probed with a stub adapter (both EXEs, `/MT`); real adapter/engine run/selection and T035/T036/T083 are **not done**. Q1a is merged/tested but Q1b/Q1/T088 are not run | Build wiring is not engine integration; out of S4 scope |
 | T037/T038 fixtures (`fixture-*`, `hud-control`) | **Not authored**; rows are `NOT RUN` |
 | T041 fixture document at `tests/renderer/motion-fixtures.md` | **Delivered** byte-identically; C++ consumer tests (T042/T044/T046) and T048 remain pending |
-| Q1a tracker drift: merged PR #18, but T012–T021 remain unchecked | Disclosed; S4 does not tick another session's tasks |
+| Q1a tracker drift: merged PR #18, but T012–T021 remain unchecked | **Resolved** by PR #30 (T012–T021 checked) |
 | T004/T005 sign-off | **Resolved** by PR #27; both tasks checked on `main` |
 | Independent human review | **None** |
 | T032/T033/T041 design deliverables | **Complete and ticked** after Round 8 PASS; Q2/Q3 implementation/execution and human sign-off are not claimed |
@@ -165,3 +165,4 @@ No ninth pass was run. After the PASS, T032/T033/T041 were ticked as design deli
 - The documents do not claim an engine build, a Q2 capture, a Q3 execution, or acceptance.
 
 **Verdict**: not approved. The design is reviewable; the completion claim is not.
+

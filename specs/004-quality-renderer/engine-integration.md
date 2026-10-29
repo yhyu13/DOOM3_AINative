@@ -1,4 +1,4 @@
-﻿# Engine integration and durable delivery (T033)
+# Engine integration and durable delivery (T033)
 
 **Status**: Q2 design. No engine code, build file, or submodule is changed by this task. All
 `path:line` anchors are against the pinned pristine submodule

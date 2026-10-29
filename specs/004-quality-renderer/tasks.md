@@ -1,4 +1,4 @@
-﻿# Tasks: Quality-first rendering for DOOM 3
+# Tasks: Quality-first rendering for DOOM 3
 
 **Input**: [spec.md](./spec.md), [plan.md](./plan.md), [research.md](./research.md), [data-model.md](./data-model.md), [RHI contract](./contracts/rhi-foundation.md) and [quickstart.md](./quickstart.md).
 

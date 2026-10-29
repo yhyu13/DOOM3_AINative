@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """Analytic motion fixtures for T041 (specs/004-quality-renderer/motion-fixtures.md).
 
 This script is the reproducible source of the expected values in the document. It does not

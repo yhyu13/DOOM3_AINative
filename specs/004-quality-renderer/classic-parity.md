@@ -1,11 +1,10 @@
-﻿# Classic compatibility parity contract (T032)
+# Classic compatibility parity contract (T032)
 
 **Status**: Q2 design and pre-registration. **No capture has run on the new path.** Q0
 `baseline-final13` is **established**: all four categories were captured twice at a fixed game tic
 with the engine framebuffer at 1280×720 and pass their ceilings; T011 is complete with residual gaps.
-The Q0 files are **committed on the S1 `feat/21-q0-safe-baseline` branch but not merged to
-`main`**; they must be reconciled when they land. T032 is **design-complete with measured Q0 ceilings**, but **not accepted**
-until an independent reviewer signs it and the Q2 fixtures/captures exist. No engine code is written
+Q0 is **merged on `main`** (PR #31); its final13 values are reconciled here. T032 is **design-complete with measured Q0 ceilings and ticked**; Q2 execution is not accepted until
+the fixtures/captures exist and a human/owner review is recorded. No engine code is written
 by this task and no game data is stored here.
 
 **Scope owner**: T032. Related tasks: T034/T037/T038 (tests/fixtures), T039 (evidence), T040
@@ -44,7 +43,7 @@ was skipped.
 
 | Item | Value |
 |---|---|
-| Source | `specs/004-quality-renderer/evidence-q0.md` and `reference-scenes.md`; committed on the S1 branch, **not merged to `main`** |
+| Source | `specs/004-quality-renderer/evidence-q0.md` and `reference-scenes.md` on `main` (PR #31) |
 | Q0 outcome | **Established**: `corridor`, `open-view`, `close-character`, `moving-light-combat` all `PASS` twice; no control scene |
 | Independent review | Review 1 `BLOCKED`, review 2 `BLOCKED`, review 3 `PASS-WITH-FINDINGS` (OS-window state); review 4 `PASS-WITH-FINDINGS` (fixed-tic `final10`); `final13` re-ran after a comment-only script change; T011 is complete with residual gaps |
 | Data | `base/demo00.pk4`, 483,534,533 bytes, SHA-256 `e373ec70b35cf72852a1f6014c2c2dc21f890a03cd41b21a9524755f951f64f9`, plus two local non-redistributed shims |
@@ -228,9 +227,9 @@ claim. Cite the S2 issue/PR when it lands.
 | T-10 | Q0 final13 whole-frame repeatability | Recorded `meanAbs` / `diffPercent` must be ≤ T-01–T-04; final13 values in §2 | Q0 `baseline-final13` | **FIXED AS BASELINE EVIDENCE**; not a cross-renderer parity result |
 
 The four category ceilings are now measured repeatability limits, not guesses. **T-05/T-06/T-08/T-09
-remain pending** because no HUD/ROI control has been measured. T032 is still not accepted: the new
-path has not captured anything, the T037/T038 fixtures do not exist, and no independent reviewer has
-signed the document.
+remain pending** because no HUD/ROI control has been measured. Q2 execution is still not accepted: the new path has
+not captured anything, the T037/T038 fixtures do not exist, and no human/owner reviewer has signed
+the document.
 
 ### 6.2 Rules that prevent a "pass by tolerance"
 
@@ -347,7 +346,7 @@ Q2 is claimable only when all of the following hold:
 - [x] **Q0 is established**: `baseline-final13` captures all four categories twice under deterministic
       fixed-tic drives and the reviews accept the method (review 4 `PASS-WITH-FINDINGS`; T011 complete
       with residual gaps).
-- [ ] Q0 is merged; its values are reconciled here; the review decision is recorded on `main`.
+- [x] Q0 is merged (PR #31); its values are reconciled here; the review decision is recorded on `main`.
 - [x] The three-tier RHI contract (T004) and the evidence template (T005) are independently approved
       (PR #27; both tasks checked).
 - [ ] Q1 capabilities required by the classic path exist; T088/Q7a is run or Q2 is explicitly
@@ -374,7 +373,7 @@ unchecked.
 
 | Blocker | Effect | Next action |
 |---|---|---|
-| Q0 final13 is committed on the S1 branch but not merged to `main`; reviews are AI-only | The input is not on `main`; no human sign-off | Land Q0, reconcile values, record the reviewer |
+| Q0 reviews are AI-only; no human sign-off | The input is on `main`, but the review chain is not human-signed | Record a human/owner review if required |
 | HUD and ROI controls are not measured (T-05/T-06/T-08/T-09) | HUD/ROI image gates cannot pass yet | T037/T038 measure the HUD and ROI controls; record before Q2 capture |
 | Q2 fixtures (§3.1) not authored | 30-row matrix cannot run | T037/T038 author deterministic fixtures and record thresholds |
 | Q1 incomplete (Q1a merged, Q1b/Q1 not done); T088 not run | Q2 is not permitted | Finish Q1, run T088, or re-scope Q2 in writing |
@@ -399,3 +398,6 @@ unchecked.
 here. The category thresholds in §6 are the measured final13 ceilings; HUD/ROI thresholds are still
 pending and are marked so. The source anchors are from the pinned submodule and should be re-checked
 on a bump. The test files named in §11 are planned and are explicitly marked as not existing.
+
+
+

@@ -1,4 +1,4 @@
-﻿# Q2/Q3 design evidence (S4: T032, T033, T041 design)
+# Q2/Q3 design evidence (S4: T032, T033, T041 design)
 
 Status: author evidence for design artifacts, 2026-10-28. This is **not** an engine build, a Q2
 capture, a Q3 execution, or an independent sign-off. It proves that the three documents and their
@@ -15,7 +15,7 @@ accepted.
 | Documents | `classic-parity.md` (T032), `engine-integration.md` (T033), `motion-fixtures.md` (T041 design) |
 | Tools | `tools/motion_fixtures.py`, `tools/verify-q2-design.py` |
 | Pinned engine | `doom3_orig/doom3` @ `a9c49da5afb18201d31e3f0a429a037e56ce2b9a` |
-| Q0 input | S1 `feat/21-q0-safe-baseline` branch, `evidence-q0.md` (`baseline-final13`) and `reference-scenes.md`; committed there, **not merged to `main`** |
+| Q0 input | `main` (PR #31), `evidence-q0.md` (`baseline-final13`) and `reference-scenes.md` |
 | Q0 result used | All four categories `PASS` twice at fixed tic: corridor 0.1827/0.2079, open-view 0.2258/0.2103, close-character 0.1082/0.0982, moving-light 0.0550/0.0318; Q0 **established** |
 | Review state used | Reviews 1/2 `BLOCKED`, review 3/4 `PASS-WITH-FINDINGS`; final13 after a comment-only script change; T011 complete with residual gaps |
 
@@ -26,13 +26,13 @@ ceilings and the merge/freshness condition.
 
 | File | SHA-256 |
 |---|---|
-| `specs/004-quality-renderer/classic-parity.md` | `7DC6E162278398A693CE152FBED24FFB5CC2A41FF56AF71314F44B3627DCFEDD` |
-| `specs/004-quality-renderer/engine-integration.md` | `1EE1DACEEA05C88615A6232BDF928CC350F81CCFAA0F326CD82056E6264F0637` |
-| `specs/004-quality-renderer/motion-fixtures.md` | `9E13C9D0A689932CBD6A5B23301E73990C422BD151B8F0A50B9D16060B19EEBA` |
-| `tests/renderer/motion-fixtures.md` | `9E13C9D0A689932CBD6A5B23301E73990C422BD151B8F0A50B9D16060B19EEBA` |
-| `specs/004-quality-renderer/tools/motion_fixtures.py` | `A81E8FA076578B21CAB2607A1D65EF5FD0077639CB607B15096967618C6A1997` |
-| `specs/004-quality-renderer/tools/verify-q2-design.py` | `CB56B96933B8F9678F5B544F96E2E640D52153D8146A5524661B75B364BD9F38` |
-| `specs/004-quality-renderer/review-q2-design.md` | `FE0CBCA7BA479969AE403677A7FF0BCBA9B999F40D7400E95A6B8331F4AB5589` |
+| `specs/004-quality-renderer/classic-parity.md` | `800F4066A29CAB3288AA2DDDA22A794E0543944DF9E9A606A9B256531F9FD37A` |
+| `specs/004-quality-renderer/engine-integration.md` | `B9F7E3F498BF100EAF7FD879629801FDC0AE4B5D54C53E268C578F2577FFBA2F` |
+| `specs/004-quality-renderer/motion-fixtures.md` | `2F3DE7FB5987A78F60FD0813565344D2C50C199D8AA419988DEDC75F77A4398D` |
+| `tests/renderer/motion-fixtures.md` | `2F3DE7FB5987A78F60FD0813565344D2C50C199D8AA419988DEDC75F77A4398D` |
+| `specs/004-quality-renderer/tools/motion_fixtures.py` | `E1E7B2E7B8522624580DDB4D2860B5573D00A6D4F94591031F723A239F50F870` |
+| `specs/004-quality-renderer/tools/verify-q2-design.py` | `D4A09B54AC7E365B256F7623413D324617914398AC73FDE1F0FBFD0C86D9616D` |
+| `specs/004-quality-renderer/review-q2-design.md` | `47C5CBA47700E03A970E4F89B8B52F463344348709C40FC4AE22E8D613D02ABB` |
 
 Hashes identify this change set. They will change if the documents are edited; recompute before
 using them to identify a different revision.
@@ -222,7 +222,7 @@ The three design documents and the T041 delivery copy were rendered to a static 
 Screenshots (git-ignored, worktree-local):
 
 - `build-q2-design/screenshots/index.png` (1440×1000)
-- `build-q2-design/screenshots/classic-parity.png` (1440×13175)
+- `build-q2-design/screenshots/classic-parity.png` (1440×13108)
 - `build-q2-design/screenshots/engine-integration.png` (1440×13849)
 - `build-q2-design/screenshots/motion-fixtures.png` (1440×10360)
 - `build-q2-design/screenshots/motion-fixtures-tests.png` (1440×10360)
@@ -241,9 +241,9 @@ does not prove semantic correctness.
 | Engine build/run | **Build wiring probed** with the real engine source tree and a stub adapter (both EXEs, `/MT`/`/MTd`, RHI linked); **real adapter and game run not done**; T035/T036/T083 |
 | Q1/Q1a/T088 | **Q1a** built and CTest 7/7 (Debug/Release); **Q1b/Q1 and T088 not run**; Q2 remains blocked |
 | T037/T038 fixtures | **Not authored**; the matrix rows are `NOT RUN` |
-| S4 task completion | **T032/T033/T041 are ticked** after the Round 8 PASS; programme checkbox count is now 6/88 (T001, T004, T005, T032, T033, T041). |
-| Q1a tracker drift | Q1a is merged (PR #18) and its evidence/review are on `main`, but **T012–T021 remain unchecked** in `tasks.md`. This is tracker drift; S4 does not tick another session's tasks. |
-| Q0 tracker drift | Q0 `final13` is established and committed on the S1 branch, but **T009–T011 remain unchecked** on `main`; the Q0 merge/reconcile is pending. |
+| S4 task completion | **T032/T033/T041 are ticked** after the Round 8 PASS; programme checkbox count is **22/88** after the Q0/Q1a and S4 tasks landed. |
+| Q1a tracker drift | **Resolved**: PR #30 checked T012–T021 on `main`. |
+| Q0 tracker drift | **Resolved**: PR #31 merged Q0 and checked T006–T011. |
 | Independent human review | **None**; the adversarial reviews are AI, recorded in `review-q2-design.md` |
 | Delivery | S4 files are committed on branch `docs/s4-q2-design-final13`; **no PR** was requested |
 | Game data | None read or stored; Q0 identity is cited only |
@@ -256,6 +256,9 @@ passes, Q1a builds and passes 7/7 CTest in Debug and Release, and the proposed C
 builds both executables against the real engine source tree (stub adapter).
 
 T032, T033 and T041 are **ticked as design deliverables** after the Round 8 independent PASS
-(6/88 checked overall), but that is not execution acceptance. Q2 fixtures/new-path captures, HUD/ROI
+(22/88 checked overall), but that is not execution acceptance. Q2 fixtures/new-path captures, HUD/ROI
 controls and a human sign-off do not exist; T033's real adapter/selector/run do not exist; T041's
 C++ consumer tests and T048 have not run.
+
+
+

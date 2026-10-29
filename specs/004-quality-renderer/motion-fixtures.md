@@ -1,4 +1,4 @@
-﻿# Motion fixture contract (T041)
+# Motion fixture contract (T041)
 
 **Status**: Q3 design **and analytic fixture vectors**, delivered at
 `tests/renderer/motion-fixtures.md` and mirrored here byte-for-byte. No GPU fixture, renderer code or
