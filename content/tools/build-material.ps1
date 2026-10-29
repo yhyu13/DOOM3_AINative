@@ -11,7 +11,11 @@
     - the material must be listed in the Q4 set, and the sidecar must agree with that entry;
     - each of baseColor, normal, roughness, metalness, ao, emissive must carry an explicit state of
       authored, derived:<method> or unavailable; unavailable needs a why and produces no texture;
+    - a channel declares either path (one source) or assembly (a tiled canvas); declaring both is an
+      error;
     - every declared source must be a PNG, square, a multiple of 4 on each axis and <= 2048 px;
+      assembly tiles follow the same rule, sit on multiples of 4, stay in bounds, do not overlap and
+      cover the declared canvas exactly;
     - format flags come from pins.json, never from this script;
     - package_sha256 is SHA-256 over the sidecar hash, the .mtr hash and every texture hash sorted by
       channel name, joined with a single LF and no trailing newline.
@@ -140,6 +144,44 @@ function Get-LogTail {
     if ([string]::IsNullOrWhiteSpace($Text)) { return '(no output)' }
     $rows = @($Text.Trim() -split "`r?`n" | Where-Object { $_.Trim() -ne '' })
     return (@($rows | Select-Object -Last $Lines) -join ' | ')
+}
+
+# Geometry for a tiled channel. Bounds and pairwise non-overlap plus an exact area sum is enough to
+# prove exact coverage: a rectangle that is inside the canvas and does not overlap another one covers
+# only canvas pixels, so equal areas mean no gap and no overflow remains.
+function Test-AssemblyTiles {
+    param(
+        [Parameter(Mandatory = $true)][string]$Channel,
+        [Parameter(Mandatory = $true)]$Assembly,
+        [Parameter(Mandatory = $true)]$Tiles
+    )
+    $rects = @()
+    foreach ($tile in $Tiles) {
+        if (($tile.x % 4) -ne 0 -or ($tile.y % 4) -ne 0) {
+            Write-Failure 1 'assembly-alignment' "channel '$Channel' tile '$($tile.relative)' is at ($($tile.x),$($tile.y)); x and y must be multiples of 4"
+        }
+        if ($tile.x -lt 0 -or $tile.y -lt 0 -or
+            ($tile.x + $tile.width) -gt $Assembly.width -or ($tile.y + $tile.height) -gt $Assembly.height) {
+            Write-Failure 1 'assembly-bounds' "channel '$Channel' tile '$($tile.relative)' at ($($tile.x),$($tile.y)) size $($tile.width)x$($tile.height) leaves the $($Assembly.width)x$($Assembly.height) canvas"
+        }
+        $rects += [pscustomobject]@{ x = $tile.x; y = $tile.y; width = $tile.width; height = $tile.height }
+    }
+    for ($i = 0; $i -lt $rects.Count; $i++) {
+        for ($j = $i + 1; $j -lt $rects.Count; $j++) {
+            $a = $rects[$i]
+            $b = $rects[$j]
+            if ($a.x -lt ($b.x + $b.width) -and $b.x -lt ($a.x + $a.width) -and
+                $a.y -lt ($b.y + $b.height) -and $b.y -lt ($a.y + $a.height)) {
+                Write-Failure 1 'assembly-overlap' "channel '$Channel' tiles at ($($a.x),$($a.y)) and ($($b.x),$($b.y)) overlap"
+            }
+        }
+    }
+    $covered = 0
+    foreach ($rect in $rects) { $covered += ($rect.width * $rect.height) }
+    $canvas = $Assembly.width * $Assembly.height
+    if ($covered -ne $canvas) {
+        Write-Failure 1 'assembly-gap' "channel '$Channel' tiles cover $covered of $canvas pixels; a gap or an overflow remains"
+    }
 }
 
 <#
@@ -271,16 +313,19 @@ foreach ($name in $script:ChannelNames) {
         if ([string]::IsNullOrWhiteSpace($why)) {
             Write-Failure 1 'channel-why-missing' "channel '$name' is unavailable but gives no why"
         }
-        $channels.Add([pscustomobject]@{ name = $name; state = $state; kind = $kind; relative = $null; full = $null })
+        $channels.Add([pscustomobject]@{ name = $name; state = $state; kind = $kind; relative = $null; full = $null; assembly = $null; tiles = $null })
         continue
     }
 
     $relative = [string](Get-JsonField $node 'path')
-    if ([string]::IsNullOrWhiteSpace($relative)) {
-        Write-Failure 1 'channel-path-missing' "channel '$name' is $kind but names no path"
+    $hasPath = -not [string]::IsNullOrWhiteSpace($relative)
+    $assemblyNode = Get-JsonField $node 'assembly'
+    $hasAssembly = $null -ne $assemblyNode
+    if ($hasPath -and $hasAssembly) {
+        Write-Failure 1 'channel-source-ambiguous' "channel '$name' declares both path and assembly; choose one"
     }
-    if (-not (Test-RepoRelativePath -RelativePath $relative)) {
-        Write-Failure 1 'channel-path-invalid' "channel '$name' path '$relative' is not a repository-relative path"
+    if (-not $hasPath -and -not $hasAssembly) {
+        Write-Failure 1 'channel-path-missing' "channel '$name' is $kind but names no path or assembly"
     }
     if ($name -eq 'normal') {
         # Spec edge case: a normal map's handedness is not inferable from the image, so an undeclared
@@ -293,25 +338,79 @@ foreach ($name in $script:ChannelNames) {
             Write-Failure 1 'channel-handedness-invalid' "channel 'normal' handedness '$handedness' is neither opengl nor directx"
         }
     }
-    $full = Resolve-RepoPath -RepoRoot $RepoRoot -RelativePath $relative
-    if (-not (Test-Path -LiteralPath $full)) {
-        Write-Failure 1 'channel-source-missing' "channel '$name' source '$relative' does not exist"
+
+    if ($hasPath) {
+        if (-not (Test-RepoRelativePath -RelativePath $relative)) {
+            Write-Failure 1 'channel-path-invalid' "channel '$name' path '$relative' is not a repository-relative path"
+        }
+        $full = Resolve-RepoPath -RepoRoot $RepoRoot -RelativePath $relative
+        if (-not (Test-Path -LiteralPath $full)) {
+            Write-Failure 1 'channel-source-missing' "channel '$name' source '$relative' does not exist"
+        }
+        if ([System.IO.Path]::GetExtension($full) -ine '.png') {
+            Write-Failure 1 'channel-source-format' "channel '$name' source '$relative' is not a PNG; only PNG sources are supported"
+        }
+        $channels.Add([pscustomobject]@{ name = $name; state = $state; kind = $kind; relative = $relative; full = $full; assembly = $null; tiles = $null })
+        continue
     }
-    if ([System.IO.Path]::GetExtension($full) -ine '.png') {
-        Write-Failure 1 'channel-source-format' "channel '$name' source '$relative' is not a PNG; only PNG sources are supported"
+
+    $assemblyWidthValue = Get-JsonField $assemblyNode 'width'
+    $assemblyHeightValue = Get-JsonField $assemblyNode 'height'
+    if ($null -eq $assemblyWidthValue -or $null -eq $assemblyHeightValue) {
+        Write-Failure 1 'assembly-invalid' "channel '$name' assembly declares no width and height"
     }
-    $channels.Add([pscustomobject]@{ name = $name; state = $state; kind = $kind; relative = $relative; full = $full })
+    $assemblyWidth = [int]$assemblyWidthValue
+    $assemblyHeight = [int]$assemblyHeightValue
+    if ($assemblyWidth -le 0 -or $assemblyHeight -le 0 -or $assemblyWidth -gt 8192 -or $assemblyHeight -gt 8192 -or
+        ($assemblyWidth % 4) -ne 0 -or ($assemblyHeight % 4) -ne 0) {
+        Write-Failure 1 'assembly-dimension' "channel '$name' assembly is ${assemblyWidth}x${assemblyHeight}; width and height must be positive multiples of 4 up to 8192"
+    }
+    $tileNodes = @(Get-JsonField $assemblyNode 'tiles')
+    if ($tileNodes.Count -eq 0) {
+        Write-Failure 1 'assembly-invalid' "channel '$name' assembly declares no tiles"
+    }
+    $tiles = New-Object System.Collections.Generic.List[object]
+    foreach ($tileNode in $tileNodes) {
+        if ($null -eq $tileNode) { Write-Failure 1 'assembly-invalid' "channel '$name' assembly holds a null tile" }
+        $tileRelative = [string](Get-JsonField $tileNode 'path')
+        $tileXValue = Get-JsonField $tileNode 'x'
+        $tileYValue = Get-JsonField $tileNode 'y'
+        if ([string]::IsNullOrWhiteSpace($tileRelative) -or $null -eq $tileXValue -or $null -eq $tileYValue) {
+            Write-Failure 1 'assembly-tile-invalid' "channel '$name' has a tile with no path, x or y"
+        }
+        if (-not (Test-RepoRelativePath -RelativePath $tileRelative)) {
+            Write-Failure 1 'assembly-tile-invalid' "channel '$name' tile path '$tileRelative' is not a repository-relative path"
+        }
+        $tileFull = Resolve-RepoPath -RepoRoot $RepoRoot -RelativePath $tileRelative
+        if (-not (Test-Path -LiteralPath $tileFull)) {
+            Write-Failure 1 'channel-source-missing' "channel '$name' tile '$tileRelative' does not exist"
+        }
+        if ([System.IO.Path]::GetExtension($tileFull) -ine '.png') {
+            Write-Failure 1 'channel-source-format' "channel '$name' tile '$tileRelative' is not a PNG; only PNG sources are supported"
+        }
+        $tiles.Add([pscustomobject]@{ relative = $tileRelative; full = $tileFull; x = [int]$tileXValue; y = [int]$tileYValue; width = 0; height = 0 })
+    }
+    $assembly = [pscustomobject]@{ width = $assemblyWidth; height = $assemblyHeight }
+    $channels.Add([pscustomobject]@{ name = $name; state = $state; kind = $kind; relative = $null; full = $null; assembly = $assembly; tiles = $tiles })
 }
 
 # --- source validation: dimensions come from Pillow, never from parsing the PNG -------------------
 $sources = New-Object System.Collections.Generic.List[string]
 $seen = @{}
-foreach ($channel in $channels) {
-    if ($null -eq $channel.full) { continue }
-    $key = $channel.full.ToLowerInvariant()
-    if ($seen.ContainsKey($key)) { continue }
+function Add-Source {
+    param([string]$Path)
+    $key = $Path.ToLowerInvariant()
+    if ($seen.ContainsKey($key)) { return }
     $seen[$key] = $true
-    $sources.Add($channel.full)
+    $sources.Add($Path)
+}
+foreach ($channel in $channels) {
+    if ($channel.kind -eq 'unavailable') { continue }
+    if ($null -ne $channel.assembly) {
+        foreach ($tile in $channel.tiles) { Add-Source $tile.full }
+    } else {
+        Add-Source $channel.full
+    }
 }
 
 $environment = [System.IO.Path]::GetTempPath()
@@ -398,7 +497,38 @@ foreach ($image in @(Get-JsonField $report 'images')) {
 }
 
 foreach ($channel in $channels) {
-    if ($null -eq $channel.full) { continue }
+    if ($channel.kind -eq 'unavailable') { continue }
+
+    if ($null -ne $channel.assembly) {
+        foreach ($tile in $channel.tiles) {
+            $image = $dimensions[$tile.full.ToLowerInvariant()]
+            if ($null -eq $image) { Write-Failure 1 'source-unreadable' "no dimensions returned for '$($tile.relative)'" }
+
+            $format = [string](Get-JsonField $image 'format')
+            if ($format -ne 'PNG') {
+                Write-Failure 1 'source-format' "channel '$($channel.name)' tile '$($tile.relative)' is $format, not PNG"
+            }
+            $width = [int](Get-JsonField $image 'width')
+            $height = [int](Get-JsonField $image 'height')
+
+            if ($width -ne $height) {
+                Write-Failure 1 'source-aspect' "channel '$($channel.name)' tile '$($tile.relative)' is ${width}x${height}; a square source is required"
+            }
+            if ($width -gt 2048 -or $height -gt 2048) {
+                Write-Failure 1 'source-dimension' "channel '$($channel.name)' tile '$($tile.relative)' is ${width}x${height}; the limit is 2048 px per axis"
+            }
+            if (($width % 4) -ne 0 -or ($height % 4) -ne 0) {
+                Write-Failure 1 'source-alignment' "channel '$($channel.name)' tile '$($tile.relative)' is ${width}x${height}; each axis must be a multiple of 4"
+            }
+            $tile.width = $width
+            $tile.height = $height
+        }
+        Test-AssemblyTiles -Channel $channel.name -Assembly $channel.assembly -Tiles $channel.tiles
+        $channel | Add-Member -NotePropertyName width -NotePropertyValue $channel.assembly.width -Force
+        $channel | Add-Member -NotePropertyName height -NotePropertyValue $channel.assembly.height -Force
+        continue
+    }
+
     $image = $dimensions[$channel.full.ToLowerInvariant()]
     if ($null -eq $image) { Write-Failure 1 'source-unreadable' "no dimensions returned for '$($channel.relative)'" }
 
@@ -420,6 +550,86 @@ foreach ($channel in $channels) {
     }
     $channel | Add-Member -NotePropertyName width -NotePropertyValue $width -Force
     $channel | Add-Member -NotePropertyName height -NotePropertyValue $height -Force
+}
+
+# --- assemble tiled channels ---------------------------------------------------------------------
+$assemblyHelperPath = Join-Path $workDir 'assemble.py'
+$assemblyRequestPath = Join-Path $workDir 'assemble-request.json'
+$assemblyHelperSource = @'
+import json, sys
+
+def emit(payload, code):
+    sys.stdout.write(json.dumps(payload, sort_keys=True))
+    sys.stdout.flush()
+    sys.exit(code)
+
+try:
+    from PIL import Image
+except Exception as exc:
+    emit({"envError": "Pillow is not importable: %s" % exc}, 3)
+
+if len(sys.argv) != 2:
+    emit({"envError": "usage: assemble.py <request.json>"}, 3)
+
+try:
+    with open(sys.argv[1], "r", encoding="utf-8") as handle:
+        request = json.load(handle)
+except Exception as exc:
+    emit({"envError": "cannot read request: %s" % exc}, 3)
+
+try:
+    images = []
+    mode = "RGB"
+    for tile in request["tiles"]:
+        image = Image.open(tile["path"])
+        image.load()
+        if image.mode in ("RGBA", "LA") or (image.mode == "P" and "transparency" in image.info):
+            mode = "RGBA"
+        images.append((tile, image))
+    canvas = Image.new(mode, (int(request["width"]), int(request["height"])))
+    for tile, image in images:
+        if image.mode != mode:
+            image = image.convert(mode)
+        canvas.paste(image, (int(tile["x"]), int(tile["y"])))
+    canvas.save(request["output"], format="PNG")
+except Exception as exc:
+    emit({"envError": None, "error": str(exc)}, 4)
+
+emit({"envError": None, "error": None, "output": request["output"]}, 0)
+'@
+[System.IO.File]::WriteAllText($assemblyHelperPath, $assemblyHelperSource, (New-Object System.Text.UTF8Encoding($false)))
+
+foreach ($channel in $channels) {
+    if ($null -eq $channel.assembly) { continue }
+    $assembledPng = Join-Path $workDir ('assembled-' + $channel.name + '.png')
+    $assemblyRequest = [ordered]@{
+        width  = $channel.assembly.width
+        height = $channel.assembly.height
+        output = $assembledPng
+        tiles  = @($channel.tiles | ForEach-Object { [ordered]@{ path = $_.full; x = $_.x; y = $_.y } })
+    }
+    [System.IO.File]::WriteAllText($assemblyRequestPath, (ConvertTo-Json -InputObject $assemblyRequest -Depth 6), (New-Object System.Text.UTF8Encoding($false)))
+    try {
+        $assemblyRaw = & $launcherParts[0] $launcherArgs $assemblyHelperPath $assemblyRequestPath
+        $assemblyExit = $LASTEXITCODE
+    } catch {
+        Write-Failure 2 'env-python' "cannot run '$launcher' while assembling '$($channel.name)': $($_.Exception.Message)"
+    }
+    if (-not $assemblyRaw) { Write-Failure 2 'env-python' "'$launcher' produced no output while assembling '$($channel.name)'" }
+    try { $assemblyReport = ($assemblyRaw | Out-String) | ConvertFrom-Json } catch {
+        Write-Failure 2 'env-python' "'$launcher' did not return JSON while assembling '$($channel.name)': $((($assemblyRaw | Out-String).Trim()))"
+    }
+    $assemblyEnvError = [string](Get-JsonField $assemblyReport 'envError')
+    if (-not [string]::IsNullOrWhiteSpace($assemblyEnvError)) { Write-Failure 2 'env-python' $assemblyEnvError }
+    if ($assemblyExit -ne 0) {
+        $assemblyError = [string](Get-JsonField $assemblyReport 'error')
+        if ([string]::IsNullOrWhiteSpace($assemblyError)) { $assemblyError = "exit code $assemblyExit" }
+        Write-Failure 1 'assembly-failed' "channel '$($channel.name)': $assemblyError"
+    }
+    if (-not (Test-Path -LiteralPath $assembledPng)) {
+        Write-Failure 1 'assembly-failed' "channel '$($channel.name)' produced no assembled PNG"
+    }
+    $channel.full = $assembledPng
 }
 
 # --- pinned encoder ------------------------------------------------------------------------------
@@ -490,17 +700,23 @@ foreach ($channel in $channels) {
         Write-Failure 1 'encode-mips' "channel '$($channel.name)' has $($info.mips) mips, a full chain needs $expectedMips"
     }
 
-    $built[$channel.name] = [ordered]@{
-        channel  = $channel.name
-        file     = $channel.name + '.dds'
-        format   = $info.format
-        width    = $info.width
-        height   = $info.height
-        mips     = $info.mips
-        srgb     = $info.srgb
-        sha256   = Get-Sha256 $dds
-        sources  = @([ordered]@{ path = $channel.relative })
+    $record = [ordered]@{
+        channel = $channel.name
+        file    = $channel.name + '.dds'
+        format  = $info.format
+        width   = $info.width
+        height  = $info.height
+        mips    = $info.mips
+        srgb    = $info.srgb
+        sha256  = Get-Sha256 $dds
     }
+    if ($null -ne $channel.assembly) {
+        $record['sources'] = @($channel.tiles | ForEach-Object { [ordered]@{ path = $_.relative; x = $_.x; y = $_.y } })
+        $record['assembled'] = [ordered]@{ width = $channel.assembly.width; height = $channel.assembly.height }
+    } else {
+        $record['sources'] = @([ordered]@{ path = $channel.relative })
+    }
+    $built[$channel.name] = $record
 }
 
 $channelOrder = [string[]]@($built.Keys)

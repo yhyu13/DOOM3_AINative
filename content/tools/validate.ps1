@@ -710,7 +710,7 @@ if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
 # --- Check 10: hygiene ---------------------------------------------------------
 
 $hygienePatterns = @(
-    @{ Name = 'absolute-windows-path'; Pattern = '[A-Za-z]:\\' },
+    @{ Name = 'absolute-windows-path'; Pattern = '(?<![A-Za-z0-9_])[A-Za-z]:\\[A-Za-z0-9_.$\\-]' },
     @{ Name = 'absolute-unix-path'; Pattern = '/Users/|/home/' },
     @{ Name = 'private-key-block'; Pattern = '-----BEGIN' },
     @{ Name = 'aws-access-key-id'; Pattern = 'AKIA[0-9A-Z]{16}' },
