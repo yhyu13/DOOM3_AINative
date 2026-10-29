@@ -34,9 +34,9 @@
 
 **Q0 result (2026-10-28)**: all four requested categories are captured twice with the engine
 framebuffer screenshot at a fixed game tic (`com_fixedTic 1`) and pass the ceilings (meanAbs 0.096
-/ 0.037 / 0.263 / 0.545; diff 0.091% / 0.143% / 0.209% / 0.749%). SC-001 is met for this host,
+/ 0.037 / 0.263 / 0.545; diff 0.208% / 0.210% / 0.098% / 0.032%). SC-001 is met for this host,
 demo data and GL renderer. The OS-window attempts are retained as calibration history. T011 review 4
-is the independent review of the final11 state; its wording findings are recorded in
+is the independent review of the final13 state; its wording findings are recorded in
 `evidence-q0.md` §8.
 
 ## Phase 4 — US2: Synthetic RHI foundation (P1; Q1a → Q1b → Q1)

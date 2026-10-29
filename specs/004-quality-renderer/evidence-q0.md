@@ -2,7 +2,7 @@
 
 Status: **Q0 established** on 2026-10-28 in the `feat/21-q0-safe-baseline` worktree. All four
 reference categories were captured twice with the engine's own framebuffer screenshot at a fixed
-game tic, and pass the ceilings frozen before the recorded run. The ceilings were tightened after the fixed-tic probes; the earlier, looser cells are disclosed in `reference-scenes.md` §6, and final11 also passes them. This is evidence for the existing
+game tic, and pass the ceilings frozen before the recorded run. The ceilings were tightened after the fixed-tic probes; the earlier, looser cells are disclosed in `reference-scenes.md` §6, and final13 also passes them. This is evidence for the existing
 OpenGL renderer only; it does not claim classic parity, modern-renderer quality, web support,
 retail scene coverage, or performance.
 
@@ -38,7 +38,7 @@ retained rather than hidden.
 | Submodule dirt | `git -C doom3_orig/doom3 status --porcelain` empty |
 | Target patch | `targets/win11-amd64/patches/all-changes.patch`, 731,842 bytes, SHA-256 `bf1ad1e06da8198d0404ded8829d4ef6efcd35666378e91cd633e787c85ded80` |
 | Patch manifest | SHA-256 `05824d894423ebef07c2d8451e7373746e3569683527e54270a3af0d0aa68abe` |
-| Output tree | `build-q0-20261028/baseline-final11` (git-ignored) |
+| Output tree | `build-q0-20261028/baseline-final13` (git-ignored) |
 | Captured executable | `build-q0-verify-20261028/bin/Release/DOOM3.exe` |
 
 The target copy is a git-ignored copy of the pristine submodule plus the patch above. The submodule
@@ -47,21 +47,21 @@ and its hashes are in §2.1.
 
 ### 2.1 Captured-code identity
 
-The final11 manifest records the hash of the exact script, test and launcher used:
+The final13 manifest records the hash of the exact script, test and launcher used:
 
-| File | SHA-256 in final11 manifest |
+| File | SHA-256 in final13 manifest |
 |---|---|
-| `scripts/test-render-baseline.ps1` | `7b5dc84cdf6b4df59f6d1441a7be09ef89e81aee580f04520368365a72ab0a9a` |
-| `tests/baseline/test-render-baseline.ps1` | `57de9506050183f0f8c945b7a0f245b68cb99cba29004341e02438e45ab6d552` |
-| `tests/renderer/test-render-baseline.ps1` | `3419e30fecfe48ec3df0bac7db9991f9d3a0b567a9cca492c38c7b9f53a6c9bf` |
+| `scripts/test-render-baseline.ps1` | `c429499e9d8dd607038428bac4dab1a3b1129a2b5506d68fa73f6ae2da419770` |
+| `tests/baseline/test-render-baseline.ps1` | `22809edad48ca0b767735831d43635c6e724791fefc6f2fe60fa78fe4e3bfb7a` |
+| `tests/renderer/test-render-baseline.ps1` | `05032adb8c85fa0c3e49faddd9725beebc614a0de41d226eab50862883d59fe8` |
 
 The current files match those hashes. The two spec documents are not read by the capture script;
 their hashes identify the reviewed change set:
 
 | File | SHA-256 |
 |---|---|
-| `specs/004-quality-renderer/baseline-procedure.md` | `0d54a1f38d06dbbbe4baabffaf1a4084291bf7153e2884724910200d0d5d05d4` |
-| `specs/004-quality-renderer/reference-scenes.md` | `804387377784fc6172471669e5c9187da9f42076129f8d6957938f88091d3037` |
+| `specs/004-quality-renderer/baseline-procedure.md` | `44e7a715a4110c309a49e2f2c8c066b04fcd9f5d89784adb3300ffd06b4afe37` |
+| `specs/004-quality-renderer/reference-scenes.md` | `69e5413186ba4d915e4d32a45fa86a54432ec7caa2e0f9605339f8e09a5c856b` |
 
 ## 3. Fresh build
 
@@ -118,7 +118,7 @@ Command (relative paths; the external data root is the local prepared demo run):
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\test-render-baseline.ps1 `
   -Mode All -CaptureMethod Engine -Exe build-q0-verify-20261028\bin\Release\DOOM3.exe `
   -DataDir <D3_DATA_DIR> `
-  -OutDir build-q0-20261028\baseline-final11 -OutRoot build-q0-20261028 `
+  -OutDir build-q0-20261028\baseline-final13 -OutRoot build-q0-20261028 `
   -SettleSec 0 -TimeoutSec 180 -Repeat 2
 ```
 
@@ -130,23 +130,23 @@ true-colour TGA (24- or 32-bit) to PNG and compares the PNG pair. The OS window 
 
 | Scene | Status | Runs | `meanAbs` | `diffPercent` | Ceiling | Centre luma | Distinct colours |
 |---|---|---|---:|---:|---|---:|---:|
-| `corridor` | PASS | 2 | 0.0848 | 0.0905 | 0.5 / 0.5 | 14.20 / 14.20 | 17,939 / 17,889 |
-| `open-view` | PASS | 2 | 0.1767 | 0.1430 | 2.0 / 2.0 | 13.94 / 13.85 | 21,134 / 20,950 |
-| `close-character` | PASS | 2 | 0.1665 | 0.2088 | 0.5 / 0.5 | 24.20 / 24.20 | 24,604 / 24,694 |
-| `moving-light-combat` | PASS | 2 | 0.4853 | 0.7490 | 3.0 / 5.0 | 23.93 / 23.95 | 91,938 / 91,920 |
+| `corridor` | PASS | 2 | 0.1827 | 0.2079 | 0.5 / 0.5 | 14.21 / 14.09 | 17,931 / 17,695 |
+| `open-view` | PASS | 2 | 0.2258 | 0.2103 | 2.0 / 2.0 | 13.85 / 13.88 | 20,956 / 21,183 |
+| `close-character` | PASS | 2 | 0.1082 | 0.0982 | 0.5 / 0.5 | 24.19 / 24.19 | 24,674 / 24,636 |
+| `moving-light-combat` | PASS | 2 | 0.0550 | 0.0318 | 3.0 / 5.0 | 23.78 / 23.84 | 91,908 / 91,912 |
 
 Screenshot SHA-256 (run1 / run2):
 
 | Scene | run1 | run2 |
 |---|---|---|
-| `corridor` | `50cbb573d120701e3448acc4210f05e9629fa1bae86eee6da72069354b89c5e2` | `615a6dbd9f092ed2b8988ec3b0104daa7de088bbe9fcc6653d7c4db5fed56457` |
-| `open-view` | `033fc4ae72ced7a566b7f425a21a82f1edb159f971da852c321f3f8b722bc6e5` | `14fe37cdb2a6abee84647291d1b08916b561dad903679228cfec764ed5105bfc` |
-| `close-character` | `2ea57c59e5b705a0f36c196fb2f16a2345c3856f3c050c988e566d3ea79c41cf` | `5c046d486f44bef64e04cc067a9af498eef16698fe65211613b60b02b8508c2c` |
-| `moving-light-combat` | `cf911f1fe6e78baf027dbf493bf04bf50da4c6eb122e6c2a7c430d6da9a4e6fc` | `33cfc530cc49847c8a081db9db9518fbaac0288eef6c18c4f452c2020574b666` |
+| `corridor` | `d17e377b137d2eddaafc67ac16da24784bc810cb47e33e5f4cf422bf82b01468` | `7aaec2305f2a0e602838675c9602a3dfeb08d00ae66a2743b49146bf5c3f0d9a` |
+| `open-view` | `c263a2634fd24533c1270b71f1d6520c485e0067e18479804bd46fec087a55dc` | `42c36c70a4a15b703f4e8849794e133a8e18693cb8d0c5a6d0c3c36fc8a7d886` |
+| `close-character` | `92554dd1f19c90274e00c5f5e9681736b84255b98ff61aced29b2908fd01344f` | `184c47e01092c618058575715ce49edd0affb1a0da9c32ad70c2005acd272751` |
+| `moving-light-combat` | `b070272ac23475bd5c475ad1bc71afa6f2b3750dc5e60cbd8b6748bf5e1223fe` | `480466f3db8785980e419d67b1e5234b0cce298f313d3de032c4d85fe0936f14` |
 
 The frames are visually distinct and match the categories: underground corridor, open hangar,
 third-person marine, and imp attack. final9 had a `control-interior` closed-door frame on the same
-`demo_mc_underground` map; final11 uses that map at 600 tics after the doors open, and the corridor
+`demo_mc_underground` map; final13 uses that map at 600 tics after the doors open, and the corridor
 frame shows the interior. The control scene was removed; this is not a relabel of the door frame.
 `SC-001` is met: all four categories were captured twice, no category is SKIPPED.
 
@@ -174,7 +174,7 @@ implementation; this keeps the Q0 tests out of the Q1a-owned `tests/renderer/CMa
 
 The suite uses a synthetic executable (never executed), a tiny zip as `demo00.pk4`, and generated
 PNGs. It reads no game data and starts no engine. The `Engine` capture path is exercised by the
-real final11 run, not by the synthetic suite; process start/stop and the real `-Clean` archive
+real final13 run, not by the synthetic suite; process start/stop and the real `-Clean` archive
 remain not behavior-tested.
 
 ## 7. Verification of the change set
@@ -187,7 +187,7 @@ remain not behavior-tested.
 | Q0 files in `git status` | only the new script, tests and spec documents; no tracked file modified |
 | Exit file | moved into `build-q0-verify-20261028/`, so it is under the ignored build tree |
 | Absolute machine paths in tracked evidence | none; the external data root is `<D3_DATA_DIR>` and the CMake path uses `$env:ProgramFiles` |
-| Compare overwrite | second `Compare` on `baseline-final11` would exit 5 and preserve `comparison.json` |
+| Compare overwrite | second `Compare` on `baseline-final13` would exit 5 and preserve `comparison.json` |
 
 ## 8. Independent review (T011)
 
@@ -195,13 +195,13 @@ Review 1 (2026-10-28) was an independent subagent with a fresh context; verdict 
 Review 2 (same day) was a second independent pass; verdict **BLOCKED** with new findings. Review 3
 was a third pass; verdict **PASS-WITH-FINDINGS**. Those reviews were on the OS-window/blocked
 state. After review 3, the fixed-tic engine-framebuffer method changed the capture and produced
-`baseline-final10`; review 4 read that state. A comment-only script change then altered the hash, so the same capture was rerun as `baseline-final11` with the current script; final11 is the recorded tree.
+`baseline-final10`; review 4 read that state. A comment-only script change then altered the hash, so the same capture was rerun as `baseline-final13` with the current script; final13 is the recorded tree.
 
 | Finding | Disposition |
 |---|---|
 | R1-B1: Compare overwrote `comparison.json`. | Fixed: Compare refuses an existing report (exit 5); test checks the hash is unchanged. |
 | R1-B2: Mutation tests reused a moved fixture. | Fixed: fresh fixture per mutant; safe result = exit 5 + sentinel; archive gated on `Capture/All` and `-Clean`. |
-| R1-B3/B4: Wrong recorded values / hidden calibration. | Fixed: the current result is final11; the scene spec discloses the failed OS-window runs. |
+| R1-B3/B4: Wrong recorded values / hidden calibration. | Fixed: the current result is final13; the scene spec discloses the failed OS-window runs. |
 | R1-B5: Review section self-attested. | Fixed: all reviews and verdicts are recorded. |
 | R1-M1: OutDir inside data/exe not refused. | Fixed: both directions; tests cover inside/equals/parent data and inside exe. |
 | R1-M2: Refusal after the 483 MB hash. | Fixed: preflight before exe/data. |
@@ -210,19 +210,19 @@ state. After review 3, the fixed-tic engine-framebuffer method changed the captu
 | R1-M5–M10: output-tree wording, absolute VS path, citation, corridor evidence, host identity, command line. | Fixed or disclosed in the current documents. |
 | R2-B4: Calibration table misattributed the open pass. | Fixed: the scene spec lists the OS-window failures and the fixed-tic switch separately. |
 | R2-M1: data-tree test false positive. | Fixed: no `-OutRoot`; added equals/parent/exe-tree cases. |
-| R2-M2: capture not tied to a script revision. | Fixed: manifest records the script/test/launcher hashes; final11 matches. |
+| R2-M2: capture not tied to a script revision. | Fixed: manifest records the script/test/launcher hashes; final13 matches. |
 | R2-M3/M4: stale launcher log / unignored exit file. | Fixed: launcher rerun 26/26; exit file moved into the ignored build tree. |
 | R3: host timestamp, contract wording, resolution enforcement, commandLine, calibration, bookkeeping. | Fixed or disclosed; resolution enforcement remains a gap (§9). |
 
-Review 4 (2026-10-28) was a fourth independent pass over the fixed-tic final10 state. After review 4, a comment-only script change altered the hash; final11 is the rerun with the current hash. Verdict:
+Review 4 (2026-10-28) was a fourth independent pass over the fixed-tic final10 state. After review 4, a comment-only script change altered the hash; final13 is the rerun with the current hash. Verdict:
 **PASS-WITH-FINDINGS**. Findings and dispositions:
 
 | Review 4 finding | Disposition |
 |---|---|
-| F1: the corridor/control reclassification was not disclosed. | Disclosed in the scene spec §6 and §5 above: final9 used a closed door on the same map; final11 uses 600 tics after the doors open and shows the corridor. The control scene was removed, not relabeled. |
-| F2: the final11 ceilings were tightened after the probes, so "pre-declared" was overstated. | Disclosed: the earlier final9 ceilings and the final11 ceilings are both listed; final11 also passes the earlier looser cells. The wording is now "frozen before the recorded run". |
+| F1: the corridor/control reclassification was not disclosed. | Disclosed in the scene spec §6 and §5 above: final9 used a closed door on the same map; final13 uses 600 tics after the doors open and shows the corridor. The control scene was removed, not relabeled. |
+| F2: the final13 ceilings were tightened after the probes, so "pre-declared" was overstated. | Disclosed: the earlier final9 ceilings and the final13 ceilings are both listed; final13 also passes the earlier looser cells. The wording is now "frozen before the recorded run". |
 | F3: the TGA bit depth was documented as 24-bit; the engine can write 32-bit. | Corrected to "24- or 32-bit"; the decoder supports both and the recorded files decode correctly. |
-| F4: `tasks.md` still said Q0 was not established and SC-001 not met. | Fixed: `tasks.md` and `plan.md` now record the final11 result and the SC-001 status. |
+| F4: `tasks.md` still said Q0 was not established and SC-001 not met. | Fixed: `tasks.md` and `plan.md` now record the final13 result and the SC-001 status. |
 | F5: the guards are weak as an automated regression gate. | Disclosed: this is a host-specific human-reviewed baseline, not a gate; a future regression gate should tighten the thresholds. |
 | F6: the manifest `commandLine` is reconstructed and says `mode=Capture` for `-Mode All`. | Disclosed in §5 and the procedure; the replay command is the block above. |
 | F7: stale review launcher log / ARB vs ARB2. | The stale log is not cited; `build-q0-test-launcher.log` is the 26/26 run. The renderer line is corrected to ARB/ARB2. |
@@ -242,9 +242,9 @@ future work.
   count or a different engine build may move the scene. The recorded tic counts and executable
   hash are part of the identity.
 - **Resolution enforcement**: `Compare` records 1280x720 but does not yet reject a pair whose size
-  differs; the synthetic compare fixtures use 64x64. The recorded final11 is 1280x720.
+  differs; the synthetic compare fixtures use 64x64. The recorded final13 is 1280x720.
 - **Engine capture path testing**: the synthetic suite does not run the engine; TGA decoding and
-  the `+screenshot`/`+quit` path are exercised by final11, not by a unit test.
+  the `+screenshot`/`+quit` path are exercised by final13, not by a unit test.
 - **Process start/stop and real `-Clean` archive**: not behavior-tested.
 - **Binary reproducibility**: two builds differ in hash. Record the captured hash; do not use a
   hash to identify "the same build" across rebuilds.

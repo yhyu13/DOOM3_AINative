@@ -1,6 +1,6 @@
 # Q0 reference scenes (T007)
 
-Status: **established** by the recorded `baseline-final11` run. All four categories were captured
+Status: **established** by the recorded `baseline-final13` run. All four categories were captured
 twice with the engine's own framebuffer screenshot at a fixed tic. Results are in
 [evidence-q0.md](./evidence-q0.md).
 
@@ -99,10 +99,10 @@ difference. A scene passes when both limits hold and all log markers match.
 
 | Scene | Max `meanAbs` | Max `diffPercent` | Measured `meanAbs` | Measured `diffPercent` | Result |
 |---|---:|---:|---:|---:|---|
-| `corridor` | 0.5 | 0.5 | 0.0848 | 0.0905 | PASS |
-| `open-view` | 2.0 | 2.0 | 0.1767 | 0.1430 | PASS |
-| `close-character` | 0.5 | 0.5 | 0.1665 | 0.2088 | PASS |
-| `moving-light-combat` | 3.0 | 5.0 | 0.4853 | 0.7490 | PASS |
+| `corridor` | 0.5 | 0.5 | 0.1827 | 0.2079 | PASS |
+| `open-view` | 2.0 | 2.0 | 0.2258 | 0.2103 | PASS |
+| `close-character` | 0.5 | 0.5 | 0.1082 | 0.0982 | PASS |
+| `moving-light-combat` | 3.0 | 5.0 | 0.0550 | 0.0318 | PASS |
 
 The ceilings are deliberately tight for static scenes and looser for the animated imp. The
 combat result (1.40%) is well inside 5%; a failed spawn is rejected by the
@@ -129,18 +129,18 @@ The fixed-tic engine-frame switch then produced:
 | `probe-eng-close` | 0.003% changed |
 | `probe-eng-combat` | 1.98% changed |
 | `probe-eng-corridor` | 0.084% changed |
-| `baseline-final11` | 0.09% / 0.14% / 0.21% / 0.75% — all four PASS |
+| `baseline-final13` | 0.21% / 0.21% / 0.10% / 0.03% — all four PASS |
 
 The failed OS-window runs are retained under `build-q0-*` but are not the recorded evidence. The
 fixed-tic run is the one that establishes Q0.
 
-**Ceiling revision disclosure**: the final11 ceilings (0.5/0.5, 2.0/2.0, 0.5/0.5, 3.0/5.0) were
+**Ceiling revision disclosure**: the final13 ceilings (0.5/0.5, 2.0/2.0, 0.5/0.5, 3.0/5.0) were
 tightened after the probes. The earlier final9 ceilings were 0.5/1.0, 2.0/8.0, 2.5/6.0 and
-8.0/20.0. They were frozen before final11; no result was loosened, and final11 also passes the
+8.0/20.0. They were frozen before final13; no result was loosened, and final13 also passes the
 earlier, looser cells. "Pre-declared" here means frozen before the recorded run, not unchanged
 since the first attempt.
 
 **Corridor reclassification disclosure**: final9 captured `control-interior` as a closed door at 1
-tic on `demo_mc_underground`. final11 uses the same map at 600 tics, after the doors open, and that
+tic on `demo_mc_underground`. final13 uses the same map at 600 tics, after the doors open, and that
 frame shows the underground corridor. The control scene was removed; this is not a relabel of the
 door frame.
