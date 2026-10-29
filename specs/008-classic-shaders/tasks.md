@@ -67,14 +67,14 @@ than done: the resolver core, its tests and the shader library are port-owned co
 | T-020 | Create `shaders/` tree, `d3_abi.hlsli`, `d3_input.hlsli`, `d3_arb.hlsli` skeleton | T-009, T-010 | DONE | all three headers exist under `shaders/classic/include/`; 11 stage compiles succeed for DXIL and SPIR-V; `reflect.ps1` shows only declared inputs and cbuffers |
 | T-021 | Implement the resolver core: manifest load, record/status, draw gating, init-order fix, reload re-resolution | T-007, T-008 | PARTIAL | `src/renderer/shader/shader_resolver.cpp` + 6 ctest cases (vectors 14/14, phase 2, diagnostics, reload). **Missing:** the renderer call sites (`R_LoadARBProgram`, `R_FindARBProgram`, `R_InitMaterials` order) are engine files, untouched. |
 | T-022 | Make material program parsing atomic; replace raw program ints with a validated handle | T-021 | PARTIAL | atomic pair resolution + `material_atomic` test prove neither stage installs from a one-sided file. **Missing:** `Material.cpp` parse and `newShaderStage_t` still hold raw ints. |
-| T-023 | Pin DXC/Tint/Emscripten and implement `compile.ps1` / `reflect.ps1` | T-020 | DONE | `shaders/tools/pins.json` (DXC 1.9.2609.5, asset SHA-256 verified), `get-toolchain.ps1`, `compile.ps1`, `reflect.ps1`, `verify-golden.ps1`. Tint/Emscripten pins are recorded as gaps, not claimed. |
+| T-023 | Pin DXC/Tint/Emscripten and implement `compile.ps1` / `reflect.ps1` | T-020 | PARTIAL | `pins.json` pins DXC 1.9.2609.5 and Tint (Dawn `106704a9ac3f`, asset SHA-256 verified); `compile.ps1` emits DXIL + SPIR-V + WGSL and re-parses the WGSL; `verify-golden.ps1` hashes all three. **Missing:** the Emscripten pin, which belongs to the web target and is not invoked by this library. |
 | T-024 | Engine tests: missing, one-sided, compile-failed, tolerant, reload | T-021, T-022 | PARTIAL | `tests/shader` covers all five behaviours against the core and a mutation control fails as it must. **Missing:** an in-engine test; no engine wiring exists yet. |
 | T-025 | Author `shadow.hlsl` + manifest entry + provenance record | T-020, T-023 | PARTIAL | `shaders/classic/programs/shadow.hlsl` compiles DXIL + SPIR-V, manifest `stub`, PV-004 hashed. **Missing:** the shadow pass has not been observed in a running engine. |
-| T-026 | Reflection/ABI conformance test for every program | T-020, T-025, T-030 | DONE | `shaders/tools/reflect.ps1` → `REFLECT OK: 11 stages, 0 violations`; also proves each fragment input signature equals its vertex output signature. Limit: DXIL side only, no WGSL (no Tint). |
+| T-026 | Reflection/ABI conformance test for every program | T-020, T-025, T-030 | DONE | `shaders/tools/reflect.ps1` → `REFLECT OK: 11 stages, 0 violations`; also proves each fragment input signature equals its vertex output signature. Limit: the reflection itself reads DXIL; the WGSL side is validated separately by `compile.ps1` through the pinned Tint. |
 | T-027 | Parity capture for the classic passes | T-025, T-028, T-030 | BLOCKED | needs authorized retail data and a running classic backend; neither exists |
 | T-028 | Tier B generic stage shaders within the 42-variant bound | T-020, T-023 | PARTIAL | `generic_texgen.hlsl` compiled across the full bound: `BOUND PROOF OK: 42 variants x 2 stages = 84 compiles, 0 failures`. **Missing:** the shipped set is empty because `variants.json` is populated only from the runtime census, which is blocked. |
 | T-029 | `shader_status` / `shader_reload` console commands with counters | T-021 | PARTIAL | `StatusLine()` and the reload before/after report are implemented and asserted with computed counts. **Missing:** the console command registration is an engine file. |
-| T-030 | Author `interaction.hlsl`, `environment.hlsl`, `bumpyenvironment.hlsl`, `arbfp_glasswarp.hlsl`, optional `test.hlsl` | T-025, T-026 | PARTIAL | all five required programs plus the optional debug program exist, compile for both targets and are hashed (PV-001…PV-006). **Missing:** none is `owned` — WGSL validation and parity (T-027) are outstanding, so the manifest says `stub`. |
+| T-030 | Author `interaction.hlsl`, `environment.hlsl`, `bumpyenvironment.hlsl`, `arbfp_glasswarp.hlsl`, optional `test.hlsl` | T-025, T-026 | PARTIAL | all five required programs plus the optional debug program exist, compile to DXIL + SPIR-V + validated WGSL and are hashed (PV-001…PV-006). **Missing:** none is `owned` — the rendered comparison in `ownership.md` §5 criterion 5 (T-027) is blocked, so the manifest says `stub`. |
 
 ---
 
@@ -107,5 +107,7 @@ A blocked gate is never reported as passed. The package is complete **with** the
 2. Wire the resolver into the renderer under its own issue: `R_LoadARBProgram`, `R_FindARBProgram`,
    `Material.cpp` atomic parse, the draw gate and the two console commands (the `PARTIAL` half of
    T-021, T-022, T-024, T-029).
-3. Pin Tint and add WGSL validation, then promote the six `compiled` programs to `owned` (T-030).
-4. When authorized data exists, run T-031 before claiming census completeness (and T-027 for parity).
+3. Pin Emscripten in the web target's toolchain; Tint is pinned and WGSL is validated here, so the last
+   missing `owned` criterion is the rendered comparison (T-027), not the shader build.
+4. When authorized data and a running classic backend exist, run T-031 before claiming census
+   completeness and T-027 before promoting any program to `owned`.

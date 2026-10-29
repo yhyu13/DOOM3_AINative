@@ -10,7 +10,7 @@
       "source": "shaders/classic/programs/interaction.hlsl",
       "entry": { "vs": "vs_main", "ps": "ps_main" },
       "arity": { "vertexParms": 0, "fragmentMaps": 7 },
-      "notes": "authored and compiled to DXIL + SPIR-V; not owned: WGSL validation, reflection gate, parity capture"
+      "notes": "authored and compiled to DXIL + SPIR-V + WGSL; not owned: the rendered comparison required by ownership.md section 5 criterion 5 (T-027)"
     },
     {
       "key": "environment",
@@ -20,7 +20,7 @@
       "source": "shaders/classic/programs/environment.hlsl",
       "entry": { "vs": "vs_main", "ps": "ps_main" },
       "arity": { "vertexParms": 0, "fragmentMaps": 2 },
-      "notes": "authored and compiled to DXIL + SPIR-V; not owned: WGSL validation, reflection gate, parity capture"
+      "notes": "authored and compiled to DXIL + SPIR-V + WGSL; not owned: the rendered comparison required by ownership.md section 5 criterion 5 (T-027)"
     },
     {
       "key": "bumpyenvironment",
@@ -30,7 +30,7 @@
       "source": "shaders/classic/programs/bumpyenvironment.hlsl",
       "entry": { "vs": "vs_main", "ps": "ps_main" },
       "arity": { "vertexParms": 0, "fragmentMaps": 2 },
-      "notes": "authored and compiled to DXIL + SPIR-V; not owned: WGSL validation, reflection gate, parity capture"
+      "notes": "authored and compiled to DXIL + SPIR-V + WGSL; not owned: the rendered comparison required by ownership.md section 5 criterion 5 (T-027)"
     },
     {
       "key": "shadow",
@@ -40,7 +40,7 @@
       "source": "shaders/classic/programs/shadow.hlsl",
       "entry": { "vs": "vs_main" },
       "arity": { "vertexParms": 0, "fragmentMaps": 0 },
-      "notes": "authored and compiled to DXIL + SPIR-V; not owned: WGSL validation, reflection gate, stencil-volume parity capture"
+      "notes": "authored and compiled to DXIL + SPIR-V + WGSL; not owned: stencil-volume parity capture (ownership.md section 5 criterion 5, T-027)"
     },
     {
       "key": "arbfp_glasswarp",
@@ -50,7 +50,7 @@
       "source": "shaders/classic/programs/arbfp_glasswarp.hlsl",
       "entry": { "ps": "ps_main" },
       "arity": { "vertexParms": 0, "fragmentMaps": 3 },
-      "notes": "authored and compiled to DXIL + SPIR-V; not owned: WGSL validation, reflection gate, heat-haze parity capture"
+      "notes": "authored and compiled to DXIL + SPIR-V + WGSL; not owned: heat-haze parity capture (ownership.md section 5 criterion 5, T-027)"
     },
     {
       "key": "test",
@@ -60,7 +60,7 @@
       "source": "shaders/classic/programs/test.hlsl",
       "entry": { "vs": "vs_main", "ps": "ps_main" },
       "arity": { "vertexParms": 0, "fragmentMaps": 7 },
-      "notes": "debug-only visualiser (r_testARBProgram, default off); compiled for both targets, not a parity program"
+      "notes": "debug-only visualiser (r_testARBProgram, default off); compiled to DXIL + SPIR-V + WGSL, not a parity program"
     },
     {
       "key": "megatexture",

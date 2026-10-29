@@ -369,3 +369,38 @@ The negative controls that prove these gates can fail are in `implementation.md`
 
 The blocked gates are unchanged and are still not evidence: the runtime census (T-031) has no
 authorized data, the legal review (T-032) has no decision, and parity (T-027) needs both.
+---
+
+## 11. Tint branch re-run (`feat/29-tint-wgsl`, 2026-10-29)
+
+Base `582b3ff` (origin/main). Every command below exited 0, run from the issue worktree; `build-shader/`
+and `out/` are git-ignored.
+
+| Gate | Output |
+|---|---|
+| `shaders/tools/get-toolchain.ps1` | `TOOLCHAIN OK: dxc 1.9.2609.5` and `TOOLCHAIN OK: tint 106704a9ac3f` (both asset SHA-256 verified) |
+| `shaders/tools/compile.ps1 -All` | `COMPILE OK: 6 programs, 0 Tier B variants, 11 stage compiles (DXIL + SPIR-V + WGSL), dxc 1.9.2609.5, tint 106704a9` |
+| `shaders/tools/compile.ps1 -ProveBound` | `BOUND PROOF OK: 42 variants x 2 stages = 84 compiles (DXIL + SPIR-V + WGSL), 0 failures` |
+| `shaders/tools/reflect.ps1` | `REFLECT OK: 11 stages, 5 declared cbuffers, 26 declared resources, 7 declared semantics, 0 violations` |
+| `shaders/tools/manifest-check.ps1` | `MANIFEST OK: keys=14 owned=0 stub=6 unsupported=1 absent=7` |
+| `shaders/tools/provenance-record.ps1` | `PROVENANCE RECORD OK: 9 records, 10 hashes match, every sourced program has exactly one record` |
+| `shaders/tools/verify-golden.ps1` | `GOLDEN OK: 11 stage hashes (DXIL, SPIR-V, WGSL) deterministic across two runs and equal to the recorded goldens` |
+| `tools/resolver-conformance.ps1` | `RESOLVER VECTORS: 14/14 passed (manifest validated: 12 entries)` |
+| `tools/census.ps1 -Verify` | `CENSUS OK: 18 entries, 13 files, 8 live-default entries, draw_exp compiled=False` |
+| `tools/verify-docs.ps1` | `DOCS OK: 125 anchors, 70 content assertions, 40 links` |
+| `tools/provenance-check.ps1` | `PROVENANCE OK: 354 tracked files, no shader source, no ARB program bodies` |
+| `tools/integration-check.ps1` | `INTEGRATION OK: 18 requests (10 OK, 8 ABSENT), 14 plan keys, 6 authored, 9 provenance ids; megaTexture=UNSUPPORTED` |
+| `tools/fuzz-resolver.ps1` | `FUZZ OK: 10162 distinct requests (24000 calls) over 6000 names (seed 20261028), 0 failures` |
+| `ctest --test-dir build-shader -C Release` | `100% tests passed, 0 tests failed out of 6` |
+| `tools/report.ps1` | `6/6 gates passing`; `evidence/report.html` rewritten at base `582b3ff` |
+
+What changed in the gates themselves is in `implementation.md` §11; the negative controls for the new
+WGSL checks are in §11.4 there.
+
+Two notes a reviewer should not have to discover:
+
+- `manifest` still reports `owned=0 stub=6`. WGSL validation was the last machine-checkable gap;
+  `ownership.md` §5 criterion 5 still needs a rendered comparison, and T-027 is blocked.
+- This branch is based before #43 pins `shaders/**` to LF. `provenance-record.ps1` hashes working bytes,
+  so the tree was normalized to LF locally for this run; #43 makes that automatic and also normalizes
+  the hash itself.

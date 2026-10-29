@@ -3,9 +3,9 @@
 .SYNOPSIS
   Deterministic-compile check plus golden hash comparison (spec 008, T-023).
 .DESCRIPTION
-  Compiles the shipping set twice into two separate output directories and requires every DXIL and
-  SPIR-V blob to be byte-identical between the runs. A non-deterministic shader build makes a golden
-  hash meaningless, so this runs before the goldens are trusted.
+  Compiles the shipping set twice into two separate output directories and requires every DXIL,
+  SPIR-V and WGSL blob to be byte-identical between the runs. A non-deterministic shader build makes
+  a golden hash meaningless, so this runs before the goldens are trusted.
 
   Then compares the per-stage hashes with shaders/manifest/compile-goldens.json, which records the
   pinned toolchain version alongside the hashes. A toolchain bump invalidates every golden on purpose;
@@ -51,7 +51,8 @@ foreach ($r in $a.results) {
     $o = $match[0]
     if ($o.dxil_sha -ne $r.dxil_sha) { $nondeterministic.Add("$($r.key)/$($r.stage): DXIL differs between runs") }
     if ($o.spv_sha -ne $r.spv_sha) { $nondeterministic.Add("$($r.key)/$($r.stage): SPIR-V differs between runs") }
-    $current["$($r.key)/$($r.stage)"] = [pscustomobject]@{ dxil = $r.dxil_sha; spv = $r.spv_sha; source = $r.source_sha }
+    if ($o.wgsl_sha -ne $r.wgsl_sha) { $nondeterministic.Add("$($r.key)/$($r.stage): WGSL differs between runs") }
+    $current["$($r.key)/$($r.stage)"] = [pscustomobject]@{ dxil = $r.dxil_sha; spv = $r.spv_sha; wgsl = $r.wgsl_sha; source = $r.source_sha }
 }
 
 if ($nondeterministic.Count -ne 0) {
@@ -65,10 +66,12 @@ if ($Update) {
         schema = 'doom3-shader-goldens/1'
         dxc    = $pins.dxc.compilerVersion
         asset  = $pins.dxc.asset
+        tint   = $pins.tint.dawnCommit
+        tintAssetSha256 = $pins.tint.assetSha256
         stages = $current
     }
     $doc | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $goldensPath
-    Write-Host "GOLDEN UPDATED: $($current.Count) stage hashes recorded for dxc $($pins.dxc.compilerVersion)"
+    Write-Host "GOLDEN UPDATED: $($current.Count) stage hashes recorded for dxc $($pins.dxc.compilerVersion) and tint $($pins.tint.dawnCommit.Substring(0, 12))"
     exit 0
 }
 
@@ -81,6 +84,10 @@ if ($goldens.dxc -ne $pins.dxc.compilerVersion) {
     Write-Host "ERROR: goldens recorded for dxc $($goldens.dxc), pin is $($pins.dxc.compilerVersion); re-record deliberately" -ForegroundColor Red
     exit 1
 }
+if ($goldens.tint -ne $pins.tint.dawnCommit) {
+    Write-Host "ERROR: goldens recorded for tint $($goldens.tint), pin is $($pins.tint.dawnCommit); re-record deliberately" -ForegroundColor Red
+    exit 1
+}
 
 $mismatches = New-Object System.Collections.Generic.List[string]
 foreach ($k in $current.Keys) {
@@ -88,6 +95,7 @@ foreach ($k in $current.Keys) {
     if ($null -eq $g) { $mismatches.Add("${k}: no golden (new stage?)"); continue }
     if ($g.dxil -ne $current[$k].dxil) { $mismatches.Add("${k}: DXIL hash drift") }
     if ($g.spv -ne $current[$k].spv) { $mismatches.Add("${k}: SPIR-V hash drift") }
+    if ($g.wgsl -ne $current[$k].wgsl) { $mismatches.Add("${k}: WGSL hash drift") }
 }
 foreach ($k in @($goldens.stages.PSObject.Properties.Name)) {
     if (-not $current.ContainsKey($k)) { $mismatches.Add("${k}: golden exists but stage was not compiled") }
@@ -98,5 +106,5 @@ if ($mismatches.Count -ne 0) {
     $mismatches | ForEach-Object { Write-Host "  - $_" -ForegroundColor Red }
     exit 1
 }
-Write-Host "GOLDEN OK: $($current.Count) stage hashes deterministic across two runs and equal to the recorded goldens (dxc $($pins.dxc.compilerVersion))"
+Write-Host "GOLDEN OK: $($current.Count) stage hashes (DXIL, SPIR-V, WGSL) deterministic across two runs and equal to the recorded goldens (dxc $($pins.dxc.compilerVersion), tint $($pins.tint.dawnCommit.Substring(0, 12)))"
 exit 0
