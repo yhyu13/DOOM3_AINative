@@ -124,7 +124,7 @@ int RunDraw(doom3::rhi::Device& device) {
     }
     q1b_test::Log("CONTROL out-of-range attachment rejected: %s", error.c_str());
 
-    uint32_t doubleIndices[2] = {0, 0};
+    uint32_t doubleIndices[2] = {0, 1};
     ClearRow doubleClears[2] = {};
     DrawPassDesc mismatchPass;
     mismatchPass.pipeline = pipeline;

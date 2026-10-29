@@ -75,8 +75,12 @@ review are recorded in
 **Q1b status (2026-10-29)**: T022–T029 pass with recorded red/green/mutation
 evidence, and the fault-injected device-removal part of T030 passes (bounded
 teardown, actionable DeviceLost, restart). T030 remains open because the debug
-layer and GPU-based validation are SKIPPED (`0x887A002D`), and T031 awaits an
-independent reviewer. See [evidence-q1.md](./evidence-q1.md).
+layer and GPU-based validation are SKIPPED (`0x887A002D`). T031's independent
+review was performed and is recorded in
+[review-q1.md](./review-q1.md); it remains open because T030's gate is unmet.
+The author self-review is retained in
+[review-q1-self.md](./review-q1-self.md). See
+[evidence-q1.md](./evidence-q1.md).
 ## Phase 5 — US3: Classic-compatible engine path (P1; Q2)
 
 **Goal**: Make the new path selectable and playable while preserving the GL reference and engine command semantics.

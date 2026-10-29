@@ -68,9 +68,13 @@ int RunTemporal() {
         q1b_test::Require(false, "history resize did not allocate a generation");
         return 1;
     }
-    if (history.At(0, 0).valid) {
-        q1b_test::Require(false, "fresh history is not invalid");
-        return 1;
+    for (uint32_t y = 0; y < 8; ++y) {
+        for (uint32_t x = 0; x < 8; ++x) {
+            if (history.At(x, y).valid) {
+                q1b_test::Require(false, "fresh history is not invalid");
+                return 1;
+            }
+        }
     }
     MotionSample stored;
     stored.valid = true;
@@ -82,9 +86,17 @@ int RunTemporal() {
         return 1;
     }
     history.Reset();
-    if (history.generation() != 2 || history.At(0, 0).valid) {
-        q1b_test::Require(false, "history reset did not invalidate stored samples");
+    if (history.generation() != 2) {
+        q1b_test::Require(false, "history reset did not advance the generation");
         return 1;
+    }
+    for (uint32_t y = 0; y < 8; ++y) {
+        for (uint32_t x = 0; x < 8; ++x) {
+            if (history.At(x, y).valid) {
+                q1b_test::Require(false, "history reset did not invalidate every sample");
+                return 1;
+            }
+        }
     }
     q1b_test::Log("HISTORY resize/reset advance the generation and invalidate samples");
 

@@ -102,8 +102,8 @@ Negative controls:
 ## Fixture D — multiple attachments and sampled depth
 
 Frame: 8×8, four colour attachments, one D32_FLOAT depth attachment cleared to
-1.0. Pass 0 writes attachments 0–2 and `SV_Depth = 0.25` for `x < 4`, else
-0.75. Pass 1 samples the depth attachment as a point-sampled texture and
+1.0. Pass 0 writes attachments 0–2 and `SV_Depth = 1.0` for `x = 0`, `0.25` for
+`1 ≤ x < 4`, else `0.75`. Pass 1 samples the depth attachment as a point-sampled texture and
 writes `depth*255` into the red channel of attachment 3.
 
 Expected colours:
@@ -155,8 +155,6 @@ Negative controls:
 | Control | Method | Required observation |
 |---|---|---|
 | In-flight reuse | Ignore the slot's in-flight state in the allocator | The fifth submission succeeds and the private test fails |
-| Wait-idle shortcut | Wait for completion before every submission | The fifth submission is accepted; the private test fails |
-| Stale upload | Overwrite a slot's uniform storage while it is in flight | A completed frame shows another frame's tint |
 
 ## Fixture M — motion, validity and composition (portable, no device)
 

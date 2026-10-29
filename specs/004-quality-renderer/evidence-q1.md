@@ -3,11 +3,13 @@
 Status: Q1b implementation and fixtures T022–T029 have been executed locally, plus the fault-injected device-removal part of T030.
 **Q1 is not complete.** The debug layer and GPU-based validation cannot be
 enabled on this machine (`D3D12GetDebugInterface` returns `0x887A002D`), so both
-are recorded as SKIPPED, and T031 (independent review) remains open. No claim is
+are recorded as SKIPPED. T031's independent review was performed and is
+recorded in `review-q1.md`; T031 remains open because T030's gate is unmet.
+The author self-review is `review-q1-self.md`. No claim is
 made for Q1, game parity, DXR, DLSS, WebGPU or a shipped renderer.
 
-Worktree: `feat/22-q1b-q1-rhi`, branched from `origin/main` at
-`d9bf1caa`; the previous `docs-22-q1b-fixture-contract` checkout at `964d358`
+Worktree: `feat/22-q1b-q1-rhi`, rebased onto `origin/main` at
+`29a1e37`; the previous `docs-22-q1b-fixture-contract` checkout at `964d358`
 was removed and not reused. One writer, one worktree, one build directory.
 
 ## Environment
@@ -195,11 +197,13 @@ tint variants, the 16 compute literals, MRT colours, the depth byte conversion,
 tolerance, buffer shape, ordering, negative controls, and the NOT RUN rules for
 missing tools and adapters.
 
-`scripts/validate-q1b-fixtures.py` parses the document's tables and compares
-them with independent literals held in the script. Both the normal run and
-`--self-test` exit 0; the self-test alters a pattern byte and a compute value in
-memory and requires rejection. An altered tracked document fails the first
-command.
+`scripts/validate-q1b-fixtures.py` parses the P/C/D expectation tables and the
+M/G/S worked tables, compares them with independent literals held in the script,
+and checks the Fixture F tint sentence. Both the normal run and `--self-test`
+exit 0; the self-test alters a pattern byte and a compute value in memory and
+requires rejection. It now also mutates the M motion, G order, S resize and F
+tint values and requires each to fail. An altered tracked document fails the
+first command.
 
 ## Task status
 
@@ -214,7 +218,7 @@ command.
 | T028 | PASS | Window surface, resize, minimize/restore, destroy, restart |
 | T029 | PASS | Declared accesses, pass order and invalid uses |
 | T030 | PARTIAL | All fixtures ran and fault-injected removal passes; debug layer and GPU-based validation are SKIPPED, so the task stays open |
-| T031 | BLOCKED | Requires an independent reviewer and an environment where debug layer and GPU-based validation actually execute |
+| T031 | BLOCKED | Independent review performed (`review-q1.md`); remains open because the debug layer and GPU-based validation do not execute |
 
 ## Limitations and open items
 
@@ -242,3 +246,9 @@ command.
    separate branch and issue.
 8. **One uniform per pass.** Constants are a single 256-byte block; a real
    renderer will need bounded descriptor/upload growth, which is Q2+ work.
+9. **Issue #22 scope.** Issue #22 lists T023–T031 implementation as out of
+   scope. The S5 dispatch authorized the slice; this PR is a partial slice under
+   `Refs #22`, not issue closure, and T031 remains open.
+10. **Bounded error-path record retention.** If `Signal` or the display call
+    fails after a record is inserted, the record is retained until teardown.
+    The slot is not reused, so this is a bounded leak, not memory unsafety.

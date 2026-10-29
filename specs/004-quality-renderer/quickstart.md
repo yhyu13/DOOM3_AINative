@@ -109,7 +109,7 @@ py -3 -I scripts/validate-q1b-fixtures.py
 if ($LASTEXITCODE -ne 0) { throw "Q1b fixture validation failed: $LASTEXITCODE" }
 ```
 
-Expected: 16 CTest cases, both available adapter classes attempted, and the
+Expected: 17 CTest cases, both available adapter classes attempted, and the
 public tests free of backend vocabulary. `rhi.q1b.device_removal` uses a private
 fault-injection hook; it is not a real device-loss run. The surface test needs a
 desktop session: `CreateSurface` may return `Unsupported` on a display stack
@@ -118,7 +118,7 @@ supplementary; the composed backbuffer readback is the asserted image.
 
 Debug layer and GPU-based validation are still attempted by
 `rhi.q1a.diagnostics` and are SKIPPED when `D3D12GetDebugInterface` returns
-`0x887A002D`. That skip keeps T030 and T031 open and full Q1 blocked; 16/16
+`0x887A002D`. That skip keeps T030 and T031 open and full Q1 blocked; 17/17
 functional cases are not a Q1 pass.
 ## Q0 — Classic baseline (data-dependent)
 

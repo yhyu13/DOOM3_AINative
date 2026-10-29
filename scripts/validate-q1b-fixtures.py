@@ -49,6 +49,38 @@ MRT = [
 
 DEPTH = [("1.0 (discarded by `LESS`)", "255"), ("0.25", "64"), ("0.75", "191")]
 
+MOTION = [
+    ("Previous-minus-current motion", "x = 25, y = 0, valid = true"),
+    ("Static camera", "x = 0, y = 0, valid = true (distinct from invalid)"),
+    ("Depth 0", "valid = false"),
+    ("Depth \u22121", "valid = false"),
+    ("Off-frame projection (world x = 1000)", "valid = false"),
+    ("History resize 8\u00d78", "generation 1, every sample invalid"),
+    ("Store a valid zero at (0,0)", "(0,0) valid, (1,0) invalid"),
+    ("History reset", "generation 2, every sample invalid again"),
+]
+
+GRAPH = [
+    ("Write colour 0 and 1, then read 1", "Ok, order 0 then 1"),
+    ("Read a transient before any write", "`Status::InvalidArgument`"),
+    ("Read an imported resource first", "Ok"),
+    ("Use an undeclared resource", "`Status::InvalidArgument`"),
+    ("Declare a resource twice", "`Status::InvalidArgument`"),
+    ("Declare one resource twice in one pass", "`Status::InvalidArgument`"),
+    ("Empty pass name", "`Status::InvalidArgument`"),
+    ("Three declared passes", "Order 0, 1, 2 preserved"),
+]
+
+SURFACE = [
+    ("Create 64\u00d748 surface", "Ok, or `Status::Unsupported` on a display stack without a window surface (SKIPPED)"),
+    ("Compose a solid frame", "Readback shows the same colour at every pixel; dimensions match"),
+    ("Resize to 96\u00d764", "Readback dimensions become 96\u00d764; no stale 64\u00d748 content"),
+    ("Minimize and submit", "`Status::NotReady` with an actionable message"),
+    ("Restore, resize, submit", "Ok; readback matches the new colour and size"),
+    ("Destroy and restart the device", "A new surface can be created and composed"),
+    ("Window capture", "`PrintWindow` content is written when the platform permits it; otherwise NOT RUN, never PASS"),
+]
+
 REQUIRED = [
     "Wrong pipeline kind",
     "in-flight readback",
@@ -171,6 +203,21 @@ def validate_text(text: str) -> list[str]:
             errors,
         )
 
+    for heading, expected, name in (
+        ("## Fixture M", MOTION, "motion"),
+        ("## Fixture G", GRAPH, "graph"),
+        ("## Fixture S", SURFACE, "surface"),
+    ):
+        header, rows = table_after(lines, heading, errors)
+        if rows:
+            if header != ["Case", "Expected"]:
+                errors.append(f"{name}: unexpected header {header}")
+            if rows != [[a, b] for a, b in expected]:
+                errors.append(f"{name}: rows do not match the independent expectations")
+
+    if "Four draw frames with tints 1.0, 0.5, 0.25 and 0.75" not in text:
+        errors.append("fixture F tint sentence is missing or altered")
+
     for required in REQUIRED:
         if required not in text:
             errors.append(f"missing required control or value: {required}")
@@ -200,7 +247,20 @@ def self_test(path: pathlib.Path) -> int:
     if not validate_text(altered):
         print("SELF-TEST altered compute value was accepted")
         return 1
-    print("PASS self-test: altered pattern and compute values were rejected")
+    for old, new, label in (
+        ("x = 25, y = 0", "x = 26, y = 0", "motion"),
+        ("Ok, order 0 then 1", "Ok, order 1 then 0", "graph"),
+        ("Readback dimensions become 96", "Readback dimensions stay 64", "surface"),
+        ("tints 1.0, 0.5, 0.25 and 0.75", "tints 0.1, 0.2, 0.3 and 0.4", "fixture F tint"),
+    ):
+        altered = text.replace(old, new, 1)
+        if altered == text:
+            print(f"SELF-TEST could not alter the {label} value")
+            return 1
+        if not validate_text(altered):
+            print(f"SELF-TEST altered {label} value was accepted")
+            return 1
+    print("PASS self-test: altered pattern, compute, motion, graph, surface and tint values were rejected")
     return 0
 
 
