@@ -9,7 +9,8 @@ The author self-review is `review-q1-self.md`. No claim is
 made for Q1, game parity, DXR, DLSS, WebGPU or a shipped renderer.
 
 Worktree: `feat/22-q1b-q1-rhi`, rebased onto `origin/main` at
-`9f103e6` (T089), after the earlier `29a1e37` base; the previous `docs-22-q1b-fixture-contract` checkout at `964d358`
+`582b3ff` (current main, after T089), after the earlier `9f103e6` and
+`29a1e37` bases; the previous `docs-22-q1b-fixture-contract` checkout at `964d358`
 was removed and not reused. One writer, one worktree, one build directory.
 
 ## Environment
@@ -213,6 +214,30 @@ The debug layer and GPU-based validation still do not execute. T030 stays
 open; real device removal remains NOT RUN. Therefore T031 is not satisfied,
 even though its independent review is complete.
 
+### Debug-layer environment attempt
+
+This host is not elevated, so `Get-WindowsCapability -Online` fails with
+"requires elevation"; the Graphics Tools optional feature is not installed and
+`d3d12SDKLayers.dll` is absent from `C:\Windows\System32`. A local, untracked
+attempt with the DirectX 12 Agility SDK 1.620.1 was made: the application
+exported `D3D12SDKVersion`/`D3D12SDKPath`, `D3D12Core.dll` loaded (confirmed by
+`GetModuleHandleW`), but `D3D12GetDebugInterface` still returned `0x887A002D`;
+`d3d12SDKLayers.dll` was not loaded by the system runtime, and a manual load of
+the SDK layers returned `E_NOINTERFACE`. No OS feature was installed and no
+downloaded binary was committed.
+
+T030 therefore remains SKIPPED, not passed. A machine with the Graphics Tools
+feature (or an elevated install) is required. The exact next step is:
+
+```powershell
+# Elevated PowerShell
+Add-WindowsCapability -Online -Name Tools.Graphics.DirectX~~~~0.0.1.0
+```
+
+Then rerun `rhi.q1a.diagnostics` and the Q1b fixtures. Only a run with
+`debug=RUN` and `gpu_validation=RUN` (or a documented waiver) can satisfy
+T030/T031.
+
 ### WebGPU mapping after the rebase
 
 T089's mapping gate reported 57/57 for the pre-Q1b header. The Q1b public
@@ -251,7 +276,7 @@ first command.
 | T027 | PASS | Motion/validity, history reset and composition order |
 | T028 | PASS | Window surface, resize, minimize/restore, destroy, restart |
 | T029 | PASS | Declared accesses, pass order and invalid uses |
-| T030 | PARTIAL | All fixtures ran and fault-injected removal passes; the post-T089 re-run still reports `0x887A002D` and `validation_executed=0`, so the task stays open |
+| T030 | SKIPPED / OPEN | All fixtures and fault-injected removal pass; debug layer and GPU-based validation still report `0x887A002D` and `validation_executed=0` after the current-main rebase; the Agility SDK attempt could not load the system layers and no OS feature was installed |
 | T031 | REVIEW COMPLETE / NOT SATISFIED | Independent review of `35ce54e` in `review-q1.md`; T031 stays open because the debug layer and GPU-based validation do not execute |
 
 ## Limitations and open items

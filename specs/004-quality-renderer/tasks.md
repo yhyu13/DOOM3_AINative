@@ -79,8 +79,7 @@ layer and GPU-based validation are SKIPPED (`0x887A002D`). T031's independent
 review was performed and is recorded in
 [review-q1.md](./review-q1.md); it remains open because T030's gate is unmet.
 The author self-review is retained in
-[review-q1-self.md](./review-q1-self.md). The branch was rebased onto T089
-(`9f103e6`) and T030 was re-run: the debug layer and GPU-based validation are
+[review-q1-self.md](./review-q1-self.md). The branch was rebased onto current main (`582b3ff`, after T089) and T030 was re-run: the debug layer and GPU-based validation are
 still SKIPPED (`0x887A002D`), so T031 remains unsatisfied. See
 [evidence-q1.md](./evidence-q1.md).
 ## Phase 5 — US3: Classic-compatible engine path (P1; Q2)
