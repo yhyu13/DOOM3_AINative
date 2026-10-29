@@ -31,9 +31,11 @@ retained rather than hidden.
 
 | Item | Value |
 |---|---|
-| Repository commit | `ca4280144505a3b48d6880d73757d211eff6187c` |
+| Base main | `53537d9528ac8b56e1f4d429eac166133399aedd` |
+| Q0 code commit | `497a104` (script, tests and first documents) |
+| Evidence-refresh commit | `49876b8` (post-rebase final13 identities) |
 | Branch | `feat/21-q0-safe-baseline` |
-| Q0 working-tree change set | new Q0 script, tests and three spec documents; no tracked file modified |
+| Q0 change set | committed on the branch; final13 was captured after the rebase with the script/test at `497a104` |
 | Submodule commit | `a9c49da5afb18201d31e3f0a429a037e56ce2b9a` |
 | Submodule dirt | `git -C doom3_orig/doom3 status --porcelain` empty |
 | Target patch | `targets/win11-amd64/patches/all-changes.patch`, 731,842 bytes, SHA-256 `bf1ad1e06da8198d0404ded8829d4ef6efcd35666378e91cd633e787c85ded80` |
@@ -42,8 +44,9 @@ retained rather than hidden.
 | Captured executable | `build-q0-verify-20261028/bin/Release/DOOM3.exe` |
 
 The target copy is a git-ignored copy of the pristine submodule plus the patch above. The submodule
-itself was not edited. The working tree was not committed; the untracked change set is named here
-and its hashes are in §2.1.
+itself was not edited. The Q0 change set is committed on the branch; the capture ran after the
+rebase, and the doc-only identity refresh is a follow-up commit. The script/test hashes in §2.1 are
+the exact captured code.
 
 ### 2.1 Captured-code identity
 
@@ -184,7 +187,7 @@ remain not behavior-tested.
 | `git diff --check` | exit 0, no output |
 | Submodule cleanliness | `git -C doom3_orig/doom3 status --porcelain` empty |
 | Tracked game data / builds | none; Q0 outputs are under `build-q0-*`, which is git-ignored |
-| Q0 files in `git status` | only the new script, tests and spec documents; no tracked file modified |
+| Q0 change set in git | committed on `feat/21-q0-safe-baseline`; the eight files are in `53537d9..HEAD` on the branch (base..PR head) |
 | Exit file | moved into `build-q0-verify-20261028/`, so it is under the ignored build tree |
 | Absolute machine paths in tracked evidence | none; the external data root is `<D3_DATA_DIR>` and the CMake path uses `$env:ProgramFiles` |
 | Compare overwrite | second `Compare` on `baseline-final13` would exit 5 and preserve `comparison.json` |
@@ -232,9 +235,10 @@ PR review #31 (fresh independent pass over `53537d9..49876b8`) returned **BLOCKE
 stale measurements: `tasks.md` still listed the pre-final13 meanAbs set, and the scene spec still
 said the combat result was 1.40%. Both were documentation-only errors; the recorded artifact was
 correct. Fixed: `tasks.md` now lists 0.1827 / 0.2258 / 0.1082 / 0.0550 and 0.2079% / 0.2103% /
-0.0982% / 0.0318%; the scene spec says 0.0318%. The date and source identity were also corrected to
-2026-10-29 and the base/Q0/evidence commits. No script, test or capture was rerun. PR review 2 is
-pending.
+0.0982% / 0.0318%; the scene spec says 0.0318%. PR review 2 then blocked because §2 still named the discarded `ca428014` base and described
+the change set as uncommitted. Fixed: §2 now names base `53537d9`, Q0 code `497a104` and evidence
+refresh `49876b8`, and §7 describes the committed branch. No script, test or capture was rerun.
+PR review 3 is pending.
 
 T011 is complete with these residual gaps: the baseline is valid for this host/demo/GL renderer,
 not a retail or performance claim; resolution enforcement and real-process/`-Clean` tests remain
