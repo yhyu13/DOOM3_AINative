@@ -8,7 +8,7 @@ landed, Q1's validation gate is open, and no engine adapter exists. The design c
 ownership, gates and stop conditions for executing them. Where this file and those contracts
 disagree, the contracts win and this file is corrected.
 
-**Baseline inspected**: `main` at `150a670`. The S2 worktree state below is a local snapshot and may
+**Baseline inspected**: `main` at `4a2fd7c`. The S2 worktree state below is a local snapshot and may
 move; re-check it before dispatch.
 
 ---
@@ -30,7 +30,7 @@ Nothing here authorizes engine code. The implementation issue is open and blocke
 | # | Prerequisite | State | Evidence |
 |---|---|---|---|
 | P1 | **S2 resolver engine wiring** | **NOT MET.** The resolver core and its tests are on `main` (`src/renderer/shader/shader_resolver.cpp`), but `R_LoadARBProgram`, `R_FindARBProgram`, the `Material.cpp` atomic parse, the draw gate and the two console commands are engine-side and untouched. An uncommitted attempt exists in the `feat/29-resolver-wiring` worktree: a modified `targets/win11-amd64/CMakeLists.txt` and untracked `src/renderer/shader/engine/{shader_engine.cpp,shader_engine.h}`. It is **not merged and not an issue**. | `specs/008-classic-shaders/tasks.md` §E.2; T-021/T-022/T-024/T-029 marked `PARTIAL`; `resolver.md` §10 |
-| P2 | **Five classic programs** | **PARTIAL.** `interaction`, `environment`, `bumpyenvironment`, `arbfp_glasswarp` and `shadow` are authored and compile to DXIL + SPIR-V + validated WGSL. Every entry in `shaders/manifest/classic-programs.json` is `stub`, not `owned`; the rendered comparison (T-027) is `BLOCKED` on authorised data and a running classic backend. A `stub` program must not be drawn as if it were owned. | `specs/008-classic-shaders/tasks.md` T-025/T-030; `ownership.md` §5 |
+| P2 | **Five classic programs** | **PARTIAL.** `interaction`, `environment`, `bumpyenvironment`, `arbfp_glasswarp` and `shadow` are authored and compile to DXIL + SPIR-V + validated WGSL; the optional `test` program also compiles. The manifest (`shaders/manifest/classic-programs.json`) holds **14 entries**: 6 `stub` (`interaction`, `environment`, `bumpyenvironment`, `shadow`, `arbfp_glasswarp`, `test`), 1 `unsupported` (`megatexture`) and 7 `absent` (`ambientlight`, `arbvp_glasswarp`, `r200_interaction`, `nv20_bumpandlight`, `nv20_diffusecolor`, `nv20_specularcolor`, `nv20_diffuseandspecularcolor`). **None is `owned`**; the rendered comparison (T-027) is `BLOCKED` on authorised data and a running classic backend. A `stub` program must not be drawn as if it were owned. | `specs/008-classic-shaders/tasks.md` T-025/T-030; `ownership.md` §5 |
 | P3 | **Q1** | **RESIDUAL ACCEPTED, GATE OPEN.** Q1b fixtures are merged (`f1e4feb`, 17/17 Release and Debug). T030 and T031 stay open because the debug layer and GPU-based validation are `SKIPPED` (`0x887A002D`, `validation_executed=0`) on both the hardware and software adapter. The owner accepted this on 2026-10-29 as a recorded gap; the acceptance does not turn a skip into a pass. | `specs/004-quality-renderer/evidence-q1.md` (T030/T031 rows, owner-acceptance section) |
 | P4 | **Q7a / T088** | **DONE.** Mapping gate 57/57, browser spike 12 required checks twice, Emscripten/wasm leg twice. Caveat: `py -3 -I scripts/validate-webgpu-mapping.py` still exits 1 on current `main` (62 problems), owned by open issue #36 (T089). | `specs/004-quality-renderer/evidence-q7a.md`; `plan.md` Q7a row; `tasks.md` Q1 status note |
 | P5 | **Q0** | **DONE and merged** (PR #31): `baseline-final13`, all four categories `PASS` twice under fixed-tic drives. The values are same-renderer repeatability, not cross-renderer parity. Host is a virtual display with an Intel adapter; not a discrete-GPU quality baseline. | `specs/004-quality-renderer/classic-parity.md` §2; `evidence-q0.md` |
@@ -207,6 +207,7 @@ Stop the issue and return to the coordinator — do not widen scope, lower a thr
 - Q2 is not described as ready, selectable, captured, or complete.
 - P1 is recorded as **not landed** because it is not on `main`; the uncommitted worktree is named as
   a coordination constraint, not as evidence.
-- The five programs are recorded as authored/compiling but `stub`, not as owned.
+- The manifest is recorded as 6 `stub` (the five required programs plus the optional `test`), 1
+  `unsupported` (`megatexture`) and 7 `absent`; none is `owned`.
 - The Q7a caveat (red mapping gate on `main`) is recorded alongside T088 being done.
 - The Q1 owner acceptance is recorded as a gap, not a pass.
