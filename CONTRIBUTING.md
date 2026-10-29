@@ -11,7 +11,7 @@ Human developers and AI agents under the same rules: same evidence bar, same rev
 
 **TL;DR — five lines**
 
-1. One issue = one branch = one worktree = one PR.
+1. One issue = one spec PR, then one branch = one worktree = one PR for the implementation.
 2. `doom3_orig/doom3/` is a read-only pristine submodule; work happens in `targets/<name>/doom3`.
 3. Evidence before victory: a claim without command output is not a result.
 4. Never commit game data, binaries, build output, secrets, or absolute machine paths.

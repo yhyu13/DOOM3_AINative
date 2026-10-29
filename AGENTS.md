@@ -8,7 +8,7 @@ copy; this repository owns the port, the automation, the specs, and the workflow
 
 | File | Why |
 |---|---|
-| `docs/GIT_WORKFLOW.md` | Issue → branch → worktree → PR → review → merge. One issue = one branch = one worktree = one PR. |
+| `docs/GIT_WORKFLOW.md` | Issue → spec PR → branch → worktree → implementation PR → review → merge. One issue = one spec PR plus one branch/worktree/PR. |
 | `docs/SKILLS.md` | Which project skill to load for which stage, and where each skill came from. |
 | `docs/ROADMAP.md` | Milestones, exit criteria, and what is actually proven vs suggested. |
 
@@ -98,6 +98,11 @@ own licences (see `THIRD_PARTY_NOTICES.md`). Game data is not covered and must n
 Paths and filenames come from `.specify/scripts/powershell/*.ps1`; read `.specify/templates/`
 rather than guessing. Do not skip `/speckit.plan` for anything touching the engine build, the
 renderer, or the submodule.
+
+Spec artifacts are published by a `docs/<issue>-<slug>` PR and merged to `main` **before**
+`scripts/new-worktree.ps1` creates the implementation worktree (`docs/GIT_WORKFLOW.md` §1–§2).
+Specs 001/002/006/007 landed inside their implementation PRs instead; that is recorded history, not
+the route to follow.
 
 ## Toolchain (verified 2026-10-26)
 
