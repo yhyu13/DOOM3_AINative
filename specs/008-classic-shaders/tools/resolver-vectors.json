@@ -1,0 +1,118 @@
+{
+  "schema": "doom3-shader-resolver-vectors/1",
+  "note": "Executable contract for specs/008-classic-shaders/resolver.md. Keys and semantics are normative; the harness is a reference model, not the engine implementation.",
+  "manifest": [
+    { "key": "interaction", "stages": ["vs", "ps"], "status": "owned", "provenance": "PV-001", "source": "shaders/classic/programs/interaction.hlsl", "entry": { "vs": "vs_main", "ps": "ps_main" }, "arity": { "vertexParms": 0, "fragmentMaps": 7 } },
+    { "key": "environment", "stages": ["vs", "ps"], "status": "owned", "provenance": "PV-002", "source": "shaders/classic/programs/environment.hlsl", "entry": { "vs": "vs_main", "ps": "ps_main" } },
+    { "key": "bumpyenvironment", "stages": ["vs", "ps"], "status": "owned", "provenance": "PV-003", "source": "shaders/classic/programs/bumpyenvironment.hlsl", "entry": { "vs": "vs_main", "ps": "ps_main" } },
+    { "key": "shadow", "stages": ["vs"], "status": "owned", "provenance": "PV-004", "source": "shaders/classic/programs/shadow.hlsl", "entry": { "vs": "vs_main" } },
+    { "key": "arbfp_glasswarp", "stages": ["ps"], "status": "owned", "provenance": "PV-005", "source": "shaders/classic/programs/arbfp_glasswarp.hlsl", "entry": { "ps": "ps_main" } },
+    { "key": "test", "stages": ["vs", "ps"], "status": "owned", "provenance": "PV-006", "source": "shaders/classic/programs/test.hlsl", "entry": { "vs": "vs_main", "ps": "ps_main" } },
+    { "key": "one_sided", "stages": ["vs"], "status": "owned", "provenance": "PV-T01", "source": "shaders/classic/programs/one_sided.hlsl", "entry": { "vs": "vs_main" } },
+    { "key": "megatexture", "stages": ["vs", "ps"], "status": "unsupported", "provenance": "PV-007", "notes": "virtual texturing needs tiled/sparse feedback; out of milestone 1" },
+    { "key": "stubprogram", "stages": ["vs", "ps"], "status": "stub", "provenance": "PV-T02", "notes": "synthetic fixture: deliberate stub" },
+    { "key": "ambientlight", "stages": ["vs", "ps"], "status": "absent", "provenance": "PV-008", "notes": "dead engine entry: no compiled bind site" },
+    { "key": "dupkey", "stages": ["vs"], "status": "owned", "provenance": "PV-T03", "source": "shaders/classic/programs/dupkey.hlsl", "entry": { "vs": "vs_main" } },
+    { "key": "dupkey", "stages": ["ps"], "status": "owned", "provenance": "PV-T04", "source": "shaders/classic/programs/dupkey.hlsl", "entry": { "ps": "ps_main" } }
+  ],
+  "cases": [
+    {
+      "id": "R-001",
+      "why": "A live-default program resolves on its declared stage.",
+      "request": { "keyword": "vertexProgram", "name": "interaction.vfp", "target": "vs" },
+      "mode": "strict",
+      "expect": { "code": "OK", "decision": "draw", "draw": true }
+    },
+    {
+      "id": "R-002",
+      "why": "DOOM 3 matches program names with the extension stripped; a material may name the bare stem.",
+      "request": { "keyword": "vertexProgram", "name": "interaction", "target": "vs" },
+      "mode": "strict",
+      "expect": { "code": "OK", "decision": "draw", "draw": true }
+    },
+    {
+      "id": "R-003",
+      "why": "DOOM 3 matches program names case-insensitively; the resolver preserves that data compatibility.",
+      "request": { "keyword": "vertexProgram", "name": "INTERACTION.VFP", "target": "vs" },
+      "mode": "strict",
+      "expect": { "code": "OK", "decision": "draw", "draw": true }
+    },
+    {
+      "id": "R-004",
+      "why": "An unknown program is never drawn; a loud error replaces the silent black/unlit frame.",
+      "request": { "keyword": "fragmentProgram", "name": "not_in_manifest.vfp", "target": "ps" },
+      "mode": "strict",
+      "expect": { "code": "UNRESOLVED", "decision": "reject-material", "draw": false }
+    },
+    {
+      "id": "R-005",
+      "why": "The `program` keyword requests both stages from one file; both resolve here.",
+      "request": { "keyword": "program", "name": "environment.vfp" },
+      "mode": "strict",
+      "expect": { "code": "OK", "decision": "draw", "draw": true }
+    },
+    {
+      "id": "R-006",
+      "why": "A one-sided file requested as `program` must not leave the other stage bound to 0.",
+      "request": { "keyword": "program", "name": "one_sided.vfp" },
+      "mode": "strict",
+      "expect": { "code": "STAGE_MISSING", "decision": "reject-material", "draw": false }
+    },
+    {
+      "id": "R-007",
+      "why": "megaTexture.vfp is data-forced but out of the first milestone; unsupported is explicit, not silent.",
+      "request": { "keyword": "vertexProgram", "name": "megaTexture.vfp", "target": "vs" },
+      "mode": "strict",
+      "expect": { "code": "UNSUPPORTED", "decision": "reject-material", "draw": false }
+    },
+    {
+      "id": "R-008",
+      "why": "DOOM 3 truncates program names at 63 bytes; the resolver rejects instead of aliasing two names.",
+      "request": { "keyword": "vertexProgram", "name": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.vfp", "target": "vs" },
+      "mode": "strict",
+      "expect": { "code": "NAME_TOO_LONG", "decision": "reject-material", "draw": false }
+    },
+    {
+      "id": "R-009",
+      "why": "Tolerant mode still never draws an unresolved program; it substitutes the error material and logs once.",
+      "request": { "keyword": "fragmentProgram", "name": "not_in_manifest.vfp", "target": "ps" },
+      "mode": "tolerant",
+      "expect": { "code": "UNRESOLVED", "decision": "error-material", "draw": false }
+    },
+    {
+      "id": "R-010",
+      "why": "Two manifest entries with the same key are a manifest defect, not a silent first-wins.",
+      "request": { "keyword": "vertexProgram", "name": "dupkey.vfp", "target": "vs" },
+      "mode": "strict",
+      "expect": { "code": "AMBIGUOUS", "decision": "reject-material", "draw": false }
+    },
+    {
+      "id": "R-011",
+      "why": "A stub is not an owned program; it is reported as a stub, and the draw is replaced.",
+      "request": { "keyword": "fragmentProgram", "name": "stubprogram.vfp", "target": "ps" },
+      "mode": "strict",
+      "expect": { "code": "STUB", "decision": "reject-material", "draw": false }
+    },
+    {
+      "id": "R-012",
+      "why": "A path prefix is part of the DOOM 3 key; glprogs/foo.vfp must not silently resolve to foo.",
+      "request": { "keyword": "vertexProgram", "name": "glprogs/interaction.vfp", "target": "vs" },
+      "mode": "strict",
+      "expect": { "code": "UNRESOLVED", "decision": "reject-material", "draw": false }
+    },
+    {
+      "id": "R-013",
+      "why": "A declared stage on the wrong target is a stage miss, not a successful resolve.",
+      "request": { "keyword": "vertexProgram", "name": "arbFP_glasswarp.txt", "target": "vs" },
+      "mode": "strict",
+      "expect": { "code": "STAGE_MISSING", "decision": "reject-material", "draw": false }
+    },
+    {
+      "id": "R-014",
+      "why": "A known engine name with no implementation (dead table entry) is absent, not unresolved.",
+      "request": { "keyword": "vertexProgram", "name": "ambientLight.vfp", "target": "vs" },
+      "mode": "strict",
+      "expect": { "code": "ABSENT", "decision": "reject-material", "draw": false }
+    }
+  ]
+}

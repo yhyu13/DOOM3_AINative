@@ -1,0 +1,140 @@
+<!doctype html><html lang="en"><meta charset="utf-8">
+<title>Classic shaders - spec verification</title>
+<style>
+:root{--ink:#12141a;--muted:#5b6270;--line:#e4e6eb;--bg:#f6f7f9;--pass:#0a6b2d;--fail:#a11;}
+*{box-sizing:border-box}body{margin:0;padding:40px;background:var(--bg);color:var(--ink);font:14px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+h1{font-size:26px;margin:0 0 6px}h2{font-size:17px;margin:36px 0 10px;border-bottom:1px solid var(--line);padding-bottom:6px}
+p.meta{color:var(--muted);margin:0 0 22px}code{font-family:ui-monospace,Consolas,monospace;background:#fff;padding:1px 5px;border-radius:3px;border:1px solid var(--line)}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.card{background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+.card .name{font-weight:600}.card .sum{margin-top:6px;font-family:ui-monospace,Consolas,monospace;font-size:12px;color:var(--muted);word-break:break-word}
+.badge{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;padding:2px 7px;border-radius:20px;margin-right:8px}
+.pass{color:var(--pass);background:#e8f5ec}.fail{color:var(--fail);background:#fbeaea}
+.kpis{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0}.kpi{background:#fff;border:1px solid var(--line);border-radius:6px;padding:8px 12px}
+.kpi b{font-size:18px;margin-right:6px}table{border-collapse:collapse;width:100%;background:#fff;border:1px solid var(--line)}th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:left}
+th{background:#eef0f4;font-size:12px;text-transform:uppercase;letter-spacing:.04em}tr.live td:last-child{color:var(--pass);font-weight:600}tr.debug td:last-child{color:#8a6d00}tr.dead td:last-child{color:var(--fail)}
+.gaps li{margin:4px 0}.art{font-family:ui-monospace,Consolas,monospace;font-size:12px;color:var(--muted)}footer{margin-top:36px;color:var(--muted);font-size:12px}
+</style>
+<h1>Classic shaders - spec verification</h1>
+<p class="meta">superproject <code>b892c10</code> &middot; submodule <code>a9c49da5afb18201d31e3f0a429a037e56ce2b9a</code> &middot; generated 2026-10-29 11:39:41 +08:00 &middot; package <code>specs/008-classic-shaders</code> (tracked)</p>
+<div class="kpis">
+<span class="kpi"><b>6/6</b>gates passing</span>
+<span class="kpi"><b>19/32</b>tasks (spec 19/19)</span>
+<span class="kpi"><b>18</b>program entries</span>
+<span class="kpi"><b>5</b>files to author</span>
+<span class="kpi"><b>70</b>content assertions</span>
+</div>
+<h2>Gates</h2><div class="grid">
+<div class="card"><div><span class="badge pass">PASS</span><span class="name">Census drift</span></div><div class="sum">CENSUS OK: 18 entries, 13 files, 8 live-default entries, draw_exp compiled=False</div><div class="art">exit=0</div><details><summary class="art">command and output</summary><pre class="art">powershell -NoProfile -ExecutionPolicy Bypass -File specs/008-classic-shaders/tools/census.ps1 -Verify
+CENSUS OK: 18 entries, 13 files, 8 live-default entries, draw_exp compiled=False</pre></details></div>
+<div class="card"><div><span class="badge pass">PASS</span><span class="name">Resolver vectors</span></div><div class="sum">RESOLVER VECTORS: 14/14 passed (manifest validated: 12 entries)</div><div class="art">exit=0</div><details><summary class="art">command and output</summary><pre class="art">powershell -NoProfile -ExecutionPolicy Bypass -File specs/008-classic-shaders/tools/resolver-conformance.ps1
+PASS R-001  OK             draw
+PASS R-002  OK             draw
+PASS R-003  OK             draw
+PASS R-004  UNRESOLVED     reject-material
+PASS R-005  OK             draw
+PASS R-006  STAGE_MISSING  reject-material
+PASS R-007  UNSUPPORTED    reject-material
+PASS R-008  NAME_TOO_LONG  reject-material
+PASS R-009  UNRESOLVED     error-material
+PASS R-010  AMBIGUOUS      reject-material
+PASS R-011  STUB           reject-material
+PASS R-012  UNRESOLVED     reject-material
+PASS R-013  STAGE_MISSING  reject-material
+PASS R-014  ABSENT         reject-material
+
+RESOLVER VECTORS: 14/14 passed (manifest validated: 12 entries)</pre></details></div>
+<div class="card"><div><span class="badge pass">PASS</span><span class="name">Census-plan integration</span></div><div class="sum">INTEGRATION OK: 18 requests (10 OK, 8 ABSENT), 14 plan keys, 6 authored, 9 provenance ids; megaTexture=UNSUPPORTED</div><div class="art">exit=0</div><details><summary class="art">command and output</summary><pre class="art">powershell -NoProfile -ExecutionPolicy Bypass -File specs/008-classic-shaders/tools/integration-check.ps1
+file                            target class        code   expected   ok
+----                            ------ -----        ----   --------   --
+test.vfp                        VP     debug-only   OK     OK       True
+test.vfp                        FP     debug-only   OK     OK       True
+interaction.vfp                 VP     live-default OK     OK       True
+interaction.vfp                 FP     live-default OK     OK       True
+bumpyEnvironment.vfp            VP     live-default OK     OK       True
+bumpyEnvironment.vfp            FP     live-default OK     OK       True
+ambientLight.vfp                VP     dead         ABSENT ABSENT   True
+ambientLight.vfp                FP     dead         ABSENT ABSENT   True
+shadow.vp                       VP     live-default OK     OK       True
+R200_interaction.vp             VP     non-ARB2     ABSENT ABSENT   True
+nv20_bumpAndLight.vp            VP     non-ARB2     ABSENT ABSENT   True
+nv20_diffuseColor.vp            VP     non-ARB2     ABSENT ABSENT   True
+nv20_specularColor.vp           VP     non-ARB2     ABSENT ABSENT   True
+nv20_diffuseAndSpecularColor.vp VP     non-ARB2     ABSENT ABSENT   True
+environment.vfp                 VP     live-default OK     OK       True
+environment.vfp                 FP     live-default OK     OK       True
+arbVP_glasswarp.txt             VP     dead         ABSENT ABSENT   True
+arbFP_glasswarp.txt             FP     live-default OK     OK       True
+
+
+
+INTEGRATION OK: 18 requests (10 OK, 8 ABSENT), 14 plan keys, 6 authored, 9 provenance ids; megaTexture=UNSUPPORTED</pre></details></div>
+<div class="card"><div><span class="badge pass">PASS</span><span class="name">Resolver property test</span></div><div class="sum">FUZZ OK: 10160 distinct requests (24000 calls) over 6000 names (seed 20261028), 0 failures</div><div class="art">exit=0</div><details><summary class="art">command and output</summary><pre class="art">powershell -NoProfile -ExecutionPolicy Bypass -File specs/008-classic-shaders/tools/fuzz-resolver.ps1
+OK=454 UNRESOLVED=8512 STAGE_MISSING=335 STUB=198 UNSUPPORTED=178 ABSENT=83 AMBIGUOUS=172 NAME_TOO_LONG=2068 MANIFEST_INVALID=0
+  manifest validator cases=2, MANIFEST_INVALID not generated by requests
+FUZZ OK: 10160 distinct requests (24000 calls) over 6000 names (seed 20261028), 0 failures</pre></details></div>
+<div class="card"><div><span class="badge pass">PASS</span><span class="name">Anchors and links</span></div><div class="sum">DOCS OK: 121 anchors, 70 content assertions, 39 links</div><div class="art">exit=0</div><details><summary class="art">command and output</summary><pre class="art">powershell -NoProfile -ExecutionPolicy Bypass -File specs/008-classic-shaders/tools/verify-docs.ps1
+ANCHORS: 121 checked (engine + repo), 0 failed
+CONTENT: 70 asserted, 0 failed; cited in prose: 70/70
+LINKS:   39 checked, 0 failed
+DOCS OK: 121 anchors, 70 content assertions, 39 links</pre></details></div>
+<div class="card"><div><span class="badge pass">PASS</span><span class="name">Provenance gate</span></div><div class="sum">PROVENANCE OK: 258 tracked files, no shader source, no ARB program bodies</div><div class="art">exit=0</div><details><summary class="art">command and output</summary><pre class="art">powershell -NoProfile -ExecutionPolicy Bypass -File specs/008-classic-shaders/tools/provenance-check.ps1
+PROVENANCE OK: 258 tracked files, no shader source, no ARB program bodies</pre></details></div>
+</div>
+<h2>Program census</h2>
+<p class="meta">18 entries over 13 files: 8 live-default entries (5 files), 2 debug-only, 5 non-ARB2, 3 dead.</p>
+<table><thead><tr><th>#</th><th>line</th><th>target</th><th>enum</th><th>file</th><th>classification</th></tr></thead><tbody>
+<tr class="debug-only"><td>1</td><td>338</td><td>VP</td><td><code>VPROG_TEST</code></td><td><code>test.vfp</code></td><td>debug-only</td></tr>
+<tr class="debug-only"><td>2</td><td>339</td><td>FP</td><td><code>FPROG_TEST</code></td><td><code>test.vfp</code></td><td>debug-only</td></tr>
+<tr class="live-default"><td>3</td><td>340</td><td>VP</td><td><code>VPROG_INTERACTION</code></td><td><code>interaction.vfp</code></td><td>live-default</td></tr>
+<tr class="live-default"><td>4</td><td>341</td><td>FP</td><td><code>FPROG_INTERACTION</code></td><td><code>interaction.vfp</code></td><td>live-default</td></tr>
+<tr class="live-default"><td>5</td><td>342</td><td>VP</td><td><code>VPROG_BUMPY_ENVIRONMENT</code></td><td><code>bumpyEnvironment.vfp</code></td><td>live-default</td></tr>
+<tr class="live-default"><td>6</td><td>343</td><td>FP</td><td><code>FPROG_BUMPY_ENVIRONMENT</code></td><td><code>bumpyEnvironment.vfp</code></td><td>live-default</td></tr>
+<tr class="dead"><td>7</td><td>344</td><td>VP</td><td><code>VPROG_AMBIENT</code></td><td><code>ambientLight.vfp</code></td><td>dead</td></tr>
+<tr class="dead"><td>8</td><td>345</td><td>FP</td><td><code>FPROG_AMBIENT</code></td><td><code>ambientLight.vfp</code></td><td>dead</td></tr>
+<tr class="live-default"><td>9</td><td>346</td><td>VP</td><td><code>VPROG_STENCIL_SHADOW</code></td><td><code>shadow.vp</code></td><td>live-default</td></tr>
+<tr class="non-ARB2"><td>10</td><td>347</td><td>VP</td><td><code>VPROG_R200_INTERACTION</code></td><td><code>R200_interaction.vp</code></td><td>non-ARB2</td></tr>
+<tr class="non-ARB2"><td>11</td><td>348</td><td>VP</td><td><code>VPROG_NV20_BUMP_AND_LIGHT</code></td><td><code>nv20_bumpAndLight.vp</code></td><td>non-ARB2</td></tr>
+<tr class="non-ARB2"><td>12</td><td>349</td><td>VP</td><td><code>VPROG_NV20_DIFFUSE_COLOR</code></td><td><code>nv20_diffuseColor.vp</code></td><td>non-ARB2</td></tr>
+<tr class="non-ARB2"><td>13</td><td>350</td><td>VP</td><td><code>VPROG_NV20_SPECULAR_COLOR</code></td><td><code>nv20_specularColor.vp</code></td><td>non-ARB2</td></tr>
+<tr class="non-ARB2"><td>14</td><td>351</td><td>VP</td><td><code>VPROG_NV20_DIFFUSE_AND_SPECULAR_COLOR</code></td><td><code>nv20_diffuseAndSpecularColor.vp</code></td><td>non-ARB2</td></tr>
+<tr class="live-default"><td>15</td><td>352</td><td>VP</td><td><code>VPROG_ENVIRONMENT</code></td><td><code>environment.vfp</code></td><td>live-default</td></tr>
+<tr class="live-default"><td>16</td><td>353</td><td>FP</td><td><code>FPROG_ENVIRONMENT</code></td><td><code>environment.vfp</code></td><td>live-default</td></tr>
+<tr class="dead"><td>17</td><td>354</td><td>VP</td><td><code>VPROG_GLASSWARP</code></td><td><code>arbVP_glasswarp.txt</code></td><td>dead</td></tr>
+<tr class="live-default"><td>18</td><td>355</td><td>FP</td><td><code>FPROG_GLASSWARP</code></td><td><code>arbFP_glasswarp.txt</code></td><td>live-default</td></tr>
+</tbody></table>
+<h2>Known gaps</h2><ul class="gaps">
+<li>Runtime census on retail data: <b>SKIPPED</b>; no authorized pk4 in the worktree.</li>
+<li>Legal review of the derivative-work position: <b>BLOCKED</b>; conservative rules only.</li>
+<li>Engine resolver, ABI header, shaders: <b>not started</b> (T-020..T-030).</li>
+<li>The five-file authoring set is a lower bound; material-declared programs are unknown until the runtime census.</li>
+</ul>
+<h2>Artifacts</h2><table><thead><tr><th>path</th></tr></thead><tbody>
+<tr><td><code>abi.md</code></td></tr>
+<tr><td><code>census.json</code></td></tr>
+<tr><td><code>census.md</code></td></tr>
+<tr><td><code>evidence/census.html</code></td></tr>
+<tr><td><code>evidence/census.png</code></td></tr>
+<tr><td><code>evidence/report.html</code></td></tr>
+<tr><td><code>evidence/report.png</code></td></tr>
+<tr><td><code>evidence/verification.md</code></td></tr>
+<tr><td><code>ownership.md</code></td></tr>
+<tr><td><code>plan.md</code></td></tr>
+<tr><td><code>provenance.md</code></td></tr>
+<tr><td><code>resolver.md</code></td></tr>
+<tr><td><code>review.md</code></td></tr>
+<tr><td><code>spec.md</code></td></tr>
+<tr><td><code>tasks.md</code></td></tr>
+<tr><td><code>tools/anchors.json</code></td></tr>
+<tr><td><code>tools/authoring-plan.json</code></td></tr>
+<tr><td><code>tools/census.ps1</code></td></tr>
+<tr><td><code>tools/fuzz-resolver.ps1</code></td></tr>
+<tr><td><code>tools/integration-check.ps1</code></td></tr>
+<tr><td><code>tools/provenance-check.ps1</code></td></tr>
+<tr><td><code>tools/report.ps1</code></td></tr>
+<tr><td><code>tools/resolver-conformance.ps1</code></td></tr>
+<tr><td><code>tools/resolver-model.ps1</code></td></tr>
+<tr><td><code>tools/resolver-vectors.json</code></td></tr>
+<tr><td><code>tools/verify-docs.ps1</code></td></tr>
+</tbody></table>
+<footer>Generated by <code>tools/report.ps1</code>. The report is a rendering of the gates above; it is not independent evidence of shader behaviour.</footer>
+</html>

@@ -1,0 +1,435 @@
+{
+    "schema":  "doom3-classic-shader-census/1",
+    "engine_source":  "doom3_orig/doom3",
+    "table_source":  "doom3_orig/doom3/neo/renderer/draw_arb2.cpp",
+    "table_span":  "337-358",
+    "draw_exp_compiled":  false,
+    "counts":  {
+                   "static_entries":  18,
+                   "static_distinct_files":  13,
+                   "live_default_entries":  8,
+                   "live_default_distinct_files":  5,
+                   "debug_only_entries":  2,
+                   "debug_only_distinct_files":  1,
+                   "non_arb2_entries":  5,
+                   "non_arb2_distinct_files":  5,
+                   "dead_entries":  3,
+                   "dead_distinct_files":  2,
+                   "max_glprogs":  200,
+                   "free_slots":  182,
+                   "material_resolver_calls":  6,
+                   "material_keywords":  4,
+                   "draw_exp_compiled":  false
+               },
+    "table":  [
+                  {
+                      "index":  1,
+                      "line":  338,
+                      "target":  "VP",
+                      "enum":  "VPROG_TEST",
+                      "file":  "test.vfp",
+                      "classification":  "debug-only",
+                      "boundIn":  [
+                                      "neo/renderer/draw_arb2.cpp:154",
+                                      "neo/renderer/draw_exp.cpp:1274"
+                                  ]
+                  },
+                  {
+                      "index":  2,
+                      "line":  339,
+                      "target":  "FP",
+                      "enum":  "FPROG_TEST",
+                      "file":  "test.vfp",
+                      "classification":  "debug-only",
+                      "boundIn":  [
+                                      "neo/renderer/draw_arb2.cpp:155",
+                                      "neo/renderer/draw_exp.cpp:1275"
+                                  ]
+                  },
+                  {
+                      "index":  3,
+                      "line":  340,
+                      "target":  "VP",
+                      "enum":  "VPROG_INTERACTION",
+                      "file":  "interaction.vfp",
+                      "classification":  "live-default",
+                      "boundIn":  [
+                                      "neo/renderer/draw_arb2.cpp:157",
+                                      "neo/renderer/draw_exp.cpp:1277"
+                                  ]
+                  },
+                  {
+                      "index":  4,
+                      "line":  341,
+                      "target":  "FP",
+                      "enum":  "FPROG_INTERACTION",
+                      "file":  "interaction.vfp",
+                      "classification":  "live-default",
+                      "boundIn":  [
+                                      "neo/renderer/draw_arb2.cpp:158",
+                                      "neo/renderer/draw_exp.cpp:1278"
+                                  ]
+                  },
+                  {
+                      "index":  5,
+                      "line":  342,
+                      "target":  "VP",
+                      "enum":  "VPROG_BUMPY_ENVIRONMENT",
+                      "file":  "bumpyEnvironment.vfp",
+                      "classification":  "live-default",
+                      "boundIn":  [
+                                      "neo/renderer/draw_common.cpp:215"
+                                  ]
+                  },
+                  {
+                      "index":  6,
+                      "line":  343,
+                      "target":  "FP",
+                      "enum":  "FPROG_BUMPY_ENVIRONMENT",
+                      "file":  "bumpyEnvironment.vfp",
+                      "classification":  "live-default",
+                      "boundIn":  [
+                                      "neo/renderer/draw_common.cpp:213"
+                                  ]
+                  },
+                  {
+                      "index":  7,
+                      "line":  344,
+                      "target":  "VP",
+                      "enum":  "VPROG_AMBIENT",
+                      "file":  "ambientLight.vfp",
+                      "classification":  "dead",
+                      "boundIn":  [
+                                      "neo/renderer/draw_exp.cpp:1312"
+                                  ]
+                  },
+                  {
+                      "index":  8,
+                      "line":  345,
+                      "target":  "FP",
+                      "enum":  "FPROG_AMBIENT",
+                      "file":  "ambientLight.vfp",
+                      "classification":  "dead",
+                      "boundIn":  [
+                                      "neo/renderer/draw_exp.cpp:1313"
+                                  ]
+                  },
+                  {
+                      "index":  9,
+                      "line":  346,
+                      "target":  "VP",
+                      "enum":  "VPROG_STENCIL_SHADOW",
+                      "file":  "shadow.vp",
+                      "classification":  "live-default",
+                      "boundIn":  [
+                                      "neo/renderer/draw_arb2.cpp:290",
+                                      "neo/renderer/draw_arb2.cpp:294",
+                                      "neo/renderer/draw_nv20.cpp:807",
+                                      "neo/renderer/draw_nv20.cpp:811",
+                                      "neo/renderer/draw_r200.cpp:313",
+                                      "neo/renderer/draw_r200.cpp:319"
+                                  ]
+                  },
+                  {
+                      "index":  10,
+                      "line":  347,
+                      "target":  "VP",
+                      "enum":  "VPROG_R200_INTERACTION",
+                      "file":  "R200_interaction.vp",
+                      "classification":  "non-ARB2",
+                      "boundIn":  [
+                                      "neo/renderer/draw_r200.cpp:218"
+                                  ]
+                  },
+                  {
+                      "index":  11,
+                      "line":  348,
+                      "target":  "VP",
+                      "enum":  "VPROG_NV20_BUMP_AND_LIGHT",
+                      "file":  "nv20_bumpAndLight.vp",
+                      "classification":  "non-ARB2",
+                      "boundIn":  [
+                                      "neo/renderer/draw_nv20.cpp:203"
+                                  ]
+                  },
+                  {
+                      "index":  12,
+                      "line":  349,
+                      "target":  "VP",
+                      "enum":  "VPROG_NV20_DIFFUSE_COLOR",
+                      "file":  "nv20_diffuseColor.vp",
+                      "classification":  "non-ARB2",
+                      "boundIn":  [
+                                      "neo/renderer/draw_nv20.cpp:313"
+                                  ]
+                  },
+                  {
+                      "index":  13,
+                      "line":  350,
+                      "target":  "VP",
+                      "enum":  "VPROG_NV20_SPECULAR_COLOR",
+                      "file":  "nv20_specularColor.vp",
+                      "classification":  "non-ARB2",
+                      "boundIn":  [
+                                      "neo/renderer/draw_nv20.cpp:466"
+                                  ]
+                  },
+                  {
+                      "index":  14,
+                      "line":  351,
+                      "target":  "VP",
+                      "enum":  "VPROG_NV20_DIFFUSE_AND_SPECULAR_COLOR",
+                      "file":  "nv20_diffuseAndSpecularColor.vp",
+                      "classification":  "non-ARB2",
+                      "boundIn":  [
+                                      "neo/renderer/draw_nv20.cpp:594"
+                                  ]
+                  },
+                  {
+                      "index":  15,
+                      "line":  352,
+                      "target":  "VP",
+                      "enum":  "VPROG_ENVIRONMENT",
+                      "file":  "environment.vfp",
+                      "classification":  "live-default",
+                      "boundIn":  [
+                                      "neo/renderer/draw_common.cpp:224"
+                                  ]
+                  },
+                  {
+                      "index":  16,
+                      "line":  353,
+                      "target":  "FP",
+                      "enum":  "FPROG_ENVIRONMENT",
+                      "file":  "environment.vfp",
+                      "classification":  "live-default",
+                      "boundIn":  [
+                                      "neo/renderer/draw_common.cpp:222"
+                                  ]
+                  },
+                  {
+                      "index":  17,
+                      "line":  354,
+                      "target":  "VP",
+                      "enum":  "VPROG_GLASSWARP",
+                      "file":  "arbVP_glasswarp.txt",
+                      "classification":  "dead",
+                      "boundIn":  [
+
+                                  ]
+                  },
+                  {
+                      "index":  18,
+                      "line":  355,
+                      "target":  "FP",
+                      "enum":  "FPROG_GLASSWARP",
+                      "file":  "arbFP_glasswarp.txt",
+                      "classification":  "live-default",
+                      "boundIn":  [
+                                      "neo/renderer/draw_common.cpp:155"
+                                  ]
+                  }
+              ],
+    "binds":  [
+                  {
+                      "file":  "neo/renderer/draw_arb2.cpp",
+                      "line":  154,
+                      "target":  "VP",
+                      "enum":  "VPROG_TEST"
+                  },
+                  {
+                      "file":  "neo/renderer/draw_arb2.cpp",
+                      "line":  155,
+                      "target":  "FP",
+                      "enum":  "FPROG_TEST"
+                  },
+                  {
+                      "file":  "neo/renderer/draw_arb2.cpp",
+                      "line":  157,
+                      "target":  "VP",
+                      "enum":  "VPROG_INTERACTION"
+                  },
+                  {
+                      "file":  "neo/renderer/draw_arb2.cpp",
+                      "line":  158,
+                      "target":  "FP",
+                      "enum":  "FPROG_INTERACTION"
+                  },
+                  {
+                      "file":  "neo/renderer/draw_arb2.cpp",
+                      "line":  290,
+                      "target":  "VP",
+                      "enum":  "VPROG_STENCIL_SHADOW"
+                  },
+                  {
+                      "file":  "neo/renderer/draw_arb2.cpp",
+                      "line":  294,
+                      "target":  "VP",
+                      "enum":  "VPROG_STENCIL_SHADOW"
+                  },
+                  {
+                      "file":  "neo/renderer/draw_common.cpp",
+                      "line":  155,
+                      "target":  "FP",
+                      "enum":  "FPROG_GLASSWARP"
+                  },
+                  {
+                      "file":  "neo/renderer/draw_common.cpp",
+                      "line":  213,
+                      "target":  "FP",
+                      "enum":  "FPROG_BUMPY_ENVIRONMENT"
+                  },
+                  {
+                      "file":  "neo/renderer/draw_common.cpp",
+                      "line":  215,
+                      "target":  "VP",
+                      "enum":  "VPROG_BUMPY_ENVIRONMENT"
+                  },
+                  {
+                      "file":  "neo/renderer/draw_common.cpp",
+                      "line":  222,
+                      "target":  "FP",
+                      "enum":  "FPROG_ENVIRONMENT"
+                  },
+                  {
+                      "file":  "neo/renderer/draw_common.cpp",
+                      "line":  224,
+                      "target":  "VP",
+                      "enum":  "VPROG_ENVIRONMENT"
+                  },
+                  {
+                      "file":  "neo/renderer/draw_common.cpp",
+                      "line":  313,
+                      "target":  "VP",
+                      "enum":  "0"
+                  },
+                  {
+                      "file":  "neo/renderer/draw_common.cpp",
+                      "line":  854,
+                      "target":  "VP",
+                      "enum":  "0"
+                  },
+                  {
+                      "file":  "neo/renderer/draw_exp.cpp",
+                      "line":  1274,
+                      "target":  "VP",
+                      "enum":  "VPROG_TEST"
+                  },
+                  {
+                      "file":  "neo/renderer/draw_exp.cpp",
+                      "line":  1275,
+                      "target":  "FP",
+                      "enum":  "FPROG_TEST"
+                  },
+                  {
+                      "file":  "neo/renderer/draw_exp.cpp",
+                      "line":  1277,
+                      "target":  "VP",
+                      "enum":  "VPROG_INTERACTION"
+                  },
+                  {
+                      "file":  "neo/renderer/draw_exp.cpp",
+                      "line":  1278,
+                      "target":  "FP",
+                      "enum":  "FPROG_INTERACTION"
+                  },
+                  {
+                      "file":  "neo/renderer/draw_exp.cpp",
+                      "line":  1312,
+                      "target":  "VP",
+                      "enum":  "VPROG_AMBIENT"
+                  },
+                  {
+                      "file":  "neo/renderer/draw_exp.cpp",
+                      "line":  1313,
+                      "target":  "FP",
+                      "enum":  "FPROG_AMBIENT"
+                  },
+                  {
+                      "file":  "neo/renderer/draw_nv20.cpp",
+                      "line":  203,
+                      "target":  "VP",
+                      "enum":  "VPROG_NV20_BUMP_AND_LIGHT"
+                  },
+                  {
+                      "file":  "neo/renderer/draw_nv20.cpp",
+                      "line":  313,
+                      "target":  "VP",
+                      "enum":  "VPROG_NV20_DIFFUSE_COLOR"
+                  },
+                  {
+                      "file":  "neo/renderer/draw_nv20.cpp",
+                      "line":  466,
+                      "target":  "VP",
+                      "enum":  "VPROG_NV20_SPECULAR_COLOR"
+                  },
+                  {
+                      "file":  "neo/renderer/draw_nv20.cpp",
+                      "line":  594,
+                      "target":  "VP",
+                      "enum":  "VPROG_NV20_DIFFUSE_AND_SPECULAR_COLOR"
+                  },
+                  {
+                      "file":  "neo/renderer/draw_nv20.cpp",
+                      "line":  807,
+                      "target":  "VP",
+                      "enum":  "VPROG_STENCIL_SHADOW"
+                  },
+                  {
+                      "file":  "neo/renderer/draw_nv20.cpp",
+                      "line":  811,
+                      "target":  "VP",
+                      "enum":  "VPROG_STENCIL_SHADOW"
+                  },
+                  {
+                      "file":  "neo/renderer/draw_r200.cpp",
+                      "line":  218,
+                      "target":  "VP",
+                      "enum":  "VPROG_R200_INTERACTION"
+                  },
+                  {
+                      "file":  "neo/renderer/draw_r200.cpp",
+                      "line":  313,
+                      "target":  "VP",
+                      "enum":  "VPROG_STENCIL_SHADOW"
+                  },
+                  {
+                      "file":  "neo/renderer/draw_r200.cpp",
+                      "line":  319,
+                      "target":  "VP",
+                      "enum":  "VPROG_STENCIL_SHADOW"
+                  }
+              ],
+    "material_resolver_calls":  [
+                                    {
+                                        "line":  1492,
+                                        "keyword":  "program",
+                                        "target":  "VP"
+                                    },
+                                    {
+                                        "line":  1493,
+                                        "keyword":  "program",
+                                        "target":  "FP"
+                                    },
+                                    {
+                                        "line":  1499,
+                                        "keyword":  "fragmentProgram",
+                                        "target":  "FP"
+                                    },
+                                    {
+                                        "line":  1505,
+                                        "keyword":  "vertexProgram",
+                                        "target":  "VP"
+                                    },
+                                    {
+                                        "line":  1517,
+                                        "keyword":  "megaTexture",
+                                        "target":  "VP"
+                                    },
+                                    {
+                                        "line":  1518,
+                                        "keyword":  "megaTexture",
+                                        "target":  "FP"
+                                    }
+                                ]
+}
