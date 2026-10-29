@@ -32,6 +32,15 @@ if(NOT EXISTS "${SOURCES_CMAKE}")
 endif()
 include("${SOURCES_CMAKE}")
 
+# Port-owned shader resolver (spec 008). The core is C++17 and is compiled separately from the 2011
+# engine sources; engine call sites only see the C++11-clean facade in engine/shader_engine.h.
+set(PORT_SHADER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../src/renderer/shader")
+set(PORT_SHADER_SOURCES
+    "${PORT_SHADER_DIR}/shader_resolver.cpp"
+    "${PORT_SHADER_DIR}/shader_json.cpp"
+    "${PORT_SHADER_DIR}/engine/shader_engine.cpp")
+set_source_files_properties(${PORT_SHADER_SOURCES} PROPERTIES COMPILE_OPTIONS "/std:c++17")
+
 foreach(list_name IDLIB_SOURCES ENGINE_SOURCES GAME_SOURCES D3XP_SOURCES)
     list(TRANSFORM ${list_name} PREPEND "${NEO_DIR}/")
 endforeach()
@@ -47,6 +56,8 @@ target_include_directories(doom3_common INTERFACE
     "${NEO_DIR}/sound/OggVorbis"
     "${NEO_DIR}/sound/OggVorbis/vorbissrc"
     "${NEO_DIR}/renderer/jpeg-6"
+    "${PORT_SHADER_DIR}"
+    "${PORT_SHADER_DIR}/engine"
 )
 target_compile_definitions(doom3_common INTERFACE
     WIN32
@@ -73,7 +84,7 @@ set_source_files_properties("${NEO_DIR}/sys/win32/win_input.cpp" PROPERTIES
 
 # idlib + engine: identical for both executables (the retail engine is one EXE that loads either
 # game module; the only engine-visible difference, TIME_GROUP*, is unused by engine code).
-add_library(doom3_engine OBJECT ${IDLIB_SOURCES} ${ENGINE_SOURCES} src/eaxguid_x64.cpp)
+add_library(doom3_engine OBJECT ${IDLIB_SOURCES} ${ENGINE_SOURCES} ${PORT_SHADER_SOURCES} src/eaxguid_x64.cpp)
 target_link_libraries(doom3_engine PRIVATE doom3_common)
 
 # Game modules: compiled-in (no GAME_DLL / __DOOM_DLL__), so each executable owns exactly one
