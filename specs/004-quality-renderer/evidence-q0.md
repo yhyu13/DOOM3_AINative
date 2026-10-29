@@ -238,7 +238,7 @@ correct. Fixed: `tasks.md` now lists 0.1827 / 0.2258 / 0.1082 / 0.0550 and 0.207
 0.0982% / 0.0318%; the scene spec says 0.0318%. PR review 2 then blocked because §2 still named the discarded `ca428014` base and described
 the change set as uncommitted. Fixed: §2 now names base `53537d9`, Q0 code `497a104` and evidence
 refresh `49876b8`, and §7 describes the committed branch. No script, test or capture was rerun.
-PR review 3 is pending.
+PR review 3 (head `4b37508`) returned **PASS** with no blocking findings.
 
 T011 is complete with these residual gaps: the baseline is valid for this host/demo/GL renderer,
 not a retail or performance claim; resolution enforcement and real-process/`-Clean` tests remain
