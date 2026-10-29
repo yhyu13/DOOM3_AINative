@@ -184,3 +184,10 @@ being wrong**: the contract gate was red on the committed tree while `evidence/i
 | F-21 | nit | T-001 said `git ls-files content` shows no binary, but authored PNGs are tracked on purpose. | reworded to "no pack and no build product" |
 | F-22 | non-blocking, pre-existing | `specs/004-quality-renderer/review-t089.md` contains a tracked absolute Windows path (repo rule 6), introduced by PR #42, outside this PR. | recorded here, not fixed here: it needs its own change and would mix workstreams |
 | F-23 | nit | `scan-pack.ps1` wrote its inventory into a tracked path by default. | default moved to `out/content/pack-inventory.json` |
+### 2.5 Follow-up found after the merge (F-24)
+
+| Id | Severity | Finding | Disposition |
+|---|---|---|---|
+| F-24 | **blocking for the determinism claim** | `package_sha256` hashed the sidecar and `.mtr` bytes as they sat on disk. With `* text=auto`, a Windows checkout gives CRLF while a tree written by a tool gives LF, so the same commit produced two digests (`acc3ad0e…` vs `8aaeb732…`). SC-003 promised reproducibility and did not have it across checkouts. | both scripts hash text inputs through `Get-Sha256Normalized` (CRLF→LF, UTF-8, no BOM); the spec's `MaterialPackage` entry now states the normalisation. Verified in a fresh CRLF worktree: `8aaeb732…` on both builds, identical to the LF tree. |
+
+This one was not in the review; it surfaced when a package built before the merge failed verification in the merged tree with `sidecar-sha256-mismatch`. The verifier was right and the digest rule was wrong — which is the outcome the mismatch check exists for.

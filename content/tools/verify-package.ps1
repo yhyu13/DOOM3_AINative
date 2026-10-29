@@ -131,7 +131,7 @@ function Invoke-PackageChecks {
         Write-Failure ($Label + 'sidecar-material-mismatch') "sidecar says '$sidecarMaterial', the package says '$material'"
     }
 
-    $sidecarHash = Get-Sha256 $sidecarPath
+    $sidecarHash = Get-Sha256Normalized $sidecarPath
     $recordedSidecarHash = [string](Get-JsonField $package 'sidecar_sha256')
     if ($recordedSidecarHash.ToLowerInvariant() -ne $sidecarHash) {
         Write-Failure ($Label + 'sidecar-sha256-mismatch') "recorded $recordedSidecarHash, content/materials/$material.mat.json hashes to $sidecarHash"
@@ -145,7 +145,7 @@ function Invoke-PackageChecks {
     if (-not (Test-Path -LiteralPath $mtrPath)) {
         Write-Failure ($Label + 'mtr-missing') "mtr '$mtrRelative' does not exist"
     }
-    $mtrHash = Get-Sha256 $mtrPath
+    $mtrHash = Get-Sha256Normalized $mtrPath
     $recordedMtrHash = [string](Get-JsonField $package 'mtr_sha256')
     if ($recordedMtrHash.ToLowerInvariant() -ne $mtrHash) {
         Write-Failure ($Label + 'mtr-sha256-mismatch') "recorded $recordedMtrHash, $mtrRelative hashes to $mtrHash"
