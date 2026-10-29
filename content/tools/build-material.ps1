@@ -226,7 +226,7 @@ if ($sidecarMtr -cne $q4Mtr) {
     Write-Failure 1 'sidecar-mtr-mismatch' "sidecar says mtr '$sidecarMtr', the Q4 set says '$q4Mtr'"
 }
 
-$sidecarHash = Get-Sha256 $sidecarPath
+$sidecarHash = Get-Sha256Normalized $sidecarPath
 if (-not (Test-RepoRelativePath -RelativePath $q4Mtr)) {
     Write-Failure 1 'mtr-path-invalid' "mtr path '$q4Mtr' is not a repository-relative path"
 }
@@ -234,7 +234,7 @@ $mtrPath = Resolve-RepoPath -RepoRoot $RepoRoot -RelativePath $q4Mtr
 if (-not (Test-Path -LiteralPath $mtrPath)) {
     Write-Failure 1 'mtr-missing' "mtr '$q4Mtr' does not exist"
 }
-$mtrHash = Get-Sha256 $mtrPath
+$mtrHash = Get-Sha256Normalized $mtrPath
 
 $declared = Get-JsonField $sidecar 'channels'
 if ($null -eq $declared) {
@@ -508,8 +508,8 @@ $channelOrder = [string[]]@($built.Keys)
 $textures = @()
 foreach ($name in $channelOrder) { $textures += $built[$name] }
 
-$sidecarHash = Get-Sha256 $sidecarPath
-$mtrHash = Get-Sha256 $mtrPath
+$sidecarHash = Get-Sha256Normalized $sidecarPath
+$mtrHash = Get-Sha256Normalized $mtrPath
 $package = [ordered]@{
     schema         = 'doom3-content-package/1'
     material       = $Material

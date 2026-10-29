@@ -143,7 +143,7 @@ honestly marked blocked until the renderer exists.
 | `PackEntry` | `name`, `bytes`, `sha256`, `entries`, `files`, `textures`, `materials`, `state` (`staged`/`absent`/`skipped:<reason>`) |
 | `AssetRecord` | `id`, `path`, `sha256`, `licence` (must be `CC0-1.0` for hero), `author`, `retail_text_consulted` |
 | `MaterialSidecar` | `schema`, `material`, `mtr`, `channels{baseColor,normal,roughness,metalness,ao,emissive}`, each with `state` and `path` |
-| `MaterialPackage` | `schema`, `material`, `sidecar_sha256`, `mtr_sha256`, `textures[]` (channel, `file` — the name inside the package — format, width, height, mips, srgb, sha256, sources[]), `toolchain{python, pillow, texconv}`, `package_sha256` — defined as SHA-256 over sidecar, then `.mtr`, then each texture hash in channel-name sort order, joined by LF, excluding the field itself |
+| `MaterialPackage` | `schema`, `material`, `sidecar_sha256`, `mtr_sha256`, `textures[]` (channel, `file` — the name inside the package — format, width, height, mips, srgb, sha256, sources[]), `toolchain{python, pillow, texconv}`, `package_sha256` — defined as SHA-256 over sidecar, then `.mtr`, then each texture hash in channel-name sort order, joined by LF, excluding the field itself; the two text files are hashed after CRLF→LF normalisation so a Windows checkout and a Linux checkout of the same commit produce the same digest |
 | `MatrixCell` | `id`, `name`, `sources[]`, `package`, `capture` (path or `BLOCKED:<reason>`), `budget_row{task, artifact, state}` |
 | `Q4MaterialSet` | `schema`, `materials[]` (material name + `.mtr` relative path); the only definition of "in the Q4 set" (FR-005) |
 | `BudgetRow` | `cell`, `task` (`T056` until 004 renumbers), `artifact`, `state` (`recorded` / `blocked:<reason>`) |

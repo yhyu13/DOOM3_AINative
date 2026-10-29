@@ -144,3 +144,19 @@ function Get-TrackedFiles {
     } finally { Pop-Location }
     return $files
 }
+
+function Get-Sha256Normalized {
+    <#
+      Hash a text file after normalising CRLF to LF. A package records the hash of its sidecar and .mtr, and
+      those files are checked out with CRLF on Windows (* text=auto). Without normalisation the same commit
+      would produce a different package hash on a fresh checkout, which would make SC-003's determinism claim
+      false for everyone but the machine that wrote the files.
+    #>
+    [CmdletBinding()]
+    param([Parameter(Mandatory = $true)][string]$Path)
+    if (-not (Test-Path -LiteralPath $Path)) { throw "hash: file not found: $Path" }
+    $text = [System.IO.File]::ReadAllText($Path) -replace "`r`n", "`n"
+    $bytes = (New-Object System.Text.UTF8Encoding($false)).GetBytes($text)
+    $digest = [System.Security.Cryptography.SHA256]::Create().ComputeHash($bytes)
+    return (([System.BitConverter]::ToString($digest) -replace '-', '').ToLowerInvariant())
+}
