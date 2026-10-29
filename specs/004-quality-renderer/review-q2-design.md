@@ -137,7 +137,7 @@ not reproduce), the first commit message still named final11 (true at that commi
 verdict was not yet recorded, the S2 `megaTexture` row cited an untracked path, and the T009–T011
 tracker drift was not disclosed. The EOFs, S2 citation, Q0 drift disclosure and this section were
 fixed; the first commit message is retained as the historical first commit rather than rewritten.
-No ninth pass was run.
+No ninth pass was run. After the PASS, T032/T033/T041 were ticked as design deliverables; this does not tick any Q2/Q3 execution task.
 
 ---
 
@@ -152,7 +152,7 @@ No ninth pass was run.
 | Q1a tracker drift: merged PR #18, but T012–T021 remain unchecked | Disclosed; S4 does not tick another session's tasks |
 | T004/T005 sign-off | **Resolved** by PR #27; both tasks checked on `main` |
 | Independent human review | **None** |
-| T032/T033/T041 acceptance | **Not claimed** |
+| T032/T033/T041 design deliverables | **Complete and ticked** after Round 8 PASS; Q2/Q3 implementation/execution and human sign-off are not claimed |
 
 ## 5. What the reviews did verify
 

@@ -32,7 +32,7 @@ ceilings and the merge/freshness condition.
 | `tests/renderer/motion-fixtures.md` | `9E13C9D0A689932CBD6A5B23301E73990C422BD151B8F0A50B9D16060B19EEBA` |
 | `specs/004-quality-renderer/tools/motion_fixtures.py` | `A81E8FA076578B21CAB2607A1D65EF5FD0077639CB607B15096967618C6A1997` |
 | `specs/004-quality-renderer/tools/verify-q2-design.py` | `CB56B96933B8F9678F5B544F96E2E640D52153D8146A5524661B75B364BD9F38` |
-| `specs/004-quality-renderer/review-q2-design.md` | `E39BFA727069534DC5AFBBBA114751D3E3FA971305EAD54131B97E9B1D5020CD` |
+| `specs/004-quality-renderer/review-q2-design.md` | `FE0CBCA7BA479969AE403677A7FF0BCBA9B999F40D7400E95A6B8331F4AB5589` |
 
 Hashes identify this change set. They will change if the documents are edited; recompute before
 using them to identify a different revision.
@@ -241,6 +241,7 @@ does not prove semantic correctness.
 | Engine build/run | **Build wiring probed** with the real engine source tree and a stub adapter (both EXEs, `/MT`/`/MTd`, RHI linked); **real adapter and game run not done**; T035/T036/T083 |
 | Q1/Q1a/T088 | **Q1a** built and CTest 7/7 (Debug/Release); **Q1b/Q1 and T088 not run**; Q2 remains blocked |
 | T037/T038 fixtures | **Not authored**; the matrix rows are `NOT RUN` |
+| S4 task completion | **T032/T033/T041 are ticked** after the Round 8 PASS; programme checkbox count is now 6/88 (T001, T004, T005, T032, T033, T041). |
 | Q1a tracker drift | Q1a is merged (PR #18) and its evidence/review are on `main`, but **T012–T021 remain unchecked** in `tasks.md`. This is tracker drift; S4 does not tick another session's tasks. |
 | Q0 tracker drift | Q0 `final13` is established and committed on the S1 branch, but **T009–T011 remain unchecked** on `main`; the Q0 merge/reconcile is pending. |
 | Independent human review | **None**; the adversarial reviews are AI, recorded in `review-q2-design.md` |
@@ -254,8 +255,7 @@ recompute with predeclared tolerances, the mutations are detected, the live RHI 
 passes, Q1a builds and passes 7/7 CTest in Debug and Release, and the proposed CMake linkage shape
 builds both executables against the real engine source tree (stub adapter).
 
-T032 is **design-complete with measured Q0 ceilings**, but not accepted: the Q2 fixtures/new-path
-captures do not exist, HUD/ROI controls are pending, and no independent reviewer has signed off.
-T033 is design-complete with a real build-wiring probe, but the real adapter/selector/run do not
-exist. T041's fixture document is delivered byte-identically at `tests/renderer/motion-fixtures.md`;
-its C++ consumer tests and T048 have not run.
+T032, T033 and T041 are **ticked as design deliverables** after the Round 8 independent PASS
+(6/88 checked overall), but that is not execution acceptance. Q2 fixtures/new-path captures, HUD/ROI
+controls and a human sign-off do not exist; T033's real adapter/selector/run do not exist; T041's
+C++ consumer tests and T048 have not run.
