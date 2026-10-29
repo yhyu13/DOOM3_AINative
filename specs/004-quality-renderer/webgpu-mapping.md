@@ -42,12 +42,17 @@ identifier-embedded forms, not every native synonym (`CommittedResource`, `CmdQu
 | `AdapterClass` | Derived from `GPUAdapterInfo.isFallbackAdapter` and the vendor string; WebGPU exposes no adapter-class enum | mapped-with-gap | C1 | The class is inferred, so a driver that reports neither a fallback flag nor a known vendor cannot be classified without a caller-visible heuristic |
 | `AdapterClass.Hardware` | `requestAdapter()` then require `adapter.info.isFallbackAdapter === false` | mapped | C1 | Observed: `intel` / `xe-lpg`, `isFallbackAdapter=false` |
 | `AdapterClass.Software` | `requestAdapter({ forceFallbackAdapter: true })`; a null result is an actionable `Unsupported` | mapped-with-gap | — | No software WebGPU adapter was exposed on this host, so this leg is NOT RUN and is not counted as a pass |
+| `AdapterFact` | Bitmask vocabulary for optional adapter facts; a clear bit is the portable "unavailable" signal | mapped | C1 | No WebGPU type is needed; the bits describe what the adapter info actually contains |
+| `AdapterFact.VendorId` | Set only by a backend that can produce a numeric vendor id | mapped | C1 | The D3D12 backend sets it; a WebGPU-shaped backend cannot |
+| `AdapterFact.DeviceId` | Set only by a backend that can produce a numeric device id | mapped | C1 | Same split as `VendorId` |
+| `AdapterFact.DedicatedMemory` | Set when the backend can report a memory size, including a real 0 | mapped | C1 | Distinguishes a reported zero (software adapter) from an unavailable fact |
+| `AdapterInfo.reportedFacts` | The only authority for which adapter fields are meaningful | mapped | C1 | Required addition from T089; tests assert `0x7` on D3D12 and a browser backend would report `0` |
 | `AdapterInfo` | `GPUAdapterInfo` plus `GPUSupportedLimits` | mapped | C1 | `info` is optional in the spec; an empty object is legal |
 | `AdapterInfo.adapterClass` | Inference from the same fields as `AdapterClass` | mapped-with-gap | C1 | Same inference gap as `AdapterClass` |
-| `AdapterInfo.dedicatedVideoMemory` | No WebGPU field or limit reports dedicated memory size | unsupported | — | A backend must report `0` and mark the capability unsupported; inventing a value from `maxBufferSize` would be a false claim |
-| `AdapterInfo.deviceId` | WebGPU reports no numeric PCI device id | unsupported | — | `GPUAdapterInfo.device` is a driver-defined string, not an id; a numeric id cannot be produced |
+| `AdapterInfo.dedicatedVideoMemory` | Defined as meaningful only when `reportedFacts` includes `DedicatedMemory`; WebGPU exposes no memory size | mapped-with-gap | C1 | A browser backend leaves the bit clear and the value 0; a client that needs the fact must treat a clear bit as unavailable, not as a zero-byte budget (contract §Optional adapter facts) |
+| `AdapterInfo.deviceId` | Defined as meaningful only when `reportedFacts` includes `DeviceId`; WebGPU reports no numeric PCI device id | mapped-with-gap | C1 | A browser backend sets no bit and leaves the value 0; `GPUAdapterInfo.device` is a driver-defined string, so it must not be parsed into an id |
 | `AdapterInfo.name` | `GPUAdapterInfo.description`, falling back to `vendor` plus `architecture` | mapped-with-gap | C1 | Chrome 156 returned an empty `description`; the fallback is required for a non-empty name |
-| `AdapterInfo.vendorId` | `GPUAdapterInfo.vendor` is a lowercase string such as `intel`, not a PCI id | mapped-with-gap | C1 | Requires a documented string-to-id table; an unknown vendor maps to `0` and must not be guessed |
+| `AdapterInfo.vendorId` | Defined as meaningful only when `reportedFacts` includes `VendorId`; WebGPU exposes a lowercase vendor string such as `intel`, not a PCI id | mapped-with-gap | C1 | A browser backend sets no bit and leaves 0; mapping the string to an id by guesswork is a contract violation |
 | `ClearReadbackDesc` | `GPUTextureDescriptor` for a `width x height` RGBA8 texture plus a copy layout | mapped-with-gap | C6 | The descriptor itself is direct; the row semantics are not (see `ClearReadbackDesc.rows`) |
 | `ClearReadbackDesc.height` | `GPUExtent3D.height` and `rowsPerImage` | mapped | C6 | |
 | `ClearReadbackDesc.rows` | No per-row clear exists: `clearValue` is one value per attachment. Use `queue.writeTexture` with a packed per-row buffer, or a fullscreen draw that reads `@builtin(position)` | mapped-with-gap | C6 | The Q1a per-row pattern is preserved by `writeTexture` in this spike; a "clear" call has no per-row form |
@@ -64,21 +69,21 @@ identifier-embedded forms, not every native synonym (`CommittedResource`, `CmdQu
 | `Device.Readback` | `mapAsync(READ)` on a `MAP_READ` buffer, then copy `getMappedRange()` into caller memory and `unmap()` | mapped | C2 | Observed byte-exact `[1,2,3,5,8,13,21,34,55,89,144,233,0,127,128,255]` |
 | `Device.Shutdown` | Await outstanding `onSubmittedWorkDone`, then `device.destroy()`; drop references | mapped-with-gap | C8 | `destroy()` is device-wide and immediate; proving retirement first depends on the tracked promises |
 | `Device.SubmitClearReadback` | `createCommandEncoder`, begin a render pass with a `clearValue` (uniform) or a row shader, `copyTextureToBuffer`, `queue.submit` | mapped-with-gap | C6 | The submission is direct; the per-row pattern needs the `rows` adaptation |
-| `Device.TryRelease` | No per-submission release exists in WebGPU | unsupported | — | The refusal semantics must be backend bookkeeping over tracked promises. A backend that simply calls `destroy()` would violate the contract by tearing down other submissions |
+| `Device.TryRelease` | Core release rule lowered to the backend's completion observation (`onSubmittedWorkDone`), not a GPU operation | mapped-with-gap | C8 | WebGPU has no per-submission release: the backend keeps the token-to-promise bookkeeping and must not call `destroy()` (that would tear down other submissions) |
 | `Device.adapter` | `GPUAdapterInfo` snapshot taken at `requestDevice` time | mapped | C1 | |
 | `DeviceOptions` | `GPURequestAdapterOptions` | mapped | C1 | |
 | `DeviceOptions.adapterClass` | `forceFallbackAdapter: true` for software, absent or `false` for hardware | mapped-with-gap | C1 | See `AdapterClass.Software`: the requested class may be unavailable |
-| `DeviceOptions.adapterIndex` | WebGPU returns one adapter per request; no enumeration or index exists | unsupported | — | A non-zero index must return `Unsupported`, not silently use adapter 0 |
+| `DeviceOptions.adapterIndex` | Core addressable index 0; a backend that cannot enumerate returns `Unsupported` for any other index | mapped-with-gap | C1 | WebGPU returns one adapter per request, so index 0 is the only portable value; silently substituting adapter 0 for index N is forbidden (contract §Optional adapter facts) |
 | `ReadbackResult` | Mapped-range copy into caller-owned bytes | mapped | C2 | |
 | `ReadbackResult.adapter` | `GPUAdapterInfo` at readback time | mapped | C1 | |
 | `ReadbackResult.height` | `GPUExtent3D.height` of the copy | mapped | C6 | |
 | `ReadbackResult.pixels` | `new Uint8Array(getMappedRange()).slice()` before `unmap()` | mapped | C2 | The slice is what makes the bytes caller-owned; returning the mapped view would violate the contract |
 | `ReadbackResult.rowStride` | Tightly packed `width * 4`, while WebGPU requires `bytesPerRow % 256 == 0` for texture copies | mapped-with-gap | C6 | A backend must de-pitch row by row; for a 4-pixel RGBA8 row that is a 16x staging amplification, which the spike makes visible |
 | `ReadbackResult.width` | `GPUExtent3D.width` of the copy | mapped | C6 | |
-| `ReleaseStatus` | Backend-local release bookkeeping; WebGPU has no release result | unsupported | — | The enum must stay portable and be produced by the backend, never derived from a GPU result |
+| `ReleaseStatus` | Result of the core release rule, produced by the backend from its completion bookkeeping | mapped-with-gap | C8 | Not a GPU result; the contract defines the three values and forbids deriving them from a native value |
 | `ReleaseStatus.InvalidSubmission` | Local token validation against the device's token table | mapped | — | Purely local |
-| `ReleaseStatus.RefusedOutstanding` | `onSubmittedWorkDone()` has not resolved for that token's submission | mapped-with-gap | — | The queue-wide promise requires an ordered per-submission chain; two submits in flight cannot be distinguished by WebGPU itself |
-| `ReleaseStatus.Released` | Drop the recording and staging references after their promise resolves | mapped-with-gap | — | Nothing is released on the GPU timeline; only JavaScript references drop |
+| `ReleaseStatus.RefusedOutstanding` | `onSubmittedWorkDone()` has not resolved for that token's submission | mapped-with-gap | C8 | The queue-wide promise requires an ordered per-submission chain; two submits in flight cannot be distinguished by WebGPU itself |
+| `ReleaseStatus.Released` | Drop the recording and staging references after their promise resolves | mapped-with-gap | C8 | Nothing is released on the GPU timeline; only JavaScript references drop |
 | `Status` | Aggregate of promise rejection, `GPUError` from an error scope, and `device.lost` | mapped-with-gap | E | There is no status object; the classification is a backend decision that must be consistent |
 | `Status.DeviceLost` | `device.lost` resolving, with reason `destroyed` or `unknown` | mapped | C8 | Observed reason `destroyed` after `destroy()` |
 | `Status.Error` | Any uncaptured or scoped `GPUError` that is not validation or out-of-memory | mapped-with-gap | E | The mapping depends on scopes being pushed around every call |
@@ -131,8 +136,12 @@ do, and therefore what the portable core may promise.
   `onSubmittedWorkDone()` promises. `TryRelease` refusing while outstanding remains implementable,
   but only if the backend keeps that chain; `device.destroy()` is not a substitute.
 - **G4 — adapter identity is thinner than the native one.** `vendorId`, `deviceId`,
-  `dedicatedVideoMemory` and `adapterIndex` have no honest WebGPU source. The backend must report
-  `Unsupported` for an index request and must not fabricate memory or PCI ids.
+  `dedicatedVideoMemory` and `adapterIndex` have no honest WebGPU source. Since T089 the core says so
+  explicitly: `reportedFacts` leaves those bits clear and the values at 0, `adapterIndex` 0 is the only
+  portable value (a native backend that enumerates may honour others; a backend that cannot must return
+  `Unsupported`), and no memory size or PCI id is fabricated.
+  A browser backend is therefore compliant; it is the *caller* that must treat a clear bit as
+  unavailable.
 - **G5 — errors are scoped, not returned.** `Status.InvalidArgument` is only obtainable by wrapping
   each operation in `pushErrorScope('validation')`. A backend that relies on `uncapturederror` alone
   cannot attribute a failure to the request that caused it.
@@ -142,15 +151,15 @@ do, and therefore what the portable core may promise.
 - **G7 — the header is portable but unproven on `wasm32`.** A lexical scan and this mapping do not
   compile the header for WebAssembly, and a browser JavaScript spike is not a C++ encoder. That gap is
   the NOT RUN leg below.
-- **G8 — five core declarations have no WebGPU-shaped operation, so the header is wider than the
-  contract's core rule.** `AdapterInfo.deviceId`, `AdapterInfo.dedicatedVideoMemory` and
-  `DeviceOptions.adapterIndex` are adapter facts that WebGPU does not expose; `ReleaseStatus` and
-  `Device.TryRelease` are client-side lifetime bookkeeping with no GPU counterpart. The contract says a
-  field with no WebGPU-shaped operation belongs to the private tier or a native extension, and the
-  header currently expresses no capability signal for "this backend cannot answer". A WebGPU backend
-  must therefore return `Unsupported` for the index and report `0`/empty for the identity fields, which
-  is behaviour the header does not yet describe. Remediation task T089 owns the header/contract
-  reconciliation; it blocks any Q7/WebGPU claim but not Q1b on D3D12.
+- **G8 — resolved by T089 (issue #36).** Five declarations originally had no WebGPU-shaped
+  operation: `AdapterInfo.vendorId`, `AdapterInfo.deviceId`, `AdapterInfo.dedicatedVideoMemory`,
+  `DeviceOptions.adapterIndex`, and `ReleaseStatus`/`Device.TryRelease`. T089 added the missing
+  availability rule instead of moving the fields: `AdapterFact` plus `AdapterInfo.reportedFacts` make
+  "this backend cannot report the fact" expressible, the contract gained §Optional adapter facts and
+  adapter selection, and the rows above were reclassified from `unsupported` to `mapped-with-gap`. A
+  browser backend now has defined behaviour: `reportedFacts = 0`, identity fields left at 0, a nonzero
+  `adapterIndex` returns `Unsupported`, and release stays backend bookkeeping. Any future core field
+  without a WebGPU-shaped operation needs the same treatment or belongs in `ext/`.
 
 ## NOT RUN and limits
 

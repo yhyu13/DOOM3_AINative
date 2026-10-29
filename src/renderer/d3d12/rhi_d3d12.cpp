@@ -431,6 +431,10 @@ struct Device::Impl {
         adapterInfo.deviceId = description.DeviceId;
         adapterInfo.dedicatedVideoMemory =
             static_cast<uint64_t>(description.DedicatedVideoMemory);
+        adapterInfo.reportedFacts =
+            static_cast<uint32_t>(AdapterFact::VendorId) |
+            static_cast<uint32_t>(AdapterFact::DeviceId) |
+            static_cast<uint32_t>(AdapterFact::DedicatedMemory);
         return Status::Ok;
     }
 

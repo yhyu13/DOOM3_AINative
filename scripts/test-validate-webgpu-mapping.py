@@ -13,6 +13,7 @@ Usage:
 """
 
 import argparse
+import re
 import shutil
 import subprocess
 import sys
@@ -28,11 +29,7 @@ DEFAULT_OUT = HERE.parent / "build" / "webgpu-mapping-tests"
 DOC_CASES = [
     (
         "missing-row",
-        lambda text: text.replace(
-            "| `AdapterInfo.deviceId` | WebGPU reports no numeric PCI device id | unsupported | — | `GPUAdapterInfo.device` is a driver-defined string, not an id; a numeric id cannot be produced |\n",
-            "",
-            1,
-        ),
+        lambda text: re.sub(r"(?m)^\| `AdapterInfo\.deviceId` \|.*?(\r?\n)", "", text, count=1),
         "declaration not mapped: AdapterInfo.deviceId",
     ),
     (
@@ -46,11 +43,7 @@ DOC_CASES = [
     ),
     (
         "gap-without-justification",
-        lambda text: text.replace(
-            "| `AdapterInfo.deviceId` | WebGPU reports no numeric PCI device id | unsupported | — | `GPUAdapterInfo.device` is a driver-defined string, not an id; a numeric id cannot be produced |",
-            "| `AdapterInfo.deviceId` | WebGPU reports no numeric PCI device id | unsupported | — | |",
-            1,
-        ),
+        lambda text: re.sub(r"(?m)^(\| `AdapterInfo\.deviceId` \|.*\| mapped-with-gap \| C1 \|).*$", r"\1 |", text, count=1),
         "needs a justification",
     ),
     (
@@ -107,11 +100,7 @@ DOC_CASES = [
     ),
     (
         "placeholder-justification",
-        lambda text: text.replace(
-            "| `AdapterInfo.dedicatedVideoMemory` | No WebGPU field or limit reports dedicated memory size | unsupported | — | A backend must report `0` and mark the capability unsupported; inventing a value from `maxBufferSize` would be a false claim |",
-            "| `AdapterInfo.dedicatedVideoMemory` | No WebGPU field or limit reports dedicated memory size | unsupported | — | TODO |",
-            1,
-        ),
+        lambda text: re.sub(r"(?m)^(\| `AdapterInfo\.dedicatedVideoMemory` \|.*\| mapped-with-gap \| C1 \|).*$", r"\1 TODO |", text, count=1),
         "is a placeholder",
     ),
     (
@@ -157,6 +146,11 @@ MUTANTS = [
         "placeholder-detection",
         '        elif status != "mapped" and justification.strip().strip("`").lower() in PLACEHOLDER_NOTES:',
         "        elif False:",
+    ),
+    (
+        "scoped-enum-detection",
+        r'pattern = re.compile(r"\b(enum\s+class|struct|class)\s+(\w+)\s*(?::\s*[\w:]+)?\s*\{")',
+        r'pattern = re.compile(r"\b(enum\s+class|struct|class)\s+(\w+)\s*\{")',
     ),
     ("gaps-detection", '    if "## Gaps" not in joined:', "    if False:"),
     (

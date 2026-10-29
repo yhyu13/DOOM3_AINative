@@ -41,7 +41,7 @@ def strip_comments(text):
 
 def _blocks(text):
     """Return [(kind, name, body, start, end)] for enum class / struct / class."""
-    pattern = re.compile(r"\b(enum\s+class|struct|class)\s+(\w+)\s*\{")
+    pattern = re.compile(r"\b(enum\s+class|struct|class)\s+(\w+)\s*(?::\s*[\w:]+)?\s*\{")
     found = []
     for match in pattern.finditer(text):
         kind = {"enum class": "enum", "struct": "struct", "class": "class"}[match.group(1)]
@@ -259,6 +259,7 @@ def validate(header_text, doc_text):
 FIXTURE_HEADER = """
 namespace demo {
 enum class Colour { Red, Green };
+enum class Mode : uint32_t { A, B };
 struct Thing {
     uint32_t width = 0;
     std::vector<uint8_t> pixels;
@@ -284,6 +285,9 @@ FIXTURE_DOC = """
 | `Colour` | local enum | mapped | C1 | |
 | `Colour.Red` | clearValue r | mapped | C1 | |
 | `Colour.Green` | clearValue g | mapped | C1 | |
+| `Mode` | local scoped enum | mapped | C1 | |
+| `Mode.A` | local value | mapped | C1 | |
+| `Mode.B` | local value | mapped | C1 | |
 | `Thing` | local struct | mapped | C1 | |
 | `Thing.width` | GPUExtent3D.width | mapped | C1 | |
 | `Thing.pixels` | mapped range copy | mapped | C2 | |

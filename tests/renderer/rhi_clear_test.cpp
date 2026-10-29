@@ -48,6 +48,28 @@ int RunClearReadback(Device& device) {
         ok &= q1a_test::CompareRows(readback, q1a_test::kHeight, &error);
         ok &= q1a_test::Require(readback.adapter.name == device.adapter().name,
                                 "readback adapter does not match the device adapter");
+        // Portable invariant only: a backend that cannot report a fact leaves its
+        // bit clear, so this must pass for a WebGPU-shaped backend too. The
+        // native assertions live in the private test directory.
+        const uint32_t knownFacts =
+            static_cast<uint32_t>(doom3::rhi::AdapterFact::VendorId) |
+            static_cast<uint32_t>(doom3::rhi::AdapterFact::DeviceId) |
+            static_cast<uint32_t>(doom3::rhi::AdapterFact::DedicatedMemory);
+        q1a_test::Log("ADAPTER reported_facts=0x%x known=0x%x",
+                      readback.adapter.reportedFacts, knownFacts);
+        ok &= q1a_test::Require(
+            (readback.adapter.reportedFacts & ~knownFacts) == 0,
+            "the adapter reported an undefined fact bit");
+        if ((readback.adapter.reportedFacts &
+             static_cast<uint32_t>(doom3::rhi::AdapterFact::VendorId)) != 0) {
+            ok &= q1a_test::Require(readback.adapter.vendorId != 0,
+                                    "a reported vendor id is zero");
+        }
+        if ((readback.adapter.reportedFacts &
+             static_cast<uint32_t>(doom3::rhi::AdapterFact::DeviceId)) != 0) {
+            ok &= q1a_test::Require(readback.adapter.deviceId != 0,
+                                    "a reported device id is zero");
+        }
 
         const std::string fileName =
             std::string("q1a-clear-") +
