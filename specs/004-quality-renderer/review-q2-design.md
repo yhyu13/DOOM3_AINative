@@ -108,9 +108,10 @@ the historical review row says "superproject adapter"; a historical S0 "absent" 
 superseded; the two top crops were regenerated; the `NOMINMAX` explanation was checked. No sixth
 independent pass was run. The verification is recorded here, not turned into an acceptance claim.
 
-## 3.4 Round 6 — final11 parity update, BLOCKED
+## 3.4 Round 6 — final13 parity update, BLOCKED
 
-A sixth fresh-context pass checked the final11 update. It confirmed the four recorded values and
+A sixth fresh-context pass checked the final11 update. `baseline-final13` later superseded it; the
+ceilings did not change. The pass confirmed the four recorded values and
 ceilings, all-four PASS, T004/T005 checked, the scene/matrix/checklist updates, and the T041 mirror.
 It returned **BLOCKED** on four artifact/state issues: the `classic-parity.md` hash was stale; the
 verifier transcript still said `review-q2-design.md: 4 tables, 2 anchors`; the evidence claimed a
@@ -118,13 +119,22 @@ commit before one existed; and a Round 5 note read as current when it was histor
 transcript, commit/statements and historical wording were corrected. A seventh pass was then run on
 the committed state.
 
+## 3.5 Round 7 — committed-state check, BLOCKED
+
+A seventh pass reviewed commit `a2915ef`. It found that the S1 Q0 evidence had advanced to
+`baseline-final13` two seconds before the S4 commit, so the committed `final11` values were
+superseded (ceilings and all-four PASS unchanged), and that the Q0 files were committed on the S1
+branch rather than untracked. The S4 docs were corrected to `final13`, its four recorded values, and
+"committed on the S1 branch, not merged to `main`"; a second commit records the correction. An eighth
+pass was run on that state.
+
 ---
 
 ## 4. Residual findings / not approved
 
 | Item | Status |
 |---|---|
-| Q0 `baseline-final11` establishes all four categories with measured ceilings | **Resolved**; T032 category thresholds are fixed. HUD/ROI controls (T-05/06/08/09) remain pending |
+| Q0 `baseline-final13` establishes all four categories with measured ceilings | **Resolved**; T032 category thresholds are fixed. HUD/ROI controls (T-05/06/08/09) remain pending |
 | Engine build wiring is probed with a stub adapter (both EXEs, `/MT`); real adapter/engine run/selection and T035/T036/T083 are **not done**. Q1a is merged/tested but Q1b/Q1/T088 are not run | Build wiring is not engine integration; out of S4 scope |
 | T037/T038 fixtures (`fixture-*`, `hud-control`) | **Not authored**; rows are `NOT RUN` |
 | T041 fixture document at `tests/renderer/motion-fixtures.md` | **Delivered** byte-identically; C++ consumer tests (T042/T044/T046) and T048 remain pending |
@@ -140,10 +150,11 @@ the committed state.
 - The engine 16:9 `CalcFov` pair and the half-word representation are correct.
 - The `glConfig.isInitialized` count and the CMake insertion points match the source.
 - O-01's `tr.sortOffset` anchor matches `tr_light.cpp:1195-1200`.
-- At the time of Round 3, the documents correctly described the then-current Q0 as not established, with all four categories skipped; `baseline-final11` later superseded that state.
+- At the time of Round 3, the documents correctly described the then-current Q0 as not established, with all four categories skipped; `baseline-final13` later superseded that state.
 - The documents do not claim an engine build, a Q2 capture, a Q3 execution, or acceptance.
 
 **Verdict**: not approved. The design is reviewable; the completion claim is not.
+
 
 
 

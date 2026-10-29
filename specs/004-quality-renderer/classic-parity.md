@@ -1,10 +1,10 @@
 ﻿# Classic compatibility parity contract (T032)
 
 **Status**: Q2 design and pre-registration. **No capture has run on the new path.** Q0
-`baseline-final11` is **established**: all four categories were captured twice at a fixed game tic
+`baseline-final13` is **established**: all four categories were captured twice at a fixed game tic
 with the engine framebuffer at 1280×720 and pass their ceilings; T011 is complete with residual gaps.
-The Q0 files are still **untracked in the S1 `feat/21-q0-safe-baseline` worktree** and must be
-reconciled when they land. T032 is **design-complete with measured Q0 ceilings**, but **not accepted**
+The Q0 files are **committed on the S1 `feat/21-q0-safe-baseline` branch but not merged to
+`main`**; they must be reconciled when they land. T032 is **design-complete with measured Q0 ceilings**, but **not accepted**
 until an independent reviewer signs it and the Q2 fixtures/captures exist. No engine code is written
 by this task and no game data is stored here.
 
@@ -37,16 +37,16 @@ explicitly listed unsupported case with a reviewer decision. "It looks better" i
 
 ## 2. Q0 input and its real status
 
-Q0 `baseline-final11` is the recorded baseline (2026-10-28). It is an **OpenGL-only** baseline on a
+Q0 `baseline-final13` is the recorded baseline (2026-10-28). It is an **OpenGL-only** baseline on a
 virtual-display host, using the official free demo data only. All four categories were captured
 **twice**, at a fixed game tic, by the engine's own framebuffer screenshot at 1280×720; no category
 was skipped.
 
 | Item | Value |
 |---|---|
-| Source | `specs/004-quality-renderer/evidence-q0.md` and `reference-scenes.md` in the S1 worktree; **untracked** at the time of writing |
+| Source | `specs/004-quality-renderer/evidence-q0.md` and `reference-scenes.md`; committed on the S1 branch, **not merged to `main`** |
 | Q0 outcome | **Established**: `corridor`, `open-view`, `close-character`, `moving-light-combat` all `PASS` twice; no control scene |
-| Independent review | Review 1 `BLOCKED`, review 2 `BLOCKED`, review 3 `PASS-WITH-FINDINGS` (OS-window state); review 4 `PASS-WITH-FINDINGS` (fixed-tic `final10`); `final11` re-ran after a comment-only script change; T011 is complete with residual gaps |
+| Independent review | Review 1 `BLOCKED`, review 2 `BLOCKED`, review 3 `PASS-WITH-FINDINGS` (OS-window state); review 4 `PASS-WITH-FINDINGS` (fixed-tic `final10`); `final13` re-ran after a comment-only script change; T011 is complete with residual gaps |
 | Data | `base/demo00.pk4`, 483,534,533 bytes, SHA-256 `e373ec70b35cf72852a1f6014c2c2dc21f890a03cd41b21a9524755f951f64f9`, plus two local non-redistributed shims |
 | Capture | Engine framebuffer, 1280×720, `com_fixedTic 1`, `+wait 600` (720 for combat), `+screenshot`, `+quit`; no OS-window capture |
 | Metric | `delta=8`; `meanAbs`; `diffPercent`; a scene passes only when both limits hold and the markers match |
@@ -54,15 +54,15 @@ was skipped.
 | Adapter | Intel Graphics driver 32.0.101.8331, with virtual display adapters present; not a discrete-GPU quality/performance baseline |
 
 The ceilings were tightened after the fixed-tic probes; the `reference-scenes.md` §6 disclosure lists
-the earlier, looser final9 cells, and final11 also passes those. The values below are the ceilings
-frozen **before the recorded final11 run**.
+the earlier, looser final9 cells, and final13 also passes those. The values below are the ceilings
+frozen **before the recorded final13 run**.
 
-| Scene | Ceiling (`meanAbs` / `diffPercent`) | `final11` recorded | Status |
+| Scene | Ceiling (`meanAbs` / `diffPercent`) | `final13` recorded | Status |
 |---|---:|---:|---|
-| `corridor` | 0.5 / 0.5 | 0.0848 / 0.0905 | **PASS** |
-| `open-view` | 2.0 / 2.0 | 0.1767 / 0.1430 | **PASS** |
-| `close-character` | 0.5 / 0.5 | 0.1665 / 0.2088 | **PASS** |
-| `moving-light-combat` | 3.0 / 5.0 | 0.4853 / 0.7490 | **PASS** |
+| `corridor` | 0.5 / 0.5 | 0.1827 / 0.2079 | **PASS** |
+| `open-view` | 2.0 / 2.0 | 0.2258 / 0.2103 | **PASS** |
+| `close-character` | 0.5 / 0.5 | 0.1082 / 0.0982 | **PASS** |
+| `moving-light-combat` | 3.0 / 5.0 | 0.0550 / 0.0318 | **PASS** |
 
 These are **same-renderer repeatability measurements**, not cross-renderer parity evidence. Q2 still
 has to compare the GL reference against the new path; the Q0 values supply the predeclared ceiling,
@@ -73,7 +73,7 @@ or performance; `Compare` records 1280×720 but does not yet reject a different 
 suite does not exercise the engine capture path; real process start/stop and `-Clean` archive are not
 behavior-tested; two builds differ in hash. T011 is complete with those gaps.
 
-If the final11 values or label change on merge, this document is invalid until reconciled. The
+If the final13 values or label change on merge, this document is invalid until reconciled. The
 ceilings frozen before the recorded run remain the contract; the recorded run is not.
 
 ---
@@ -216,16 +216,16 @@ on it until it lands; this row is a decision reference, not an implementation cl
 
 | ID | Metric | Gate | Basis | State |
 |---|---|---|---|---|
-| T-01 | Whole-frame `meanAbs` / `diffPercent` at `delta=8` | `open-view` **2.0 / 2.0** | Q0 final11 recorded 0.1767 / 0.1430 | **FIXED** |
-| T-02 | Same | `close-character` **0.5 / 0.5** | Q0 final11 recorded 0.1665 / 0.2088 | **FIXED** |
-| T-03 | Same | `moving-light-combat` **3.0 / 5.0** | Q0 final11 recorded 0.4853 / 0.7490 | **FIXED only at the recorded fixed tic**; a live-AI run is not a parity gate |
-| T-04 | Same | `corridor` **0.5 / 0.5** | Q0 final11 recorded 0.0848 / 0.0905 | **FIXED** |
+| T-01 | Whole-frame `meanAbs` / `diffPercent` at `delta=8` | `open-view` **2.0 / 2.0** | Q0 final13 recorded 0.2258 / 0.2103 | **FIXED** |
+| T-02 | Same | `close-character` **0.5 / 0.5** | Q0 final13 recorded 0.1082 / 0.0982 | **FIXED** |
+| T-03 | Same | `moving-light-combat` **3.0 / 5.0** | Q0 final13 recorded 0.0550 / 0.0318 | **FIXED only at the recorded fixed tic**; a live-AI run is not a parity gate |
+| T-04 | Same | `corridor` **0.5 / 0.5** | Q0 final13 recorded 0.1827 / 0.2079 | **FIXED** |
 | T-05 | Same, HUD region | `hud-control` upper bound **0.5 / 0.5** | Closest static scene ceiling (T-02); **HUD not measured** | **PENDING HUD CONTROL** |
 | T-06 | Same, predeclared ROI | ≤ the selected scene ceiling; ROI and mask recorded before capture | Measured scene ceilings; ROI not measured | **PENDING GL-vs-GL ROI**; the control may only tighten |
 | T-07 | Command/stage/chain trace | Exact equality of the recorded sequence | Source semantics in §4 | **FIXED** |
 | T-08 | Character/alpha ROI `diffPercent` | ≤ T-02 (`0.5`) on the predeclared mask | Measured close-character ceiling; ROI not measured | **PENDING ROI CONTROL** |
 | T-09 | HUD text bounding boxes and edge sharpness | Same text boxes and no softened/double-composited edges; pixel metric ≤ T-05 | Display-resolution composition requirement | **PENDING METHOD**; a difference is a finding, not a tolerance |
-| T-10 | Q0 final11 whole-frame repeatability | Recorded `meanAbs` / `diffPercent` must be ≤ T-01–T-04; final11 values in §2 | Q0 `baseline-final11` | **FIXED AS BASELINE EVIDENCE**; not a cross-renderer parity result |
+| T-10 | Q0 final13 whole-frame repeatability | Recorded `meanAbs` / `diffPercent` must be ≤ T-01–T-04; final13 values in §2 | Q0 `baseline-final13` | **FIXED AS BASELINE EVIDENCE**; not a cross-renderer parity result |
 
 The four category ceilings are now measured repeatability limits, not guesses. **T-05/T-06/T-08/T-09
 remain pending** because no HUD/ROI control has been measured. T032 is still not accepted: the new
@@ -344,7 +344,7 @@ is not a single value: a case can pass structure and fail image, and that is a f
 
 Q2 is claimable only when all of the following hold:
 
-- [x] **Q0 is established**: `baseline-final11` captures all four categories twice under deterministic
+- [x] **Q0 is established**: `baseline-final13` captures all four categories twice under deterministic
       fixed-tic drives and the reviews accept the method (review 4 `PASS-WITH-FINDINGS`; T011 complete
       with residual gaps).
 - [ ] Q0 is merged; its values are reconciled here; the review decision is recorded on `main`.
@@ -374,7 +374,7 @@ unchecked.
 
 | Blocker | Effect | Next action |
 |---|---|---|
-| Q0 final11 is untracked in the S1 worktree; reviews are AI-only | The input is not on `main`; no human sign-off | Land Q0, reconcile values, record the reviewer |
+| Q0 final13 is committed on the S1 branch but not merged to `main`; reviews are AI-only | The input is not on `main`; no human sign-off | Land Q0, reconcile values, record the reviewer |
 | HUD and ROI controls are not measured (T-05/T-06/T-08/T-09) | HUD/ROI image gates cannot pass yet | T037/T038 measure the HUD and ROI controls; record before Q2 capture |
 | Q2 fixtures (§3.1) not authored | 30-row matrix cannot run | T037/T038 author deterministic fixtures and record thresholds |
 | Q1 incomplete (Q1a merged, Q1b/Q1 not done); T088 not run | Q2 is not permitted | Finish Q1, run T088, or re-scope Q2 in writing |
@@ -395,10 +395,11 @@ unchecked.
 | FR-018 named scene/build/data/hardware/config | §3, §7 | `evidence-q2.md`; evidence template |
 | T032 output | this document | T032 review record (pending) |
 
-**Self-check**: the numbers in §2 are copied from the S1 Q0 `baseline-final11` report, not re-measured
-here. The category thresholds in §6 are the measured final11 ceilings; HUD/ROI thresholds are still
+**Self-check**: the numbers in §2 are copied from the S1 Q0 `baseline-final13` report, not re-measured
+here. The category thresholds in §6 are the measured final13 ceilings; HUD/ROI thresholds are still
 pending and are marked so. The source anchors are from the pinned submodule and should be re-checked
 on a bump. The test files named in §11 are planned and are explicitly marked as not existing.
+
 
 
 

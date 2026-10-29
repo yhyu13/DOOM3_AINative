@@ -15,24 +15,24 @@ accepted.
 | Documents | `classic-parity.md` (T032), `engine-integration.md` (T033), `motion-fixtures.md` (T041 design) |
 | Tools | `tools/motion_fixtures.py`, `tools/verify-q2-design.py` |
 | Pinned engine | `doom3_orig/doom3` @ `a9c49da5afb18201d31e3f0a429a037e56ce2b9a` |
-| Q0 input | S1 `feat/21-q0-safe-baseline` worktree, `evidence-q0.md` (`baseline-final11`) and `reference-scenes.md`; **untracked** |
-| Q0 result used | All four categories `PASS` twice at fixed tic: corridor 0.0848/0.0905, open-view 0.1767/0.1430, close-character 0.1665/0.2088, moving-light 0.4853/0.7490; Q0 **established** |
-| Review state used | Reviews 1/2 `BLOCKED`, review 3/4 `PASS-WITH-FINDINGS`; final11 after a comment-only script change; T011 complete with residual gaps |
+| Q0 input | S1 `feat/21-q0-safe-baseline` branch, `evidence-q0.md` (`baseline-final13`) and `reference-scenes.md`; committed there, **not merged to `main`** |
+| Q0 result used | All four categories `PASS` twice at fixed tic: corridor 0.1827/0.2079, open-view 0.2258/0.2103, close-character 0.1082/0.0982, moving-light 0.0550/0.0318; Q0 **established** |
+| Review state used | Reviews 1/2 `BLOCKED`, review 3/4 `PASS-WITH-FINDINGS`; final13 after a comment-only script change; T011 complete with residual gaps |
 
-Q0 is a live S1 artifact; it was re-run through `final11`. `classic-parity.md` §2 records the final11
+Q0 is a live S1 artifact; it was re-run through `final13`. `classic-parity.md` §2 records the final13
 ceilings and the merge/freshness condition.
 
 ## 2. Artifact identity
 
 | File | SHA-256 |
 |---|---|
-| `specs/004-quality-renderer/classic-parity.md` | `CD1476764A99A088B9F097DDB105B1A528EFFDE0202F046A35C48EBE266C7DA4` |
+| `specs/004-quality-renderer/classic-parity.md` | `F9A98B42B7A38825118CF3129558361AA6263D114EAFBB18D3DA0BFDBACC9DF9` |
 | `specs/004-quality-renderer/engine-integration.md` | `C2320731E2D7F0EF89553100056CF03B6045540DC2292C9D77ABCC37F013796F` |
 | `specs/004-quality-renderer/motion-fixtures.md` | `1C9D28511FD4DE1AC1DA1AA8D55C9727CF89F783DF3B74385098E6D903C6B4EB` |
 | `tests/renderer/motion-fixtures.md` | `1C9D28511FD4DE1AC1DA1AA8D55C9727CF89F783DF3B74385098E6D903C6B4EB` |
 | `specs/004-quality-renderer/tools/motion_fixtures.py` | `C9ABE895933BAFCDC7E077C9A186011938F42EF76E89C6A04E4EAD2230E8B06A` |
 | `specs/004-quality-renderer/tools/verify-q2-design.py` | `A21BF824590E59069EB15AAF33ED738DDF161629E82ACA66070E530AF30F991D` |
-| `specs/004-quality-renderer/review-q2-design.md` | `8585987900DD9300B86EEB7B21B7BBA7BCEA43480862987AA30DA9127532A7F3` |
+| `specs/004-quality-renderer/review-q2-design.md` | `638E99981FD2116A9546C0C2EF5D0CE71F7577CD92491C85E0FDEE24D6683B0E` |
 
 Hashes identify this change set. They will change if the documents are edited; recompute before
 using them to identify a different revision.
@@ -61,8 +61,7 @@ PASS: Q2 design documents are structurally consistent, anchors resolve, the T041
 The checker verifies: required sections/IDs (CP-01–CP-30, T-01–T-10), Markdown table continuity and
 cell counts, relative links, no drive-letter paths, every `file:line` anchor resolves to an existing
 file and an in-range line, and the motion table matches the generator. **It does not prove that a
-cited line supports the sentence**; that is the reviewer's job. Three rounds of adversarial AI review are recorded
-in `review-q2-design.md`.
+cited line supports the sentence**; that is the reviewer's job. The adversarial review log (`review-q2-design.md`) records Rounds 1–7, including the post-Q1a and final13 checks.
 
 Limit: the anchor check validates file/line existence, not semantic support.
 
@@ -223,7 +222,7 @@ The three design documents and the T041 delivery copy were rendered to a static 
 Screenshots (git-ignored, worktree-local):
 
 - `build-q2-design/screenshots/index.png` (1440×1000)
-- `build-q2-design/screenshots/classic-parity.png` (1440×13154)
+- `build-q2-design/screenshots/classic-parity.png` (1440×13200)
 - `build-q2-design/screenshots/engine-integration.png` (1440×13849)
 - `build-q2-design/screenshots/motion-fixtures.png` (1440×10360)
 - `build-q2-design/screenshots/motion-fixtures-tests.png` (1440×10360)
@@ -238,13 +237,13 @@ does not prove semantic correctness.
 | Item | Status / reason |
 |---|---|
 | `motion-fixtures.md` path | **Resolved**: Q1a merged, so `tests/renderer/motion-fixtures.md` now holds the byte-identical T041 delivery copy; the spec copy is the design mirror. The C++ consumer tests (T042/T044/T046) and T048 are still pending |
-| Q0 category thresholds | **Fixed** from `baseline-final11`: corridor 0.5/0.5, open-view 2.0/2.0, close-character 0.5/0.5, moving-light 3.0/5.0; HUD/ROI controls (T-05/06/08/09) remain pending |
+| Q0 category thresholds | **Fixed** from `baseline-final13`: corridor 0.5/0.5, open-view 2.0/2.0, close-character 0.5/0.5, moving-light 3.0/5.0; HUD/ROI controls (T-05/06/08/09) remain pending |
 | Engine build/run | **Build wiring probed** with the real engine source tree and a stub adapter (both EXEs, `/MT`/`/MTd`, RHI linked); **real adapter and game run not done**; T035/T036/T083 |
 | Q1/Q1a/T088 | **Q1a** built and CTest 7/7 (Debug/Release); **Q1b/Q1 and T088 not run**; Q2 remains blocked |
 | T037/T038 fixtures | **Not authored**; the matrix rows are `NOT RUN` |
 | Q1a tracker drift | Q1a is merged (PR #18) and its evidence/review are on `main`, but **T012–T021 remain unchecked** in `tasks.md`. This is tracker drift; S4 does not tick another session's tasks. |
 | Independent human review | **None**; the adversarial reviews are AI, recorded in `review-q2-design.md` |
-| Delivery | S4 files are committed on branch `docs/s4-q2-design-final11`; **no PR** was requested |
+| Delivery | S4 files are committed on branch `docs/s4-q2-design-final13`; **no PR** was requested |
 | Game data | None read or stored; Q0 identity is cited only |
 
 ## 10. Verdict
@@ -259,6 +258,10 @@ captures do not exist, HUD/ROI controls are pending, and no independent reviewer
 T033 is design-complete with a real build-wiring probe, but the real adapter/selector/run do not
 exist. T041's fixture document is delivered byte-identically at `tests/renderer/motion-fixtures.md`;
 its C++ consumer tests and T048 have not run.
+
+
+
+
 
 
 
