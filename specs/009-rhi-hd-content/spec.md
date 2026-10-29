@@ -18,9 +18,9 @@ What exists today, and why none of it closes the gap:
 
 | Asset | What it is | Why it is not Q4 content |
 |---|---|---|
-| Wulfen Texture Pack 2.0 | 853,775,687 B, 898 TGA, 8 `.mtr`, **0 PBR channels** | third-party derivative work, diffuse only; proven against the **legacy GL** renderer (spec 006), not an RHI path |
-| `demo00.pk4` | free demo, 2004 assets | not authored, not PBR, EULA-bound |
-| spec 006's HD result | 121 textures uploaded larger, `DIFF_PERCENT=10.8636` | a legacy-path result; `-HdTextures` forces the TGA path and there are no roughness/metalness maps |
+| Wulfen Texture Pack 2.0 | 853,775,687 B, 898 TGA, 8 `.mtr`, no roughness/metalness/AO/emissive channels; `_d` and `_s` maps present, `_local` (normal) presence unmeasured | third-party derivative work; proven against the **legacy GL** renderer (spec 006), not an RHI path |
+| `demo00.pk4` | free demo, 2004-era assets | not authored, not PBR, EULA-bound |
+| spec 006's HD result | 121 textures uploaded larger, `DIFF_PERCENT=10.8636` | a legacy-path result; `-HdTextures` forces the TGA path and no roughness/metalness map was involved |
 
 So three things are missing, in this order:
 
@@ -73,9 +73,13 @@ honestly marked blocked until the renderer exists.
 
 ### 4.1 Content contract (enforcement)
 
-- **FR-001** — A checked-in validator MUST reject any tracked file that is a third-party or retail
-  asset byte, and MUST allow only `original` assets under `content/hero/**` that carry a CC0 licence
-  file and a provenance record with a matching SHA-256 (`C-01a`, `C-01b`).
+- **FR-001** — A checked-in validator MUST enforce three mechanical rules for committed assets — an
+  extension allowlist (`.png`, `.exr`; an extracted `.tga`/`.dds` cannot pass), a SHA-256 denylist
+  generated from any locally staged pack, and a provenance record whose `inputs` name an authoring
+  source rather than a pack — and MUST reject a file that fails any of them, lacks a CC0 licence file,
+  or exceeds 2048 pixels on an axis (`C-01a`, `C-01b`). Byte origin itself is not decidable from
+  content, so a passing file is still subject to human review in its PR; the validator proves the
+  mechanical part and says so.
 - **FR-002** — Every staged corpus MUST be described by a `content-manifest.json` with pack name, byte
   size, SHA-256, entry/file/texture counts, search order and licence note. A missing pack MUST produce
   `SKIPPED` with the reason, never a pass (`C-02`).
@@ -86,8 +90,8 @@ honestly marked blocked until the renderer exists.
 
 ### 4.2 Material and texture contract
 
-- **FR-005** — Every material MUST have both a `.mtr` (identity, stages, program keys) and a
-  `.mat.json` sidecar; the builder MUST fail on a sidecar without a matching `.mtr` and on a `.mtr`
+- **FR-005** — Every material **in the Q4 set** MUST have both a `.mtr` (identity, stages, program keys)
+  and a `.mat.json` sidecar; the builder MUST fail on a sidecar without a matching `.mtr` and on a `.mtr`
   listed in the Q4 set whose material name has no sidecar (`C-13`). The Q4 set is the explicit list in
   `content/manifest/q4-materials.json` — never "every `.mtr` in the tree", because retail and mod
   material text stays valid without a sidecar.
@@ -98,8 +102,11 @@ honestly marked blocked until the renderer exists.
   channel), with a full mip chain, and the manifest MUST record format, dimensions, mip count and the
   sRGB/linear flag per texture (`C-07`). DXT/BC1-3 is rejected for RHI-era content.
 - **FR-008** — A legacy RXGB normal map MUST NOT be consumed directly. A converter MUST produce the
-  linear normal with a declared handedness and Z-reconstruction, and the conversion MUST be validated
-  on one named golden surface with a before/after capture (`C-06`).
+  linear normal with a declared handedness and Z-reconstruction, and MUST be validated on the committed
+  synthetic fixture `tests/content/fixtures/golden-rxgb.png` with a recorded tolerance (per-channel
+  absolute error ≤ 2/255 including the reconstructed Z, and no axis swap) (`C-06`). Converting a
+  locally staged corpus is allowed as an extra local check; its output is never committed and never
+  cited as evidence (`C-04`).
 - **FR-009** — The builder MUST emit a package manifest binding material name, sidecar hash, texture
   hashes, format/mip facts and the source `.mtr` hash, so a package can be reproduced and diffed.
 
@@ -110,8 +117,10 @@ honestly marked blocked until the renderer exists.
   surface with a residency test surface (`C-12`).
 - **FR-011** — Each cell MUST have: an authored source, a sidecar with every channel state, a package
   manifest, and — once the Q4 renderer exists — a capture naming backend and adapter (`C-14`).
-- **FR-012** — A budget row MUST exist per cell, cited to a measurement task in spec 004; this spec
-  MUST NOT contain a numeric VRAM or timing budget of its own (`C-08`).
+- **FR-012** — A budget row MUST exist per cell and MUST have three fields: the spec-004 measurement
+  task (`T056`), the artifact it produced, and a `state` of `recorded` or `blocked`. A bare citation
+  without a measurement does not satisfy it. This spec MUST NOT contain a numeric VRAM or timing budget
+  of its own (`C-08`).
 - **FR-013** — Evidence MUST name the backend and adapter. An evidence file without them is incomplete
   (`C-14`).
 
@@ -122,6 +131,9 @@ honestly marked blocked until the renderer exists.
 - **FR-015** — No capture from spec 006 may be cited as Q4 evidence, and no pipeline step may depend on
   `-HdTextures` or on forcing `image_usePrecompressedTextures 0` (`C-09`).
 - **FR-016** — No machine-specific absolute path, credential or staged pack may appear in a tracked file.
+  The validator checks absolute-path patterns (`[A-Za-z]:\\`, `$env:`, `/home/`, `/Users/`) and
+  credential patterns (a token/secret assignment, a `.env` value); a staged pack is checked by path and
+  by hash against the manifest.
 
 ### 4.5 Key entities
 
@@ -131,8 +143,10 @@ honestly marked blocked until the renderer exists.
 | `PackEntry` | `name`, `bytes`, `sha256`, `entries`, `files`, `textures`, `materials`, `state` (`staged`/`absent`/`skipped:<reason>`) |
 | `AssetRecord` | `id`, `path`, `sha256`, `licence` (must be `CC0-1.0` for hero), `author`, `retail_text_consulted` |
 | `MaterialSidecar` | `schema`, `material`, `mtr`, `channels{baseColor,normal,roughness,metalness,ao,emissive}`, each with `state` and `path` |
-| `MaterialPackage` | `schema`, `material`, `sidecar_sha256`, `mtr_sha256`, `textures[]` (path, format, width, height, mips, srgb), `package_sha256` |
-| `MatrixCell` | `id`, `name`, `sources[]`, `package`, `capture` (path or `BLOCKED:<reason>`), `budget_row` |
+| `MaterialPackage` | `schema`, `material`, `sidecar_sha256`, `mtr_sha256`, `textures[]` (path, format, width, height, mips, srgb), `toolchain{python, pillow, texconv}`, `package_sha256` — defined as SHA-256 over the sorted list of sidecar, `.mtr` and texture hashes, excluding the field itself |
+| `MatrixCell` | `id`, `name`, `sources[]`, `package`, `capture` (path or `BLOCKED:<reason>`), `budget_row{task, artifact, state}` |
+| `Q4MaterialSet` | `schema`, `materials[]` (material name + `.mtr` relative path); the only definition of "in the Q4 set" (FR-005) |
+| `BudgetRow` | `cell`, `task` (`T056` until 004 renumbers), `artifact`, `state` (`recorded` / `blocked:<reason>`) |
 
 ---
 
@@ -189,15 +203,15 @@ the content evidence finds no `-HdTextures` and no 006 capture path.
 
 | ID | Criterion | Evidence |
 |---|---|---|
-| SC-001 | The content contract is executable | `tools/content/validate.ps1` exits 0 on a clean checkout, and exits 1 on every negative control: third-party byte, hero without provenance, non-CC0 hero, a channel with no state, a sidecar without a `.mtr` (five controls; `tasks.md` T-006 requires these five) |
+| SC-001 | The content contract is executable | `tools/content/validate.ps1` exits 0 on a clean checkout and exits 1 on every negative control: a `.tga`/`.dds` under `content/hero/` (extension rule), a file whose hash is on the pack denylist, a hero without provenance, a non-CC0 licence, a channel with no state, a sidecar without a `.mtr` (six controls; `tasks.md` T-006 builds them) |
 | SC-002 | A staged corpus is described, never committed | `content-manifest.json` round-trips; `git ls-files` contains no `.pk4/.pk3/.pak` and no corpus path |
-| SC-003 | One hero material builds reproducibly | two consecutive `build-material.ps1` runs produce identical `package_sha256` |
+| SC-003 | One hero material builds reproducibly | two consecutive `build-material.ps1` runs produce identical `package_sha256`, defined as SHA-256 over the sorted sidecar/`.mtr`/texture hashes and nothing else (no timestamps, no paths) |
 | SC-004 | Channels are declared, not invented | every sidecar channel carries `authored`/`derived:`/`unavailable`; the builder rejects an undeclared channel |
 | SC-005 | Formats are compliant | every packaged texture is BC7/BC5/BC4 with a full mip chain and a recorded sRGB flag |
-| SC-006 | The RXGB conversion is proven | the converter's golden surface shows no axis swap or seam, with a before/after capture |
-| SC-007 | The matrix is covered | all seven cells have a source, a sidecar, a package manifest and a budget-row citation |
-| SC-008 | Captures never lie | every capture names backend + adapter, or the cell states `BLOCKED:<reason>` |
-| SC-009 | Budgets are measured, not invented | no numeric budget appears in this spec or the plan; each is a link to a spec-004 measurement task |
+| SC-006 | The RXGB conversion is proven | the committed fixture `tests/content/fixtures/golden-rxgb.png` converts within the recorded tolerance (≤ 2/255 per channel including reconstructed Z, no axis swap); the before/after images are both derived from that fixture, so nothing third-party is committed |
+| SC-007 | The matrix is covered | all seven cells have a source, a sidecar, a package manifest and a budget row with `task` + `artifact` + `state`; a row citing a task without an artifact fails |
+| SC-008 | Captures never lie | today every cell states `BLOCKED:<reason>`; once Q4 lands, `capture-q4.ps1` exits 0 only after writing a capture that names backend + adapter |
+| SC-009 | Budgets are measured, not invented | no numeric VRAM, residency, timing or streaming budget appears in this spec or the plan; each budget row names the spec-004 measurement task and its artifact |
 | SC-010 | The legacy track is not reused | the evidence index shows no spec-006 capture and no `-HdTextures` dependency |
 
 ---
@@ -221,8 +235,11 @@ the content evidence finds no `-HdTextures` and no 006 capture path.
 3. `.mtr` remains material identity; PBR lives in `.mat.json` sidecars (`C-13`).
 4. Q4 needs no retail data, because hero assets are authored; if that changes, 009 inherits 008's T-031/T-032 blockers (Q6, still open).
 5. The renderer does not exist yet, so every capture task is `BLOCKED` today and that is the honest state.
-6. Image processing may use a pinned `texconv` (DirectXTex) for BC encoding plus Python for channel
-   assembly; both are pinned in the plan and verified by hash.
+6. Image processing uses a **hash-pinned** `texconv` (DirectXTex 2026.5.8.1, sha256 recorded) for BC
+   encoding, plus Python for channel assembly. Python 3.14.4 and Pillow 12.3.0 are **observed** on the
+   authoring host, not pinned: a `content/tools/requirements-content.txt` pinning `Pillow==12.3.0`
+   lands with T-013, and every package records the Python, Pillow and texconv versions so a mismatch
+   is visible rather than silent.
 
 ---
 
@@ -264,7 +281,11 @@ Upstream: `boundary.md` (this feature), `specs/004-quality-renderer/plan.md:87` 
 1. **Q2** — does a local D3HDP corpus exist, and does it carry normal/specular maps? Convenience only.
 2. **Q4** — one pack with two material resolutions, or two packs? Decides where the C-06 conversion runs.
 3. **Q6** — does Q4 need retail data at all? If yes, the capture tasks inherit 008's T-031/T-032 blockers.
-4. Which measurement task in spec 004 supplies each budget row? To be named in `plan.md` once 004's Q4
-   task numbering is fixed.
+4. Which measurement task in spec 004 supplies each budget row? **Answered:** `T056`
+   (`specs/004-quality-renderer/plan.md:87`, `specs/004-quality-renderer/tasks.md:125`); rows carry
+   `T056` until 004 renumbers it.
 5. Does the Q4 art review accept a procedural source for any cell (for example the grating), or must
    every cell be hand-painted?
+6. Do `_local` (normal) maps exist in the local corpus? The 006 inventory counted extensions, not
+   suffixes, so this is unmeasured; the converter's committed fixture (FR-008) does not depend on the
+   answer.

@@ -1,6 +1,6 @@
 # Implementation plan: RHI-era HD content pipeline and Q4 content set
 
-**Branch**: `docs/38-rhi-hd-content-boundary` | **Date**: 2026-10-29 | **Spec**: [`spec.md`](spec.md)
+**Branch**: `docs/38-rhi-hd-content-spec` | **Date**: 2026-10-29 | **Spec**: [`spec.md`](spec.md)
 **Input**: `spec.md`, bound by [`boundary.md`](boundary.md) (C-01a…C-14).
 
 ---
@@ -15,7 +15,7 @@ The technical approach is deliberately small:
 
 - **PowerShell 5.1** for orchestration, validation and manifest manipulation (the repository's language
   for gates; no build system needed).
-- **Python 3.14 (`py -3`) + Pillow 12.3.0** for channel assembly and pixel assertions.
+- **Python 3.14 (`py -3`) + Pillow 12.3.0** for channel assembly and pixel assertions. Pillow is observed on the authoring host, not yet pinned: `content/tools/requirements-content.txt` pins it in T-013, and every package records the versions it used.
 - **texconv 2026.5.8.1** (DirectXTex, pinned by SHA-256) for BC7/BC5/BC4 encoding and mip generation.
 - **JSON manifests** as the only machine-readable contract; packages and caches stay out of git.
 
@@ -111,14 +111,14 @@ builds (`shaders/tools/`), and these scripts must not be mistaken for the genera
 
 | Stage | Script | Reads | Writes | Fails when |
 |---|---|---|---|---|
-| 1. Contract | `validate.ps1` | tracked files, `content/**`, `git ls-files` | nothing | third-party byte, hero without CC0+provenance+hash, sidecar without `.mtr`, channel without a state, tracked pack |
-| 2. Normal conversion | `convert-normal.ps1` | a legacy RXGB image + a handedness flag | linear normal PNG | handedness unstated; golden-surface diff exceeds the recorded tolerance |
-| 3. Build | `build-material.ps1` | `.mtr`, `.mat.json`, sources | BC7/BC5/BC4 DDS + `package.json` | missing channel state, non-2K-power dimension, texconv hash mismatch, encoder failure |
+| 1. Contract | `validate.ps1` | tracked files, `content/**`, `git ls-files`, the pack denylist | nothing | non-allowlisted extension under `content/hero/**`, hash on the pack denylist, hero without CC0+provenance, source over 2048 px on an axis, sidecar without `.mtr`, channel without a state, tracked pack, machine path or credential pattern |
+| 2. Normal conversion | `convert-normal.ps1` | the committed fixture `tests/content/fixtures/golden-rxgb.png` + a handedness flag | linear normal PNG | handedness unstated; per-channel error > 2/255 including reconstructed Z; axis swap detected. A locally staged corpus may be converted as an extra check, never committed and never cited |
+| 3. Build | `build-material.ps1` | `.mtr`, `.mat.json`, sources | BC7/BC5/BC4 DDS + `package.json` (including the Python/Pillow/texconv versions) | missing channel state, a dimension over 2048 or not a multiple of 4, texconv hash mismatch, encoder failure |
 | 4. Verify | `verify-package.ps1` | `package.json` + DDS files | report | hash mismatch, wrong format, missing mip, wrong sRGB flag, non-deterministic second build |
-| 5. Matrix | `matrix-report.ps1` | packages + sidecars + budget links | table | a cell without source/package/budget row |
-| 6. Capture | `capture-q4.ps1` | a built package + a Q4 build | capture + evidence line | **always**, today: exits 3 with `BLOCKED: spec 004 has not reached Q4` |
+| 5. Matrix | `matrix-report.ps1` | packages + sidecars + budget rows | table | a cell without source/package/budget row, or a budget row whose `state` is not `recorded` or `blocked:<reason>` |
+| 6. Capture | `capture-q4.ps1` | a built package + a Q4 build | capture + evidence line | **while 004 is pre-Q4**: exits 3 with `BLOCKED: spec 004 has not reached Q4`. After Q4 it must exit 0 with a capture naming backend + adapter (T-050) |
 
-Stage 6 is the only one that may not succeed, and it must fail loudly rather than silently skip. That is
+Stage 6 fails loudly today rather than silently skipping, and it is the only stage allowed to fail now. That is
 the mechanism that keeps this spec honest: the pipeline can be complete while Q4 is absent.
 
 ### 5.1 Channel states
@@ -199,7 +199,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File content/tools/capture-q4.ps1
 ```
 
 Evidence for every command goes to `specs/009-rhi-hd-content/evidence/implementation.md` with real exit
-codes, in the same style as `specs/008-classic-shaders/evidence/implementation.md`.
+codes, in the same style as `specs/008-classic-shaders/evidence/verification.md` (which is on `main`; 008's `evidence/implementation.md` is not merged yet).
 
 ---
 

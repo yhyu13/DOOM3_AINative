@@ -19,7 +19,7 @@ who did not write it.
 | Success criteria | count `\| SC-nn \|` rows | 10 (SC-001…SC-010) |
 | User stories | count `### USn` headings | 4 (P1…P3, US4 at P3) |
 | Matrix cells | count rows in the US2 table | 7, matching C-12 (a)–(g) |
-| Task count | unique `T-nnn` ids in `tasks.md` | 29; summary says 29 (27 not started + 2 blocked) |
+| Task count | unique `T-nnn` ids in `tasks.md` | 30; summary says 30 (28 not started + 2 blocked) |
 | Table shape | every table row has the same pipe count as its header | 0 mismatches in all four files |
 | Relative links | resolve every `[](…)` target on disk | 0 broken |
 | Decision references | every `C-nn` cited in spec/plan/tasks exists in `boundary.md` | 15/15 defined |
@@ -27,7 +27,7 @@ who did not write it.
 | Citations | each `file:line` points at a line saying what the prose claims | checked by hand on the newer base `29a1e37`; see §2.2 |
 
 Counts that changed during this round were corrected where they appeared: the package says "fifteen
-decisions" and "29 tasks" everywhere, and the US2 row now counts 9 tasks (it previously said 8).
+decisions" and "30 tasks" everywhere, and the US2 row counts 9 tasks (it previously said 8).
 
 ---
 
@@ -58,11 +58,39 @@ The package was written against `d9bf1ca`; the PR branch starts from `29a1e37`, 
 | `doom3_orig/doom3/README.txt:15` | the "no game data" sentence | valid |
 | `docs/ROADMAP.md:17,42` | asset rows unchanged | valid |
 
-### 2.3 Independent review
+### 2.3 Independent review (round 2)
 
-Pending at the time this file was written; findings and dispositions will be appended in the same PR
-before merge. The reviewer was asked to verify anchors, numbers, the backend claim, internal
-consistency, testability, five named contradictions, and scope discipline.
+An independent agent reviewed `9f45509` without being told what to find. It verified anchors, numbers,
+the backend claim, internal consistency, SC testability, scope discipline, and reported 21 findings:
+3 blocking, 8 non-blocking, 10 nits. All 21 are fixed below. It also confirmed the numbers, the
+counts, the backend claim (once "engine backend" was softened) and the acyclic dependency graph.
+
+| Id | Severity | Finding | Disposition |
+|---|---|---|---|
+| R1 | **blocking** | FR-001 promised a mechanical "reject any third-party asset byte", but the design only classified by path — a renamed fan-pack TGA with a fabricated provenance would pass | FR-001 now names three mechanical rules (extension allowlist `.png`/`.exr`, pack-hash denylist, provenance `inputs` that name an authoring source) and says plainly that byte origin is not decidable from content, so a passing file still needs human review. C-01a carries the same mechanism, SC-001 names the six controls, T-003/T-006 implement them |
+| R2 | **blocking** | FR-008/SC-006 required a "before/after capture" of an RXGB conversion, but the only named source was the 006 corpus, which C-04 forbids in a PR; no fixture, no surface, no tolerance | FR-008 now names the committed synthetic fixture `tests/content/fixtures/golden-rxgb.png` with a recorded tolerance (≤ 2/255 per channel including reconstructed Z, no axis swap). Corpus conversion stays a local optional check, never committed, never cited. T-026 and the plan's stage 2 follow |
+| R3 | **blocking** | The corpus was described as "diffuse only / no normal, 0 PBR channels", while the package's own evidence quotes a specular `_s` map; `_local` presence was never measured (006 counted extensions, not suffixes) | the inventory row now says `_d` and `_s` are present, `_local` is **unmeasured**, and no roughness/metalness/AO/emissive channel exists in DOOM3 naming. Open question 6 records the gap and T-007 measures suffixes by name only |
+| R4 | non-blocking | Assumption 6 claimed Python and Pillow were "pinned in the plan and verified by hash"; only texconv is pinned | assumption 6, the plan's dependency row and T-013 now say Pillow is **observed** (12.3.0) and that `requirements-content.txt` pins it in T-013, with versions recorded in every package |
+| R5 | non-blocking | FR-005's first clause said "Every material", contradicting its own "never every `.mtr`" | FR-005 says "Every material **in the Q4 set**"; a `Q4MaterialSet` entity was added |
+| R6 | non-blocking | `capture-q4.ps1` "always exits 3" conflicts with SC-008's post-Q4 pass path, which no task owned | the plan scopes "always" to "while 004 is pre-Q4"; T-050 now carries the exit-0 acceptance with backend + adapter |
+| R7 | non-blocking | `package_sha256` had no definition, so SC-003's determinism could be circular or path-dependent | defined as SHA-256 over the sorted sidecar/`.mtr`/texture hashes, excluding the field itself; T-013 acceptance states it |
+| R8 | non-blocking | Budget rows were "citations", so a cell could pass with no measurement, and open question 4 asked for a task 004 already names (T056) | FR-012 requires `{task: T056, artifact, state}`; SC-007 fails a citation without an artifact; open question 4 is answered |
+| R9 | non-blocking | T-011/T-012/T-013 consume T-010's files but did not depend on it | added T-010 to their depends-on; no cycle |
+| R10 | non-blocking | "D3D12 is the only engine backend with an implementation" overstated integration: it is a Q1a test library, and the engine still links GL | C-14 and the Q1 row say "only backend with a source implementation … built as the Q1a test library, not yet engine-integrated" |
+| R11 | non-blocking | T-031 grepped only `-HdTextures`; FR-016's credential clause had no check | T-031 also greps `image_usePrecompressedTextures`; FR-016 and T-003 add path and credential patterns |
+| R12 | nit | SC-009's "no numeric budget" was broader than C-08, which allows the 2K authoring cap | SC-009 says "no numeric VRAM, residency, timing or streaming budget" |
+| R13 | nit | T-025's "or an explicit statement that 2K caps the cell" weakened the large-surface cell | T-025 now requires a ≥ 4096 px package assembled from ≤ 2K committed sources, with the assembly recorded |
+| R14 | nit | §1.1 framed 003 D4 vs 004 as a standoff, but 004 is a Draft claiming supersession | §1.1 says 004 is a Draft that claims to supersede 003 D4, that 003 D4 has not been withdrawn, and that C-14 is an **interim** ratification |
+| R15 | nit | The plan header named the wrong branch | corrected to `docs/38-rhi-hd-content-spec` |
+| R16 | nit | T-001 edited `.gitignore`, outside the workstream's stated scope, and the edit was redundant | dropped; the root file already ignores `out/` and any `.cache/` |
+| R17 | nit | The plan pointed at `specs/008-classic-shaders/evidence/implementation.md`, which is not on `main` | points at `evidence/verification.md`, which is |
+| R18 | nit | "`demo00.pk4` \| free demo, 2004 assets" states a count no artifact supports | "2004-era assets" |
+| R19 | nit | "12/12 on Chrome 156" omitted the software-adapter attempt recorded NOT RUN | now "12/12 required checks … the software-adapter attempt is NOT RUN" |
+| R20 | nit | "power-of-two" appeared in the plan and T-005 but nowhere in the boundary or spec | replaced with "≤ 2048 per axis and a multiple of 4", which is what BC requires |
+| R21 | nit | The demo-only claim cited T010–T013; the evidence is T014 | citation corrected to T014 |
+
+Two of these (R2, R3) were only visible by cross-reading the package against spec 006's own evidence —
+the review is worth the cost for that alone.
 
 ---
 
