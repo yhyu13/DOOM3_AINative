@@ -78,8 +78,8 @@ review are recorded in
 
 **Independent test**: Compare the same named legal-data scenes and gameplay sequence on both paths against predeclared tolerances; report every required legacy case as passed or explicitly unsupported.
 
-- [ ] T032 [P] [US3] Specify parity thresholds, camera/data identity and the material/light/subview coverage matrix before capture in `specs/004-quality-renderer/classic-parity.md`, based on Q0 evidence.
-- [ ] T033 [P] [US3] Specify a durable engine-fork delivery and both-executable linkage strategy, including `/MT`/`/MTd` compatibility and current target-patch limitations, in `specs/004-quality-renderer/engine-integration.md`.
+- [x] T032 [P] [US3] Specify parity thresholds, camera/data identity and the material/light/subview coverage matrix before capture in `specs/004-quality-renderer/classic-parity.md`, based on Q0 evidence.
+- [x] T033 [P] [US3] Specify a durable engine-fork delivery and both-executable linkage strategy, including `/MT`/`/MTd` compatibility and current target-patch limitations, in `specs/004-quality-renderer/engine-integration.md`.
 - [ ] T034 [US3] Add failing command-stream and mid-frame capture ordering fixtures in `tests/renderer/engine_command_order_test.cpp`, including view, set-buffer, copy and present ordering.
 - [ ] T035 [US3] Implement a backend-neutral ordered scene adapter in `src/renderer/rhi/engine_scene_adapter.cpp` and the separately reviewed fork integration in `engine-fork:neo/renderer/RenderSystem.cpp`; preserve mid-frame flush/capture behavior.
 - [ ] T036 [US3] Implement selectable classic/reference fallback and link the RHI and required system libraries to both executables in `targets/win11-amd64/CMakeLists.txt` and the appropriate reviewed engine fork. Add a test that a failed modern-backend initialization reports an actionable result and leaves the existing path selectable and usable; do not invent an automatic-switch requirement.
@@ -99,7 +99,7 @@ review are recorded in
 
 **Independent test**: Numerically verify camera, rigid, skinned and supported-deformation reprojection; exercise reset cases, private-pose lifetime, subviews and display-resolution overlay ordering.
 
-- [ ] T041 [P] [US4] Write analytic camera/rigid/skinned/deformation/viewmodel expected reprojections and predeclared tolerances in `tests/renderer/motion-fixtures.md`; use previous unjittered UV minus current unjittered UV with top-left origin. The viewmodel fixture is the numeric counterpart of T046's viewmodel policy; T046 must consume it rather than restate the policy alone.
+- [x] T041 [P] [US4] Write analytic camera/rigid/skinned/deformation/viewmodel expected reprojections and predeclared tolerances in `tests/renderer/motion-fixtures.md`; use previous unjittered UV minus current unjittered UV with top-left origin. The viewmodel fixture is the numeric counterpart of T046's viewmodel policy; T046 must consume it rather than restate the policy alone.
 - [ ] T042 [US4] Add failing public-scene-seam camera/rigid reprojection and valid-zero-versus-invalid tests in `tests/renderer/motion_reprojection_test.cpp`, then implement the smallest history calculation in `src/renderer/rhi/motion_history.cpp`.
 - [ ] T043 [US4] Add failing rendered-frame-versus-simulation-tick and main/mirror/camera/shadow isolation tests in `tests/renderer/view_history_test.cpp`; implement stable view identity and generation in `src/renderer/rhi/view_history.cpp`.
 - [ ] T044 [US4] Add failing skinned previous-pose tests that regenerate/delete shared geometry and process subviews in `tests/renderer/skinned_history_test.cpp`; snapshot private persistent prior positions in `engine-fork:neo/renderer/Model_md5.cpp` and `src/renderer/rhi/skinned_history.cpp`.
