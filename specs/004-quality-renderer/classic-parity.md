@@ -364,8 +364,8 @@ Q2 is claimable only when all of the following hold:
       automatic switch is claimed.
 - [ ] T040's independent review records the decision and the remaining unsupported cases.
 
-The current state satisfies **Q0 and T004/T005**; the rest are not satisfied. That is why T032 remains
-unchecked.
+The current state satisfies **Q0, T004/T005 and the T032 design deliverable**; the Q2 execution items
+are not satisfied. T032 is ticked as a design task, not accepted as Q2 execution.
 
 ---
 
@@ -398,6 +398,3 @@ unchecked.
 here. The category thresholds in §6 are the measured final13 ceilings; HUD/ROI thresholds are still
 pending and are marked so. The source anchors are from the pinned submodule and should be re-checked
 on a bump. The test files named in §11 are planned and are explicitly marked as not existing.
-
-
-

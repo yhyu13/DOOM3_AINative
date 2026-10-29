@@ -26,13 +26,13 @@ ceilings and the merge/freshness condition.
 
 | File | SHA-256 |
 |---|---|
-| `specs/004-quality-renderer/classic-parity.md` | `800F4066A29CAB3288AA2DDDA22A794E0543944DF9E9A606A9B256531F9FD37A` |
+| `specs/004-quality-renderer/classic-parity.md` | `D4922A825E33AE550BA2FD4A42B1CACFF2A5E6AC5D64BE3B8C5CE413025C7804` |
 | `specs/004-quality-renderer/engine-integration.md` | `B9F7E3F498BF100EAF7FD879629801FDC0AE4B5D54C53E268C578F2577FFBA2F` |
-| `specs/004-quality-renderer/motion-fixtures.md` | `2F3DE7FB5987A78F60FD0813565344D2C50C199D8AA419988DEDC75F77A4398D` |
-| `tests/renderer/motion-fixtures.md` | `2F3DE7FB5987A78F60FD0813565344D2C50C199D8AA419988DEDC75F77A4398D` |
+| `specs/004-quality-renderer/motion-fixtures.md` | `12EBB7A8035F09F0620066847328097A05CD652A7593C9E58AA6AADB626D7C81` |
+| `tests/renderer/motion-fixtures.md` | `12EBB7A8035F09F0620066847328097A05CD652A7593C9E58AA6AADB626D7C81` |
 | `specs/004-quality-renderer/tools/motion_fixtures.py` | `E1E7B2E7B8522624580DDB4D2860B5573D00A6D4F94591031F723A239F50F870` |
 | `specs/004-quality-renderer/tools/verify-q2-design.py` | `D4A09B54AC7E365B256F7623413D324617914398AC73FDE1F0FBFD0C86D9616D` |
-| `specs/004-quality-renderer/review-q2-design.md` | `47C5CBA47700E03A970E4F89B8B52F463344348709C40FC4AE22E8D613D02ABB` |
+| `specs/004-quality-renderer/review-q2-design.md` | `35CDDB5DD72144840FFF4A35599F0E25CCDB93933EBFDD2A2C9295C82FE262A5` |
 
 Hashes identify this change set. They will change if the documents are edited; recompute before
 using them to identify a different revision.
@@ -61,7 +61,7 @@ PASS: Q2 design documents are structurally consistent, anchors resolve, the T041
 The checker verifies: required sections/IDs (CP-01–CP-30, T-01–T-10), Markdown table continuity and
 cell counts, relative links, no drive-letter paths, every `file:line` anchor resolves to an existing
 file and an in-range line, and the motion table matches the generator. **It does not prove that a
-cited line supports the sentence**; that is the reviewer's job. The adversarial review log (`review-q2-design.md`) records Rounds 1–7, including the post-Q1a and final13 checks.
+cited line supports the sentence**; that is the reviewer's job. The adversarial review log (`review-q2-design.md`) records Rounds 1–8, including the post-Q1a and final13 checks.
 
 Limit: the anchor check validates file/line existence, not semantic support.
 
@@ -259,6 +259,3 @@ T032, T033 and T041 are **ticked as design deliverables** after the Round 8 inde
 (22/88 checked overall), but that is not execution acceptance. Q2 fixtures/new-path captures, HUD/ROI
 controls and a human sign-off do not exist; T033's real adapter/selector/run do not exist; T041's
 C++ consumer tests and T048 have not run.
-
-
-

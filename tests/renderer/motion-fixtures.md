@@ -332,8 +332,9 @@ A compile error or a skipped test is not red evidence.
 | Real-scene motion/validity | **Not started**; synthetic vectors alone are insufficient for Q3 |
 | FR-010 policy rows for particles/transparency/reflections | **Design input only**; T046 owns the implementation |
 
-The T041 checkbox stays unchecked until the executable fixture lands and the independent review
-passes. The design is usable now; the claim is not.
+T041 is ticked as a design deliverable: the fixture document is delivered and mirrored. The C++
+consumer tests (T042/T044/T046) and T048 remain open; the design is usable now, the execution claim
+is not.
 
 ---
 

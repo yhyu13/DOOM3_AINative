@@ -164,5 +164,5 @@ No ninth pass was run. After the PASS, T032/T033/T041 were ticked as design deli
 - At the time of Round 3, the documents correctly described the then-current Q0 as not established, with all four categories skipped; `baseline-final13` later superseded that state.
 - The documents do not claim an engine build, a Q2 capture, a Q3 execution, or acceptance.
 
-**Verdict**: not approved. The design is reviewable; the completion claim is not.
-
+**Verdict**: execution/completion not approved. The T032/T033/T041 design deliverables are
+reviewed and ticked; Q2/Q3 execution remains unapproved.
