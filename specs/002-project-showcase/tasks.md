@@ -95,7 +95,7 @@
 - [x] T021 Commit only scoped paths; push `feat/2-project-showcase`; open PR with evidence and `Closes #2`
 - [x] T040 Independent review of the PR diff against this spec (reviewer ≠ author) — **READY TO MERGE**; blocking touch fixed; non-blocking polish applied
 - [x] T062 Independent review of the 2004/2026 comparison page — **READY TO MERGE** (re-review of 4f0bff0; no blockers)
-- [ ] T041 Merge after review (squash only; coordinator/reviewer, not the author)
+- [ ] T041 Merge after independent review (squash only; author or coordinator; head must equal the reviewed SHA per `AGENTS.md` §11)
 - [ ] T042 Replace `hero-redacted.png` with a licensed capture before public distribution
   (owner/licensing gate; not a code blocker for the PR)
 

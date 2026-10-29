@@ -146,7 +146,7 @@ Paths below point at the pristine submodule (`doom3_orig/doom3`) because that is
 | Field | Plan |
 |---|---|
 | Goal | Make the issue → worktree → spec → implement → test → review → PR loop run with evidence gates. |
-| Exit criteria | A PR gate runs the build, headless smoke, deterministic demo playback, screenshot diff, perf budget, and log triage; a failing gate blocks merge; the PR carries the evidence artifact; the reviewer is independent; an agent runbook documents the loop; no agent merges its own work. |
+| Exit criteria | A PR gate runs the build, headless smoke, deterministic demo playback, screenshot diff, perf budget, and log triage; a failing gate blocks merge; the PR carries the evidence artifact; the reviewer is independent; an agent runbook documents the loop; the author may merge only after independent review and the gates in `AGENTS.md` §11. |
 | Main risks | Flaky screenshots; GPU/browser variance; asset licensing in CI; agents editing `doom3_orig/doom3/` directly; false positives; CI cost; silent skips. |
 | First command | `gh workflow list` (currently empty; this is the baseline). |
 | Spec-kit driver | `/speckit.implement` → `/speckit.analyze` |
