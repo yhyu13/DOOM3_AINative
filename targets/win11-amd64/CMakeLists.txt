@@ -41,6 +41,19 @@ set(PORT_SHADER_SOURCES
     "${PORT_SHADER_DIR}/engine/shader_engine.cpp")
 set_source_files_properties(${PORT_SHADER_SOURCES} PROPERTIES COMPILE_OPTIONS "/std:c++17")
 
+# The resolver manifest is the single source of truth (spec 008 FR-009). Embed the tracked JSON at
+# configure time so the engine needs no runtime data file and cannot read a different copy.
+set(PORT_MANIFEST_JSON "${CMAKE_CURRENT_SOURCE_DIR}/../../shaders/manifest/classic-programs.json")
+if(NOT EXISTS "${PORT_MANIFEST_JSON}")
+    message(FATAL_ERROR "Shader manifest not found: ${PORT_MANIFEST_JSON}")
+endif()
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${PORT_MANIFEST_JSON}")
+file(READ "${PORT_MANIFEST_JSON}" PORT_MANIFEST_TEXT)
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/shader_manifest_data.h"
+    "// Generated from shaders/manifest/classic-programs.json at configure time. Do not edit.\n"
+    "#pragma once\n"
+    "static const char* const kClassicManifestJson = R\"d3manifest(${PORT_MANIFEST_TEXT})d3manifest\";\n")
+
 foreach(list_name IDLIB_SOURCES ENGINE_SOURCES GAME_SOURCES D3XP_SOURCES)
     list(TRANSFORM ${list_name} PREPEND "${NEO_DIR}/")
 endforeach()
@@ -85,6 +98,7 @@ set_source_files_properties("${NEO_DIR}/sys/win32/win_input.cpp" PROPERTIES
 # idlib + engine: identical for both executables (the retail engine is one EXE that loads either
 # game module; the only engine-visible difference, TIME_GROUP*, is unused by engine code).
 add_library(doom3_engine OBJECT ${IDLIB_SOURCES} ${ENGINE_SOURCES} ${PORT_SHADER_SOURCES} src/eaxguid_x64.cpp)
+target_include_directories(doom3_engine PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 target_link_libraries(doom3_engine PRIVATE doom3_common)
 
 # Game modules: compiled-in (no GAME_DLL / __DOOM_DLL__), so each executable owns exactly one

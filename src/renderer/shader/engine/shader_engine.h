@@ -33,17 +33,36 @@ enum Target { TARGET_VERTEX = 0, TARGET_FRAGMENT = 1 };
 // Returns false and copies the reason into error on a malformed manifest.
 bool Init(const char* manifestJson, const char* mode, char* error, int errorSize);
 
+// Loads the manifest embedded at build time from shaders/manifest/classic-programs.json, so the
+// engine has one source of truth and no runtime file dependency. Same return contract as Init().
+bool InitEmbedded(const char* mode, char* error, int errorSize);
+
 // Drops the resolver. Safe to call when not initialised.
 void Shutdown();
 
-// True when a manifest is loaded and the resolver is not in `off` mode.
+// True when a manifest is loaded. `off` is a loaded mode (it draws, but it is not evidence).
 bool Active();
+
+// Coverage probe used by the engine table check. Returns -1 when the key is not in the manifest,
+// otherwise the entry's manifest Code (CODE_OK/CODE_STUB/CODE_UNSUPPORTED/CODE_ABSENT).
+// Does not count a request and does not change resolver state.
+int ManifestStatus(const char* name);
 
 void SetMode(const char* mode);
 const char* ModeName();
 
 // Phase 1 (material parse time): no GL, no blob. Returns the Code and, on success, the key.
 int Resolve(const char* keyword, const char* name, int target, char* outKey, int outKeySize);
+
+// The material a subsequent Resolve() belongs to; used only by the diagnostic text.
+void SetMaterial(const char* name);
+
+// The stage index a subsequent Resolve() belongs to; used only by the diagnostic text.
+void SetStage(int stageIndex);
+
+// Structured text for the last resolution when it produced a new non-OK record (nullptr otherwise).
+// The pointer stays valid until the next resolver call.
+const char* TakeDiagnostic();
 
 // Atomic `program` pair: either both stages resolve OK or neither is installable.
 // Returns true only when both are OK; the Code outputs are always filled.
@@ -64,6 +83,11 @@ bool MayDraw(const char* key, int target);
 // Diagnostics. Both return pointers that stay valid until the next call of the same function.
 const char* StatusLine();
 const char* Reload();
+
+// In-engine test of the resolver contract (T-024): missing, one-sided, compile-failed, tolerant and
+// reload, against local resolver instances. Never touches the shipping resolver. Returns the number
+// of failed cases (0 = all passed) and writes a one-line-per-case report.
+int SelfTest(char* report, int reportSize);
 
 } // namespace shaderport
 } // namespace d3

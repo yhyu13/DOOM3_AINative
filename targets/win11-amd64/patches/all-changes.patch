@@ -7871,6 +7871,548 @@ index 552b816..33a30b7 100644
  	byte **					qStatus[2];
  	idStr					fileName;
  	int						CIN_WIDTH, CIN_HEIGHT;
+diff --git a/a/neo/renderer/draw_arb2.cpp b/b/neo/renderer/draw_arb2.cpp
+index 79a960a..dd1c299 100644
+--- a/a/neo/renderer/draw_arb2.cpp
++++ b/b/neo/renderer/draw_arb2.cpp
+@@ -31,6 +31,8 @@ If you have questions concerning this license or the applicable additional terms
+ 
+ #include "tr_local.h"
+ 
++#include "shader_engine.h"
++
+ #include "cg_explicit.h"
+ 
+ CGcontext cg_context;
+@@ -149,14 +151,17 @@ void RB_ARB2_CreateDrawInteractions( const drawSurf_t *surf ) {
+ 	// perform setup here that will be constant for all interactions
+ 	GL_State( GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE | GLS_DEPTHMASK | backEnd.depthFunc );
+ 
+-	// bind the vertex program
+-	if ( r_testARBProgram.GetBool() ) {
+-		qglBindProgramARB( GL_VERTEX_PROGRAM_ARB, VPROG_TEST );
+-		qglBindProgramARB( GL_FRAGMENT_PROGRAM_ARB, FPROG_TEST );
+-	} else {
+-		qglBindProgramARB( GL_VERTEX_PROGRAM_ARB, VPROG_INTERACTION );
+-		qglBindProgramARB( GL_FRAGMENT_PROGRAM_ARB, FPROG_INTERACTION );
++	// bind the vertex program. No interaction pass draws unless the resolver says the program is OK
++	// for both phases (spec 008 I-1); `off` reproduces the legacy bind and is not evidence.
++	const char *interactionKey = r_testARBProgram.GetBool() ? "test" : "interaction";
++	if ( !d3::shaderport::MayDraw( interactionKey, d3::shaderport::TARGET_VERTEX ) ||
++		 !d3::shaderport::MayDraw( interactionKey, d3::shaderport::TARGET_FRAGMENT ) ) {
++		return;
+ 	}
++	qglBindProgramARB( GL_VERTEX_PROGRAM_ARB,
++		d3::shaderport::ProgramId( interactionKey, d3::shaderport::TARGET_VERTEX ) );
++	qglBindProgramARB( GL_FRAGMENT_PROGRAM_ARB,
++		d3::shaderport::ProgramId( interactionKey, d3::shaderport::TARGET_FRAGMENT ) );
+ 
+ 	qglEnable(GL_VERTEX_PROGRAM_ARB);
+ 	qglEnable(GL_FRAGMENT_PROGRAM_ARB);
+@@ -285,13 +290,15 @@ void RB_ARB2_DrawInteractions( void ) {
+ 			qglStencilFunc( GL_ALWAYS, 128, 255 );
+ 		}
+ 
+-		if ( r_useShadowVertexProgram.GetBool() ) {
++		const bool shadowProgram = d3::shaderport::MayDraw( "shadow", d3::shaderport::TARGET_VERTEX );
++		if ( r_useShadowVertexProgram.GetBool() && shadowProgram ) {
++			const int shadowId = d3::shaderport::ProgramId( "shadow", d3::shaderport::TARGET_VERTEX );
+ 			qglEnable( GL_VERTEX_PROGRAM_ARB );
+-			qglBindProgramARB( GL_VERTEX_PROGRAM_ARB, VPROG_STENCIL_SHADOW );
++			qglBindProgramARB( GL_VERTEX_PROGRAM_ARB, shadowId );
+ 			RB_StencilShadowPass( vLight->globalShadows );
+ 			RB_ARB2_CreateDrawInteractions( vLight->localInteractions );
+ 			qglEnable( GL_VERTEX_PROGRAM_ARB );
+-			qglBindProgramARB( GL_VERTEX_PROGRAM_ARB, VPROG_STENCIL_SHADOW );
++			qglBindProgramARB( GL_VERTEX_PROGRAM_ARB, shadowId );
+ 			RB_StencilShadowPass( vLight->localShadows );
+ 			RB_ARB2_CreateDrawInteractions( vLight->globalInteractions );
+ 			qglDisable( GL_VERTEX_PROGRAM_ARB );	// if there weren't any globalInteractions, it would have stayed on
+@@ -357,19 +364,61 @@ static progDef_t	progs[MAX_GLPROGS] = {
+ 	// additional programs can be dynamically specified in materials
+ };
+ 
++/*
++=================
++R_FindProgramSlot
++
++Returns the table slot for a (target, name) pair, appending a zeroed slot when the name is new.
++Returns -1 when the table is full.
++=================
++*/
++static int R_FindProgramSlot( GLenum target, const char *program ) {
++	int		i;
++	idStr	stripped = program;
++
++	stripped.StripFileExtension();
++
++	for ( i = 0 ; progs[i].name[0] ; i++ ) {
++		if ( progs[i].target != target ) {
++			continue;
++		}
++		idStr	compare = progs[i].name;
++		compare.StripFileExtension();
++		if ( !idStr::Icmp( stripped.c_str(), compare.c_str() ) ) {
++			return i;
++		}
++	}
++
++	if ( i >= MAX_GLPROGS ) {
++		return -1;
++	}
++
++	progs[i].ident = 0;
++	progs[i].target = target;
++	strncpy( progs[i].name, program, sizeof( progs[i].name ) - 1 );
++	progs[i].name[ sizeof( progs[i].name ) - 1 ] = '\0';
++	return i;
++}
++
+ /*
+ =================
+ R_LoadARBProgram
++
++Compiles one blob into GL and returns a d3::shaderport::Code. The identifier is published only after
++a successful compile: a nonzero id is never proof of health (spec 008 census fact 1, resolver I-3).
+ =================
+ */
+-void R_LoadARBProgram( int progIndex ) {
++static int R_LoadARBProgram( int progIndex ) {
+ 	int		ofs;
+ 	int		err;
+ 	idStr	fullPath = "glprogs/";
+ 	fullPath += progs[progIndex].name;
+ 	char	*fileBuffer;
+ 	char	*buffer;
+-	char	*start, *end;
++	char	*start = NULL;
++	char	*end;
++
++	progs[progIndex].ident = 0;
+ 
+ 	common->Printf( "%s", fullPath.c_str() );
+ 
+@@ -378,7 +427,9 @@ void R_LoadARBProgram( int progIndex ) {
+ 	fileSystem->ReadFile( fullPath.c_str(), (void **)&fileBuffer, NULL );
+ 	if ( !fileBuffer ) {
+ 		common->Printf( ": File not found\n" );
+-		return;
++		common->Printf( "SHADER ERROR: blob=\"%s\" code=NOT_COMPILED detail=\"file not found\"\n",
++			fullPath.c_str() );
++		return d3::shaderport::CODE_NOT_COMPILED;
+ 	}
+ 
+ 	// copy to stack memory and free
+@@ -387,15 +438,8 @@ void R_LoadARBProgram( int progIndex ) {
+ 	fileSystem->FreeFile( fileBuffer );
+ 
+ 	if ( !glConfig.isInitialized ) {
+-		return;
+-	}
+-
+-	//
+-	// submit the program string at start to GL
+-	//
+-	if ( progs[progIndex].ident == 0 ) {
+-		// allocate a new identifier for this program
+-		progs[progIndex].ident = PROG_USER + progIndex;
++		common->Printf( "\n" );
++		return d3::shaderport::CODE_NOT_COMPILED;
+ 	}
+ 
+ 	// vertex and fragment programs can both be present in a single file, so
+@@ -404,30 +448,31 @@ void R_LoadARBProgram( int progIndex ) {
+ 	if ( progs[progIndex].target == GL_VERTEX_PROGRAM_ARB ) {
+ 		if ( !glConfig.ARBVertexProgramAvailable ) {
+ 			common->Printf( ": GL_VERTEX_PROGRAM_ARB not available\n" );
+-			return;
++			return d3::shaderport::CODE_NOT_COMPILED;
+ 		}
+ 		start = strstr( (char *)buffer, "!!ARBvp" );
+ 	}
+ 	if ( progs[progIndex].target == GL_FRAGMENT_PROGRAM_ARB ) {
+ 		if ( !glConfig.ARBFragmentProgramAvailable ) {
+ 			common->Printf( ": GL_FRAGMENT_PROGRAM_ARB not available\n" );
+-			return;
++			return d3::shaderport::CODE_NOT_COMPILED;
+ 		}
+ 		start = strstr( (char *)buffer, "!!ARBfp" );
+ 	}
+ 	if ( !start ) {
+ 		common->Printf( ": !!ARB not found\n" );
+-		return;
++		return d3::shaderport::CODE_COMPILE_FAILED;
+ 	}
+ 	end = strstr( start, "END" );
+ 
+ 	if ( !end ) {
+ 		common->Printf( ": END not found\n" );
+-		return;
++		return d3::shaderport::CODE_COMPILE_FAILED;
+ 	}
+ 	end[3] = 0;
+ 
+-	qglBindProgramARB( progs[progIndex].target, progs[progIndex].ident );
++	const GLuint ident = (GLuint)( PROG_USER + progIndex );
++	qglBindProgramARB( progs[progIndex].target, ident );
+ 	qglGetError();
+ 
+ 	qglProgramStringARB( progs[progIndex].target, GL_PROGRAM_FORMAT_ASCII_ARB,
+@@ -445,70 +490,209 @@ void R_LoadARBProgram( int progIndex ) {
+ 		} else {
+ 			common->Printf( "error at %i:\n%s", ofs, start + ofs );
+ 		}
+-		return;
++		return d3::shaderport::CODE_COMPILE_FAILED;
+ 	}
+ 	if ( ofs != -1 ) {
+ 		common->Printf( "\nGL_PROGRAM_ERROR_POSITION_ARB != -1 without error\n" );
+-		return;
++		return d3::shaderport::CODE_COMPILE_FAILED;
+ 	}
+ 
++	progs[progIndex].ident = ident;
+ 	common->Printf( "\n" );
++	return d3::shaderport::CODE_OK;
+ }
+ 
+ /*
+-==================
+-R_FindARBProgram
++=================
++R_ResolveStaticPrograms
+ 
+-Returns a GL identifier that can be bound to the given target, parsing
+-a text file if it hasn't already been loaded.
+-==================
++Phase 1 for the compiled table. Material-declared names are resolved by Material.cpp at parse time;
++this adds the fixed entries so phase 2 loads them without waiting for a material.
++=================
+ */
+-int R_FindARBProgram( GLenum target, const char *program ) {
+-	int		i;
+-	idStr	stripped = program;
++static void R_ResolveStaticPrograms( void ) {
++	char	key[64];
++
++	for ( int i = 0 ; progs[i].name[0] ; i++ ) {
++		const int target = ( progs[i].target == GL_VERTEX_PROGRAM_ARB )
++			? d3::shaderport::TARGET_VERTEX : d3::shaderport::TARGET_FRAGMENT;
++		d3::shaderport::Resolve(
++			( target == d3::shaderport::TARGET_VERTEX ) ? "vertexProgram" : "fragmentProgram",
++			progs[i].name, target, key, (int)sizeof( key ) );
++	}
++}
+ 
+-	stripped.StripFileExtension();
++/*
++=================
++R_BindPendingBlobs
+ 
+-	// see if it is already loaded
+-	for ( i = 0 ; progs[i].name[0] ; i++ ) {
+-		if ( progs[i].target != target ) {
++Loads every pending (program, target) that has no backend id yet. `reset` starts a new phase-2 pass
++(device init / reload); otherwise it binds only names requested after the last pass (a material parsed
++after the context exists), leaving already-bound ids and their status alone.
++=================
++*/
++static bool	sProgramBlobsPending = false;
++
++static void R_BindPendingBlobs( bool reset ) {
++	if ( !glConfig.isInitialized ) {
++		return;
++	}
++
++	if ( reset ) {
++		d3::shaderport::BeginBlobPhase();
++	}
++
++	int		cursor = 0;
++	char	program[64];
++	char	key[64];
++	int		target = 0;
++	int		code = 0;
++
++	while ( d3::shaderport::NextBlob( &cursor, program, (int)sizeof( program ), key,
++			(int)sizeof( key ), &target, &code ) ) {
++		const GLenum glTarget = ( target == d3::shaderport::TARGET_VERTEX )
++			? GL_VERTEX_PROGRAM_ARB : GL_FRAGMENT_PROGRAM_ARB;
++		const int slot = R_FindProgramSlot( glTarget, program );
++		if ( slot < 0 ) {
++			common->Printf( "SHADER ERROR: program=\"%s\" code=NOT_COMPILED detail=\"MAX_GLPROGS\"\n",
++				program );
++			d3::shaderport::SetBlob( key, target, d3::shaderport::CODE_NOT_COMPILED, 0 );
+ 			continue;
+ 		}
++		const int result = R_LoadARBProgram( slot );
++		const int id = ( result == d3::shaderport::CODE_OK ) ? (int)progs[slot].ident : 0;
++		d3::shaderport::SetBlob( key, target, result, id );
++	}
++}
+ 
+-		idStr	compare = progs[i].name;
+-		compare.StripFileExtension();
++static void R_LoadAllProgramBlobs( void ) {
++	R_BindPendingBlobs( true );
++}
+ 
+-		if ( !idStr::Icmp( stripped.c_str(), compare.c_str() ) ) {
+-			return progs[i].ident;
++/*
++=================
++R_LoadNewProgramBlobs
++
++Called once per frame; a no-op unless a material parsed after the context existed requested a
++program. This is the phase-2 half of FR-023 for level-load material parsing.
++=================
++*/
++void R_LoadNewProgramBlobs( void ) {
++	if ( !sProgramBlobsPending ) {
++		return;
++	}
++	sProgramBlobsPending = false;
++	R_BindPendingBlobs( false );
++}
++
++/*
++=================
++R_ShaderProgramRequested
++
++Set by the material parser. The next BeginFrame binds the new requests before anything is drawn.
++=================
++*/
++void R_ShaderProgramRequested( void ) {
++	sProgramBlobsPending = true;
++}
++
++/*
++=================
++R_CheckProgramTableCoverage
++
++FR-009: the compiled engine table must be covered by the manifest. Called once at init, before
++material-declared names are appended, so the count is the static table only.
++=================
++*/
++void R_CheckProgramTableCoverage( void ) {
++	int	covered = 0;
++	int	missing = 0;
++
++	for ( int i = 0 ; progs[i].name[0] ; i++ ) {
++		const int status = d3::shaderport::ManifestStatus( progs[i].name );
++		if ( status < 0 ) {
++			++missing;
++			common->Warning( "SHADER MANIFEST COVERAGE: no entry for '%s'", progs[i].name );
++		} else {
++			++covered;
+ 		}
+ 	}
++	common->Printf( "SHADER MANIFEST COVERAGE: %i/%i engine table keys covered\n",
++		covered, covered + missing );
++}
+ 
+-	if ( i == MAX_GLPROGS ) {
+-		common->Error( "R_FindARBProgram: MAX_GLPROGS" );
++/*
++=================
++R_InitShaderResolver
++
++Loads the embedded manifest before materials are parsed (FR-011 / FR-023) and resolves the static
++table. A malformed manifest is fatal in every mode (resolver.md 6).
++=================
++*/
++void R_InitShaderResolver( const char *mode ) {
++	char	error[256];
++
++	if ( !d3::shaderport::InitEmbedded( mode, error, (int)sizeof( error ) ) ) {
++		common->FatalError( "shader manifest invalid: %s", error );
++		return;
+ 	}
+ 
+-	// add it to the list and load it
+-	progs[i].ident = (program_t)0;	// will be gen'd by R_LoadARBProgram
+-	progs[i].target = target;
+-	strncpy( progs[i].name, program, sizeof( progs[i].name ) - 1 );
++	R_CheckProgramTableCoverage();
++	R_ResolveStaticPrograms();
++	common->Printf( "%s\n", d3::shaderport::StatusLine() );
++}
+ 
+-	R_LoadARBProgram( i );
++/*
++=================
++R_ShaderStatus_f
++=================
++*/
++void R_ShaderStatus_f( const idCmdArgs &args ) {
++	common->Printf( "%s\n", d3::shaderport::StatusLine() );
++}
++
++/*
++=================
++R_ShaderSelfTest_f
+ 
+-	return progs[i].ident;
++T-024 in-engine test: missing, one-sided, compile-failed, tolerant, reload.
++=================
++*/
++void R_ShaderSelfTest_f( const idCmdArgs &args ) {
++	char	report[4096];
++
++	const int failures = d3::shaderport::SelfTest( report, (int)sizeof( report ) );
++	common->Printf( "%s", report );
++	if ( failures != 0 ) {
++		common->Warning( "SHADER SELFTEST: %i failure(s)", failures );
++	}
+ }
+ 
+ /*
+-==================
++=================
+ R_ReloadARBPrograms_f
+-==================
++
++shader_reload: re-resolves every logged request (phase 1), re-binds every blob (phase 2), and prints
++the before/after status. `reloadARBprograms` remains as an alias.
++=================
+ */
+ void R_ReloadARBPrograms_f( const idCmdArgs &args ) {
+ 	int		i;
+ 
+ 	common->Printf( "----- R_ReloadARBPrograms -----\n" );
+-	for ( i = 0 ; progs[i].name[0] ; i++ ) {
+-		R_LoadARBProgram( i );
++
++	if ( !d3::shaderport::Active() ) {
++		for ( i = 0 ; progs[i].name[0] ; i++ ) {
++			R_LoadARBProgram( i );
++		}
++		common->Printf( "-------------------------------\n" );
++		return;
+ 	}
++
++	common->Printf( "%s\n", d3::shaderport::Reload() );
++	R_LoadAllProgramBlobs();
++	common->Printf( "%s\n", d3::shaderport::StatusLine() );
++
+ 	common->Printf( "-------------------------------\n" );
+ }
+ 
+diff --git a/a/neo/renderer/draw_common.cpp b/b/neo/renderer/draw_common.cpp
+index 9bcf4bf..dc6e3ad 100644
+--- a/a/neo/renderer/draw_common.cpp
++++ b/b/neo/renderer/draw_common.cpp
+@@ -30,6 +30,33 @@ If you have questions concerning this license or the applicable additional terms
+ 
+ #include "tr_local.h"
+ 
++#include "shader_engine.h"
++
++/*
++==================
++RB_StageProgramDrawable
++
++Fail-loud gate for the fixed-function texgen paths (spec 008 I-1): a stage that needs a program is not
++drawn unless every requested stage is OK for both phases. `off` reproduces the legacy bind and is not
++evidence.
++==================
++*/
++static bool RB_StageProgramDrawable( const shaderStage_t *pStage, const drawSurf_t *surf ) {
++	if ( pStage->newStage ) {
++		return pStage->newStage->ProgramsDrawable();
++	}
++	if ( pStage->texture.texgen == TG_GLASSWARP ) {
++		return d3::shaderport::MayDraw( "arbfp_glasswarp", d3::shaderport::TARGET_FRAGMENT );
++	}
++	if ( pStage->texture.texgen == TG_REFLECT_CUBE && tr.backEndRenderer == BE_ARB2 ) {
++		const bool bump = ( surf->material->GetBumpStage() != NULL );
++		const char *key = bump ? "bumpyenvironment" : "environment";
++		return d3::shaderport::MayDraw( key, d3::shaderport::TARGET_VERTEX ) &&
++			d3::shaderport::MayDraw( key, d3::shaderport::TARGET_FRAGMENT );
++	}
++	return true;
++}
++
+ /*
+ =====================
+ RB_BakeTextureMatrixIntoTexgen
+@@ -152,7 +179,8 @@ void RB_PrepareStageTexturing( const shaderStage_t *pStage,  const drawSurf_t *s
+ 
+ 	if ( pStage->texture.texgen == TG_GLASSWARP ) {
+ 		if ( tr.backEndRenderer == BE_ARB2 /*|| tr.backEndRenderer == BE_NV30*/ ) {
+-			qglBindProgramARB( GL_FRAGMENT_PROGRAM_ARB, FPROG_GLASSWARP );
++			qglBindProgramARB( GL_FRAGMENT_PROGRAM_ARB,
++				d3::shaderport::ProgramId( "arbfp_glasswarp", d3::shaderport::TARGET_FRAGMENT ) );
+ 			qglEnable( GL_FRAGMENT_PROGRAM_ARB );
+ 
+ 			GL_SelectTexture( 2 );
+@@ -210,18 +238,22 @@ void RB_PrepareStageTexturing( const shaderStage_t *pStage,  const drawSurf_t *s
+ 
+ 				// Program env 5, 6, 7, 8 have been set in RB_SetProgramEnvironmentSpace
+ 
+-				qglBindProgramARB( GL_FRAGMENT_PROGRAM_ARB, FPROG_BUMPY_ENVIRONMENT );
++				qglBindProgramARB( GL_FRAGMENT_PROGRAM_ARB,
++					d3::shaderport::ProgramId( "bumpyenvironment", d3::shaderport::TARGET_FRAGMENT ) );
+ 				qglEnable( GL_FRAGMENT_PROGRAM_ARB );
+-				qglBindProgramARB( GL_VERTEX_PROGRAM_ARB, VPROG_BUMPY_ENVIRONMENT );
++				qglBindProgramARB( GL_VERTEX_PROGRAM_ARB,
++					d3::shaderport::ProgramId( "bumpyenvironment", d3::shaderport::TARGET_VERTEX ) );
+ 				qglEnable( GL_VERTEX_PROGRAM_ARB );
+ 			} else {
+ 				// per-pixel reflection mapping without a normal map
+ 				qglNormalPointer( GL_FLOAT, sizeof( idDrawVert ), ac->normal.ToFloatPtr() );
+ 				qglEnableClientState( GL_NORMAL_ARRAY );
+ 
+-				qglBindProgramARB( GL_FRAGMENT_PROGRAM_ARB, FPROG_ENVIRONMENT );
++				qglBindProgramARB( GL_FRAGMENT_PROGRAM_ARB,
++					d3::shaderport::ProgramId( "environment", d3::shaderport::TARGET_FRAGMENT ) );
+ 				qglEnable( GL_FRAGMENT_PROGRAM_ARB );
+-				qglBindProgramARB( GL_VERTEX_PROGRAM_ARB, VPROG_ENVIRONMENT );
++				qglBindProgramARB( GL_VERTEX_PROGRAM_ARB,
++					d3::shaderport::ProgramId( "environment", d3::shaderport::TARGET_VERTEX ) );
+ 				qglEnable( GL_VERTEX_PROGRAM_ARB );
+ 			}
+ 		} else {
+@@ -456,6 +488,10 @@ void RB_T_FillDepthBuffer( const drawSurf_t *surf ) {
+ 				continue;
+ 			}
+ 
++			if ( !RB_StageProgramDrawable( pStage, surf ) ) {
++				continue;
++			}
++
+ 			// if we at least tried to draw an alpha tested stage,
+ 			// we won't draw the opaque surface
+ 			didDraw = true;
+@@ -771,6 +807,10 @@ void RB_STD_T_RenderShaderPasses( const drawSurf_t *surf ) {
+ 			continue;
+ 		}
+ 
++		if ( !RB_StageProgramDrawable( pStage, surf ) ) {
++			continue;
++		}
++
+ 		// skip if the stage is ( GL_ZERO, GL_ONE ), which is used for some alpha masks
+ 		if ( ( pStage->drawStateBits & (GLS_SRCBLEND_BITS|GLS_DSTBLEND_BITS) ) == ( GLS_SRCBLEND_ZERO | GLS_DSTBLEND_ONE ) ) {
+ 			continue;
+@@ -804,7 +844,7 @@ void RB_STD_T_RenderShaderPasses( const drawSurf_t *surf ) {
+ 
+ 			GL_State( pStage->drawStateBits );
+ 			
+-			qglBindProgramARB( GL_VERTEX_PROGRAM_ARB, newStage->vertexProgram );
++			qglBindProgramARB( GL_VERTEX_PROGRAM_ARB, newStage->vertexProgram.DrawId() );
+ 			qglEnable( GL_VERTEX_PROGRAM_ARB );
+ 
+ 			// megaTextures bind a lot of images and set a lot of parameters
+@@ -830,7 +870,7 @@ void RB_STD_T_RenderShaderPasses( const drawSurf_t *surf ) {
+ 					newStage->fragmentProgramImages[i]->Bind();
+ 				}
+ 			}
+-			qglBindProgramARB( GL_FRAGMENT_PROGRAM_ARB, newStage->fragmentProgram );
++			qglBindProgramARB( GL_FRAGMENT_PROGRAM_ARB, newStage->fragmentProgram.DrawId() );
+ 			qglEnable( GL_FRAGMENT_PROGRAM_ARB );
+ 
+ 			// draw it
 diff --git a/a/neo/renderer/GuiModel.cpp b/b/neo/renderer/GuiModel.cpp
 index c59e3ea..cced93e 100644
 --- a/a/neo/renderer/GuiModel.cpp
@@ -7894,6 +8436,235 @@ index c59e3ea..cced93e 100644
  		demo->ReadFloat( surf->color[0] );
  		demo->ReadFloat( surf->color[1] );
  		demo->ReadFloat( surf->color[2] );
+diff --git a/a/neo/renderer/Material.cpp b/b/neo/renderer/Material.cpp
+index 701c4a0..fe001b5 100644
+--- a/a/neo/renderer/Material.cpp
++++ b/b/neo/renderer/Material.cpp
+@@ -31,6 +31,24 @@ If you have questions concerning this license or the applicable additional terms
+ 
+ #include "tr_local.h"
+ 
++/*
++=================
++R_ReportShaderDiagnostic
++
++Prints the structured SHADER ERROR record for the last resolution, if it is new. The resolver
++deduplicates by (material, stage, program, code, target); repeats only increment a counter.
++=================
++*/
++static void R_ReportShaderDiagnostic( void ) {
++	const char *diagnostic = d3::shaderport::TakeDiagnostic();
++	if ( diagnostic != NULL ) {
++		common->Printf( "%s\n", diagnostic );
++	}
++	// A material parsed after the context exists needs phase 2 before its first draw. Before the
++	// context exists this is harmless: R_InitOpenGL's first reload binds the whole pending set.
++	R_ShaderProgramRequested();
++}
++
+ /*
+ 
+ Any errors during parsing just set MF_DEFAULTED and return, rather than throwing
+@@ -1106,6 +1124,9 @@ void idMaterial::ParseStage( idLexer &src, const textureRepeat_t trpDefault ) {
+ 
+ 	memset( &newStage, 0, sizeof( newStage ) );
+ 
++	// Diagnostics carry the stage index (resolver.md 8.1).
++	d3::shaderport::SetStage( numStages );
++
+ 	ss = &pd->parseStages[numStages];
+ 	ts = &ss->texture;
+ 
+@@ -1489,20 +1510,23 @@ void idMaterial::ParseStage( idLexer &src, const textureRepeat_t trpDefault ) {
+ 		}
+ 		if ( !token.Icmp( "program" ) ) {
+ 			if ( src.ReadTokenOnLine( &token ) ) {
+-				newStage.vertexProgram = R_FindARBProgram( GL_VERTEX_PROGRAM_ARB, token.c_str() );
+-				newStage.fragmentProgram = R_FindARBProgram( GL_FRAGMENT_PROGRAM_ARB, token.c_str() );
++				ResolveShaderProgramPair( token.c_str(), newStage.vertexProgram,
++					newStage.fragmentProgram );
++				R_ReportShaderDiagnostic();
+ 			}
+ 			continue;
+ 		}
+ 		if ( !token.Icmp( "fragmentProgram" ) ) {
+ 			if ( src.ReadTokenOnLine( &token ) ) {
+-				newStage.fragmentProgram = R_FindARBProgram( GL_FRAGMENT_PROGRAM_ARB, token.c_str() );
++				newStage.fragmentProgram.Resolve( false, token.c_str() );
++				R_ReportShaderDiagnostic();
+ 			}
+ 			continue;
+ 		}
+ 		if ( !token.Icmp( "vertexProgram" ) ) {
+ 			if ( src.ReadTokenOnLine( &token ) ) {
+-				newStage.vertexProgram = R_FindARBProgram( GL_VERTEX_PROGRAM_ARB, token.c_str() );
++				newStage.vertexProgram.Resolve( true, token.c_str() );
++				R_ReportShaderDiagnostic();
+ 			}
+ 			continue;
+ 		}
+@@ -1514,8 +1538,9 @@ void idMaterial::ParseStage( idLexer &src, const textureRepeat_t trpDefault ) {
+ 					SetMaterialFlag( MF_DEFAULTED );
+ 					continue;
+ 				}
+-				newStage.vertexProgram = R_FindARBProgram( GL_VERTEX_PROGRAM_ARB, "megaTexture.vfp" );
+-				newStage.fragmentProgram = R_FindARBProgram( GL_FRAGMENT_PROGRAM_ARB, "megaTexture.vfp" );
++				ResolveShaderProgramPair( "megaTexture.vfp", newStage.vertexProgram,
++					newStage.fragmentProgram );
++				R_ReportShaderDiagnostic();
+ 				continue;
+ 			}
+ 		}
+@@ -1538,8 +1563,10 @@ void idMaterial::ParseStage( idLexer &src, const textureRepeat_t trpDefault ) {
+ 	}
+ 
+ 
+-	// if we are using newStage, allocate a copy of it
+-	if ( newStage.fragmentProgram || newStage.vertexProgram ) {
++	// if we are using newStage, allocate a copy of it. A stage that requested a program is kept even
++	// when the request failed: the draw gate must see the blocked stage and skip it, not fall back to
++	// the fixed-function path (spec 008 I-1, FR-008).
++	if ( newStage.vertexProgram.Requested() || newStage.fragmentProgram.Requested() ) {
+ 		ss->newStage = (newShaderStage_t *)Mem_Alloc( sizeof( newStage ) );
+ 		*(ss->newStage) = newStage;
+ 	}
+@@ -1788,6 +1815,9 @@ void idMaterial::ParseMaterial( idLexer &src ) {
+ 	idLexer		newSrc;
+ 	int			i;
+ 
++	// Diagnostics name the material, not the file (resolver.md 8.1).
++	d3::shaderport::SetMaterial( GetName() );
++
+ 	s = 0;
+ 
+ 	numOps = 0;
+diff --git a/a/neo/renderer/Material.h b/b/neo/renderer/Material.h
+index 8d45a0e..c026ade 100644
+--- a/a/neo/renderer/Material.h
++++ b/b/neo/renderer/Material.h
+@@ -29,6 +29,8 @@ If you have questions concerning this license or the applicable additional terms
+ #ifndef __MATERIAL_H__
+ #define __MATERIAL_H__
+ 
++#include "shader_engine.h"
++
+ /*
+ ===============================================================================
+ 
+@@ -188,17 +190,95 @@ typedef enum {
+ static const int	MAX_FRAGMENT_IMAGES = 8;
+ static const int	MAX_VERTEX_PARMS = 4;
+ 
+-typedef struct {
+-	int					vertexProgram;
++// Port-owned validated program handle (spec 008 T-022, FR-008, FR-023).
++//
++// Phase 1 (material parse, no device) stores the normalized key and the resolution code. Phase 2
++// (device init and reload) binds a backend program id. The handle never treats a raw id as health:
++// the draw gate asks the resolver for both phases. `program` is atomic, so a one-sided file blocks
++// both legs.
++struct shaderProgramHandle_t {
++	char	key[64];
++	int		code;			// d3::shaderport::Code
++	int		target;			// d3::shaderport::Target
++	bool	requested;		// a keyword named this stage
++	bool	blocked;		// the atomic `program` pair failed
++
++	void Reset( void ) {
++		key[0] = '\0';
++		code = d3::shaderport::CODE_NOT_COMPILED;
++		target = d3::shaderport::TARGET_VERTEX;
++		requested = false;
++		blocked = false;
++	}
++
++	void Resolve( bool vertex, const char *program ) {
++		target = vertex ? d3::shaderport::TARGET_VERTEX : d3::shaderport::TARGET_FRAGMENT;
++		requested = true;
++		blocked = false;
++		code = d3::shaderport::Resolve(
++			vertex ? "vertexProgram" : "fragmentProgram", program, target,
++			key, (int)sizeof( key ) );
++	}
++
++	bool Requested( void ) const {
++		return requested;
++	}
++
++	int DrawId( void ) const {
++		return requested ? d3::shaderport::ProgramId( key, target ) : 0;
++	}
++
++	bool Drawable( void ) const {
++		if ( !requested ) {
++			return true;	// no program on this stage; the fixed-function path owns it
++		}
++		if ( blocked || code != d3::shaderport::CODE_OK ) {
++			return false;
++		}
++		return d3::shaderport::MayDraw( key, target );
++	}
++};
++
++// Resolve the two legs of a `program` keyword atomically (FR-008). Both handles are always filled so
++// the draw gate can report a blocked pair rather than silently installing the healthy leg.
++static inline bool ResolveShaderProgramPair( const char *program, shaderProgramHandle_t &vs,
++		shaderProgramHandle_t &ps ) {
++	char	vsKey[64];
++	char	psKey[64];
++	int		vsCode = d3::shaderport::CODE_NOT_COMPILED;
++	int		psCode = d3::shaderport::CODE_NOT_COMPILED;
++
++	const bool ok = d3::shaderport::ResolvePair( program, vsKey, (int)sizeof( vsKey ), &vsCode,
++		psKey, (int)sizeof( psKey ), &psCode );
++
++	vs.Reset();
++	ps.Reset();
++	vs.requested = ps.requested = true;
++	vs.target = d3::shaderport::TARGET_VERTEX;
++	ps.target = d3::shaderport::TARGET_FRAGMENT;
++	idStr::Copynz( vs.key, vsKey, (int)sizeof( vs.key ) );
++	idStr::Copynz( ps.key, psKey, (int)sizeof( ps.key ) );
++	vs.code = vsCode;
++	ps.code = psCode;
++	vs.blocked = ps.blocked = !ok;
++	return ok;
++}
++
++struct newShaderStage_t {
++	shaderProgramHandle_t	vertexProgram;
+ 	int					numVertexParms;
+ 	int					vertexParms[MAX_VERTEX_PARMS][4];	// evaluated register indexes
+ 
+-	int					fragmentProgram;
++	shaderProgramHandle_t	fragmentProgram;
+ 	int					numFragmentProgramImages;
+ 	idImage *			fragmentProgramImages[MAX_FRAGMENT_IMAGES];
+ 
+ 	idMegaTexture		*megaTexture;		// handles all the binding and parameter setting 
+-} newShaderStage_t;
++
++	bool ProgramsDrawable( void ) const {
++		return vertexProgram.Drawable() && fragmentProgram.Drawable();
++	}
++};
+ 
+ typedef struct {
+ 	int					conditionRegister;	// if registers[conditionRegister] == 0, skip stage
+diff --git a/a/neo/renderer/RenderSystem.cpp b/b/neo/renderer/RenderSystem.cpp
+index 1527e4c..46bf03c 100644
+--- a/a/neo/renderer/RenderSystem.cpp
++++ b/b/neo/renderer/RenderSystem.cpp
+@@ -634,6 +634,9 @@ void idRenderSystemLocal::BeginFrame( int windowWidth, int windowHeight ) {
+ 	// determine which back end we will use
+ 	SetBackEndRenderer();
+ 
++	// phase 2 for programs requested by a material parsed after the context existed (FR-023)
++	R_LoadNewProgramBlobs();
++
+ 	guiModel->Clear();
+ 
+ 	// for the larger-than-window tiled rendering screenshots
 diff --git a/a/neo/renderer/RenderSystem.h b/b/neo/renderer/RenderSystem.h
 index 5d3edbc..976436a 100644
 --- a/a/neo/renderer/RenderSystem.h
@@ -7911,10 +8682,28 @@ index 5d3edbc..976436a 100644
  	glyphInfo_t			glyphs [GLYPHS_PER_FONT];
  	float				glyphScale;
 diff --git a/a/neo/renderer/RenderSystem_init.cpp b/b/neo/renderer/RenderSystem_init.cpp
-index feb2d8f..f967520 100644
+index feb2d8f..4f4c3f2 100644
 --- a/a/neo/renderer/RenderSystem_init.cpp
 +++ b/b/neo/renderer/RenderSystem_init.cpp
-@@ -767,7 +767,7 @@ void GL_CheckErrors( void ) {
+@@ -45,6 +45,7 @@ static void GfxInfo_f( void );
+ const char *r_rendererArgs[] = { "best", "arb", "arb2", "Cg", "exp", "nv10", "nv20", "r200", NULL };
+ 
+ idCVar r_inhibitFragmentProgram( "r_inhibitFragmentProgram", "0", CVAR_RENDERER | CVAR_BOOL, "ignore the fragment program extension" );
++idCVar r_shaderMode( "r_shaderMode", "off", CVAR_RENDERER | CVAR_ARCHIVE, "classic shader resolver mode: off|tolerant|strict|fatal; applies on shader_reload" );
+ idCVar r_glDriver( "r_glDriver", "", CVAR_RENDERER, "\"opengl32\", etc." );
+ idCVar r_useLightPortalFlow( "r_useLightPortalFlow", "1", CVAR_RENDERER | CVAR_BOOL, "use a more precise area reference determination" );
+ idCVar r_multiSamples( "r_multiSamples", "0", CVAR_RENDERER | CVAR_ARCHIVE | CVAR_INTEGER, "number of antialiasing samples" );
+@@ -692,7 +693,8 @@ void R_InitOpenGL( void ) {
+ 	R_R200_Init();
+ 	R_ARB2_Init();
+ 
+-	cmdSystem->AddCommand( "reloadARBprograms", R_ReloadARBPrograms_f, CMD_FL_RENDERER, "reloads ARB programs" );
++	// shader_reload/reloadARBprograms are registered in R_InitCommands (before OpenGL). This is the
++	// first phase-2 pass: material requests and the static table already exist.
+ 	R_ReloadARBPrograms_f( idCmdArgs() );
+ 
+ 	// allocate the vertex array range or vertex objects
+@@ -767,7 +769,7 @@ void GL_CheckErrors( void ) {
  				strcpy( s, "GL_OUT_OF_MEMORY" );
  				break;
  			default:
@@ -7923,6 +8712,37 @@ index feb2d8f..f967520 100644
  				break;
  		}
  
+@@ -2046,6 +2048,10 @@ R_InitCommands
+ =================
+ */
+ void R_InitCommands( void ) {
++	cmdSystem->AddCommand( "shader_status", R_ShaderStatus_f, CMD_FL_RENDERER, "prints the classic shader resolver status" );
++	cmdSystem->AddCommand( "shader_reload", R_ReloadARBPrograms_f, CMD_FL_RENDERER, "re-resolves and re-binds classic shader programs" );
++	cmdSystem->AddCommand( "reloadARBprograms", R_ReloadARBPrograms_f, CMD_FL_RENDERER, "alias of shader_reload" );
++	cmdSystem->AddCommand( "shader_selftest", R_ShaderSelfTest_f, CMD_FL_RENDERER, "runs the resolver contract test (T-024)" );
+ 	cmdSystem->AddCommand( "MakeMegaTexture", idMegaTexture::MakeMegaTexture_f, CMD_FL_RENDERER|CMD_FL_CHEAT, "processes giant images" );
+ 	cmdSystem->AddCommand( "sizeUp", R_SizeUp_f, CMD_FL_RENDERER, "makes the rendered view larger" );
+ 	cmdSystem->AddCommand( "sizeDown", R_SizeDown_f, CMD_FL_RENDERER, "makes the rendered view smaller" );
+@@ -2155,6 +2161,10 @@ void idRenderSystemLocal::Init( void ) {
+ 	// build brightness translation tables
+ 	R_SetColorMappings();
+ 
++	// Spec 008 FR-011/FR-023: load the manifest before materials are parsed. Phase 1 needs no device;
++	// phase 2 runs from R_InitOpenGL once the context exists.
++	R_InitShaderResolver( r_shaderMode.GetString() );
++
+ 	R_InitMaterials();
+ 
+ 	renderModelManager->Init();
+@@ -2212,6 +2222,8 @@ void idRenderSystemLocal::Shutdown( void ) {
+ 	delete guiModel;
+ 	delete demoGuiModel;
+ 
++	d3::shaderport::Shutdown();
++
+ 	Clear();
+ 
+ 	ShutdownOpenGL();
 diff --git a/a/neo/renderer/RenderWorld_demo.cpp b/b/neo/renderer/RenderWorld_demo.cpp
 index 76f292d..ba4fd82 100644
 --- a/a/neo/renderer/RenderWorld_demo.cpp
@@ -8143,6 +8963,24 @@ index bedf264..a83101e 100644
  			common->Warning( "RegisterFont: couldn't find font: '%s'", name );
  			return false;
  		}
+diff --git a/a/neo/renderer/tr_local.h b/b/neo/renderer/tr_local.h
+index 1a20f1b..963c05d 100644
+--- a/a/neo/renderer/tr_local.h
++++ b/b/neo/renderer/tr_local.h
+@@ -1309,7 +1309,12 @@ void	RB_NV20_DrawInteractions( void );
+ void	R_ARB2_Init( void );
+ void	RB_ARB2_DrawInteractions( void );
+ void	R_ReloadARBPrograms_f( const idCmdArgs &args );
+-int		R_FindARBProgram( GLenum target, const char *program );
++void	R_InitShaderResolver( const char *mode );
++void	R_LoadNewProgramBlobs( void );
++void	R_ShaderProgramRequested( void );
++void	R_CheckProgramTableCoverage( void );
++void	R_ShaderStatus_f( const idCmdArgs &args );
++void	R_ShaderSelfTest_f( const idCmdArgs &args );
+ 
+ typedef enum {
+ 	PROG_INVALID,
 diff --git a/a/neo/sound/OggVorbis/vorbissrc/os.h b/b/neo/sound/OggVorbis/vorbissrc/os.h
 index bdb22de..c0112df 100644
 --- a/a/neo/sound/OggVorbis/vorbissrc/os.h

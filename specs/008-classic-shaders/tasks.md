@@ -13,16 +13,16 @@ a task can be done and still await independent review.
 | Scope | Done | Total | State |
 |---|---|---:|---|
 | Specification (S) | 19 | 19 | complete; self-reviewed; three review rounds |
-| Implementation (I) | 3 | 11 | 3 done, 7 partial, 1 blocked |
+| Implementation (I) | 5 | 11 | 5 done, 5 partial, 1 blocked |
 | Gates (G) | 0 | 2 | blocked |
-| **All** | **22** | **32** | 22 done, 7 partial, 3 blocked |
+| **All** | **24** | **32** | 24 done, 5 partial, 3 blocked |
 
 Review: 19 specification tasks self-reviewed, two package-level agent reviews (`review.md` §2.1, §2.2),
 and a third round (`review.md` §2.3) that audited source truth and mutation-tested the gates. The
 third round found 25 defects, including 8 gates that could pass with their own subject broken; all are
-fixed and each fix has a mutation control. No human review yet. 7 implementation tasks are `PARTIAL`:
-the work exists and is tested standalone, but the engine wiring or the parity evidence does not.
-3 are blocked.
+fixed and each fix has a mutation control. No human review yet. 5 implementation tasks are `PARTIAL`:
+the artifact exists and its own check passes, but a named half is missing. 1 implementation task and
+both gates are blocked. The engine wiring landed on 2026-10-29 (see `evidence/implementation.md` §12).
 
 `PARTIAL` means: the artifact exists, its own check passes, and the acceptance criterion is only
 partly met, with the missing half named in the evidence column. It is never counted as done.
@@ -57,23 +57,25 @@ partly met, with the missing half named in the evidence column. It is never coun
 
 ## B. Implementation
 
-Order follows `plan.md` §4 Phase C/D. Issue #29 authorizes this scope. Engine-file edits (the renderer
-wiring) remain outside this workstream by `plan.md` §5, which is why those rows are `PARTIAL` rather
-than done: the resolver core, its tests and the shader library are port-owned code under `src/`,
-`tests/` and `shaders/`, not edits to the engine fork.
+Order follows `plan.md` §4 Phase C/D. Issue #29 authorizes this scope. Engine call sites were delivered
+on 2026-10-29 as modified-file hunks in the tracked target patch
+(`targets/win11-amd64/patches/all-changes.patch`), which is the established delivery path for this
+target; the pristine submodule is untouched and no added/deleted engine file exists. The classic GL
+backend still loads ARB text from data, so the authored HLSL programs are not bound by these call
+sites; they gate and report, they do not replace the GL program objects.
 
 | Id | Task | Depends on | Status | Acceptance / evidence |
 |---|---|---|---|---|
 | T-020 | Create `shaders/` tree, `d3_abi.hlsli`, `d3_input.hlsli`, `d3_arb.hlsli` skeleton | T-009, T-010 | DONE | all three headers exist under `shaders/classic/include/`; 11 stage compiles succeed for DXIL and SPIR-V; `reflect.ps1` shows only declared inputs and cbuffers |
-| T-021 | Implement the resolver core: manifest load, record/status, draw gating, init-order fix, reload re-resolution | T-007, T-008 | PARTIAL | `src/renderer/shader/shader_resolver.cpp` + 6 ctest cases (vectors 14/14, phase 2, diagnostics, reload). **Missing:** the renderer call sites (`R_LoadARBProgram`, `R_FindARBProgram`, `R_InitMaterials` order) are engine files, untouched. |
-| T-022 | Make material program parsing atomic; replace raw program ints with a validated handle | T-021 | PARTIAL | atomic pair resolution + `material_atomic` test prove neither stage installs from a one-sided file. **Missing:** `Material.cpp` parse and `newShaderStage_t` still hold raw ints. |
+| T-021 | Implement the resolver core: manifest load, record/status, draw gating, init-order fix, reload re-resolution | T-007, T-008 | PARTIAL | Engine call sites now exist through the tracked target patch: `R_LoadARBProgram` publishes an id only after a successful compile, `R_FindARBProgram` is replaced by phase-1 handles, `R_InitShaderResolver` runs before `R_InitMaterials`, and draw/bind sites gate on both phases (evidence §12). **Missing:** tolerant mode logs the error-material decision and skips the stage, but does not yet draw the magenta substitution (I-5); the engine default is `off` while `owned=0`, so strict is an evidence setting, not the shipping default. |
+| T-022 | Make material program parsing atomic; replace raw program ints with a validated handle | T-021 | DONE | `newShaderStage_t` carries `shaderProgramHandle_t` (key + code + requested/blocked), `program` resolves as a pair, and a one-sided file installs neither stage. In-engine `shader_selftest` case 2 passes; `material_atomic` ctest passes (evidence §12.3). |
 | T-023 | Pin DXC/Tint/Emscripten and implement `compile.ps1` / `reflect.ps1` | T-020 | PARTIAL | `pins.json` pins DXC 1.9.2609.5 and Tint (Dawn `106704a9ac3f`, asset SHA-256 verified); `compile.ps1` emits DXIL + SPIR-V + WGSL and re-parses the WGSL; `verify-golden.ps1` hashes all three. **Missing:** the Emscripten pin, which belongs to the web target and is not invoked by this library. |
-| T-024 | Engine tests: missing, one-sided, compile-failed, tolerant, reload | T-021, T-022 | PARTIAL | `tests/shader` covers all five behaviours against the core and a mutation control fails as it must. **Missing:** an in-engine test; no engine wiring exists yet. |
-| T-025 | Author `shadow.hlsl` + manifest entry + provenance record | T-020, T-023 | PARTIAL | `shaders/classic/programs/shadow.hlsl` compiles DXIL + SPIR-V, manifest `stub`, PV-004 hashed. **Missing:** the shadow pass has not been observed in a running engine. |
+| T-024 | Engine tests: missing, one-sided, compile-failed, tolerant, reload | T-021, T-022 | DONE | `shader_selftest` runs the five cases inside `DOOM3.exe` against local resolver instances: `SHADER SELFTEST: PASS 5/5`, 8/8 markers via `tests/shader/run-engine-selftest.ps1` (exit 0). The core ctest suite is still 6/6 (evidence §12.3–§12.4). |
+| T-025 | Author `shadow.hlsl` + manifest entry + provenance record | T-020, T-023 | PARTIAL | `shaders/classic/programs/shadow.hlsl` compiles DXIL + SPIR-V, manifest `stub`, PV-004 hashed. The shadow draw path is now gated by the resolver. **Missing:** the shadow pass has not been compared in a running engine; the classic GL backend still consumes retail ARB text, so the authored HLSL is not bound there. |
 | T-026 | Reflection/ABI conformance test for every program | T-020, T-025, T-030 | DONE | `shaders/tools/reflect.ps1` → `REFLECT OK: 11 stages, 0 violations`; also proves each fragment input signature equals its vertex output signature. Limit: the reflection itself reads DXIL; the WGSL side is validated separately by `compile.ps1` through the pinned Tint. |
 | T-027 | Parity capture for the classic passes | T-025, T-028, T-030 | BLOCKED | needs authorized retail data and a running classic backend; neither exists |
 | T-028 | Tier B generic stage shaders within the 42-variant bound | T-020, T-023 | PARTIAL | `generic_texgen.hlsl` compiled across the full bound: `BOUND PROOF OK: 42 variants x 2 stages = 84 compiles, 0 failures`. **Missing:** the shipped set is empty because `variants.json` is populated only from the runtime census, which is blocked. |
-| T-029 | `shader_status` / `shader_reload` console commands with counters | T-021 | PARTIAL | `StatusLine()` and the reload before/after report are implemented and asserted with computed counts. **Missing:** the console command registration is an engine file. |
+| T-029 | `shader_status` / `shader_reload` console commands with counters | T-021 | DONE | Registered in `R_InitCommands`; `shader_status` prints the manifest/request/non-OK counts and `shader_reload` prints the before/after delta. Observed in `qconsole.log` in off and strict modes (evidence §12.2–§12.5). |
 | T-030 | Author `interaction.hlsl`, `environment.hlsl`, `bumpyenvironment.hlsl`, `arbfp_glasswarp.hlsl`, optional `test.hlsl` | T-025, T-026 | PARTIAL | all five required programs plus the optional debug program exist, compile to DXIL + SPIR-V + validated WGSL and are hashed (PV-001…PV-006). **Missing:** none is `owned` — the rendered comparison in `ownership.md` §5 criterion 5 (T-027) is blocked, so the manifest says `stub`. |
 
 ---
@@ -103,10 +105,10 @@ A blocked gate is never reported as passed. The package is complete **with** the
 ## E. Next actions, in order
 
 1. Independent review of the implementation (`review.md` §4 checklist) — the repository rule forbids
-   self-approving the first engine PR, so the resolver core needs a reviewer who did not write it.
-2. Wire the resolver into the renderer under its own issue: `R_LoadARBProgram`, `R_FindARBProgram`,
-   `Material.cpp` atomic parse, the draw gate and the two console commands (the `PARTIAL` half of
-   T-021, T-022, T-024, T-029).
+   self-approving the first engine PR, so the resolver core and wiring need a reviewer who did not
+   write them.
+2. Tolerant-mode visual substitution: the gate skips a non-OK stage in both modes, but the magenta
+   error material required by I-5 is not drawn yet. Wire it before promoting any program to `owned`.
 3. Pin Emscripten in the web target's toolchain; Tint is pinned and WGSL is validated here, so the last
    missing `owned` criterion is the rendered comparison (T-027), not the shader build.
 4. When authorized data and a running classic backend exist, run T-031 before claiming census
