@@ -60,9 +60,9 @@ git check-ignore -q .kilo/worktrees; if (-not $?) { Add-Content .git\info\exclud
 
 | Role | Owns | Never does |
 |---|---|---|
-| Coordinator | issue breakdown, spec-kit flow, file-ownership map, integration, merge, submodule bump | implement a worker ticket in the same worktree |
-| Worker | exactly one worktree and one issue: implement + prove + PR | touch another worker's paths, review own work, merge |
-| Reviewer | independent adversarial review of the PR diff | be the author or the merge button |
+| Coordinator | issue breakdown, spec-kit flow, file-ownership map, integration, submodule bump | implement a worker ticket in the same worktree |
+| Worker | exactly one worktree and one issue: implement + prove + PR; may merge after independent review per `AGENTS.md` §11 | touch another worker's paths, review own work, merge without independent approval |
+| Reviewer | independent adversarial review of the PR diff; records `APPROVED` or blocking findings | be the author or share the author's worktree/session |
 
 Handoffs are files/artifacts, not chat:
 
@@ -118,7 +118,7 @@ gh pr create --draft --base main --title "feat(audio): WebAudio shim (#42)" --bo
 # 5. review (reviewer, never the author): load the code-review skill, fixed point origin/main
 gh pr ready 42
 
-# 6. merge (coordinator), squash only
+# 6. merge (author or coordinator, after independent review), squash only
 gh pr merge 42 --squash
 
 # 7. cleanup from the parent checkout (script = git worktree remove + prune)
@@ -201,10 +201,13 @@ $env:D3_BUILD = Join-Path $env:WORKTREE_PATH 'build'
 - Never close an issue on your own: no `gh issue close`, and no `Closes`/`Fixes`/`Resolves #N`
   in the PR body or commit message unless the user approved closing that issue. The user closes
   the issue after checking the result.
-- Every PR gets a coordinator review. `doom3_orig/doom3/` submodule bumps and build-system changes also require
-  one **independent** reviewer (never the author) who reruns the verification command.
+- Every PR gets an **independent** review (never the author, never a reviewer sharing the author's
+  worktree or session). The author may merge their own PR after that review; see `AGENTS.md` §11.
+  `doom3_orig/doom3/` submodule bumps and build-system changes also require an independent reviewer
+  who reruns the verification command.
 - Reviewer runs the `code-review` skill pinned at `origin/main...HEAD`; comments cite file:line.
-- Merge only when: CI/verification green, review approved, no out-of-scope paths touched,
+- Merge only when: CI/verification green, independent review approved with the reviewed SHA,
+  `MERGEABLE` / `CLEAN` against current `origin/main`, clean main worktree, no out-of-scope paths,
   no uncommitted submodule dirt, PR body complete.
 
 ```markdown
