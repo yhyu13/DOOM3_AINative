@@ -77,8 +77,33 @@ its hash, and when it is absent the gate reports `SKIPPED` rather than failing o
 `tools/scan-pack.ps1 -Pack <path>` writes two artefacts from a locally staged pack — a hash denylist
 (names and hashes only) and a suffix inventory — and reads no member into the repository.
 
-## Blocked, on purpose
+## Captures: blocked today, testable today
 
-`capture-q4.ps1` exits 3 with `BLOCKED: spec 004 has not reached Q4`. There is no RHI path that renders
-a PBR material yet, so there is nothing to capture. The moment a capture could exist, that script is the
-only thing allowed to claim one, and it must name the backend and the adapter.
+`capture-q4.ps1` exits 3 with `BLOCKED: spec 004 has not reached Q4` when no build is supplied. There is
+no RHI path that renders a PBR material yet, so there is nothing to capture.
+
+The pass path is implemented and refuses to be satisfied by anything less than a real Q4 build. A build
+qualifies only when it:
+
+1. exits 0 for the arguments passed,
+2. prints `RHI backend: <backend> (<adapter>)` matching the claimed values, and
+3. writes a PNG larger than 64x64 with at least 16 distinct colours.
+
+Then, and only then, the script copies the frame next to the package, writes `capture.json` (image hash,
+executable hash, identity line, arguments, package hash) and prints
+`CAPTURE OK: <material> <backend> <adapter>`. The matrix report reads that file, not the console string.
+
+```powershell
+powershell -NoProfile -File content/tools/capture-q4.ps1 -Material hero_dielectric `
+  -Exe <q4 build>\DOOM3.exe -DataDir <data>\run-rhi `
+  -Backend d3d12 -Adapter "<adapter name>" `
+  -Screenshot out\content\hero_dielectric\frame.png `
+  -EngineArgs "+rhi_capture;<path the build writes>"
+```
+
+Without a Q4 build the command stays at exit 3. The harness is still tested:
+`tests/content/run-capture-harness.ps1` drives the script with a stub renderer
+(`tests/content/fixtures/fake-rhi.cmd`) that breaks exactly one precondition at a time, and asserts that
+a missing identity, a wrong adapter, a blank frame, a missing frame and a failed build are each refused
+with a distinct exit code. The stub is not a renderer and its output is never evidence; the suite also
+asserts that `specs/009-rhi-hd-content/evidence/captures.md` still records zero captures.

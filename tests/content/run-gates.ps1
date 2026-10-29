@@ -18,7 +18,7 @@
     Every case starts from an untouched copy of the fixture template, so no case can leak into the
     next. The clean case must exit 0 with VALIDATE OK and exercise the absent-pack SKIPPED path. Each
     mutation must exit 1 with the expected diagnostic phrase. Exits 0 only when all seven behave, and
-    prints GATES OK: 1 clean + 6 negative controls.
+    prints GATES OK: 1 clean + 8 negative controls.
 
 .PARAMETER RepoRoot
     Repository root. Defaults to the nearest ancestor of this script that holds .git.
@@ -235,11 +235,28 @@ Write-Json -Object $sidecar -Path $sidecarPath
 Report -Name 'mtr' -Result (Invoke-Gate -CaseRoot $case -DenylistPath $emptyDenylist) `
     -ExpectedExit 1 -Phrase 'mtr file does not exist' | Out-Null
 
+# 7. Hygiene precision: a regex in a script contains "d:\" (as in `backend:\s*`) and must NOT be read as
+#    a drive path; a real drive path in the same kind of file must still be caught. The first form is the
+#    false positive that made this gate red on the committed tree once already.
+$case = New-Case -Name 'hygiene-allow-regex'
+$toolsDir = Join-Path $case 'content\tools'
+New-Item -ItemType Directory -Force -Path $toolsDir | Out-Null
+[System.IO.File]::WriteAllText((Join-Path $toolsDir 'pattern-note.ps1'), '$identity = ''RHI backend:\s*(?<backend>[^\r\n(]+)''', (New-Object System.Text.UTF8Encoding($false)))
+Report -Name 'hygiene-allow-regex' -Result (Invoke-Gate -CaseRoot $case -DenylistPath $emptyDenylist) `
+    -ExpectedExit 0 -Phrase 'VALIDATE OK' -Kind 'summary' | Out-Null
+
+$case = New-Case -Name 'hygiene-deny-path'
+$toolsDir = Join-Path $case 'content\tools'
+New-Item -ItemType Directory -Force -Path $toolsDir | Out-Null
+[System.IO.File]::WriteAllText((Join-Path $toolsDir 'path-note.ps1'), '$data = ''D:\build\doom3-data''', (New-Object System.Text.UTF8Encoding($false)))
+Report -Name 'hygiene-deny-path' -Result (Invoke-Gate -CaseRoot $case -DenylistPath $emptyDenylist) `
+    -ExpectedExit 1 -Phrase 'absolute-windows-path' | Out-Null
+
 if ($script:Failures.Count -gt 0) {
     Write-Host "GATES FAILED: $($script:Failures.Count) case(s):"
     foreach ($failure in $script:Failures) { Write-Host " - $failure" }
     exit 1
 }
 
-Write-Host 'GATES OK: 1 clean + 6 negative controls'
+Write-Host 'GATES OK: 1 clean + 8 negative controls'
 exit 0
