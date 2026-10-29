@@ -1,6 +1,6 @@
 # Traceability: Quality-first rendering
 
-**Status**: Planning matrix maintained by T087. A row maps a requirement to its primary tasks and the artifact that will hold evidence. Draft contract/template artifacts are not stage execution or review evidence; coverage remains planned or partial until the named checks run.
+**Status**: Planning matrix maintained by T087. A row maps a requirement to its primary tasks and the artifact that will hold evidence. Draft contract/template artifacts are not stage execution or review evidence; coverage remains planned or partial until the named checks run. Q1a T012–T021 are complete and merged in `8638db8` (PR #18); `evidence-q1a.md` and `review-q1a.md` record the execution and independent agent review. Q1b T022–T031 and all later stages remain planned or partial.
 
 Evidence files: `evidence-rhi-contract.md`, `evidence-q0.md`, `evidence-q1a.md`, `evidence-q1.md`, `evidence-q2.md`, `evidence-q3.md`, `evidence-q4.md`, `evidence-q5.md`, `evidence-q6.md`, `evidence-q7.md`, `evidence-q7a.md`. Review records: `review-rhi-contract.md`, `review-q1a.md`, `review-q1.md`, `review-q2.md`, `review-q3.md`, `review-q4.md`, `review-q6.md`, `review-q7.md`, `review-programme.md`.
 
@@ -10,9 +10,9 @@ Evidence files: `evidence-rhi-contract.md`, `evidence-q0.md`, `evidence-q1a.md`,
 |---|---|---|---|
 | FR-001 | T006, T009, T010, T011 | `baseline-procedure.md`, `evidence-q0.md` | Planned |
 | FR-002 | T007, T010 | `reference-scenes.md`, `evidence-q0.md` | Planned; data-dependent cases may be SKIPPED |
-| FR-003 | T004, T012, T014, T035 | `contracts/rhi-foundation.md`, `engine-integration.md` | T004 signed off 2026-10-28 on 11ea64a (agent reviewer; human caveat); Q2 still needs Q7a/T088; Q1a is not portability evidence |
-| FR-004 | T004, T012, T022–T029 | `contracts/rhi-foundation.md`, `data-model.md` | Planned; Q1b consumes the portable contract; native extensions are optional |
-| FR-005 | T013–T019, T024–T028, T030 | `evidence-q1a.md`, `evidence-q1.md` | Planned; **partial** — Q1a covers only the first slice; proposed T013 hash/tolerance policy requires independent review |
+| FR-003 | T004, T012, T014, T035 | `contracts/rhi-foundation.md`, `engine-integration.md` | T004 signed off 2026-10-28 on 11ea64a (agent reviewer; human caveat); Q1a T012–T021 complete and merged in `8638db8`; Q2 still needs Q7a/T088; Q1a is not portability evidence |
+| FR-004 | T004, T012, T022–T029 | `contracts/rhi-foundation.md`, `data-model.md` | **Partial** — Q1a T012–T021 complete and merged; Q1b T022–T031 not started; native extensions are optional |
+| FR-005 | T013–T019, T024–T028, T030 | `evidence-q1a.md`, `evidence-q1.md` | **Partial** — Q1a T012–T021 complete and merged (`evidence-q1a.md`, `review-q1a.md`); full Q1 T022–T031 not started; debug layer and GPU-based validation SKIPPED (`0x887A002D`), so full Q1 remains blocked |
 | FR-006 | T036, T037, T039, T080–T083 | `classic-parity.md`, `evidence-q2.md` | Planned; T080–T082 production, T083 integration check |
 | FR-007 | T034, T037, T038, T080–T082 | `classic-parity.md`, `evidence-q2.md` | Planned; T037 tests, T080–T082 production |
 | FR-008 | T041–T046 | `motion-fixtures.md`, `evidence-q3.md` | Planned |
@@ -33,7 +33,7 @@ Evidence files: `evidence-rhi-contract.md`, `evidence-q0.md`, `evidence-q1a.md`,
 | Criterion | Primary tasks | Evidence / artifact | Coverage note |
 |---|---|---|---|
 | SC-001 | T009–T011 | `evidence-q0.md` | Planned; two captures or explicit SKIPPED |
-| SC-002 | T013–T031 | `evidence-q1a.md`, `evidence-q1.md` | Planned; includes pitch, completion-token and outstanding-submission controls, with fence values asserted only in the D3D12-private hook |
+| SC-002 | T013–T031 | `evidence-q1a.md`, `evidence-q1.md` | **Partial** — Q1a half (T012–T021) complete and merged; full SC-002 needs Q1b/full Q1; pitch, completion-token and outstanding-submission controls are in `evidence-q1a.md`, with fence values asserted only in the D3D12-private hook |
 | SC-003 | T032, T037, T038, T039, T040 | `classic-parity.md`, `evidence-q2.md` | Planned; T080–T082 required for production behavior, T083 for integration |
 | SC-004 | T041–T048, T085 | `motion-fixtures.md`, `evidence-q3.md` | Planned; T041–T047 and T085 precede T048 execution/review, including T043 isolation, T045 invalidation and T047 overlay ordering |
 | SC-005 | T049–T057, T086 | `quality-rubric.md`, `evidence-q4.md` | Planned; budgets set after measurement; T086 independent ordering precedes Q4 review, optional provider branch does not block it |
@@ -44,7 +44,8 @@ Evidence files: `evidence-rhi-contract.md`, `evidence-q0.md`, `evidence-q1a.md`,
 ## Known coverage limits
 
 - T055 (non-proprietary reconstruction/off path) is a Q4/US5 task, not a Q5 task. T086's independent ordering branch follows T047/T055 and is reviewed with Q4; its provider branch follows T062 only if authorized and executed. An unavailable provider is NOT RUN and does not gate Q4 or the independently testable off path. SC-006 additionally requires the observed clean default configure/build/run without attempted NVIDIA downloads; an off-path pass or artifact inspection alone cannot satisfy it.
-- T048's Q3 execution and review follow T041–T047 and T085; fixture design T041 may be prepared earlier. T013 proposes canonical expected-row hash integrity plus independent ±1 byte acceptance and diagnostic actual hashes; the policy and any implementation still require independent review.
+- T048's Q3 execution and review follow T041–T047 and T085; fixture design T041 may be prepared earlier. T013's canonical expected-row hash integrity, independent ±1 byte acceptance and diagnostic actual hashes are implemented and recorded in `evidence-q1a.md`; an independent agent review accepted the policy and implementation at `369c47b` (human sign-off remains a caveat).
+- Q1a T012–T021 are recorded as complete in `tasks.md` and `evidence-q1a.md`. Debug layer and GPU-based validation were attempted and SKIPPED with `hr=0x887A002D`; this blocks full Q1 (T030/T031), not the Q1a slice. The Q1a review is agent-authored; no human sign-off is recorded.
 - T004 and T005 were signed off on 2026-10-28 on `11ea64a` by a non-author agent reviewer, after an earlier attempt was withdrawn and the gate bypasses were fixed. A human/owner sign-off is not recorded and remains a caveat. T005's validator checks structure rather than the truth of results or permissions; stage evidence remains open.
 - Only T033 and T040 of T033–T040 concern FR-019 (delivery/ownership). The rest of that range concerns Q2 behavior.
 - The "38 raw findings" mentioned in earlier planning is a process observation, not a repository fact; it is not traceable here.
