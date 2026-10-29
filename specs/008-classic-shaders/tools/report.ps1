@@ -80,6 +80,8 @@ if ($docsOut -match '(\d+) content assertions') { $contentAssertions = $Matches[
 
 $head = (git -C $repoRoot rev-parse --short HEAD).Trim()
 $sub = ((git -C $repoRoot submodule status doom3_orig/doom3) -split '\s+')[1]
+$null = git -C $repoRoot ls-files --error-unmatch specs/008-classic-shaders/spec.md 2>$null
+$pkgState = if ($LASTEXITCODE -eq 0) { 'tracked' } else { 'untracked' }
 $stamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss zzz'
 $passCount = @($results | Where-Object { $_.pass }).Count
 $gateCount = $results.Count
@@ -103,7 +105,7 @@ $sb = New-Object System.Text.StringBuilder
 [void]$sb.AppendLine('</style>')
 
 [void]$sb.AppendLine('<h1>Classic shaders - spec verification</h1>')
-[void]$sb.AppendLine("<p class=""meta"">superproject <code>$head</code> &middot; submodule <code>$sub</code> &middot; generated $stamp &middot; package <code>specs/008-classic-shaders</code> (untracked)</p>")
+[void]$sb.AppendLine("<p class=""meta"">superproject <code>$head</code> &middot; submodule <code>$sub</code> &middot; generated $stamp &middot; package <code>specs/008-classic-shaders</code> ($pkgState)</p>")
 
 [void]$sb.AppendLine('<div class="kpis">')
 [void]$sb.AppendLine("<span class=""kpi""><b>$passCount/$gateCount</b>gates passing</span>")

@@ -167,7 +167,7 @@ fails the build.
 | SC-005 | The provenance gate rejects shader source and ARB bodies | `provenance-check.ps1` exits 0 |
 | SC-006 | The package is reviewable as a rendered artifact | `census.html` + screenshot in `evidence/` |
 | SC-007 | A reviewer can answer "what do we author first" from `census.md` §5.1 without reading code | review |
-| SC-008 | No task is marked complete without a command and its output | `tasks.md` evidence column |
+| SC-008 | Every check task has a command and its output; document tasks have an artifact plus the package-level doc check | `tasks.md` evidence column; T-013 |
 | SC-009 | Every census key is covered once by the authoring plan with matching stages and a provenance id, and every static request resolves to the expected code | `integration-check.ps1` exits 0 |
 | SC-010 | Resolver invariants hold over at least 10,000 distinct (name, keyword) requests | `fuzz-resolver.ps1` exits 0 with `distinct requests >= 10000` |
 

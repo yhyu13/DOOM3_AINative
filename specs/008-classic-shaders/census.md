@@ -174,9 +174,9 @@ These are the reasons a resolver is required rather than an error string. Full c
 | C-6 | The table walk tests `progs[i].name[0]` before the `i == MAX_GLPROGS` check | `neo/renderer/draw_arb2.cpp:473`, `neo/renderer/draw_arb2.cpp:486` | out-of-bounds read when all 200 slots are named |
 | C-7 | `program` resolves the same token for both targets | `neo/renderer/Material.cpp:1492` | a one-sided file yields a valid id for a stage it does not contain |
 | C-8 | `newStage` is allocated when **either** program id is nonzero | `neo/renderer/Material.cpp:1542` | the other stage is bound as 0 and the draw still runs |
-| C-9 | Draw binds and draws with no validity check | `neo/renderer/draw_common.cpp:807`, `neo/renderer/draw_common.cpp:837` | unlit/black/undefined output, no actionable error |
+| C-9 | Draw binds and draws with no validity check | `neo/renderer/draw_common.cpp:807`, `neo/renderer/draw_common.cpp:833`, `neo/renderer/draw_common.cpp:837` | unlit/black/undefined output, no actionable error |
 | C-10 | Materials are parsed before GL is initialized | `neo/renderer/RenderSystem_init.cpp:2158`, `neo/renderer/RenderSystem_init.cpp:683`, `neo/framework/Common.cpp:2949`, `neo/framework/Common.cpp:3012` | a dynamically named program resolved early gets id 0 and the stage is permanently built without it |
-| C-11 | `reloadARBprograms` prints the same banner on total failure and total success | `neo/renderer/draw_arb2.cpp:505-509` | no aggregate health signal exists |
+| C-11 | `reloadARBprograms` prints the same banner on total failure and total success | `neo/renderer/draw_arb2.cpp:505-512` | no aggregate health signal exists |
 
 C-6 and C-10 are latent in the retail engine; C-1 through C-5, C-7 through C-9, and C-11 are the
 normal failure modes this port must remove.

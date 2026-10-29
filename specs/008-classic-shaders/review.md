@@ -89,7 +89,6 @@ restored, and both mutations now fail with the expected diagnostics. This is the
 for keeping the mutation controls in the evidence file rather than trusting a green run.
 
 ---
----
 
 ## 3. Adversarial questions
 
@@ -179,7 +178,7 @@ An independent reviewer should be able to answer **yes** to each:
 
 ## 6. Verdict
 
-**Independently reviewed once; all seven blocking findings fixed.** The facts are source-anchored
+**Independently reviewed twice; all 14 blocking findings fixed (7 + 7).** The facts are source-anchored
 and machine-checked; the resolver semantics are executable; the legal boundary is conservative and
 explicit. It is ready for a human review pass, not for implementation without the T-021/T-022
 issue.

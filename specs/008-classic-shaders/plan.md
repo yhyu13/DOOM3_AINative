@@ -75,7 +75,7 @@ D-P1..D-P4 (provenance) in [`provenance.md`](provenance.md) §6.
 
 1. Read the pristine source; extract the static table and bind sites.
 2. Write the census, resolver, ABI, provenance and ownership documents.
-3. Build six executable checks: census drift, resolver vectors, census-plan integration, property test, doc anchors/links, provenance.
+3. Build six executable gate checks (census drift, resolver vectors, census-plan integration, property test, doc anchors/links, provenance) plus two review-artifact generators (census HTML, report).
 4. Self-review and capture evidence.
 
 Exit: all checks exit 0; every number in prose is reproducible.
@@ -126,7 +126,7 @@ Exit: `shader_status` shows `owned=5` (or 6), `unresolved=0` on the test maps.
 1. Design the generic stage variants within the 42 bound (T-028).
 2. Capture parity per pass: depth prepass, shadows, interactions, light scale, opaque stages, fog,
    post-process, GUI (T-027).
-3. Revisit `megaTexture` with measured data (T-030 → decision D-003).
+3. Revisit `megaTexture` with measured data from the runtime census (decision D-003).
 
 Exit: classic parity measured separately from the modern path, with named hardware and a reviewer
 decision (this is the Q3/Q4 gate, not this spec's exit).

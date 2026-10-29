@@ -12,7 +12,7 @@ a task can be done and still await independent review.
 
 | Scope | Done | Total | State |
 |---|---:|---:|---|
-| Specification (S) | 19 | 19 | complete, self-reviewed + independently reviewed |
+| Specification (S) | 19 | 19 | complete; self-reviewed; two package-level agent reviews |
 | Implementation (I) | 0 | 11 | not started |
 | Gates (G) | 0 | 2 | blocked |
 | **All** | **19** | **32** | spec complete; engine work untouched |

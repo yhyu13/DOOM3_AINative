@@ -1,7 +1,7 @@
 # Verification evidence: classic shader package
 
 **Date**: 2026-10-28 (round 2)
-**Worktree**: `D:\git-repo-ai\DOOM3_AINative` (branch `main`, superproject `8638db8`)
+**Repo**: `DOOM3_AINative` (superproject `8638db8` at the original run; publication base `1bd5390`)
 **Submodule**: `doom3_orig/doom3` at `a9c49da5afb18201d31e3f0a429a037e56ce2b9a`
 **PowerShell**: 5.1.22621.6133 · **git**: 2.25.0.windows.1
 
@@ -121,10 +121,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File specs/008-classic-shaders/to
 ```
 
 ```text
-ANCHORS: 120 checked (engine + repo), 0 failed
+ANCHORS: 121 checked (engine + repo), 0 failed
 CONTENT: 70 asserted, 0 failed; cited in prose: 70/70
 LINKS:   39 checked, 0 failed
-DOCS OK: 120 anchors, 70 content assertions, 39 links
+DOCS OK: 121 anchors, 70 content assertions, 39 links
 exit=0
 ```
 
@@ -142,7 +142,7 @@ PROVENANCE OK: 226 tracked files, no shader source, no ARB program bodies
 exit=0
 ```
 
-Three exact paths are allowlisted for discussing the ARB header: `provenance.md`, the checker, and
+Tracked-file count: 226 at the original run, 258 in the publication worktree at base `1bd5390`; the count grows with unrelated commits. The C-9 fix added one prose anchor, so the publication run prints 121 anchors; all 70 content assertions are unchanged. Three exact paths are allowlisted for discussing the ARB header: `provenance.md`, the checker, and
 the existing `doom3_orig/doc/02_renderer.md` (which quotes the directive name in a table). Every
 other tracked file is scanned, including `.hlsl`, `.hlsli`, `.glsl`, `.frag`, `.vert`, `.comp`,
 `.fx`, `.shader` and `.wgsl`.
@@ -168,7 +168,7 @@ gates: 6/6 passing
   resolver     exit=0  RESOLVER VECTORS: 14/14 passed (manifest validated: 12 entries)
   integration  exit=0  INTEGRATION OK: 18 requests (10 OK, 8 ABSENT), 14 plan keys, 6 authored, 9 provenance ids; megaTexture=UNSUPPORTED
   fuzz         exit=0  FUZZ OK: 10160 distinct requests (24000 calls) over 6000 names (seed 20261028), 0 failures
-  docs         exit=0  DOCS OK: 120 anchors, 70 content assertions, 39 links
+  docs         exit=0  DOCS OK: 121 anchors, 70 content assertions, 39 links
   provenance   exit=0  PROVENANCE OK: 226 tracked files, no shader source, no ARB program bodies
 exit=0
 ```
