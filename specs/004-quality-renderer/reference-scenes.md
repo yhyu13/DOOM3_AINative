@@ -105,7 +105,7 @@ difference. A scene passes when both limits hold and all log markers match.
 | `moving-light-combat` | 3.0 | 5.0 | 0.0550 | 0.0318 | PASS |
 
 The ceilings are deliberately tight for static scenes and looser for the animated imp. The
-combat result (1.40%) is well inside 5%; a failed spawn is rejected by the
+combat result (0.0318%) is well inside 5%; a failed spawn is rejected by the
 `Unknown classname 'monster_demon_imp'` forbidden log marker, and a black/blank frame is rejected
 by the distinct-colour and centre-luminance guards.
 

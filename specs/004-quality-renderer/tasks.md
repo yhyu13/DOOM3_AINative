@@ -32,11 +32,12 @@
 - [x] T010 [US1] Capture each available T007 scene twice and record data identity, GPU/driver, commands, comparison and tolerances in `specs/004-quality-renderer/evidence-q0.md`; mark each missing prerequisite or scene SKIPPED.
 - [x] T011 [US1] Independently review the Q0 build, scene coverage and skipped checks in `specs/004-quality-renderer/evidence-q0.md`; retain the existing renderer as the reference.
 
-**Q0 result (2026-10-28)**: all four requested categories are captured twice with the engine
-framebuffer screenshot at a fixed game tic (`com_fixedTic 1`) and pass the ceilings (meanAbs 0.096
-/ 0.037 / 0.263 / 0.545; diff 0.208% / 0.210% / 0.098% / 0.032%). SC-001 is met for this host,
+**Q0 result (2026-10-29)**: all four requested categories are captured twice with the engine
+framebuffer screenshot at a fixed game tic (`com_fixedTic 1`) and pass the ceilings (meanAbs 0.1827
+/ 0.2258 / 0.1082 / 0.0550; diff 0.2079% / 0.2103% / 0.0982% / 0.0318%). SC-001 is met for this host,
 demo data and GL renderer. The OS-window attempts are retained as calibration history. T011 review 4
-is the independent review of the final13 state; its wording findings are recorded in
+read the final10 state; final13 is the post-rebase rerun. Its wording findings and the PR-level
+review are recorded in
 `evidence-q0.md` §8.
 
 ## Phase 4 — US2: Synthetic RHI foundation (P1; Q1a → Q1b → Q1)

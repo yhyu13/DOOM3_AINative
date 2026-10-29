@@ -1,6 +1,6 @@
 # Q0 baseline evidence (T009–T011)
 
-Status: **Q0 established** on 2026-10-28 in the `feat/21-q0-safe-baseline` worktree. All four
+Status: **Q0 established** on 2026-10-29 in the `feat/21-q0-safe-baseline` worktree. All four
 reference categories were captured twice with the engine's own framebuffer screenshot at a fixed
 game tic, and pass the ceilings frozen before the recorded run. The ceilings were tightened after the fixed-tic probes; the earlier, looser cells are disclosed in `reference-scenes.md` §6, and final13 also passes them. This is evidence for the existing
 OpenGL renderer only; it does not claim classic parity, modern-renderer quality, web support,
@@ -61,7 +61,7 @@ their hashes identify the reviewed change set:
 | File | SHA-256 |
 |---|---|
 | `specs/004-quality-renderer/baseline-procedure.md` | `44e7a715a4110c309a49e2f2c8c066b04fcd9f5d89784adb3300ffd06b4afe37` |
-| `specs/004-quality-renderer/reference-scenes.md` | `69e5413186ba4d915e4d32a45fa86a54432ec7caa2e0f9605339f8e09a5c856b` |
+| `specs/004-quality-renderer/reference-scenes.md` | `e1672e6671a4cc6422021efacbed23e16de88ab5461eb2c1f6d3ef2a0599d135` |
 
 ## 3. Fresh build
 
@@ -227,6 +227,14 @@ Review 4 (2026-10-28) was a fourth independent pass over the fixed-tic final10 s
 | F6: the manifest `commandLine` is reconstructed and says `mode=Capture` for `-Mode All`. | Disclosed in §5 and the procedure; the replay command is the block above. |
 | F7: stale review launcher log / ARB vs ARB2. | The stale log is not cited; `build-q0-test-launcher.log` is the 26/26 run. The renderer line is corrected to ARB/ARB2. |
 | F8: known gaps (resolution enforcement, engine path unit test, process/`-Clean`). | Already in §9; not claimed as passing. |
+
+PR review #31 (fresh independent pass over `53537d9..49876b8`) returned **BLOCKED** on two
+stale measurements: `tasks.md` still listed the pre-final13 meanAbs set, and the scene spec still
+said the combat result was 1.40%. Both were documentation-only errors; the recorded artifact was
+correct. Fixed: `tasks.md` now lists 0.1827 / 0.2258 / 0.1082 / 0.0550 and 0.2079% / 0.2103% /
+0.0982% / 0.0318%; the scene spec says 0.0318%. The date and source identity were also corrected to
+2026-10-29 and the base/Q0/evidence commits. No script, test or capture was rerun. PR review 2 is
+pending.
 
 T011 is complete with these residual gaps: the baseline is valid for this host/demo/GL renderer,
 not a retail or performance claim; resolution enforcement and real-process/`-Clean` tests remain
