@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Q7a Emscripten WebGPU conformance</title>
+<style>
+  :root { color-scheme: dark; }
+  body { font: 14px/1.45 "Cascadia Mono", Consolas, monospace; background: #10131a; color: #d7dce5; margin: 24px; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  p.sub { color: #8b94a6; margin: 0 0 16px; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid #232936; vertical-align: top; }
+  th { color: #8b94a6; font-weight: 600; }
+  .PASS { color: #3ddc84; font-weight: 700; }
+  .FAIL { color: #ff5f56; font-weight: 700; }
+  .NOTRUN { color: #f2c744; font-weight: 700; }
+  td.detail { color: #a8b1c2; max-width: 820px; word-break: break-word; }
+  #surface { width: 96px; height: 96px; margin-top: 16px; border: 2px solid #3ddc84; image-rendering: pixelated; }
+  #summary { margin-top: 12px; color: #8b94a6; }
+</style>
+</head>
+<body>
+<h1>Q7a Emscripten encoder leg</h1>
+<p class="sub">Same checks as the JavaScript spike, executed from C++ compiled to WebAssembly through the emdawnwebgpu port.</p>
+<table>
+  <thead><tr><th>Check</th><th>Result</th><th>Observed</th></tr></thead>
+  <tbody id="rows"><tr><td colspan="3">running…</td></tr></tbody>
+</table>
+<canvas id="surface" width="64" height="64"></canvas>
+<div id="summary">starting</div>
+<script>
+window.__conformanceResult = null;
+window.q7aPublish = function (jsonText) {
+  try {
+    window.__conformanceResult = JSON.parse(jsonText);
+    if (window.renderQ7a) window.renderQ7a();
+  } catch (e) {
+    window.__conformanceResult = { env: {}, summary: {}, checks: [] };
+    document.getElementById("summary").textContent = "harness failed: " + e;
+  }
+};
+window.renderQ7a = function () {
+  var r = window.__conformanceResult;
+  if (!r) return;
+  var rows = r.checks.map(function (c) {
+    var cls = c.status === "PASS" ? "PASS" : c.status === "FAIL" ? "FAIL" : "NOTRUN";
+    return "<tr><td>" + c.id + "</td><td class=\"" + cls + "\">" + c.status +
+           "</td><td class=\"detail\">" + c.detail + "</td></tr>";
+  }).join("");
+  document.getElementById("rows").innerHTML = rows;
+  document.getElementById("summary").textContent =
+    r.summary.pass + " pass, " + r.summary.fail + " fail, " + r.summary.notRun + " not run";
+};
+</script>
+{{{ SCRIPT }}}
+</body>
+</html>

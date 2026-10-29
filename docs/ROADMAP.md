@@ -21,7 +21,7 @@ Evidence captured 2026-10-26 from this working tree. Facts are in §1–§2; mil
 | SCons | `neo/SConstruct` + `SConscript.core/curl/game/gl/idlib`; Python 2 syntax (`print '...'`, imports `commands`, `popen2`, `StringIO`) | `SConstruct:6`, `SConstruct:197` |
 | Xcode | `neo/sys/osx/` contains `Doom3`, `game`, `d3xp`, `idlib`, `oggVorbis`, and `SubProjects/curl` Xcode projects | `README.txt:52`; listing |
 | Existing web code | 0 `emscripten`/`EMSCRIPTEN`, 0 `webgl`, 0 `wasm` references under `neo/`; no `web/`, `src/`, `port/`, `tests/` top-level directories | search; listing |
-| Toolchain (environment, not repo) | git 2.25.0, node 24.19.0, uv 0.12.13, bare python 2.7.16 (`py` launcher 3.14.4); `emcc`, `em++`, `scons`, `cmake` missing; `gh` present; VS2022 Professional and MSBuild present; VS2010 and DirectX SDK June 2010 not found at the checked/default locations | `Get-Command`; `vswhere` |
+| Toolchain (environment, not repo) | git 2.25.0, node 24.19.0, uv 0.12.13, bare python 2.7.16 (`py` launcher 3.14.4); `emcc`/`em++` now provided by emsdk 6.0.13 (per-shell activation; see `tests/webgpu/emscripten/README.md`), `scons` and standalone `cmake` missing; `gh` present; VS2022 Professional and MSBuild present; VS2010 and DirectX SDK June 2010 not found at the checked/default locations | `Get-Command`; `vswhere` |
 | Root repo state | scaffold committed on `main`; pristine submodule recorded at `doom3_orig/doom3`; per-target copies live under `targets/` and are git-ignored | `git log --oneline`; `git submodule status` |
 | CI | `.github/` absent; no workflow files; `gh` installed but no workflow to list | listing |
 | Spec-kit / skills | 25 skills in `.claude/skills/` (tracked: 14 project skills, `win64-port-playbook`, 10 generated `speckit-*`), mirrored into the git-ignored `.kilo/skills/`; 10 `/speckit.*` commands in `.kilo/command/` (`generic`) and the same flow as `/speckit-*` skills (`claude`); `.specify/memory/constitution.md` is filled | `docs/SKILLS.md`; `scripts/verify-skills.ps1`; `specify integration status` |
@@ -88,7 +88,7 @@ Paths below point at the pristine submodule (`doom3_orig/doom3`) because that is
 | Goal | Link the dedicated server path to WASM without GL, audio, or a window, and boot it under Node. |
 | Exit criteria | `emcc` links a dedicated target (`ID_DEDICATED` plus stub GL/sys) with the game module statically linked; `wasm-validate` passes; `wasm-objdump -x` shows no GL/audio imports; a Node run reaches the dedicated startup marker (`Common.cpp:2851`) or a named missing-asset failure; artifact and log are archived. Stub sources exist under `neo/sys/stub/` and `neo/sys/linux/dedicated.cpp`; no Emscripten target exists yet. |
 | Main risks | Build graph is not ported (VS2010/SCons); Python 2 SCons; `dlopen` game module; Winsock UDP; missing assets; 32-bit assumptions; unknown Emscripten version and flags. |
-| First command | `emcc --version` (currently missing; install/activate emsdk first) |
+| First command | `emcc --version` (emsdk 6.0.13 is installed; activate it in the shell first) |
 | Spec-kit driver | `/speckit.specify` → `/speckit.plan` |
 | Installed skill | `wasm-emscripten`; supporting `cross-platform-guide`, `systematic-debugging` |
 | Owner | worker |
@@ -180,4 +180,4 @@ Paths below point at the pristine submodule (`doom3_orig/doom3`) because that is
 
 1. **Coordinator:** record M0 evidence and land the scaffold — run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-skills.ps1`, `git submodule status`, and `git -C doom3_orig/doom3 status --porcelain`; commit the reviewed tree, then add the CI workflow and the prerequisite check.
 2. **Worker:** run the M1 native-build probe exactly as written, archive the failure text, and decide via `/speckit.plan` between restoring VS2010 + DirectX SDK June 2010 and adding a modern CMake build.
-3. **Worker:** install/activate emsdk, run `emcc --version`, then `/speckit.specify` the M2 dedicated-WASM slice with a synthetic asset fixture and the no-GL/no-audio import check.
+3. **Worker:** activate emsdk and run `emcc --version` (installed 2026-10-29), then `/speckit.specify` the M2 dedicated-WASM slice with a synthetic asset fixture and the no-GL/no-audio import check.

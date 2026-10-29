@@ -75,3 +75,8 @@ logs/
 tmp/
 *.tmp
 .cache/
+
+# ---- emscripten build output (tests/webgpu/emscripten) ----
+tests/webgpu/emscripten/index.html
+tests/webgpu/emscripten/index.js
+tests/webgpu/emscripten/index.wasm

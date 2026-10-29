@@ -1,128 +1,124 @@
-# Q7a evidence: WebGPU mapping gate and provider-free conformance spike
+# Q7a evidence: WebGPU mapping gate, browser conformance spike and Emscripten encoder leg
 
-**Stage and claim**: spec 004 task T088 (Q7a), issue #35. Claim: every public declaration of the
-portable RHI header is either mapped to a WebGPU-shaped operation or recorded as unmappable with the
-behaviour a WebGPU backend must produce; the lexical header gate scans the core header and the public
-test units with no prohibited noun; and the mapped operations execute in a real browser WebGPU
-implementation on named hardware (twelve required checks plus a recorded software-adapter attempt). This record does **not** claim a WebGPU backend, a `wasm32` build,
-browser parity, Q2 or Q7. The Emscripten-encoder leg required by T088 is NOT RUN, so Q2 remains
-blocked.
+**Stage and claim**: spec 004 task T088 (Q7a), issue #35. Both required legs are executed:
+
+1. **Mapping gate** — every public declaration of the portable header is mapped to a WebGPU-shaped
+   operation or recorded as unmappable with required backend behaviour, and the lexical header gate
+   scans the core header and public test units with no prohibited noun.
+2. **Conformance spike in a browser** — twelve required checks pass in a real browser WebGPU
+   implementation (`tests/webgpu/conformance.html`, JavaScript).
+3. **Emscripten encoder leg** — the same twelve checks pass from C++ compiled to WebAssembly through
+   Dawn's `webgpu.h` (the `emdawnwebgpu` port), with the portable header compiled for `wasm32`.
+
+This record does **not** claim a WebGPU backend implementation of `doom3::rhi::Device`, browser parity,
+or any Q7 support. The checks call the WebGPU C API directly; no core device is implemented on WebGPU.
+Tasks T089 (header reconciliation) and Q1b are unaffected.
 
 ## Identity and scope
 
-- **Source identity**: base revision `d9bf1ca` (`main` at branch point), branch
-  `docs/35-webgpu-conformance`. This record is committed together with the files it lists; `git log --oneline -- specs/004-quality-renderer/evidence-q7a.md` names the commit that carries it. `doom3_orig/doom3` is untouched and clean at `a9c49da5` (`git -C doom3_orig/doom3 status --porcelain` empty); no engine, target or submodule change. Header reconciliation is owned by T089 (issue #36). Fixture identities: `tests/webgpu/conformance.html` SHA-256 `87e8e1de…`, `tests/webgpu/run-conformance.mjs` `a2318c6e…`, `scripts/validate-webgpu-mapping.py` `7620465f…`, `webgpu-mapping.md` `058ef5b2…` (first 16 hex).
-- **Data identity and rights**: synthetic only. All WGSL and all expected bytes are authored in this
-  repository (`tests/webgpu/conformance.html`); no game data, retail shader, `glprogs`, derived asset
-  or third-party SDK is used, copied or translated.
-- **Scene and inputs**: a 4×4 RGBA8 texture with four literal rows, a 64-element `u32` storage buffer,
-  two 4×4 RGBA8 MRT targets, a 16-byte buffer round trip and a 64×64 canvas. No seed; every expected
-  value is a literal in the page.
-- **Exclusions and limitations**: no `emcc`, `emsdk` or Dawn on this host; no software WebGPU adapter
-  was exposed; no out-of-memory induction; no performance, resize, multi-adapter or persistence
-  measurement; no C++ compilation for WebAssembly.
+- **Source identity**: the mapping gate and browser spike landed in `29a1e37`; the Emscripten leg is
+  the commit that carries this record (branch `test/35-emscripten-leg`). `doom3_orig/doom3` untouched
+  and clean at `a9c49da5`.
+- **Data identity and rights**: synthetic only. All WGSL and expected bytes are authored here; no game
+  data, retail shader, `glprogs`, derived asset or third-party SDK source is copied.
+- **Changed surface**: `specs/004-quality-renderer/{webgpu-mapping.md,evidence-q7a.md,evidence/**}`,
+  `scripts/validate-webgpu-mapping.py` and its suite, `tests/webgpu/**` including the new
+  `tests/webgpu/emscripten/` harness, `tasks.md`, `traceability.md`, `plan.md`, `quickstart.md`.
+- **Exclusions**: no engine or backend change; no renderer performance claim; no software WebGPU
+  adapter on either leg.
 
 ## Environment and configuration
 
-- **Toolchain and configuration**: Windows 11 x64. Node v24.19.0 (built-in `fetch`, `WebSocket` and
-  `http`; no npm package installed or downloaded). Python 3.14.4 through `py -3`. Visual Studio 2022
-  Professional C++ tools with bundled CMake ≥ 3.21 and CTest, used only for the supporting Q1a rebuild.
-- **Adapter and driver**: WebGPU adapter `intel` / `xe-lpg` (`isFallbackAdapter=false`) through Chrome
-  `156.0.8078.73`, DevTools protocol 1.3, headless. The supporting Q1a run reported the D3D12 hardware
-  adapter `Intel(R) Graphics` vendor `0x8086` device `0x7D67`, vram `134217728`, and the software
-  adapter `Microsoft Basic Render Driver` vendor `0x1414` device `0x008C`.
-- **Capability and fallback**: advertised and exercised — `maxTextureDimension2D=16384`,
-  `maxColorAttachments=8`, `maxComputeWorkgroupSizeX=1024`, `maxBindGroups=4`,
-  `minUniformBufferOffsetAlignment=256`, `minStorageBufferOffsetAlignment=256`, preferred canvas
-  format `bgra8unorm`. `requestAdapter({forceFallbackAdapter:true})` returned no adapter, so no
-  software WebGPU leg exists to select; no automatic switch is claimed.
-- **Browser licence and acquisition**: Google Chrome 156.0.8078.73 was already installed at its
-  standard program-files location; this session downloaded nothing. Chromium is BSD-3-Clause; the
-  Chrome binary is proprietary and is not redistributed, committed or cached by this repository. The
-  retained JSON records only `executableName: chrome.exe`, the version and the protocol; the full path
-  stays in the ignored worktree-local `run.log`. `--browser`/`WGPU_BROWSER` let a reviewer pin another
-  binary.
-- **Shader provenance and build**: WGSL only, authored here, compiled by the browser's WebGPU
-  implementation at page load. No DXC, HLSL, translator or external compiler is involved; entry points
-  are `vs`/`fs` for the MRT pass and `main` for compute.
+| Item | Value |
+|---|---|
+| Host | Windows 11 x64, Node v24.19.0, Python 3.14.4 (`py -3`), Visual Studio 2022 C++ tools |
+| Browser (both legs) | Google Chrome `156.0.8078.73`, DevTools protocol 1.3, headless |
+| WebGPU adapter | `intel` / `xe-lpg`, `isFallbackAdapter=false`; no software adapter exposed |
+| Emscripten | 6.0.13 (`e13ee988ce3d87a738dd8f3661d02223308c412a`), emsdk git checkout `d7b4130` |
+| WebGPU bindings | `emdawnwebgpu` port → Dawn release `v20260423.175430`, cached under the emsdk tree |
+| Licences | Emscripten MIT / University of Illinois-NCSA; Dawn and emdawnwebgpu BSD-3-Clause; Chrome proprietary binary, Chromium components BSD-3-Clause; none redistributed or vendored here |
+| Acquisition | Chrome was pre-installed; emsdk was cloned from `github.com/emscripten-core/emsdk`, installed with `emsdk.py install 6.0.13`, and the port was fetched by Emscripten on first build from the Dawn release page — all on the owner's instruction to add the Emscripten leg (2026-10-29) |
+| Storage | emsdk outside the repository (discovered via `EMSDK`); its path is per-host and not recorded; build output stays in the ignored `tests/webgpu/emscripten/index.*` and in `build/` |
 
-## Procedure and retained artifacts
+## Leg 1 — mapping gate (executed)
 
-- **Predeclared tolerances**: exact byte equality for every readback (expected bytes are integers, so
-  no UNORM tolerance is needed). Canvas clear `1.0/0.5/0.0/1.0` converts to `255/128/0/255` and is
-  byte-swapped for `bgra8unorm`. Device-loss liveness window 200 ms, per-check timeout 5 s, page result
-  timeout 90 s. All values were written before the first run.
-- **Commands and exits** (from the worktree root):
+| Command | Exit | Observation |
+|---|---|---|
+| `py -3 -I scripts/validate-webgpu-mapping.py` | 0 | `57/57 public declarations classified` |
+| `py -3 -I scripts/validate-webgpu-mapping.py --self-test` | 0 | 14 negative controls detected |
+| `py -3 -I scripts/test-validate-webgpu-mapping.py` | 0 | 14 document mutations and 14 validator mutants behaved as required |
+| `py -3 -I scripts/validate-rhi-contract.py` | 0 | header scan RUN over 3 headers and 3 public test files, zero hits |
+| `py -3 -I scripts/validate-rhi-contract.py --self-test` | 0 | every injected violation detected |
 
-  | Command | Exit | Observation |
-  |---|---|---|
-  | `node tests/webgpu/run-conformance.mjs --repeat 2 --out build/webgpu-q7a --evidence specs/004-quality-renderer/evidence` | 0 | 12 required checks PASS on both attempts (567 ms, 585 ms) plus the software-adapter attempt recorded NOT RUN; `repeatable across 2 attempt(s): true` |
-  | `py -3 -I scripts/validate-webgpu-mapping.py` | 0 | `OK: 52/52 public declarations classified; statuses, check rows and justifications valid` |
-  | `py -3 -I scripts/validate-webgpu-mapping.py --self-test` | 0 | baseline valid, 14 negative controls detected |
-  | `py -3 -I scripts/test-validate-webgpu-mapping.py` | 0 | 14 document mutations and 13 validator mutants behaved as required |
-  | `py -3 -I scripts/validate-rhi-contract.py` | 0 | `header scan: RUN over 1 header(s) and 3 public test file(s)`, zero prohibited hits |
-  | `py -3 -I scripts/validate-rhi-contract.py --self-test` | 0 | the validator's own negative controls detected each injected violation |
-  | `cmake -S tests/renderer -B build-rhi-q7a -G "Visual Studio 17 2022" -A x64` | 0 | supporting Q1a rebuild in a fresh worktree-local directory |
-  | `cmake --build build-rhi-q7a --config Debug` | 0 | supporting |
-  | `ctest --test-dir build-rhi-q7a -C Debug --no-tests=error -V --output-on-failure --output-junit build-rhi-q7a/ctest-junit.xml` | 0 | `100% tests passed, 0 tests failed out of 7`, 2.03 s |
-  | `git diff --cached --check` after staging every changed file | 0 | whitespace gate; new files are covered because they are staged |
-- **Retained logs and artifacts**: tracked — `evidence/q7a-conformance.json` (per-check report,
-  browser/adapter identity, both attempts, sanitized executable name) and `evidence/q7a-conformance.png`
-  (screenshot of the result table and the presented canvas). Ignored worktree-local —
-  `build/webgpu-q7a/{results.json,conformance.png,run.log}` and
-  `build-rhi-q7a/{*.log,ctest-junit.xml}`.
-- **Negative controls**: (1) in-page N1–N3 (mutated expectation rejected, packed offset rejected, a
-  live device does not report loss); (2) expectation mutation — changing `i*3+1` to `i*3+2` in the
-  expected array makes `C3-bind-group` **and** `C5-compute` fail and the runner exit 1, and restoring
-  the file returns the original SHA-256 and a green run. This control found a real defect on its first
-  use: `C5` tested the truthiness of the comparison result object instead of its `.equal` field, so it
-  could not fail. The defect is fixed and the final tree fails both checks under the mutation.
-  (3) nonce guard — removing the page's nonce echo makes the runner exit 2 with "a static page cannot
-  stand in for an executed run"; restoring returns a green run. (4) validator mutation — 14 document
-  mutations and 13 source mutants, each rejected. (5) the lexical gate runs over the header and public
-  tests, so a D3D12 noun in either fails it.
+## Leg 2 — browser spike (executed 2026-10-29, `29a1e37`)
 
-## Per-check results
+`node tests/webgpu/run-conformance.mjs --repeat 2 --out build/webgpu-q7a --evidence specs/004-quality-renderer/evidence`
+→ exit 0, twelve required checks PASS twice (567 ms, 585 ms), repeatable, plus the software-adapter
+attempt NOT RUN with its retained reason. Artifacts: `evidence/q7a-conformance.json`, `.png`.
+Controls: a mutated expectation fails C3 and C5 and exits 1 (it exposed a real C5 false-pass bug, now
+fixed); removing the per-run nonce echo exits 2.
 
-| Check / target | Execution | Outcome | Reason or observed result | Artifact / log reference |
-|---|---|---|---|---|
-| C1 device and adapter identity | RUN | PASS | `intel` / `xe-lpg`, `isFallbackAdapter=false` | `evidence/q7a-conformance.json` |
-| C2 buffer `mapAsync` round trip | RUN | PASS | 16 literal bytes equal | same |
-| C3 immutable bind group reused | RUN | PASS | `[1,4,7,10]` on both dispatches | same |
-| C4 one MRT pass, two attachments | RUN | PASS | A `[64,128,191,255]`, B `[255,0,128,64]` | same |
-| C5 compute dispatch, 64 `u32` | RUN | PASS | first eight `[1,4,7,10,13,16,19,22]`, expected equal | same |
-| C6 `bytesPerRow=256` plus `mapAsync` | RUN | PASS | rows 0 and 3 exact, padding `0xAA`, packed offset rejected | same |
-| C7 surface configure/acquire/commit | RUN | PASS | `bgra8unorm`, pixel `[0,128,255,255]` | `evidence/q7a-conformance.png` |
-| C8 device loss | RUN | PASS | `device.lost` reason `destroyed` | `evidence/q7a-conformance.json` |
-| N1 comparator sensitivity | RUN | PASS | one-unit mutation rejected at byte 20 | same |
-| N2 pitch sensitivity | RUN | PASS | row 1 only correct at offset 256 | same |
-| N3 loss-check liveness | RUN | PASS | live device pending after 200 ms | same |
-| E uncaptured errors | RUN | PASS | count 0 for the whole run | same |
-| A1 software-adapter attempt | NOT RUN | — | `requestAdapter({forceFallbackAdapter:true})` returned no adapter; the null result is retained in the JSON and is not a pass | same |
-| Field-to-WebGPU classification | RUN | PASS | 52/52 declarations classified; statuses, check rows and justifications valid | `webgpu-mapping.md` |
-| Lexical header gate (Q7a) | RUN | PASS | 1 header + 3 public test files scanned, zero hits | `validate-rhi-contract.py` output |
-| Supporting Q1a rebuild and suite | RUN | PASS | 7/7 CTest cases on hardware and software D3D12 adapters | `build-rhi-q7a` logs, `evidence-q1a.md` |
-| Emscripten or Dawn encoder leg | NOT RUN | — | no `emcc`, `emsdk` or Dawn on the host; no toolchain downloaded; Q2 stays blocked | `webgpu-mapping.md` §NOT RUN |
-| Software WebGPU adapter | NOT RUN | — | `requestAdapter({forceFallbackAdapter:true})` returned no adapter | mapping table, `AdapterClass.Software` |
-| Out-of-memory classification | NOT RUN | — | no OOM induced; mapping only | mapping table, `Status.OutOfMemory` |
-| `wasm32` compile of the header | NOT RUN | — | requires the missing encoder toolchain | `webgpu-mapping.md` §NOT RUN |
-| Performance, resize, multi-adapter | NOT RUN | — | out of scope for a conformance spike | same |
+## Leg 3 — Emscripten encoder leg (executed 2026-10-29)
+
+Build and run:
+
+| Command | Exit | Observation |
+|---|---|---|
+| `.\tests\webgpu\emscripten\build.ps1` (with `EMSDK` set) | 0 | `emcc 6.0.13`; port `emdawnwebgpu`; `index.wasm` 146745 B, `index.js` 63530 B (sizes move with the harness source) |
+| `node tests/webgpu/run-conformance.mjs --page emscripten/index.html --repeat 2 --out build/webgpu-emscripten` | 0 | twelve required checks PASS twice, repeatable; software adapter NOT RUN |
+
+Artifacts: `evidence/q7a-emscripten.json`, `evidence/q7a-emscripten.png`. The screenshot shows the
+rendered result table and the orange canvas from the clear pass, so the surface was presented from the
+WebAssembly build.
+
+| Check | Result | Observed |
+|---|---|---|
+| C1 device | PASS | adapter `intel`/`xe-lpg`; `vendorId=0`, `deviceID=0` → `reportedFacts=0x0`; the harness also asserts that a claimed fact has a non-zero value |
+| C2 buffer | PASS | 16 bytes equal |
+| C3 bind group | PASS | same bind group drove two dispatches, both `[1,4,7,10]` |
+| C4 MRT | PASS | A `64,128,191,255`, B `255,0,128,64` |
+| C5 compute | PASS | `[1,4,7,10,13,16,19,22]` |
+| C6 pitch | PASS | rows exact, padding untouched, packed offset rejected |
+| C7 surface | PASS | `bgra8unorm`, pixel `0,128,255,255` |
+| C8 device loss | PASS | loss reason 2 (`destroyed`) |
+| N1 – N3, E | PASS | comparator, pitch and liveness controls; zero uncaptured errors |
+| A1 software adapter | NOT RUN | `requestAdapter({forceFallbackAdapter:true})` returned no adapter (status 3) |
+
+Controls and findings:
+
+- **Mutation**: changing the expected MRT texel from `64` to `65` makes C4 fail with `byte 0: 64 != 65`
+  and the runner exit 1; restoring returns 12/12.
+- **The T089 rule's browser outcome is recorded, not proven in the negative**: the adapter reports
+  `vendorId=0`/`deviceID=0`, so the harness sets `reportedFacts = 0x0` and the fields stay 0 — the
+  behaviour the contract requires of a WebGPU-shaped backend. The harness asserts that a set fact has a
+  non-zero value, but no test can prove that a hypothetical browser reporting ids would be handled
+  wrongly; the rule's positive path is covered by the Q1a D3D12 assertion (`0x7`).
+- **API finding**: in this `webgpu.h`, a `MAP_READ` mapping is const-only; `wgpuBufferGetMappedRange`
+  returns null for it and `wgpuBufferGetConstMappedRange` must be used. A future WebGPU backend must
+  not assume the write-map accessor works for readback.
+- The recorded build needed emsdk's bundled Python 3 ahead of a system Python 2 on `PATH`, and `em++`
+  rather than `emcc` because the port requires C++ linkage; `build.ps1` handles both.
+
+## Per-check summary
+
+| Check / target | Execution | Outcome | Artifact |
+|---|---|---|---|
+| Field-to-WebGPU classification | RUN | PASS | `webgpu-mapping.md` |
+| Lexical header gate | RUN | PASS | `validate-rhi-contract.py` |
+| C1–C8, N1–N3, E in JavaScript | RUN | PASS (12 required, twice) | `evidence/q7a-conformance.{json,png}` |
+| C1–C8, N1–N3, E from C++/wasm | RUN | PASS (12 required, twice) | `evidence/q7a-emscripten.{json,png}` |
+| `wasm32` compile of `rhi.h` | RUN | PASS | `static_assert(sizeof(void*) == 4)` in the harness; build succeeds |
+| Software WebGPU adapter (both legs) | NOT RUN | — | no fallback adapter exposed; not a pass |
+| Out-of-memory classification | NOT RUN | — | mapping only; no OOM induced |
+| WebGPU implementation of `doom3::rhi::Device` | NOT RUN | — | no backend exists; the checks use the WebGPU C API |
+| Performance, resize, multi-adapter | NOT RUN | — | out of scope |
 
 ## Independent review
 
-- **Independent reviewer**: a non-author agent reviewer with no authorship of the reviewed files; it
-  wrote `review-q7a.md` and reran the commands itself. `review-spec-consistency.md` records a separate
-  spec audit. No human sign-off is recorded.
-- **Review scope and commands**: the reviewer reran the conformance runner, the mapping validator and
-  its self-test and mutation suite, the header gate and `git status`; it also attempted falsification
-  (mutated header, harder document mutations, a fake page) and checked the mapping against the WebGPU
-  specification.
-- **Review decision and unresolved items**: the first pass requested changes (whitespace, a
-  machine-specific path in the retained JSON, a timing mismatch, overclaiming language); after the
-  fixes the reviewer reran everything and accepted with limitations, with no blocking or major
-  finding left in `review-q7a.md`. The falsification findings — a page that hardcodes results (now
-  partially mitigated by the per-run nonce, not eliminated), the mapping validator's inability to
-  detect a status flip, and the lexical gate's known synonym gaps — are recorded as limitations in
-  `webgpu-mapping.md` ("What this gate cannot decide") rather than concealed. The spec audit's
-  dispositions are in `review-spec-consistency.md`; its one remaining blocking item is the
-  header/contract conflict, which T089 (issue #36) owns and which blocks Q7, not Q2.
+- **Mapping and browser spike**: `review-q7a.md` — first pass changes requested, second pass accept
+  with limitations; `review-spec-consistency.md` records the spec audit, with the header conflict owned
+  by T089 (now done).
+- **Emscripten leg**: `review-t088-encoder.md` — see it for the reviewer's scope, commands and decision.
+- **Remaining limitation**: no WebGPU backend implements the core device, so the leg proves a C++
+  encoder can drive the mapped operations and that the header compiles for `wasm32`; it does not prove
+  a `doom3::rhi` implementation on WebGPU, and it does not prove a software-adapter path.

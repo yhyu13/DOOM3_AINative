@@ -1,6 +1,6 @@
 // Fail-loud shader resolver core (spec 008).
 //
-// Port-owned C++17. No engine headers, no idLib types, no RHI or D3D12
+// Port-owned C++17. No engine headers, no idLib types, no RHI or native graphics API
 // dependency: the resolver can be built and unit tested on its own.
 #pragma once
 

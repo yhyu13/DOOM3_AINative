@@ -108,8 +108,19 @@ The runner serves `tests/webgpu` on `127.0.0.1` because `navigator.gpu` needs a 
 launches the discovered browser headlessly over the DevTools protocol, and fails unless every
 required check passes on every repetition and the page echoes the per-run nonce. It writes
 `results.json`, `conformance.png` and `run.log`; add `--evidence specs/004-quality-renderer/evidence`
-to refresh the tracked artifacts. The Emscripten encoder leg stays NOT RUN until an authorized
-toolchain is recorded; do not download one to turn a gate green.
+to refresh the tracked artifacts.
+
+The Emscripten encoder leg builds the same checks from C++ and runs them through the same runner:
+
+```powershell
+$env:EMSDK = '<emsdk root>'
+.\tests\webgpu\emscripten\build.ps1
+node tests\webgpu\run-conformance.mjs --page emscripten/index.html --repeat 2 --out build\webgpu-emscripten
+```
+
+Toolchain version, licence, acquisition and limits are recorded in
+`tests/webgpu/emscripten/README.md` and `evidence-q7a.md`; a missing or unauthorized toolchain is
+NOT RUN, never a pass.
 
 ## Later gate checks
 
