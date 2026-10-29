@@ -9,6 +9,10 @@
 # The generated deck is hashed byte-for-byte by verify_variants.py. Do not let
 # core.autocrlf turn its LF into CRLF on checkout.
 showcase/index.html text eol=lf
+
+# Provenance hashes are byte hashes of the working file (shaders/tools/provenance-record.ps1).
+# Without this, a Windows checkout rewrites LF to CRLF and all ten recorded hashes drift.
+shaders/** text eol=lf
 *.pk4 binary
 *.pk3 binary
 *.wasm binary

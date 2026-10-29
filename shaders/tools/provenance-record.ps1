@@ -39,13 +39,28 @@ $changed = 0
 
 function Resolve-RepoPath([string]$relative) { Join-Path $repo ($relative -replace '/', '\') }
 
+# Hash canonical content, not a checkout convention. `.gitattributes` pins shaders/** to LF, but a
+# working tree checked out before that rule existed still holds CRLF; without normalization the gate
+# reports drift for ten files and the obvious "fix" is -Update, which would re-record every hash onto
+# CRLF and break the next LF checkout instead. Normalizing here keeps the record EOL-independent.
+$sha256 = [System.Security.Cryptography.SHA256]::Create()
+function Get-CanonicalHash([string]$path) {
+    $bytes = [System.IO.File]::ReadAllBytes($path)
+    $canonical = New-Object System.Collections.Generic.List[byte]($bytes.Length)
+    for ($i = 0; $i -lt $bytes.Length; $i++) {
+        if ($bytes[$i] -eq 13 -and ($i + 1) -lt $bytes.Length -and $bytes[$i + 1] -eq 10) { continue }
+        $canonical.Add($bytes[$i])
+    }
+    return [System.BitConverter]::ToString($sha256.ComputeHash($canonical.ToArray())).Replace('-', '')
+}
+
 foreach ($record in @($doc.records)) {
     if ($null -eq $record.retail_text_consulted) { $problems.Add("$($record.id): retail_text_consulted is unanswered") }
     foreach ($f in @($record.files)) {
         if ($null -eq $f) { continue }
         $full = Resolve-RepoPath $f.path
         if (-not (Test-Path -LiteralPath $full)) { $problems.Add("$($record.id): file missing: $($f.path)"); continue }
-        $hash = (Get-FileHash -LiteralPath $full -Algorithm SHA256).Hash
+        $hash = Get-CanonicalHash $full
         $checked++
         if ($Update) {
             if ($f.sha256 -ne $hash) { $f.sha256 = $hash; $changed++ }
@@ -59,7 +74,7 @@ foreach ($h in @($doc.shared_headers)) {
     if ($null -eq $h) { continue }
     $full = Resolve-RepoPath $h.path
     if (-not (Test-Path -LiteralPath $full)) { $problems.Add("shared header missing: $($h.path)"); continue }
-    $hash = (Get-FileHash -LiteralPath $full -Algorithm SHA256).Hash
+    $hash = Get-CanonicalHash $full
     $checked++
     if ($Update) {
         if ($h.sha256 -ne $hash) { $h.sha256 = $hash; $changed++ }
