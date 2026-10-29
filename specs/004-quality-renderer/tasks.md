@@ -82,6 +82,14 @@ The author self-review is retained in
 [review-q1-self.md](./review-q1-self.md). The branch was rebased onto current main (`582b3ff`, after T089) and T030 was re-run: the debug layer and GPU-based validation are
 still SKIPPED (`0x887A002D`), so T031 remains unsatisfied. See
 [evidence-q1.md](./evidence-q1.md).
+On 2026-10-29 the gate was re-run on the merged `main` (`f1e4feb`) in
+`build-q1-accept-20261029`: the Release suite is 17/17 and the diagnostics test
+still reports `0x887A002D` with `validation_executed=0` on both the hardware and
+the software adapter. The owner accepted this residual on the same date; T030
+and T031 stay unchecked because that acceptance records a known gap, not a
+passing gate. `validate-webgpu-mapping.py` also still exits 1 on `main`
+(`INVALID: 62 problem(s); 57/119 declarations mapped`); open issue #36 (T089)
+owns that reconciliation.
 ## Phase 5 — US3: Classic-compatible engine path (P1; Q2)
 
 **Goal**: Make the new path selectable and playable while preserving the GL reference and engine command semantics.
