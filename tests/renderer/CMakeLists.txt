@@ -56,6 +56,37 @@ function(add_q3_test target source)
     endif()
 endfunction()
 
+# PROPOSED Q3 seams for T043/T045 (rendered-view history) and T047
+# (post-reconstruction overlay composition). The headers are test-owned
+# proposals and the implementation is a build-only stub, so the red tests fail
+# at runtime instead of failing to link: a link failure is not red evidence.
+#
+# The production slice named by those tasks must promote
+# tests/renderer/q3_view_history_seam.h -> src/renderer/rhi/view_history.h,
+# tests/renderer/q3_overlay_seam.h -> src/renderer/rhi/overlay_composition.h,
+# implement src/renderer/rhi/view_history.cpp and
+# src/renderer/rhi/overlay_composition.cpp, then replace the stub source below
+# with those two files and drop WILL_FAIL from the three red tests.
+add_library(q3_proposed_seam STATIC "q3_view_history_stub.cpp"
+    "q3_overlay_stub.cpp")
+target_include_directories(q3_proposed_seam PUBLIC "${Q1A_HEADER_ROOT}"
+    "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(q3_proposed_seam PUBLIC q3_motion)
+target_compile_features(q3_proposed_seam PUBLIC cxx_std_17)
+if(MSVC)
+    target_compile_options(q3_proposed_seam PRIVATE /W4 /permissive- /EHsc)
+endif()
+
+function(add_q3_seam_test target source)
+    add_executable(${target} "${source}")
+    target_link_libraries(${target} PRIVATE q3_proposed_seam)
+    target_compile_features(${target} PRIVATE cxx_std_17)
+    target_include_directories(${target} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    if(MSVC)
+        target_compile_options(${target} PRIVATE /W4 /permissive- /EHsc)
+    endif()
+endfunction()
+
 # Public-seam fixtures. These translation units are scanned by
 # scripts/validate-rhi-contract.py and must stay free of private vocabulary.
 add_q1a_test(q1a_clear_test rhi_clear_test.cpp)
@@ -82,6 +113,15 @@ add_q1a_test(q1a_diagnostics_test d3d12/rhi_diagnostics_test.cpp)
 add_q3_test(q3_motion_reprojection_test motion_reprojection_test.cpp)
 add_q3_test(q3_skinned_history_test skinned_history_test.cpp)
 add_q3_test(q3_motion_validity_test motion_validity_test.cpp)
+
+# T043/T045/T047. These assert the production behavior the seam proposals
+# describe; until the production slice lands they fail against the stub and are
+# registered as expected-red. Raw executable exits are recorded in
+# specs/004-quality-renderer/evidence-q3-tests.md; the WILL_FAIL inversion is
+# not a green result for T043/T045/T047.
+add_q3_seam_test(q3_view_history_test view_history_test.cpp)
+add_q3_seam_test(q3_history_reset_test history_reset_test.cpp)
+add_q3_seam_test(q3_overlay_composition_test overlay_composition_test.cpp)
 
 enable_testing()
 
@@ -137,5 +177,22 @@ set_tests_properties(
     rhi.q3.skinned_history
     rhi.q3.motion_validity
     PROPERTIES
+        TIMEOUT 120
+)
+
+# Expected-red for T043/T045/T047: WILL_FAIL makes CTest report "Passed" while
+# the executable exits 1. Read the raw exits, not the CTest verdict. When the
+# production slice makes these pass, CTest reports a failure until WILL_FAIL is
+# removed, which is the intended forcing function.
+add_test(NAME rhi.q3.red.view_history COMMAND q3_view_history_test)
+add_test(NAME rhi.q3.red.history_reset COMMAND q3_history_reset_test)
+add_test(NAME rhi.q3.red.overlay_composition COMMAND q3_overlay_composition_test)
+set_tests_properties(
+    rhi.q3.red.view_history
+    rhi.q3.red.history_reset
+    rhi.q3.red.overlay_composition
+    PROPERTIES
+        WILL_FAIL TRUE
+        LABELS "q3-expected-red"
         TIMEOUT 120
 )
