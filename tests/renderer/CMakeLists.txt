@@ -35,6 +35,27 @@ function(add_q1a_test target source)
     endif()
 endfunction()
 
+# Q3 motion/history seams (T042/T044/T046). CPU-only public-seam tests: they
+# use no device, window, shader or GPU work, so they link no native library.
+add_library(q3_motion STATIC
+    "${Q1A_SOURCE_ROOT}/src/renderer/rhi/motion_history.cpp"
+    "${Q1A_SOURCE_ROOT}/src/renderer/rhi/skinned_history.cpp")
+target_include_directories(q3_motion PUBLIC "${Q1A_HEADER_ROOT}")
+target_compile_features(q3_motion PUBLIC cxx_std_17)
+if(MSVC)
+    target_compile_options(q3_motion PRIVATE /W4 /permissive- /EHsc)
+endif()
+
+function(add_q3_test target source)
+    add_executable(${target} "${source}")
+    target_link_libraries(${target} PRIVATE q3_motion)
+    target_compile_features(${target} PRIVATE cxx_std_17)
+    target_include_directories(${target} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    if(MSVC)
+        target_compile_options(${target} PRIVATE /W4 /permissive- /EHsc)
+    endif()
+endfunction()
+
 # Public-seam fixtures. These translation units are scanned by
 # scripts/validate-rhi-contract.py and must stay free of private vocabulary.
 add_q1a_test(q1a_clear_test rhi_clear_test.cpp)
@@ -56,6 +77,11 @@ add_q1a_test(q1b_surface_private d3d12/rhi_surface_private_test.cpp)
 add_q1a_test(q1a_d3d12_test d3d12/rhi_d3d12_test.cpp)
 add_q1a_test(q1a_lifetime_private d3d12/rhi_lifetime_private_test.cpp)
 add_q1a_test(q1a_diagnostics_test d3d12/rhi_diagnostics_test.cpp)
+
+# Q3 public-seam consumers of tests/renderer/motion-fixtures.md.
+add_q3_test(q3_motion_reprojection_test motion_reprojection_test.cpp)
+add_q3_test(q3_skinned_history_test skinned_history_test.cpp)
+add_q3_test(q3_motion_validity_test motion_validity_test.cpp)
 
 enable_testing()
 
@@ -101,4 +127,15 @@ set_tests_properties(
         SKIP_RETURN_CODE 77
         TIMEOUT 240
         ENVIRONMENT "RHI_EVIDENCE_DIR=${Q1A_EVIDENCE_DIR}"
+)
+
+add_test(NAME rhi.q3.motion_reprojection COMMAND q3_motion_reprojection_test)
+add_test(NAME rhi.q3.skinned_history COMMAND q3_skinned_history_test)
+add_test(NAME rhi.q3.motion_validity COMMAND q3_motion_validity_test)
+set_tests_properties(
+    rhi.q3.motion_reprojection
+    rhi.q3.skinned_history
+    rhi.q3.motion_validity
+    PROPERTIES
+        TIMEOUT 120
 )
