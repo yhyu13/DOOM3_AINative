@@ -2,7 +2,7 @@
 
 **Status**: Planning matrix maintained by T087. A row maps a requirement to its primary tasks and the artifact that will hold evidence. Draft contract/template artifacts are not stage execution or review evidence; coverage remains planned or partial until the named checks run. Q1a T012–T021 are complete and merged in `8638db8` (PR #18); `evidence-q1a.md` and `review-q1a.md` record the execution and independent agent review. Q1b T022–T031 and all later stages remain planned or partial. Q7a T088 is complete (issue #35): the lexical and structural mapping gates, the browser spike and the Emscripten encoder leg all executed, and T089 completed the header reconciliation.
 
-Evidence files: `evidence-rhi-contract.md`, `evidence-q0.md`, `evidence-q1a.md`, `evidence-q1.md`, `evidence-q2.md`, `evidence-q3.md`, `evidence-q4.md`, `evidence-q5.md`, `evidence-q6.md`, `evidence-q7.md`, `evidence-q7a.md`, `evidence/q7a-emscripten.json`, `evidence-t089.md`. Review records: `review-rhi-contract.md`, `review-q1a.md`, `review-q1.md`, `review-q2.md`, `review-q3.md`, `review-q4.md`, `review-q6.md`, `review-q7.md`, `review-q7a.md`, `review-spec-consistency.md`, `review-t089.md`, `review-t088-encoder.md`, `review-programme.md`.
+Evidence files: `evidence-rhi-contract.md`, `evidence-q0.md`, `evidence-q1a.md`, `evidence-q1.md`, `evidence-q2.md`, `evidence-q3.md`, `evidence-q3-tests.md`, `evidence-q4.md`, `evidence-q5.md`, `evidence-q6.md`, `evidence-q7.md`, `evidence-q7a.md`, `evidence/q7a-emscripten.json`, `evidence-t089.md`. Review records: `review-rhi-contract.md`, `review-q1a.md`, `review-q1.md`, `review-q2.md`, `review-q3.md`, `review-q4.md`, `review-q6.md`, `review-q7.md`, `review-q7a.md`, `review-spec-consistency.md`, `review-t089.md`, `review-t088-encoder.md`, `review-programme.md`.
 
 ## Functional requirements
 
@@ -15,10 +15,10 @@ Evidence files: `evidence-rhi-contract.md`, `evidence-q0.md`, `evidence-q1a.md`,
 | FR-005 | T013–T019, T024–T028, T030 | `evidence-q1a.md`, `evidence-q1.md` | **Partial** — Q1a complete and merged (`evidence-q1a.md`, `review-q1a.md`); Q1b fixtures and fault-injected removal pass (`evidence-q1.md`); debug layer and GPU-based validation SKIPPED (`0x887A002D`), so T030/T031 and full Q1 remain blocked |
 | FR-006 | T036, T037, T039, T080–T083 | `classic-parity.md`, `evidence-q2.md` | Planned; T080–T082 production, T083 integration check |
 | FR-007 | T034, T037, T038, T080–T082 | `classic-parity.md`, `evidence-q2.md` | Planned; T037 tests, T080–T082 production |
-| FR-008 | T041–T046 | `motion-fixtures.md`, `evidence-q3.md` | Planned |
-| FR-009 | T043–T045, T085 | `evidence-q3.md` | Planned; **partial** — T085 adds engine-side wiring |
-| FR-010 | T041, T046 | `motion-fixtures.md`, `evidence-q3.md` | Planned |
-| FR-011 | T038, T047, T055, T086 | `evidence-q3.md`, `evidence-q4.md`, `evidence-q5.md` | Planned; T086 off-path ordering follows T047/T055; its provider branch is conditional and may be NOT RUN |
+| FR-008 | T041–T046 | `motion-fixtures.md`, `evidence-q3.md`, `evidence-q3-tests.md` | **Partial (2026-10-29)** — T042/T046 merged (`f703fae`) and re-run green; T043/T045 have red tests and proposed seams only; T048 open |
+| FR-009 | T043–T045, T085 | `evidence-q3.md`, `evidence-q3-tests.md` | **Partial (2026-10-29)** — T044 seam and its 43-check retention test pass; the `Model_md5.cpp` snapshot, T043 view isolation and T085 wiring are open |
+| FR-010 | T041, T046 | `motion-fixtures.md`, `evidence-q3.md`, `evidence-q3-tests.md` | **Partial (2026-10-29)** — T046 merged and 77 checks green; real-scene motion/validity is T048 |
+| FR-011 | T038, T047, T055, T086 | `evidence-q3.md`, `evidence-q3-tests.md`, `evidence-q4.md`, `evidence-q5.md` | **Partial (2026-10-29)** — T047 has a red test and a proposed seam only; the merged Q1b `PlanComposition` is ordering metadata, not the display-resolution post-reconstruction stage. T086 off-path ordering follows T047/T055; its provider branch is conditional and may be NOT RUN |
 | FR-012 | T050–T053 | `evidence-q4.md` | Planned |
 | FR-013 | T049, T054, T056 | `quality-rubric.md`, `evidence-q4.md` | Planned; budgets follow T056 measurements |
 | FR-014 | T055, T058–T061 | `provider-clearance.md`, `evidence-q5.md` | Planned; **partial** — T055 supplies the independent off path; T059 separately observes clean configure/build and run, and inspects dependencies/artifacts |
@@ -35,7 +35,7 @@ Evidence files: `evidence-rhi-contract.md`, `evidence-q0.md`, `evidence-q1a.md`,
 | SC-001 | T009–T011 | `evidence-q0.md` | **Met on this host (2026-10-29)** — two captures per category inside the frozen ceilings; a different host or data set still needs its own run |
 | SC-002 | T013–T031 | `evidence-q1a.md`, `evidence-q1.md` | **Partial** — Q1a complete and merged; Q1b draw/compute/MRT/depth/frame-slot/motion/surface fixtures pass 17/17 in Debug and Release on Intel and WARP; full SC-002 still needs executed debug layer plus GPU-based validation and T031 |
 | SC-003 | T032, T037, T038, T039, T040 | `classic-parity.md`, `evidence-q2.md` | Planned; T080–T082 required for production behavior, T083 for integration |
-| SC-004 | T041–T048, T085 | `motion-fixtures.md`, `evidence-q3.md` | Planned; T041–T047 and T085 precede T048 execution/review, including T043 isolation, T045 invalidation and T047 overlay ordering |
+| SC-004 | T041–T048, T085 | `motion-fixtures.md`, `evidence-q3.md`, `evidence-q3-tests.md` | Planned; T041–T047 and T085 precede T048 execution/review. As of 2026-10-29 only T042/T046 are checked; T044 is partial; T043/T045/T047 are red tests against absent production slices. Synthetic vectors alone cannot satisfy T048 |
 | SC-005 | T049–T057, T086 | `quality-rubric.md`, `evidence-q4.md` | Planned; budgets set after measurement; T086 independent ordering precedes Q4 review, optional provider branch does not block it |
 | SC-006 | T055, T058–T062 | `provider-clearance.md`, `evidence-q5.md` | Planned; T059 observes clean default configure/build/run for attempted NVIDIA downloads and inspects dependencies/artifacts, separately from the off-path test; incomplete observation is NOT RUN; optional provider claim requires actual authorization and evidence |
 | SC-007 | T063–T070 | `evidence-q6.md` | Planned |
@@ -52,3 +52,4 @@ Evidence files: `evidence-rhi-contract.md`, `evidence-q0.md`, `evidence-q1a.md`,
 - Only T033 and T040 of T033–T040 concern FR-019 (delivery/ownership). The rest of that range concerns Q2 behavior.
 - The "38 raw findings" mentioned in earlier planning is a process observation, not a repository fact; it is not traceable here.
 - A task ID in these tables is a plan reference. It becomes evidence only when its own command output exists and is recorded.
+- The Q3 test slice (`evidence-q3-tests.md`) registers T043/T045/T047 as expected-red with `WILL_FAIL`; CTest reporting "passed" there is an inverted verdict, not a green result. Their production files (`src/renderer/rhi/view_history.cpp`, `src/renderer/rhi/overlay_composition.cpp`) do not exist. A pre-existing public-header collision — `frame_resources.h` and `motion_history.h` both define `doom3::rhi::MotionSample` — prevents a translation unit from including both and must be resolved by the `src/renderer/rhi/**` owner before T047/T085/T048 integration.
