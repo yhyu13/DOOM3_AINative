@@ -1,0 +1,7 @@
+{
+  "schema": "doom3-content-denylist/1",
+  "comment": "Mechanical half of FR-001: SHA-256 values of files known to come from a third-party pack or an install. Regenerate with content/tools/scan-pack.ps1 against a locally staged pack (names and hashes only; no bytes are read into the repository). Empty here because no pack is staged on this host.",
+  "generated_by": "content/tools/scan-pack.ps1",
+  "generated_from": null,
+  "sha256": []
+}

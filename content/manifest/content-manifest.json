@@ -1,0 +1,22 @@
+{
+  "schema": "doom3-content-manifest/1",
+  "comment": "Staged corpora (spec 009, C-02). Bytes never enter the repository: this file records name, size, hash, inventory counts, search order and licence note. A pack that is not present locally is 'absent', which the gate reports as SKIPPED rather than as a failure, and never as a pass.",
+  "packs": [
+    {
+      "name": "wulfen_texture_pack_2.0.pk4",
+      "bytes": 853775687,
+      "sha256": "616774f64382473ab9af5d5de3baa3ef0a333adfc782f9a41b5a88a61e21ee26",
+      "entries": 933,
+      "files": 906,
+      "textures": 898,
+      "materials": 8,
+      "state": "absent",
+      "licence_note": "third-party pack, mod terms; stress corpus only (C-04); never committed and never cited as Q4 evidence"
+    }
+  ],
+  "search_order": ["wulfen_texture_pack_2.0.pk4"],
+  "licence_notes": [
+    "No pack listed here may be committed. D3_CONTENT_DIR points at a local install; the gate verifies hashes when a pack is present.",
+    "demo00.pk4 is deliberately not listed: spec 006 loaded it but never recorded its size or hash, and this manifest records measured values only. Add it when its size and SHA-256 are measured."
+  ]
+}

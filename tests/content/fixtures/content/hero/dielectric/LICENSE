@@ -1,0 +1,6 @@
+CC0 1.0 Universal
+
+This fixture tree exists only to exercise the content contract gate
+(content/tools/validate.ps1) and its negative controls
+(tests/content/run-gates.ps1). Every file in it is dedicated to the public
+domain under CC0 1.0. No retail game data was read or derived from.

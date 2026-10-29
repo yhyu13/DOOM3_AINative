@@ -1,0 +1,39 @@
+{
+  "schema": "doom3-hero-provenance/1",
+  "comment": "One record per committed asset (spec 009, FR-003). Byte origin is established here and by review, not by content inspection: retail_text_consulted answers the only question that matters for the derivative-work position.",
+  "assets": [
+    {
+      "id": "HD-DIEL-01",
+      "path": "baseColor.png",
+      "sha256": "aa8be1c31ecd9c87edebe306d56daaa8aae44abea85da3263c70d1aa9c976e12",
+      "author": "this workstream, procedural: content/tools/generators/dielectric.py --size 512",
+      "licence": "CC0-1.0",
+      "retail_text_consulted": "no",
+      "inputs": [
+        "content/tools/generators/dielectric.py (procedural, deterministic, CC0)"
+      ]
+    },
+    {
+      "id": "HD-DIEL-02",
+      "path": "normal.png",
+      "sha256": "35e08217a4ad5dc12aa4599c85e6390d50f15bdb3a7f1b5a0c8be4f60d8bb1e7",
+      "author": "this workstream, procedural: content/tools/generators/dielectric.py --size 512",
+      "licence": "CC0-1.0",
+      "retail_text_consulted": "no",
+      "inputs": [
+        "content/tools/generators/dielectric.py (procedural, deterministic, CC0)"
+      ]
+    },
+    {
+      "id": "HD-DIEL-03",
+      "path": "roughness.png",
+      "sha256": "0622dac8b1b065f8e250aff183bd9bc17372e8f7181678a124d686f888c77189",
+      "author": "this workstream, procedural: content/tools/generators/dielectric.py --size 512",
+      "licence": "CC0-1.0",
+      "retail_text_consulted": "no",
+      "inputs": [
+        "content/tools/generators/dielectric.py (procedural, deterministic, CC0)"
+      ]
+    }
+  ]
+}

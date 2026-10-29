@@ -1,0 +1,10 @@
+{
+  "schema": "doom3-q4-material-set/1",
+  "materials": [
+    {
+      "material": "hero_dielectric",
+      "mtr": "content/materials/hero_dielectric.mtr",
+      "cell": "opaque_dielectric"
+    }
+  ]
+}

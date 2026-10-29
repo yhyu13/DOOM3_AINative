@@ -143,7 +143,7 @@ honestly marked blocked until the renderer exists.
 | `PackEntry` | `name`, `bytes`, `sha256`, `entries`, `files`, `textures`, `materials`, `state` (`staged`/`absent`/`skipped:<reason>`) |
 | `AssetRecord` | `id`, `path`, `sha256`, `licence` (must be `CC0-1.0` for hero), `author`, `retail_text_consulted` |
 | `MaterialSidecar` | `schema`, `material`, `mtr`, `channels{baseColor,normal,roughness,metalness,ao,emissive}`, each with `state` and `path` |
-| `MaterialPackage` | `schema`, `material`, `sidecar_sha256`, `mtr_sha256`, `textures[]` (path, format, width, height, mips, srgb), `toolchain{python, pillow, texconv}`, `package_sha256` — defined as SHA-256 over the sorted list of sidecar, `.mtr` and texture hashes, excluding the field itself |
+| `MaterialPackage` | `schema`, `material`, `sidecar_sha256`, `mtr_sha256`, `textures[]` (channel, `file` — the name inside the package — format, width, height, mips, srgb, sha256, sources[]), `toolchain{python, pillow, texconv}`, `package_sha256` — defined as SHA-256 over sidecar, then `.mtr`, then each texture hash in channel-name sort order, joined by LF, excluding the field itself |
 | `MatrixCell` | `id`, `name`, `sources[]`, `package`, `capture` (path or `BLOCKED:<reason>`), `budget_row{task, artifact, state}` |
 | `Q4MaterialSet` | `schema`, `materials[]` (material name + `.mtr` relative path); the only definition of "in the Q4 set" (FR-005) |
 | `BudgetRow` | `cell`, `task` (`T056` until 004 renumbers), `artifact`, `state` (`recorded` / `blocked:<reason>`) |
@@ -205,7 +205,7 @@ the content evidence finds no `-HdTextures` and no 006 capture path.
 |---|---|---|
 | SC-001 | The content contract is executable | `tools/content/validate.ps1` exits 0 on a clean checkout and exits 1 on every negative control: a `.tga`/`.dds` under `content/hero/` (extension rule), a file whose hash is on the pack denylist, a hero without provenance, a non-CC0 licence, a channel with no state, a sidecar without a `.mtr` (six controls; `tasks.md` T-006 builds them) |
 | SC-002 | A staged corpus is described, never committed | `content-manifest.json` round-trips; `git ls-files` contains no `.pk4/.pk3/.pak` and no corpus path |
-| SC-003 | One hero material builds reproducibly | two consecutive `build-material.ps1` runs produce identical `package_sha256`, defined as SHA-256 over the sorted sidecar/`.mtr`/texture hashes and nothing else (no timestamps, no paths) |
+| SC-003 | One hero material builds reproducibly | two consecutive `build-material.ps1` runs into separate directories produce identical `package_sha256`, defined as SHA-256 over sidecar, `.mtr`, then each texture hash in channel-name sort order (no timestamps, no paths) |
 | SC-004 | Channels are declared, not invented | every sidecar channel carries `authored`/`derived:`/`unavailable`; the builder rejects an undeclared channel |
 | SC-005 | Formats are compliant | every packaged texture is BC7/BC5/BC4 with a full mip chain and a recorded sRGB flag |
 | SC-006 | The RXGB conversion is proven | the committed fixture `tests/content/fixtures/golden-rxgb.png` converts within the recorded tolerance (≤ 2/255 per channel including reconstructed Z, no axis swap); the before/after images are both derived from that fixture, so nothing third-party is committed |

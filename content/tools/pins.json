@@ -1,0 +1,31 @@
+{
+  "schema": "doom3-content-toolchain/1",
+  "comment": "Pinned tools for the content pipeline (spec 009, task T-002). Anything not pinned here is not used by a gate.",
+  "texconv": {
+    "release": "may2026",
+    "asset": "texconv.exe",
+    "bytes": 966480,
+    "sha256": "dcfdec10244e02cf5037fba089c55fb7e1326b1c8181742d77d15fa5cb5eef06",
+    "version": "2026.5.8.1",
+    "versionLine": "Microsoft (R) DirectX Texture Converter [DirectXTex] Version 2026.5.8.1",
+    "url": "https://github.com/microsoft/DirectXTex/releases/download/may2026/texconv.exe",
+    "cacheRelativePath": "content/tools/.cache/texconv.exe"
+  },
+  "encoderFlags": {
+    "baseColor": ["-f", "BC7_UNORM_SRGB", "-srgb"],
+    "emissive": ["-f", "BC7_UNORM_SRGB", "-srgb"],
+    "normal": ["-f", "BC5_UNORM", "-srgbi"],
+    "roughness": ["-f", "BC4_UNORM", "-srgbi"],
+    "metalness": ["-f", "BC4_UNORM", "-srgbi"],
+    "ao": ["-f", "BC4_UNORM", "-srgbi"],
+    "common": ["-m", "0", "-vflip", "-nogpu", "-dx10", "-y"],
+    "comment": "-m 0 writes the full mip chain; -vflip stores top-down (sources are authored top-down, so the engine samples without a V flip); -nogpu forces the deterministic CPU path so package hashes do not depend on the GPU; -dx10 emits the DX10 extended header that the verifier parses; -y overwrites an existing output."
+  },
+  "python": {
+    "launcher": "py -3",
+    "observedVersion": "3.14.4",
+    "pillowObserved": "12.3.0",
+    "pinFile": "content/tools/requirements-content.txt",
+    "status": "pinned by content/tools/requirements-content.txt (Pillow==12.3.0); the observed version on the authoring host is recorded here and every package records the versions it actually used"
+  }
+}

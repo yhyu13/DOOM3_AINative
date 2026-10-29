@@ -1,0 +1,12 @@
+# Pinned Python dependency for the content pipeline (spec 009, T-013).
+#
+# Pillow is the only Python dependency: it decodes PNGs for dimension checks and channel metadata.
+# texconv does the actual texture encoding and is pinned separately by SHA-256 in content/tools/pins.json.
+#
+# Install:
+#   py -3 -m pip install -r content/tools/requirements-content.txt
+#
+# The pin is a version, not a hash, because the wheels differ per platform and a hash pin would have to
+# be regenerated per host. Every package records the Pillow version it actually used, so drift is visible
+# in out/content/<material>/package.json rather than silent.
+Pillow==12.3.0

@@ -1,0 +1,22 @@
+{
+  "schema": "doom3-content-manifest/1",
+  "packs": [
+    {
+      "name": "pak000.pk4",
+      "bytes": 1234,
+      "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "state": "absent",
+      "entries": 0,
+      "files": 0,
+      "textures": 0,
+      "materials": 0,
+      "licence_note": "Retail pack; not redistributable; never committed. The fixture records it as absent."
+    }
+  ],
+  "search_order": [
+    "pak000.pk4"
+  ],
+  "licence_notes": [
+    "Retail game data remains under the retail EULA and is never committed to this repository."
+  ]
+}

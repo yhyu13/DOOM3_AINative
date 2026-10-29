@@ -138,3 +138,49 @@ the review is worth the cost for that alone.
 5. Is the 003-vs-004 conflict described as a conflict rather than resolved by assertion?
 6. Does anything commit a third-party byte or depend on the 006 corpus as evidence?
 7. Are the pinned encoder's version and hash reproducible from `pins.json` (once T-002 exists)?
+---
+
+## 6. Sign-off
+
+| Role | Who | Date | Scope | Result |
+|---|---|---|---|---|
+| Author | implementation workstream | 2026-10-29 | boundary, spec, plan, tasks, toolchain | self-review in §2.1 and §2.3 |
+| Independent reviewer | separate agent, not the author | 2026-10-29 | the specification package at `9f45509` | 21 findings, 3 blocking, all fixed before merge |
+| **Human sign-off** | repository owner | 2026-10-29 | spec 009, before implementation started | **approved to implement the content toolchain; Q4 captures stay BLOCKED** |
+
+The human sign-off covers the *specification*. It is not a review of the implementation PR, which needs
+its own reviewer under `docs/GIT_WORKFLOW.md` (reviewer is never the author). The capture stage remains
+`BLOCKED` by the same sign-off: no Q4 renderer exists, so nothing may claim a capture.
+### 2.4 Independent review of the implementation (round 3)
+
+A third agent reviewed PR #44 without being told what to find, ran the pipeline in the worktree, and
+mutation-tested the new gates. It reported 23 findings: 3 blocking, 10 non-blocking, and nits. All are
+disposed of below. The blocking ones are worth reading twice, because two of them were **my own evidence
+being wrong**: the contract gate was red on the committed tree while `evidence/implementation.md` and
+`tasks.md` said it was green.
+
+| Id | Severity | Finding | Disposition |
+|---|---|---|---|
+| F-01 | **blocking** | The hygiene check searched binary files as text in tracked mode, so a PNG's compressed bytes matched `[A-Za-z]:\\` and the default gate exited 1 on the committed tree. My earlier green run happened before the files were tracked. | binary extensions are skipped in both modes; `.mtr` and `.ps1` are now scanned (the old code excluded them); the gate's own pattern table is self-exempt with a comment; one build script comment was reworded because it contained a literal drive path |
+| F-02 | **blocking** | Evidence and task status claimed `VALIDATE OK` and a clean-checkout exit 0 that were false at the committed HEAD. | the evidence below is re-captured from the fixed tree in tracked mode; the T-003/T-030 evidence strings now quote that run |
+| F-03 | **blocking** | A staged pack was checked for existence only: a 12-byte fake file passed while the manifest declared 853 MB and a hash. FR-002 says hashes are verified. | a staged pack now has its size and SHA-256 compared with the manifest; a mismatch is a violation naming both values |
+| F-04 | non-blocking | Sidecar `format` was never compared with the pinned encoder flags, so a sidecar could claim BC1 while the package is BC7. | the gate reads `pins.json` and fails a channel whose declared format differs from the pinned one |
+| F-05 | non-blocking | Hygiene missed credential assignments and skipped `.mtr` entirely. | added a credential-assignment pattern, stopped excluding `.mtr`/`.ps1`, kept the binary skip |
+| F-06 | non-blocking | Dimensions were only capped at 2048; the spec's "multiple of 4" was unenforced. | the gate now requires square and a multiple of 4 on both axes |
+| F-07 | non-blocking | `cell` was any non-empty string, so a typo silently dropped a cell from the matrix. | validated against the seven C-12 ids, with a duplicate-cell check |
+| F-08 | non-blocking | Provenance records had no `id` and no `inputs`, although FR-001/FR-003 require the inputs to name an authoring source. | the gate requires both; the dielectric records and the fixture record were updated |
+| F-09 | non-blocking | The builder ignored `handedness`, so a normal map could ship without one. | the builder now fails `channel-handedness-missing` / `-invalid` |
+| F-10 | non-blocking | `convert-normal.ps1` defaulted to `rxgb` ("declared, never guessed" was false), and the `directx` line described reading blue, which the code does not do. | `-Layout` is mandatory; the `directx` description now matches the code |
+| F-11 | non-blocking | `-RequireComplete` ignored budget rows, trusted file existence as "verified", and hard-coded the capture state. | budget rows must be `recorded` with an artifact or `blocked:<reason>`; each package is verified by running the verifier; the capture state is read from `capture.json` when one exists |
+| F-12 | non-blocking | `-Compare` at the same directory passed as "deterministic". | a same-directory compare is refused with `compare-same-directory`; the README claim was qualified |
+| F-13 | non-blocking | The README's verify step compared against a directory it never built. | the README now builds twice and names both directories |
+| F-14 | non-blocking | `captures.md` quoted greps that matched prose and a README line that does not exist. | the proof now greps `content/` only and records the real (empty) result |
+| F-15 | nit | The capture script's exit-0 branch printed `CAPTURE OK` without writing an image. | that branch now refuses with exit 2 and says T-050 implements it; no code path can print `CAPTURE OK` today |
+| F-16 | nit | `LICENSE` acceptance was a substring `CC0`, so "not CC0" would pass. | requires `CC0 1.0` |
+| F-17 | nit | `.exr` was allowed by the allowlist but dimension-unchecked. | fails closed with a clear message until EXR dimensions are implemented |
+| F-18 | nit | A sidecar for a non-Q4 material was a violation, which FR-005 does not say. | downgraded to a warning that calls the sidecar inert |
+| F-19 | nit | The package schema used `file` where the spec said `path`, and the hash order was channel-sorted rather than "globally sorted". | the spec was amended to the implemented schema and hash rule, which are deterministic and documented |
+| F-20 | nit | `pins.json` still said Pillow was not pinned. | record updated: `requirements-content.txt` pins `Pillow==12.3.0` |
+| F-21 | nit | T-001 said `git ls-files content` shows no binary, but authored PNGs are tracked on purpose. | reworded to "no pack and no build product" |
+| F-22 | non-blocking, pre-existing | `specs/004-quality-renderer/review-t089.md` contains a tracked absolute Windows path (repo rule 6), introduced by PR #42, outside this PR. | recorded here, not fixed here: it needs its own change and would mix workstreams |
+| F-23 | nit | `scan-pack.ps1` wrote its inventory into a tracked path by default. | default moved to `out/content/pack-inventory.json` |
