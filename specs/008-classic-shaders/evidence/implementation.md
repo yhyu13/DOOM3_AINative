@@ -552,14 +552,35 @@ APPLY_EXIT=0
 | `shaders/tools/manifest-check.ps1` | 0 | `MANIFEST OK: keys=14 owned=0 stub=6 unsupported=1 absent=7` |
 | `shaders/tools/provenance-record.ps1` | 0 | `PROVENANCE RECORD OK: 9 records, 10 hashes match` |
 
-### 12.8 Not run here, and why
+### 12.8 Shader authoring gates re-run (T-025, T-026, T-030, T-028)
 
-- `compile.ps1`, `reflect.ps1` and `verify-golden.ps1` were **not re-run** in this worktree: the pinned
-  DXC/Tint cache is absent and fetching it is a ~100 MB download. No file under `shaders/**` changed in
-  this branch, so the results recorded in §3, §4 and §11 still describe the same bytes. This is a
-  `NOT RUN`, not a pass.
+The pinned toolchain was fetched in this worktree and the unchanged programs re-checked:
+
+```powershell
+powershell -NoProfile -File shaders/tools/get-toolchain.ps1
+powershell -NoProfile -File shaders/tools/compile.ps1 -All
+powershell -NoProfile -File shaders/tools/reflect.ps1
+powershell -NoProfile -File shaders/tools/verify-golden.ps1
+powershell -NoProfile -File shaders/tools/compile.ps1 -ProveBound
+```
+
+```text
+TOOLCHAIN OK: dxc 1.9.2609.5 ... asset sha256 verified
+TOOLCHAIN OK: tint 106704a9ac3f ... asset sha256 verified
+COMPILE OK: 6 programs, 0 Tier B variants, 11 stage compiles (DXIL + SPIR-V + WGSL)
+REFLECT OK: 11 stages, 5 declared cbuffers, 26 declared resources, 7 declared semantics, 0 violations
+GOLDEN OK: 11 stage hashes (DXIL, SPIR-V, WGSL) deterministic ... (dxc 1.9.2609.5, tint 106704a9ac3f)
+BOUND PROOF OK: 42 variants x 2 stages = 84 compiles (DXIL + SPIR-V + WGSL), 0 failures
+```
+
+Exit codes: all 0. This re-confirms the authoring artifacts; it does **not** make any program `owned`
+(ownership criterion 5, the rendered comparison, is T-027).
+
+### 12.9 Not run here, and why
+
 - No rendered parity capture exists; T-027 is still `BLOCKED` on authorized data and a classic backend.
 - The GL backend binds retail ARB text from data. The authored HLSL programs are compiled and gated but
   cannot be bound by this backend, so no claim is made that the port's shader code draws.
 - Tolerant mode does not yet draw the magenta error material (I-5); it logs the `ErrorMaterial`
   decision, counts it and skips the stage. T-021 therefore stays `PARTIAL`.
+
