@@ -224,7 +224,9 @@ Refs #42
 ```mermaid
 flowchart LR
   A[Issue contract] --> B["/speckit.specify → plan → tasks"]
-  B --> C["docs/<issue>-<slug> PR: publish specs/<feature>/**"]
+  %% Mermaid renders labels as HTML and drops a raw <name> as an unknown tag, so the
+  %% placeholders below are entity-encoded on purpose; they display as <issue>, <slug>, <feature>.
+  B --> C["docs/#60;issue#62;-#60;slug#62; PR: publish specs/#60;feature#62;/**"]
   C --> D{Spec PR merged?}
   D -- no --> C
   D -- yes --> E["new-worktree.ps1 from updated main"]
