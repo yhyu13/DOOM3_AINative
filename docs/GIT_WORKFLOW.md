@@ -203,18 +203,21 @@ $env:D3_BUILD = Join-Path $env:WORKTREE_PATH 'build'
   the issue after checking the result.
 - Every PR gets an **independent** review (never the author, never a reviewer sharing the author's
   worktree or session). A fresh-context subagent reviewer must run in its own Agent Manager
-  session/worktree, receive only the diff/specs/verification command, and record its verdict
-  verbatim with session ID and reviewed SHA. The author may merge after that review; see
-  `AGENTS.md` §11.
-- The PR head at merge must equal the reviewed SHA. Any commit, rebase or force-push after the
-  review voids the approval and requires a new review.
+  session/worktree, receive only the diff/specs/verification command, rerun that command, and
+  record its verdict verbatim in a PR comment with session ID and reviewed SHA. The author may
+  merge after that review; see `AGENTS.md` §11.
+- The PR head at merge must equal the reviewed SHA, and the merge base of the reviewed SHA and
+  current `origin/main` must still be the current `origin/main`. Any commit, rebase, force-push or
+  advance of `origin/main` after review voids the approval and requires a new review.
 - `doom3_orig/doom3/` submodule bumps and build-system changes are **not self-mergeable**: they
-  require owner sign-off in addition to independent review, and the reviewer reruns the
-  verification command.
+  require **owner sign-off** (the human repository owner, not a coordinator/reviewer/worker agent)
+  in addition to independent review. Record it as a PR comment from the owner or an
+  `owner-sign-off:` line quoting that comment verbatim.
 - Reviewer runs the `code-review` skill pinned at `origin/main...HEAD`; comments cite file:line.
-- Merge only when: CI/verification green, independent review approved with the reviewed SHA and the
-  head still equal to it, `MERGEABLE` / `CLEAN` against current `origin/main`, clean main worktree,
-  no out-of-scope paths, no uncommitted submodule dirt, PR body complete.
+- Merge only when: CI/verification green, independent review approved with the reviewed SHA, the
+  head still equal to it, the merge base still equal to current `origin/main`, `MERGEABLE` / `CLEAN`
+  against current `origin/main`, clean main worktree, no out-of-scope paths, no uncommitted submodule
+  dirt, PR body complete.
 
 ```markdown
 ## Evidence
@@ -276,6 +279,8 @@ Start (per worker):
 Finish (before merge):
 
 - [ ] Verification command rerun in the worktree, output pasted into the PR body.
-- [ ] `git fetch origin` + rebase done; `git status` clean; no submodule dirt.
+- [ ] `git fetch origin` + rebase done; `git status` clean; no submodule dirt. A late rebase invalidates the prior review; obtain a new one.
 - [ ] PR has `Refs #N` (no closing keyword unless approved), evidence, risk/rollback; independent reviewer approved at the reviewed SHA, and the head still equals that SHA.
+- [ ] `gh pr view <N> --json mergeable,mergeStateStatus` reports `MERGEABLE` / `CLEAN`; the merge base of the reviewed SHA and `origin/main` is still current `origin/main`.
+- [ ] Submodule bump or build-system change: `owner-sign-off:` recorded verbatim, or N/A.
 - [ ] After merge: `remove-worktree.ps1`, then `git worktree prune`; branch deleted only if merged.
