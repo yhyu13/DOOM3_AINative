@@ -17,7 +17,7 @@ Submission SubmitAndWait(Device& device, bool* ok, std::string* error) {
     Submission submission;
     const ClearReadbackDesc desc = q1a_test::MakePatternDesc();
     const Status status = device.SubmitClearReadback(desc, &submission, error);
-    *ok = q1a_test::Require(status == Status::Ok, "SubmitClearReadback failed");
+    *ok &= q1a_test::Require(status == Status::Ok, "SubmitClearReadback failed");
     if (status != Status::Ok) {
         return submission;
     }
@@ -29,6 +29,15 @@ Submission SubmitAndWait(Device& device, bool* ok, std::string* error) {
 int RunStateJournal(Device& device) {
     bool ok = true;
     std::string error;
+    const uint32_t expectedFacts =
+        static_cast<uint32_t>(doom3::rhi::AdapterFact::VendorId) |
+        static_cast<uint32_t>(doom3::rhi::AdapterFact::DeviceId) |
+        static_cast<uint32_t>(doom3::rhi::AdapterFact::DedicatedMemory);
+    q1a_test::Log("PRIVATE_ADAPTER reported_facts=0x%x expected=0x%x",
+                  device.adapter().reportedFacts, expectedFacts);
+    ok &= q1a_test::Require(
+        (device.adapter().reportedFacts & expectedFacts) == expectedFacts,
+        "the native adapter did not report its identity and memory facts");
     const Submission submission = SubmitAndWait(device, &ok, &error);
     if (!ok) {
         return 1;

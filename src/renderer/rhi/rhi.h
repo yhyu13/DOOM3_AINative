@@ -34,15 +34,34 @@ enum class Status {
     Error,
 };
 
+// Result of the core release rule, not a GPU operation. A backend lowers it to
+// its completion observation: Released only after the producing submission is
+// proved complete, RefusedOutstanding instead of waiting or manufacturing
+// success. A target without per-submission completion keeps the bookkeeping and
+// never derives this result from a native value.
 enum class ReleaseStatus {
     Released,
     RefusedOutstanding,
     InvalidSubmission,
 };
 
+// Adapter facts a backend may or may not be able to report. A backend that
+// cannot produce a fact leaves its bit clear and the value at zero rather than
+// inventing one; a client that requires the fact treats a clear bit as
+// "unavailable", never as a real zero.
+enum class AdapterFact : uint32_t {
+    VendorId = 1u << 0,
+    DeviceId = 1u << 1,
+    DedicatedMemory = 1u << 2,
+};
+
 struct AdapterInfo {
     AdapterClass adapterClass = AdapterClass::Hardware;
     std::string name;
+    // Bitmask of AdapterFact describing which fields below are reported. A
+    // WebGPU-shaped backend that only exposes a vendor string reports no bits;
+    // it must not translate that string into a fabricated numeric id.
+    uint32_t reportedFacts = 0;
     uint32_t vendorId = 0;
     uint32_t deviceId = 0;
     uint64_t dedicatedVideoMemory = 0;
@@ -51,7 +70,10 @@ struct AdapterInfo {
 struct DeviceOptions {
     AdapterClass adapterClass = AdapterClass::Hardware;
     // Select the Nth adapter of the requested class. An out-of-range index is
-    // an actionable Unsupported result and also exercises failed setup.
+    // an actionable Unsupported result and also exercises failed setup. The
+    // portable core only guarantees index 0: a backend that cannot enumerate
+    // (a WebGPU adapter request returns exactly one adapter) must return
+    // Unsupported for any other index instead of silently using the first.
     uint32_t adapterIndex = 0;
 };
 
