@@ -32,7 +32,7 @@ ceilings and the merge/freshness condition.
 | `tests/renderer/motion-fixtures.md` | `9E13C9D0A689932CBD6A5B23301E73990C422BD151B8F0A50B9D16060B19EEBA` |
 | `specs/004-quality-renderer/tools/motion_fixtures.py` | `A81E8FA076578B21CAB2607A1D65EF5FD0077639CB607B15096967618C6A1997` |
 | `specs/004-quality-renderer/tools/verify-q2-design.py` | `CB56B96933B8F9678F5B544F96E2E640D52153D8146A5524661B75B364BD9F38` |
-| `specs/004-quality-renderer/review-q2-design.md` | `5CB0A55C1D21A14BC8A816DA735D5850407F9EBB11F71E9361D0DBD2F1031FBC` |
+| `specs/004-quality-renderer/review-q2-design.md` | `E39BFA727069534DC5AFBBBA114751D3E3FA971305EAD54131B97E9B1D5020CD` |
 
 Hashes identify this change set. They will change if the documents are edited; recompute before
 using them to identify a different revision.
@@ -259,5 +259,3 @@ captures do not exist, HUD/ROI controls are pending, and no independent reviewer
 T033 is design-complete with a real build-wiring probe, but the real adapter/selector/run do not
 exist. T041's fixture document is delivered byte-identically at `tests/renderer/motion-fixtures.md`;
 its C++ consumer tests and T048 have not run.
-
-

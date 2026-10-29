@@ -165,4 +165,3 @@ No ninth pass was run.
 - The documents do not claim an engine build, a Q2 capture, a Q3 execution, or acceptance.
 
 **Verdict**: not approved. The design is reviewable; the completion claim is not.
-
