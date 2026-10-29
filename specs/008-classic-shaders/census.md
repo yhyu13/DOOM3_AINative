@@ -118,8 +118,8 @@ Only five distinct files are bound on the default ARB2 path:
 | File | Stages | Bound from | Why it is needed |
 |---|---|---|---|
 | `interaction.vfp` | VP + FP | `neo/renderer/draw_arb2.cpp:157` | per-light surface interaction (normal, diffuse, specular, falloff) |
-| `bumpyEnvironment.vfp` | VP + FP | `neo/renderer/draw_common.cpp:213` | per-pixel cube reflection with a bump stage |
-| `environment.vfp` | VP + FP | `neo/renderer/draw_common.cpp:222` | per-pixel cube reflection without a bump stage |
+| `bumpyEnvironment.vfp` | VP + FP | `neo/renderer/draw_common.cpp:213-215` | per-pixel cube reflection with a bump stage |
+| `environment.vfp` | VP + FP | `neo/renderer/draw_common.cpp:222-224` | per-pixel cube reflection without a bump stage |
 | `shadow.vp` | VP | `neo/renderer/draw_arb2.cpp:290` | stencil-volume projection to infinity |
 | `arbFP_glasswarp.txt` | FP | `neo/renderer/draw_common.cpp:155` | heat-haze / glass warp fragment stage |
 
@@ -187,8 +187,9 @@ normal failure modes this port must remove.
 
 ### 7.1 Status
 
-**BLOCKED / SKIPPED.** No `*.pk4` exists in the worktree, `targets/win11-amd64/doom3/base` is
-empty, and no retail install was found at the default Steam path on this machine on 2026-10-28.
+**BLOCKED / SKIPPED.** No `*.pk4` exists in the worktree, `targets/win11-amd64/doom3/base` contains
+only `default.cfg`, and no retail install was found at the default Steam path on this machine on
+2026-10-28.
 Game data is EULA-bound and must not be committed, so the runtime census cannot be reproduced from
 the repository alone. This is recorded as a skip, not a pass.
 

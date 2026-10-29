@@ -101,7 +101,7 @@ decision table and must never appear in the shipping manifest.
 
 ### 4.2 Required entries for the static table
 
-The 18 static entries collapse to 13 keys; `megatexture` is data-forced and is added here because the engine can require it. Required status in milestone 1:
+The 18 static entries collapse to 13 keys; `megatexture` is data-forced and is added here because the engine can require it, so the shipping manifest holds **14 keys**: 6 authored-or-pending, 1 unsupported, 7 absent. Required status in milestone 1:
 
 | Key | Stages | Status | Why |
 |---|---|---|---|
@@ -255,7 +255,7 @@ Rules:
 `shader_status` prints one line:
 
 ```text
-shader_status: manifest=13 owned=6 stub=0 unsupported=1 absent=6
+shader_status: manifest=14 owned=0 stub=6 unsupported=1 absent=7
   requests=1234 ok=1230 unresolved=4 stage_missing=0 ambiguous=0
   materials_rejected=2 materials_error=0 mode=strict
 ```
@@ -281,7 +281,7 @@ The retail key semantics are preserved because materials depend on them:
 |---|---|---|
 | last extension stripped anywhere in the string | `neo/idlib/Str.cpp:761` | same normalization |
 | case-insensitive comparison | `neo/renderer/draw_arb2.cpp:481` | lowercase key |
-| path prefix significant | `neo/renderer/draw_arb2.cpp:470` | keep the prefix in the key |
+| only the extension is stripped; no path normalisation | `neo/renderer/draw_arb2.cpp:470` (strips the suffix), `:481` (compares the whole remaining string) | keep the prefix in the key |
 | 63-byte name field | `neo/renderer/draw_arb2.cpp:493` | reject longer names instead of truncating |
 | first match wins | `neo/renderer/draw_arb2.cpp:481` | **not preserved**: duplicate keys are `AMBIGUOUS` |
 

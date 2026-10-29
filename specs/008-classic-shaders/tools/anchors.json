@@ -38,7 +38,7 @@
     { "file": "neo/renderer/draw_common.cpp", "line": 213, "match": "FPROG_BUMPY_ENVIRONMENT", "why": "bumpy environment bind" },
     { "file": "neo/renderer/draw_common.cpp", "line": 222, "match": "FPROG_ENVIRONMENT", "why": "environment bind" },
     { "file": "neo/renderer/draw_common.cpp", "line": 579, "match": "RB_SetProgramEnvironment\\(", "why": "frame constants" },
-    { "file": "neo/renderer/draw_common.cpp", "line": 608, "match": "VERTEX_PROGRAM_ARB, 0", "why": "vertex c[0] frame write" },
+    { "file": "neo/renderer/draw_common.cpp", "line": 622, "match": "VERTEX_PROGRAM_ARB, 0", "why": "vertex c[0] frame write" },
     { "file": "neo/renderer/draw_common.cpp", "line": 625, "match": "FRAGMENT_PROGRAM_ARB, 0", "why": "fragment c[0] frame write" },
     { "file": "neo/renderer/draw_common.cpp", "line": 632, "match": "FRAGMENT_PROGRAM_ARB, 1", "why": "fragment c[1] frame write" },
     { "file": "neo/renderer/draw_common.cpp", "line": 641, "match": "VERTEX_PROGRAM_ARB, 1", "why": "vertex c[1] view origin" },

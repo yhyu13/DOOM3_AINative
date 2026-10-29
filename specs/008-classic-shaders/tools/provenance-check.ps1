@@ -28,12 +28,17 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $specDir   = Split-Path -Parent $scriptDir
 $repoRoot  = Split-Path -Parent (Split-Path -Parent $specDir)
 
-$allowHeaderIn = @(
-    'specs/008-classic-shaders/provenance.md',
-    'specs/008-classic-shaders/tools/provenance-check.ps1',
-    # Existing engine-analysis doc: quotes the directive name in a table, contains no program body.
-    'doom3_orig/doc/02_renderer.md'
-)
+# The directive name may be *discussed* in prose, tables, comments and inline code. It may never appear
+# as a program line. Line-scoped on purpose: a file-level allowlist let a whole retail program be
+# appended to an allowlisted document and still pass.
+$selfPath = 'specs/008-classic-shaders/tools/provenance-check.ps1'
+$docLikePattern = '^\s*(#|\||>|\*|-|//|/\*|\*>)'
+$inlineCodePattern = '`ARB(?:vp|fp)1\.0`'
+
+# A real ARB program body has several opcode lines. Counting them catches a body pasted without its
+# header, which a header-string check alone cannot see.
+$opcodePattern = '(?m)^[ \t]{0,8}(?:TEMP|PARAM|ATTRIB|OUTPUT|MOV|ADD|MUL|DP3|DP4|SUB|RCP|RSQ|MIN|MAX|ABS|FLR|FRC|KIL|TEX|TXB|TXP|LIT|DST|SCS|CMP|LRP|MAD|POW|EX2|LG2|SGE|SGT|SLT|SLE|END)[ \t]'
+$opcodeThreshold = 4
 
 $textExtensions = @('.md', '.cpp', '.h', '.hpp', '.c', '.cc', '.txt', '.ps1', '.json', '.yml', '.yaml', '.mtr', '.cmake', '.hlsl', '.hlsli', '.glsl', '.frag', '.vert', '.comp', '.inc', '.fx', '.shader', '.wgsl')
 
@@ -65,13 +70,25 @@ foreach ($file in $tracked) {
 
     $ext = [System.IO.Path]::GetExtension($fwd).ToLowerInvariant()
     if ($textExtensions -notcontains $ext) { continue }
-    if ($allowHeaderIn -contains $fwd) { continue }
 
     $full = Join-Path $repoRoot ($fwd -replace '/', '\')
     if (-not (Test-Path -LiteralPath $full)) { continue }
     $content = [System.IO.File]::ReadAllText($full)
-    if ($content -match $headerPattern) {
-        [void]$failures.Add("ARB program header in tracked file: $fwd")
+
+    $text = $content -replace "`r`n", "`n"
+    if ($fwd -ne $selfPath) {
+        $lineNo = 0
+        foreach ($line in ($text -split "`n")) {
+            $lineNo++
+            if ($line -notmatch $headerPattern) { continue }
+            if (($line -match $docLikePattern) -or ($line -match $inlineCodePattern)) { continue }
+            [void]$failures.Add("ARB program header as a program line: ${fwd}:$lineNo")
+        }
+    }
+
+    $opcodeLines = [regex]::Matches($text, $opcodePattern).Count
+    if ($opcodeLines -ge $opcodeThreshold) {
+        [void]$failures.Add("ARB opcode body ($opcodeLines opcode lines) in tracked file: $fwd")
     }
 }
 

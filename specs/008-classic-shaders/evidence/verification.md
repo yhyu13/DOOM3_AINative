@@ -299,3 +299,73 @@ powershell -NoProfile -ExecutionPolicy Bypass -File specs/008-classic-shaders/to
 ```
 
 All seven must exit 0 before a merge that touches this directory.
+
+---
+
+## 9. Round 3 re-run (2026-10-29, after implementation)
+
+Sections 1-8 above are the round-2 record for the tree they were captured on; the counts in them
+(tracked files, anchor total, fuzz distinct requests, task totals) are historical. This section is the
+same six gates re-run after the implementation and after the round-3 gate fixes. It is appended rather
+than rewritten so the earlier record stays auditable.
+
+| Gate | Command | Output | Exit |
+|---|---|---|---|
+| Census drift | `census.ps1 -Verify` | `CENSUS OK: 18 entries, 13 files, 8 live-default entries, draw_exp compiled=False` | 0 |
+| Resolver vectors | `resolver-conformance.ps1` | `RESOLVER VECTORS: 14/14 passed (manifest validated: 12 entries)` | 0 |
+| Anchors and links | `verify-docs.ps1` | `DOCS OK: 125 anchors, 70 content assertions, 40 links` (70/70 cited) | 0 |
+| Provenance gate | `provenance-check.ps1` | `PROVENANCE OK: 266 tracked files, no shader source, no ARB program bodies` | 0 |
+| Census-plan integration | `integration-check.ps1` | `INTEGRATION OK: 18 requests (10 OK, 8 ABSENT), 14 plan keys, 6 authored, 9 provenance ids; megaTexture=UNSUPPORTED` | 0 |
+| Property test | `fuzz-resolver.ps1` | `FUZZ OK: 10162 distinct requests (24000 calls) over 6000 names (seed 20261028), 0 failures` | 0 |
+
+`report.ps1` then reports `gates: 6/6 passing` and rewrites `evidence/report.html`. The report was
+rendered in a real browser (Playwright) and asserted on: `6/6 gates passing`, `CENSUS OK`,
+`14/14 passed`, `10162 distinct requests`, `70 content assertions`. `evidence/report.png` and
+`evidence/census.png` were re-captured at 1440x1200 full page.
+
+New shader-side gates, which did not exist at round 2:
+
+| Gate | Output | Exit |
+|---|---|---|
+| `shaders/tools/manifest-check.ps1` | `MANIFEST OK: keys=14 owned=0 stub=6 unsupported=1 absent=7` | 0 |
+| `shaders/tools/provenance-record.ps1` | `PROVENANCE RECORD OK: 9 records, 10 hashes match, every sourced program has exactly one record` | 0 |
+| `shaders/tools/compile.ps1 -All` | `COMPILE OK: 6 programs, 0 Tier B variants, 11 stage compiles, dxc 1.9.2609.5` | 0 |
+| `shaders/tools/compile.ps1 -ProveBound` | `BOUND PROOF OK: 42 variants x 2 stages = 84 compiles, 0 failures` | 0 |
+| `shaders/tools/reflect.ps1` | `REFLECT OK: 11 stages, 5 declared cbuffers, 26 declared resources, 7 declared semantics, 0 violations` | 0 |
+| `shaders/tools/verify-golden.ps1` | `GOLDEN OK: 11 stage hashes deterministic across two runs` | 0 |
+| `ctest --test-dir build-shader -C Release` | `100% tests passed, 0 tests failed out of 6` | 0 |
+
+The full command/output record for the implementation is in
+[`implementation.md`](implementation.md), including the decisions taken and the seven mutation
+controls that prove the round-3 gate fixes fail where they used to pass.
+
+---
+
+## 10. PR re-run (branch `feat/29-classic-shader-core`, 2026-10-29)
+
+Round 3 was captured before the implementation files were staged, so its tracked-file count (266) is
+historical. This is the same sweep on the staged tree, plus the shader gates, run from the issue
+worktree. Every command below exited 0.
+
+| Gate | Output |
+|---|---|
+| `ctest --test-dir build-shader -C Release` | `100% tests passed, 0 tests failed out of 6` |
+| `shaders/tools/get-toolchain.ps1` | `TOOLCHAIN OK: dxc 1.9.2609.5` (asset SHA-256 verified) |
+| `shaders/tools/compile.ps1 -All` | `COMPILE OK: 6 programs, 0 Tier B variants, 11 stage compiles, dxc 1.9.2609.5` |
+| `shaders/tools/compile.ps1 -ProveBound` | `BOUND PROOF OK: 42 variants x 2 stages = 84 compiles, 0 failures` |
+| `shaders/tools/reflect.ps1` | `REFLECT OK: 11 stages, 5 declared cbuffers, 26 declared resources, 7 declared semantics, 0 violations` |
+| `shaders/tools/manifest-check.ps1` | `MANIFEST OK: keys=14 owned=0 stub=6 unsupported=1 absent=7` |
+| `shaders/tools/provenance-record.ps1` | `PROVENANCE RECORD OK: 9 records, 10 hashes match, every sourced program has exactly one record` |
+| `shaders/tools/verify-golden.ps1` | `GOLDEN OK: 11 stage hashes deterministic across two runs and equal to the recorded goldens (dxc 1.9.2609.5)` |
+| `tools/resolver-conformance.ps1` | `RESOLVER VECTORS: 14/14 passed (manifest validated: 12 entries)` |
+| `tools/census.ps1 -Verify` | `CENSUS OK: 18 entries, 13 files, 8 live-default entries, draw_exp compiled=False` |
+| `tools/verify-docs.ps1` | `DOCS OK: 125 anchors, 70 content assertions, 40 links` |
+| `tools/provenance-check.ps1` | `PROVENANCE OK: 304 tracked files, no shader source, no ARB program bodies` |
+| `tools/integration-check.ps1` | `INTEGRATION OK: 18 requests (10 OK, 8 ABSENT), 14 plan keys, 6 authored, 9 provenance ids; megaTexture=UNSUPPORTED` |
+| `tools/fuzz-resolver.ps1` | `FUZZ OK: 10162 distinct requests (24000 calls) over 6000 names (seed 20261028), 0 failures` |
+| `tools/report.ps1` | `6/6 gates passing`; rewrote `evidence/report.html` at the PR head |
+
+The negative controls that prove these gates can fail are in `implementation.md` §10.
+
+The blocked gates are unchanged and are still not evidence: the runtime census (T-031) has no
+authorized data, the legal review (T-032) has no decision, and parity (T-027) needs both.

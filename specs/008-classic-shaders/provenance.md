@@ -68,7 +68,7 @@ Every authored program gets a record in the register (§4) with these fields:
 id: PV-001
 key: interaction
 stages: [vs, ps]
-status: planned            # planned | authored | reviewed | retired
+status: compiled           # planned | compiled | authored | reviewed | retired
 source_class: authored     # authored only; no other class is distributable
 authored_by: <agent or person>
 date: <YYYY-MM-DD>
@@ -86,8 +86,20 @@ reviewer: <owner>
 notes: ""
 ```
 
-`authored` requires: the file exists, the hash matches, both backends compile, and the resolver
-manifest entry is `owned` (see [`ownership.md`](ownership.md) §5).
+The ladder is ordered, and each step means something specific:
+
+| Status | Means | Requires |
+|---|---|---|
+| `planned` | no file exists | an entry in the register |
+| `compiled` | the file exists and compiles for both targets, but is not yet `owned` | a matching hash, DXIL + SPIR-V compile, and a stated list of unmet ownership criteria |
+| `authored` | every criterion in [`ownership.md`](ownership.md) §5 is met | the resolver manifest entry is `owned` |
+| `reviewed` | an independent reviewer signed the record | a named reviewer in the record |
+| `retired` | the program was removed | the PR that removed it |
+
+`compiled` was added during implementation: without it, a program that exists and compiles but is not
+yet `owned` had no truthful status — calling it `planned` denied the file, and `authored` overstated
+the review. The machine-readable records live in `shaders/manifest/provenance.json`, and
+`shaders/tools/provenance-record.ps1` verifies every hash and the manifest-to-record mapping.
 
 ---
 
@@ -95,12 +107,12 @@ manifest entry is `owned` (see [`ownership.md`](ownership.md) §5).
 
 | Id | Key | Stages | Status | Decision | Retail text consulted |
 |---|---|---|---|---|---|
-| PV-001 | `interaction` | vs, ps | planned | author from ABI + ARB specs | no |
-| PV-002 | `environment` | vs, ps | planned | author from ABI + ARB specs | no |
-| PV-003 | `bumpyenvironment` | vs, ps | planned | author from ABI + ARB specs | no |
-| PV-004 | `shadow` | vs | planned | author from ABI + ARB specs | no |
-| PV-005 | `arbfp_glasswarp` | ps | planned | author from ABI + ARB specs | no |
-| PV-006 | `test` | vs, ps | planned (optional) | author as a second reference implementation | no |
+| PV-001 | `interaction` | vs, ps | compiled | author from ABI + ARB specs | no |
+| PV-002 | `environment` | vs, ps | compiled | author from ABI + ARB specs | no |
+| PV-003 | `bumpyenvironment` | vs, ps | compiled | author from ABI + ARB specs | no |
+| PV-004 | `shadow` | vs | compiled | author from ABI + ARB specs | no |
+| PV-005 | `arbfp_glasswarp` | ps | compiled | author from ABI + ARB specs | no |
+| PV-006 | `test` | vs, ps | compiled | debug-only visualiser, not a parity program | no |
 | PV-007 | `megatexture` | vs, ps | decided: unsupported | milestone 1 reports unsupported; no shader authored | no |
 | PV-008 | `ambientlight`, `arbvp_glasswarp` | vs, ps / vs | decided: absent | dead engine entries; no implementation planned | no |
 | PV-009 | `r200_interaction`, `nv20_bumpandlight`, `nv20_diffusecolor`, `nv20_specularcolor`, `nv20_diffuseandspecularcolor` | vs | decided: absent | backends scheduled for deletion; no implementation planned | no |
@@ -166,6 +178,6 @@ The check is intentionally blunt. A false positive is cheaper than a leaked reta
 1. **Legal review is outstanding.** No counsel has reviewed the derivative-work position.
 2. **The runtime census is blocked on authorized data** ([`census.md`](census.md) §7), so the
    material-declared program set is unknown.
-3. **Authoring has not started.** The six planned records have no files and no hashes.
+3. **Authoring has started and stopped at `compiled`.** All six programs exist, compile for both targets and are hashed; none is `owned`, because WGSL validation through Tint and parity capture are still missing (see `evidence/implementation.md`).
 4. **The BFG reference question is unresolved and deliberately unexercised.** Nothing from it has
    been read for this work.

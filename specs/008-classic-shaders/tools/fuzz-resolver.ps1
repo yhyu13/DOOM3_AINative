@@ -104,7 +104,10 @@ Assert-Invariant (@($aliasKeys | Sort-Object -Unique).Count -eq 1) "case/extensi
 
 # ---------------------------------------------------------------- generated cases
 $rng = New-Object System.Random($Seed)
-$alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789./_-'
+# The backslash is included on purpose: Windows-authored material names can arrive with one, and the
+# model must fold separators before building the key. Without it in the alphabet, deleting that fold
+# survives the property test (found in the gate audit).
+$alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789./_-\\'
 $stems = @('alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta', 'dup', 'with.dot', 'missing')
 $exts = @('', '.vfp', '.vp', '.txt', '.VFP', '.hlsl')
 $distinct = New-Object 'System.Collections.Generic.HashSet[string]'

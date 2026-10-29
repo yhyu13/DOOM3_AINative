@@ -98,11 +98,12 @@ for ($i = 0; $i -lt $arb2Lines.Count; $i++) {
 }
 
 # ---------------------------------------------------------------- bind sites
-$cppFiles = @(Get-ChildItem -LiteralPath $rendererDir -Filter '*.cpp' -File | Sort-Object Name)
+$sourceExtensions = @('.cpp', '.h', '.hpp', '.inl')
+$cppFiles = @(Get-ChildItem -LiteralPath $rendererDir -File | Where-Object { $sourceExtensions -contains $_.Extension.ToLowerInvariant() } | Sort-Object Name)
 $bindRegex = 'qglBindProgramARB\(\s*(GL_[A-Z_]+)\s*,\s*([A-Z0-9_]+)\s*\)'
 $binds = New-Object System.Collections.ArrayList
 foreach ($f in $cppFiles) {
-    $lines = Read-Lines $f.FullName
+    $lines = @(Read-Lines $f.FullName)
     for ($i = 0; $i -lt $lines.Count; $i++) {
         $m = [regex]::Match($lines[$i], $bindRegex)
         if ($m.Success) {
@@ -140,7 +141,7 @@ foreach ($row in $table) {
         $row.classification = 'debug-only'
     } elseif (@($files | Where-Object { $liveFiles -contains $_ }).Count -gt 0) {
         $row.classification = 'live-default'
-    } elseif (@($files | Where-Object { $nonArb2Files -contains $_ }).Count -gt 0) {
+    } elseif (@($files | Where-Object { $nonArb2Files -contains $_ -and $compiled[($_ -replace '\.cpp$', '')] }).Count -gt 0) {
         $row.classification = 'non-ARB2'
     } else {
         $row.classification = 'dead'
@@ -323,10 +324,10 @@ Write-Host "wrote $OutJson"
 
 if ($current) {
     $next = Replace-Block $current '<!-- census:table:begin -->' '<!-- census:table:end -->' $mdTable
-    if ($null -eq $next) { Write-Warning 'census.md has no census:table block; not updated' }
+    if ($null -eq $next) { Write-Host 'CENSUS FAILED: census.md has no census:table block' -ForegroundColor Red; exit 1 }
     else {
         $next2 = Replace-Block $next '<!-- census:counts:begin -->' '<!-- census:counts:end -->' $mdCounts
-        if ($null -eq $next2) { Write-Warning 'census.md has no census:counts block; not updated' }
+        if ($null -eq $next2) { Write-Host 'CENSUS FAILED: census.md has no census:counts block' -ForegroundColor Red; exit 1 }
         else { [System.IO.File]::WriteAllText($censusMd, $next2, (New-Object System.Text.UTF8Encoding($false))) ; Write-Host "updated $censusMd" }
     }
 }

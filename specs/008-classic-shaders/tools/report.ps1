@@ -34,31 +34,43 @@ function Get-LastLine([string]$text) {
 }
 
 $gates = @(
-    [pscustomobject]@{ id = 'census';      name = 'Census drift';            file = 'census.ps1';               extra = @('-Verify'); expect = 'CENSUS OK' },
-    [pscustomobject]@{ id = 'resolver';    name = 'Resolver vectors';        file = 'resolver-conformance.ps1'; extra = @();          expect = 'RESOLVER VECTORS: 14/14' },
-    [pscustomobject]@{ id = 'integration'; name = 'Census-plan integration'; file = 'integration-check.ps1';    extra = @();          expect = 'INTEGRATION OK' },
-    [pscustomobject]@{ id = 'fuzz';        name = 'Resolver property test';  file = 'fuzz-resolver.ps1';        extra = @();          expect = 'FUZZ OK' },
-    [pscustomobject]@{ id = 'docs';        name = 'Anchors and links';       file = 'verify-docs.ps1';          extra = @();          expect = 'DOCS OK' },
-    [pscustomobject]@{ id = 'provenance';  name = 'Provenance gate';         file = 'provenance-check.ps1';     extra = @();          expect = 'PROVENANCE OK' }
+    [pscustomobject]@{ id = 'census';      name = 'Census drift';            file = 'census.ps1';               extra = @('-Verify'); expect = 'CENSUS OK';              floorPattern = '(\d+) entries';            floorMin = 18 },
+    [pscustomobject]@{ id = 'resolver';    name = 'Resolver vectors';        file = 'resolver-conformance.ps1'; extra = @();          expect = 'RESOLVER VECTORS: 14/14'; floorPattern = '(\d+)/(\d+) passed';       floorMin = 14 },
+    [pscustomobject]@{ id = 'integration'; name = 'Census-plan integration'; file = 'integration-check.ps1';    extra = @();          expect = 'INTEGRATION OK';         floorPattern = '(\d+) requests';           floorMin = 18 },
+    [pscustomobject]@{ id = 'fuzz';        name = 'Resolver property test';  file = 'fuzz-resolver.ps1';        extra = @();          expect = 'FUZZ OK';                floorPattern = '(\d+) distinct requests';  floorMin = 10000 },
+    [pscustomobject]@{ id = 'docs';        name = 'Anchors and links';       file = 'verify-docs.ps1';          extra = @();          expect = 'DOCS OK';                floorPattern = '(\d+) content assertions'; floorMin = 70 },
+    [pscustomobject]@{ id = 'provenance';  name = 'Provenance gate';         file = 'provenance-check.ps1';     extra = @();          expect = 'PROVENANCE OK';          floorPattern = '(\d+) tracked files';      floorMin = 100 }
 )
+
+# Delete the previous artifact first. Without this a gate that crashes before the report is written
+# leaves the previous all-green HTML at the documented evidence path, which reads as a current pass.
+if (Test-Path -LiteralPath $Out) { Remove-Item -LiteralPath $Out -Force }
 
 $results = New-Object System.Collections.ArrayList
 foreach ($g in $gates) {
     $path = Join-Path $scriptDir $g.file
     $psArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $path) + $g.extra
-    $output = & powershell @psArgs 2>&1 | Out-String
-    $code = $LASTEXITCODE
+    $code = 99
+    try {
+        $output = & powershell @psArgs 2>&1 | Out-String
+        $code = $LASTEXITCODE
+    } catch {
+        $output = "gate raised before producing a result: $($_.Exception.Message)"
+    }
     $marker = ($output -cmatch [regex]::Escape($g.expect))
     $note = ''
     if ($code -eq 0 -and -not $marker) { $note = "expected marker '$($g.expect)' missing" }
+    $floorOk = $false
+    if ($g.floorPattern -and ($output -match $g.floorPattern)) { $floorOk = ([int]$Matches[1] -ge [int]$g.floorMin) }
+    if ($code -eq 0 -and -not $floorOk) { $note = "$note; coverage floor not met ($($g.floorMin) via /$($g.floorPattern)/)" }
     $summary = Get-LastLine $output
-    if ($note) { $summary = "$summary [$note]" }
+    if ($note.Trim()) { $summary = "$summary [$note]" }
     [void]$results.Add([pscustomobject]@{
         id = $g.id
         name = $g.name
         command = ("powershell -NoProfile -ExecutionPolicy Bypass -File specs/008-classic-shaders/tools/$($g.file) " + ($g.extra -join ' ')).Trim()
         code = $code
-        pass = ($code -eq 0 -and $marker)
+        pass = ($code -eq 0 -and $marker -and $floorOk)
         summary = $summary
         output = $output.Trim()
     })
@@ -78,10 +90,26 @@ $contentAssertions = '?'
 $docsOut = ($results | Where-Object { $_.id -eq 'docs' }).output
 if ($docsOut -match '(\d+) content assertions') { $contentAssertions = $Matches[1] }
 
-$head = (git -C $repoRoot rev-parse --short HEAD).Trim()
-$sub = ((git -C $repoRoot submodule status doom3_orig/doom3) -split '\s+')[1]
-$null = git -C $repoRoot ls-files --error-unmatch specs/008-classic-shaders/spec.md 2>$null
-$pkgState = if ($LASTEXITCODE -eq 0) { 'tracked' } else { 'untracked' }
+# Metadata is cosmetic: a missing git checkout must not stop the report from being written, because a
+# stale all-green artifact left behind by an aborted run is worse than a report with 'unknown' in it.
+$head = 'unknown'
+$sub = 'unknown'
+$pkgState = 'unknown'
+try {
+    $h = (git -C $repoRoot rev-parse --short HEAD 2>$null | Out-String).Trim()
+    if ($LASTEXITCODE -eq 0 -and $h) { $head = $h }
+    $s = (git -C $repoRoot submodule status doom3_orig/doom3 2>$null | Out-String).Trim()
+    if ($LASTEXITCODE -eq 0 -and $s) {
+        $parts = $s -split '\s+'
+        if ($parts.Count -gt 1) { $sub = $parts[1] }
+    }
+    $null = git -C $repoRoot ls-files --error-unmatch specs/008-classic-shaders/spec.md 2>$null
+    $pkgState = if ($LASTEXITCODE -eq 0) { 'tracked' } else { 'untracked' }
+} catch {
+    $head = 'unavailable'
+    $sub = 'unavailable'
+    $pkgState = 'unknown'
+}
 $stamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss zzz'
 $passCount = @($results | Where-Object { $_.pass }).Count
 $gateCount = $results.Count
