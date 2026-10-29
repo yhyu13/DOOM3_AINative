@@ -9,7 +9,7 @@ The author self-review is `review-q1-self.md`. No claim is
 made for Q1, game parity, DXR, DLSS, WebGPU or a shipped renderer.
 
 Worktree: `feat/22-q1b-q1-rhi`, rebased onto `origin/main` at
-`29a1e37`; the previous `docs-22-q1b-fixture-contract` checkout at `964d358`
+`9f103e6` (T089), after the earlier `29a1e37` base; the previous `docs-22-q1b-fixture-contract` checkout at `964d358`
 was removed and not reused. One writer, one worktree, one build directory.
 
 ## Environment
@@ -189,6 +189,40 @@ inserted can still force a device quarantine (rare, no memory unsafety); view
 heaps are per submission; compute sizing is conservative; one uniform block per
 pass. These are recorded as Q2 work or accepted limits, not Q1 evidence.
 
+## T089 rebase and T030 re-run
+
+The branch was rebased onto `9f103e6` (T089, PR #42). The only code conflict
+was `rhi_d3d12.cpp`: the Q1b refactor moved the backend implementation into
+`d3d12_impl.h`, so T089's `AdapterFact` reporting was ported there
+(`reportedFacts = VendorId | DeviceId | DedicatedMemory`). T089's header
+changes and the Q1b declarations coexist; the Q1a suite still passes.
+
+Post-rebase verification: Debug and Release 17/17; contract and fixture
+validators 0; `git diff --check` 0.
+
+T030 was re-run on this machine after the rebase:
+
+```text
+DIAGNOSTICS validation=SKIPPED debug=SKIPPED gpu_validation=SKIPPED
+DIAGNOSTICS debug_detail=D3D12GetDebugInterface failed (hr=0x887A002D)
+DIAGNOSTICS gpu_validation_detail=D3D12GetDebugInterface (GPU-based validation) failed (hr=0x887A002D)
+DIAGNOSTICS_SUMMARY cases_pass=8 fail=0 skip=0 validation_executed=0
+```
+
+The debug layer and GPU-based validation still do not execute. T030 stays
+open; real device removal remains NOT RUN. Therefore T031 is not satisfied,
+even though its independent review is complete.
+
+### WebGPU mapping after the rebase
+
+T089's mapping gate reported 57/57 for the pre-Q1b header. The Q1b public
+declarations are not in `webgpu-mapping.md`; `validate-webgpu-mapping.py`
+now exits 1 with the new `ShaderModule`, pipeline, draw/compute, `BufferResult`
+and `Surface` declarations unmapped. This is a mapping/documentation gap, not
+a Q1b functional failure and not a WebGPU claim. A follow-up mapping update
+(T089b or the Q7a owner) is required before any Q7/WebGPU statement; merging
+this PR without it leaves that gate red.
+
 ## Fixture document validation
 
 `tests/renderer/q1b-fixtures.md` is the T022 worked-expectation document. It
@@ -217,7 +251,7 @@ first command.
 | T027 | PASS | Motion/validity, history reset and composition order |
 | T028 | PASS | Window surface, resize, minimize/restore, destroy, restart |
 | T029 | PASS | Declared accesses, pass order and invalid uses |
-| T030 | PARTIAL | All fixtures ran and fault-injected removal passes; debug layer and GPU-based validation are SKIPPED, so the task stays open |
+| T030 | PARTIAL | All fixtures ran and fault-injected removal passes; the post-T089 re-run still reports `0x887A002D` and `validation_executed=0`, so the task stays open |
 | T031 | REVIEW COMPLETE / NOT SATISFIED | Independent review of `35ce54e` in `review-q1.md`; T031 stays open because the debug layer and GPU-based validation do not execute |
 
 ## Limitations and open items
