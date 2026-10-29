@@ -1,0 +1,11 @@
+{
+  "schema": "doom3-q4-material-set/1",
+  "comment": "The Q4 set (spec 009 FR-005): the only definition of which materials require a sidecar. A .mtr outside this list stays valid without one, so retail and mod material text is not forced through the pipeline.",
+  "materials": [
+    {
+      "material": "hero_dielectric",
+      "mtr": "content/materials/hero_dielectric.mtr",
+      "cell": "opaque_dielectric"
+    }
+  ]
+}

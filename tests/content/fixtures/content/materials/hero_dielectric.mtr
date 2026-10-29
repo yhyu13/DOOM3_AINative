@@ -1,0 +1,11 @@
+// Fixture material for the content contract gate (spec 009, tests/content).
+// Not referenced by the engine; kept tiny so the Q4 pairing check has an .mtr to read.
+material hero_dielectric
+{
+    qer_editorimage content/hero/dielectric/hero_dielectric.png
+
+    {
+        blend diffusemap
+        map content/hero/dielectric/hero_dielectric.png
+    }
+}

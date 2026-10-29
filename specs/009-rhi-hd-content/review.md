@@ -138,3 +138,16 @@ the review is worth the cost for that alone.
 5. Is the 003-vs-004 conflict described as a conflict rather than resolved by assertion?
 6. Does anything commit a third-party byte or depend on the 006 corpus as evidence?
 7. Are the pinned encoder's version and hash reproducible from `pins.json` (once T-002 exists)?
+---
+
+## 6. Sign-off
+
+| Role | Who | Date | Scope | Result |
+|---|---|---|---|---|
+| Author | implementation workstream | 2026-10-29 | boundary, spec, plan, tasks, toolchain | self-review in §2.1 and §2.3 |
+| Independent reviewer | separate agent, not the author | 2026-10-29 | the specification package at `9f45509` | 21 findings, 3 blocking, all fixed before merge |
+| **Human sign-off** | repository owner | 2026-10-29 | spec 009, before implementation started | **approved to implement the content toolchain; Q4 captures stay BLOCKED** |
+
+The human sign-off covers the *specification*. It is not a review of the implementation PR, which needs
+its own reviewer under `docs/GIT_WORKFLOW.md` (reviewer is never the author). The capture stage remains
+`BLOCKED` by the same sign-off: no Q4 renderer exists, so nothing may claim a capture.

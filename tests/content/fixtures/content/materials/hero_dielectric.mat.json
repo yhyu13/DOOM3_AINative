@@ -1,0 +1,41 @@
+{
+  "schema": "doom3-material-sidecar/1",
+  "material": "hero_dielectric",
+  "mtr": "content/materials/hero_dielectric.mtr",
+  "channels": {
+    "baseColor": {
+      "state": "authored",
+      "path": "content/hero/dielectric/hero_dielectric.png",
+      "format": "PNG",
+      "srgb": true
+    },
+    "normal": {
+      "state": "derived:height-to-normal",
+      "path": "content/hero/dielectric/hero_dielectric.png",
+      "format": "PNG",
+      "srgb": false
+    },
+    "roughness": {
+      "state": "authored",
+      "path": "content/hero/dielectric/hero_dielectric.png",
+      "format": "PNG",
+      "srgb": false
+    },
+    "metalness": {
+      "state": "unavailable",
+      "why": "The fixture is a dielectric; metalness is deliberately not authored."
+    },
+    "ao": {
+      "state": "authored",
+      "path": "content/hero/dielectric/hero_dielectric.png",
+      "format": "PNG",
+      "srgb": false
+    },
+    "emissive": {
+      "state": "authored",
+      "path": "content/hero/dielectric/hero_dielectric.png",
+      "format": "PNG",
+      "srgb": true
+    }
+  }
+}

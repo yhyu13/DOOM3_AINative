@@ -1,0 +1,15 @@
+{
+  "schema": "doom3-q4-budget-rows/1",
+  "comment": "Budget rows for the seven C-12 cells (spec 009 FR-012). A row is {task, artifact, state}. Nothing here is a number: the numbers come from spec 004's measurement task, and until that measurement exists the row is `blocked` with the reason. A citation without an artifact is not a pass.",
+  "measurementTask": "T056",
+  "measurementSource": "specs/004-quality-renderer/plan.md:87",
+  "rows": [
+    { "cell": "opaque_dielectric", "task": "T056", "artifact": null, "state": "blocked: spec 004 has not reached Q4, so no VRAM or load-time measurement exists" },
+    { "cell": "opaque_metal", "task": "T056", "artifact": null, "state": "blocked: spec 004 has not reached Q4" },
+    { "cell": "alpha_tested", "task": "T056", "artifact": null, "state": "blocked: spec 004 has not reached Q4" },
+    { "cell": "emissive", "task": "T056", "artifact": null, "state": "blocked: spec 004 has not reached Q4" },
+    { "cell": "skinned_character", "task": "T056", "artifact": null, "state": "blocked: spec 004 has not reached Q4" },
+    { "cell": "transmissive_glass", "task": "T056", "artifact": null, "state": "blocked: spec 004 has not reached Q4" },
+    { "cell": "large_environment", "task": "T056", "artifact": null, "state": "blocked: spec 004 has not reached Q4" }
+  ]
+}

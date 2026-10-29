@@ -1,0 +1,14 @@
+{
+  "schema": "doom3-provenance/1",
+  "material": "dielectric",
+  "assets": [
+    {
+      "id": "hero_dielectric_basecolor",
+      "path": "hero_dielectric.png",
+      "sha256": "__PNG_SHA256__",
+      "author": "Fixture Author",
+      "licence": "CC0-1.0",
+      "retail_text_consulted": "no"
+    }
+  ]
+}
