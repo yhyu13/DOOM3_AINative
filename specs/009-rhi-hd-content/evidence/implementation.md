@@ -64,10 +64,17 @@ SKIPPED: corpus verification (no staged pack)
 VALIDATE OK: 3 hero files, 1 sidecars, 1 Q4 materials, 1 packs (1 absent)
 ```
 
+This is the **tracked-mode** run (`git ls-files` is consulted). An earlier version of the gate scanned
+binary files as text in tracked mode and went red on the committed PNGs; that is fixed (binary
+extensions are skipped, `.mtr` and `.ps1` are now scanned instead of excluded), and the output above is
+from the fixed gate on the committed tree at the merge commit of this PR.
+
 The gate runs ten checks: tracked packs, the `hero/**` extension allowlist, provenance records with
-reproduced hashes, the CC0 licence file, the 2048 px cap, the pack denylist, sidecar schema and channel
-states, `.mtr` pairing through the Q4 set, the corpus manifest, and path/credential hygiene. A missing
-corpus is `SKIPPED`, never a pass (FR-014).
+`id`, `inputs` and reproduced hashes, the CC0 1.0 licence file, the 2048 px cap plus square and
+multiple-of-4, the pack denylist, sidecar schema, channel states and pinned formats, `.mtr` pairing
+through the Q4 set (cell ids validated against C-12), the corpus manifest (a staged pack is hash- and
+size-checked, not just found), and path/credential hygiene. A missing corpus is `SKIPPED`, never a pass
+(FR-014).
 
 ### 3.1 Six negative controls (T-006)
 
@@ -116,6 +123,7 @@ Controls:
 |---|---|
 | wrong layout (`rgb` on an RXGB image) | `VERIFY FAILED: max channel error 217 > 2` |
 | wrong expected image | `VERIFY FAILED: max channel error 255 > 2` |
+| no `-Layout` argument | the parameter is mandatory; the script refuses to run |
 
 **Caveat, stated rather than buried**: the `rxgb` arrangement (x in alpha, y in red, z reconstructed) is
 the project's declared convention. It is **not** verified against an authorized retail sample; that is
@@ -154,6 +162,8 @@ Mutation controls (each must fail, and does):
 | change the recorded mip count | `texture-mips-mismatch` |
 | change the recorded format | `texture-format-mismatch` |
 | `-Compare` against a directory with one changed texture | `compare-texture-sha256-mismatch` |
+| `-Compare` pointed at `-OutDir` | `compare-same-directory` (a package compared with itself is not a determinism test) |
+| a normal channel without `handedness` | `channel-handedness-missing` |
 
 The builder also refuses an out-dir inside a tracked path, a non-square source, a source whose axis is
 not a multiple of 4, a material that is not in the Q4 set, and a sidecar whose `.mtr` disagrees — each

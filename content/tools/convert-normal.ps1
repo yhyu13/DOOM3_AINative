@@ -11,7 +11,7 @@
 
     rxgb      x = alpha, y = red, z = sqrt(1 - x^2 - y^2)      (the classic RXGB arrangement)
     rgb       x = red,   y = green, z = sqrt(1 - x^2 - y^2)
-    directx   x = red,   y = green, z = blue, then y is negated (DirectX -Y up -> OpenGL +Y up)
+    directx   x = red,   y = green negated (DirectX -Y up -> OpenGL +Y up), z reconstructed
 
   The `rxgb` arrangement is the project's documented convention, NOT verified against an authorized
   retail sample (spec 009 open question 6). Verifying it is a separate review, and this tool says so
@@ -28,7 +28,7 @@
 param(
     [Parameter(Mandatory = $true)][string]$Source,
     [Parameter(Mandatory = $true)][string]$Output,
-    [ValidateSet('rxgb', 'rgb', 'directx')][string]$Layout = 'rxgb',
+    [Parameter(Mandatory = $true)][ValidateSet('rxgb', 'rgb', 'directx')][string]$Layout,
     [string]$Verify,
     [int]$Tolerance = 2
 )

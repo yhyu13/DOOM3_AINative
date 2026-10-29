@@ -30,7 +30,7 @@ Set-StrictMode -Version 2.0
 
 $repo = Get-RepoRoot -Start $PSScriptRoot
 if (-not $DenylistOut) { $DenylistOut = Join-Path $repo 'content\manifest\pack-denylist.json' }
-if (-not $InventoryOut) { $InventoryOut = Join-Path $repo 'content\manifest\pack-inventory.json' }
+if (-not $InventoryOut) { $InventoryOut = Join-Path $repo 'out\content\pack-inventory.json' }
 
 if (-not $Pack) {
     Write-Host 'SKIPPED: no -Pack given; the corpus is not staged on this host (FR-014)'

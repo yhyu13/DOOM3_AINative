@@ -165,6 +165,29 @@ if (-not $Denylist) {
 }
 $script:DenylistPath = [System.IO.Path]::GetFullPath($Denylist)
 
+# Pinned encoder formats, so a sidecar cannot claim a format the builder will not produce.
+$script:PinFormats = @{}
+$pinsPath = Join-Path $PSScriptRoot 'pins.json'
+if (Test-Path -LiteralPath $pinsPath -PathType Leaf) {
+    try {
+        $pins = Get-Content -LiteralPath $pinsPath -Raw | ConvertFrom-Json
+        foreach ($channelName in @('baseColor', 'normal', 'roughness', 'metalness', 'ao', 'emissive')) {
+            $flags = @($pins.encoderFlags.$channelName)
+            $formatIndex = [array]::IndexOf($flags, '-f')
+            if ($formatIndex -ge 0 -and ($formatIndex + 1) -lt $flags.Count) {
+                $script:PinFormats[$channelName] = $flags[$formatIndex + 1]
+            }
+        }
+    } catch {
+        Stop-Environment "cannot read pins.json: $($_.Exception.Message)"
+    }
+}
+
+# The seven C-12 cells, and which material claims each. A typo must fail rather than silently drop a
+# cell from the matrix.
+$script:CellIds = @('opaque_dielectric', 'opaque_metal', 'alpha_tested', 'emissive', 'skinned_character', 'transmissive_glass', 'large_environment')
+$script:CellSeen = @{}
+
 # --- Check 1: tracked pack files ----------------------------------------------
 
 if (-not $SkipTracked) {
@@ -262,6 +285,19 @@ foreach ($heroDir in $heroDirs) {
         if ($consulted -ne 'yes' -and $consulted -ne 'no') {
             Add-Violation "$provRel`: $label retail_text_consulted must be 'yes' or 'no'"
         }
+        if (-not (Test-NonEmptyString (Get-Prop $record 'id'))) {
+            Add-Violation "$provRel`: $label lacks 'id' (FR-001 needs a stable record identity)"
+        }
+        $inputs = @(Get-Prop $record 'inputs' @())
+        if ($inputs.Count -eq 0) {
+            Add-Violation "$provRel`: $label has no 'inputs'; an asset must name the source it was authored from"
+        } else {
+            foreach ($entry in $inputs) {
+                if (-not (Test-NonEmptyString $entry)) {
+                    Add-Violation "$provRel`: $label has an empty inputs entry"
+                }
+            }
+        }
         if (Test-NonEmptyString $recordPath) {
             $key = ($recordPath -replace '\\', '/').ToLowerInvariant()
             if ($key.StartsWith('./')) { $key = $key.Substring(2) }
@@ -299,15 +335,17 @@ foreach ($heroDir in $heroDirs) {
         continue
     }
     $licenceText = [System.IO.File]::ReadAllText($licencePath)
-    if ($licenceText -notmatch 'CC0') {
-        Add-Violation "$(Get-DisplayPath $licencePath): LICENSE does not declare CC0"
+    # A bare substring would accept "this is not CC0"; require the declaration itself.
+    if ($licenceText -notmatch 'CC0\s*1\.0') {
+        Add-Violation "$(Get-DisplayPath $licencePath): LICENSE does not declare CC0 1.0"
     }
 }
 
 # Check 5: size. Dimensions come from Pillow, never from a hand-written PNG parser.
 foreach ($heroFile in $heroFiles) {
     if ($heroFile.Extension -ieq '.exr') {
-        Write-Host "SKIPPED: dimension check not implemented for $(Get-DisplayPath $heroFile.FullName)"
+        # Fail closed: an unchecked dimension is not an acceptable gap for a committed asset.
+        Add-Violation "$(Get-DisplayPath $heroFile.FullName): .exr sources are not supported by the dimension check yet; use .png"
     }
 }
 $pngFiles = @($heroFiles | Where-Object { $_.Extension -ieq '.png' })
@@ -369,6 +407,12 @@ print(json.dumps(rows))
             $height = [int](Get-Prop $row 'height' 0)
             if ($width -gt 2048 -or $height -gt 2048) {
                 Add-Violation "$(Get-DisplayPath $rowPath): ${width}x${height} exceeds 2048 px on an axis"
+            }
+            if ($width -ne $height) {
+                Add-Violation "$(Get-DisplayPath $rowPath): ${width}x${height} is not square"
+            }
+            if (($width % 4) -ne 0 -or ($height % 4) -ne 0) {
+                Add-Violation "$(Get-DisplayPath $rowPath): ${width}x${height} is not a multiple of 4 on both axes (block compression needs it)"
             }
         }
     } finally {
@@ -468,8 +512,13 @@ foreach ($sidecar in $sidecars) {
             } elseif (-not (Test-Path -LiteralPath (Join-Path $script:RepoRoot ($channelPath -replace '/', '\')) -PathType Leaf)) {
                 Add-Violation "$sidecarRel`: channel $channelName path does not exist: '$channelPath'"
             }
-            if (-not (Test-NonEmptyString (Get-Prop $channel 'format'))) {
+            $declaredFormat = Get-Prop $channel 'format'
+            if (-not (Test-NonEmptyString $declaredFormat)) {
                 Add-Violation "$sidecarRel`: channel $channelName has no format"
+            } elseif ($script:PinFormats.ContainsKey($channelName) -and $script:PinFormats[$channelName] -and $declaredFormat -ne $script:PinFormats[$channelName]) {
+                # The builder encodes with the pinned flags, so a sidecar that claims another format would
+                # be a claim the package contradicts. Compare against the pin, not against the builder.
+                Add-Violation "$sidecarRel`: channel $channelName declares format '$declaredFormat' but the pinned encoder produces '$($script:PinFormats[$channelName])'"
             }
             $srgb = Get-Prop $channel 'srgb'
             if (-not ($srgb -is [bool])) {
@@ -519,8 +568,15 @@ if (-not (Test-Path -LiteralPath $q4Path -PathType Leaf)) {
                 Add-Violation "$q4Rel`: entry lacks material"
                 continue
             }
-            if (-not (Test-NonEmptyString (Get-Prop $entry 'cell'))) {
+            $cell = Get-Prop $entry 'cell'
+            if (-not (Test-NonEmptyString $cell)) {
                 Add-Violation "$q4Rel`: entry '$name' lacks cell"
+            } elseif ($script:CellIds -notcontains $cell) {
+                Add-Violation "$q4Rel`: entry '$name' has cell '$cell', which is not one of the seven C-12 cells"
+            } elseif ($script:CellSeen.ContainsKey($cell)) {
+                Add-Violation "$q4Rel`: cell '$cell' is claimed by both '$($script:CellSeen[$cell])' and '$name'"
+            } else {
+                $script:CellSeen[$cell] = $name
             }
             if (-not (Test-NonEmptyString $mtr) -or -not (Test-RepoRelativePath -RelativePath $mtr)) {
                 Add-Violation "$q4Rel`: entry '$name' mtr must be a repo-relative path"
@@ -550,7 +606,9 @@ if (-not (Test-Path -LiteralPath $q4Path -PathType Leaf)) {
             Where-Object { Test-NonEmptyString $_ } | ForEach-Object { $_.ToLowerInvariant() })
         foreach ($materialKey in $sidecarByMaterial.Keys) {
             if ($setNames -notcontains $materialKey) {
-                Add-Violation "$($sidecarByMaterial[$materialKey].Rel): material '$materialKey' is not in the Q4 set ($q4Rel)"
+                # Not a violation: FR-005 makes a sidecar mandatory for Q4 materials, it does not forbid one
+            # for another material. It is still worth saying out loud, because such a sidecar is inert.
+            Write-Host "WARNING: $($sidecarByMaterial[$materialKey].Rel): material '$materialKey' is not in the Q4 set; its sidecar is inert"
             }
         }
     }
@@ -609,10 +667,25 @@ if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
             if ($state -eq 'staged') {
                 $stagedCount++
                 $contentDir = $env:D3_CONTENT_DIR
+                $stagedPath = if (Test-NonEmptyString $contentDir) { Join-Path $contentDir $name } else { '' }
                 if (-not (Test-NonEmptyString $contentDir)) {
                     Add-Violation "pack '$name': state is staged but D3_CONTENT_DIR is not set"
-                } elseif (-not (Test-Path -LiteralPath (Join-Path $contentDir $name) -PathType Leaf)) {
+                } elseif (-not (Test-Path -LiteralPath $stagedPath -PathType Leaf)) {
                     Add-Violation "pack '$name': state is staged but the file is absent under D3_CONTENT_DIR"
+                } else {
+                    # Existence is not enough: a renamed or truncated pack would otherwise pass while the
+                    # manifest claims a size and a hash. FR-002 says the hashes are verified.
+                    $actualBytes = (Get-Item -LiteralPath $stagedPath).Length
+                    $declaredBytes = Get-Prop $pack 'bytes'
+                    if ($actualBytes -ne $declaredBytes) {
+                        Add-Violation "pack '$name': staged file is $actualBytes bytes, the manifest declares $declaredBytes"
+                    }
+                    $actualHash = (Get-FileHash -LiteralPath $stagedPath -Algorithm SHA256).Hash.ToLowerInvariant()
+                    $declaredHash = Get-Prop $pack 'sha256'
+                    if ($actualHash -ne $declaredHash) {
+                        Add-Violation "pack '$name': staged file hashes to $actualHash, the manifest declares $declaredHash"
+                    }
+                    Write-Host "VERIFIED: pack '$name' matches its manifest size and hash"
                 }
             } else {
                 $script:PackAbsentCount++
@@ -641,20 +714,29 @@ $hygienePatterns = @(
     @{ Name = 'absolute-unix-path'; Pattern = '/Users/|/home/' },
     @{ Name = 'private-key-block'; Pattern = '-----BEGIN' },
     @{ Name = 'aws-access-key-id'; Pattern = 'AKIA[0-9A-Z]{16}' },
-    @{ Name = 'github-token'; Pattern = 'ghp_[A-Za-z0-9]{20,}' }
+    @{ Name = 'github-token'; Pattern = 'ghp_[A-Za-z0-9]{20,}' },
+    @{ Name = 'credential-assignment'; Pattern = '(?i)\b(api[_-]?key|secret|password|passwd|access[_-]?token|client[_-]?secret)\b\s*[:=]\s*"[^"]{8,}"' }
 )
-$binaryExtensions = '^\.(png|exr|dds|tga|jpg|jpeg|pk4|pk3|pak|exe|dll|bin|zip|gz)$'
+# Binary files must never be searched as text in either mode: a PNG's compressed bytes can contain a
+# byte sequence that looks like "C:\", which produced a false positive on the committed tree. Text
+# extensions are searched, including .mtr and .ps1, because a machine path or a token in a script is
+# exactly what FR-016 forbids.
+$binaryExtensions = '^\.(png|exr|dds|tga|jpg|jpeg|gif|pk4|pk3|pak|exe|dll|lib|so|bin|zip|gz|7z|pdf|woff2?|ttf)$'
 $hygieneFiles = @()
 if ($script:TrackedMode) {
     foreach ($trackedFile in $script:TrackedFiles) {
         if (-not $trackedFile.StartsWith('content/', [System.StringComparison]::OrdinalIgnoreCase)) { continue }
-        if ($trackedFile -match '\.(ps1|mtr)$') { continue }
+        # Self-exemption: this file holds the pattern table itself, so scanning it would always match.
+        # Every other script under content/ is scanned; a secret in this one is a review matter.
+        if ($trackedFile -ieq 'content/tools/validate.ps1') { continue }
+        $ext = [System.IO.Path]::GetExtension($trackedFile).ToLowerInvariant()
+        if ($ext -match $binaryExtensions) { continue }
         $full = Join-Path $script:RepoRoot ($trackedFile -replace '/', '\')
         if (Test-Path -LiteralPath $full -PathType Leaf) { $hygieneFiles += $full }
     }
 } else {
     foreach ($file in (Get-ChildItem -LiteralPath $script:ContentRoot -File -Recurse -Force)) {
-        if ($file.Extension -match '^\.(ps1|mtr)$') { continue }
+        if ($file.FullName -ieq $PSCommandPath) { continue }
         if ($file.Extension -match $binaryExtensions) { continue }
         $hygieneFiles += $file.FullName
     }

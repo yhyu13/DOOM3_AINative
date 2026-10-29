@@ -31,10 +31,11 @@ powershell -NoProfile -File content/tools/convert-normal.ps1 `
   -Output out/content-test/golden-linear.png `
   -Layout rxgb -Verify tests/content/fixtures/golden-linear.png -Tolerance 2
 
-# 3. build one material into a package
+# 3. build one material twice, into separate directories
 powershell -NoProfile -File content/tools/build-material.ps1 -Material hero_dielectric -OutDir out/content/hero_dielectric
+powershell -NoProfile -File content/tools/build-material.ps1 -Material hero_dielectric -OutDir out/content-test/hero_dielectric-b
 
-# 4. verify it, including determinism against a second build
+# 4. verify it, and prove the two builds are byte-identical (a same-directory compare is rejected)
 powershell -NoProfile -File content/tools/verify-package.ps1 -OutDir out/content/hero_dielectric -Compare out/content-test/hero_dielectric-b
 
 # 5. the seven-cell matrix
@@ -50,8 +51,8 @@ powershell -NoProfile -File content/tools/capture-q4.ps1 -Material hero_dielectr
 
 - formats are fixed by `content/tools/pins.json` (`encoderFlags`), never by the builder;
 - every texture records format, dimensions, mip count, sRGB flag and SHA-256;
-- `package_sha256` is the SHA-256 of the sorted sidecar/`.mtr`/texture hashes, so a rebuild that changes
-  nothing produces the same value and a change cannot hide;
+- `package_sha256` is the SHA-256 of the sidecar, the `.mtr` and every texture hash in channel-name order, so a rebuild that changes
+  nothing produces the same value, and a change is visible against a second independent build (comparing a package with itself is refused);
 - the toolchain versions that produced it are recorded, so a Pillow upgrade is visible instead of silent.
 
 ## Authoring a new material

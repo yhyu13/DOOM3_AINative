@@ -68,7 +68,7 @@ function Get-FullPath {
         $Path = Join-Path (Get-Location).ProviderPath $Path
     }
     $full = [System.IO.Path]::GetFullPath($Path)
-    # Keep a drive root ("D:\") intact, trim the trailing separator from everything else.
+    # Keep a root path intact (a bare drive or a leading separator), trim the trailing separator otherwise.
     $root = [System.IO.Path]::GetPathRoot($full)
     if ($full.Length -gt $root.Length) { $full = $full.TrimEnd('\') }
     return $full
@@ -281,6 +281,17 @@ foreach ($name in $script:ChannelNames) {
     }
     if (-not (Test-RepoRelativePath -RelativePath $relative)) {
         Write-Failure 1 'channel-path-invalid' "channel '$name' path '$relative' is not a repository-relative path"
+    }
+    if ($name -eq 'normal') {
+        # Spec edge case: a normal map's handedness is not inferable from the image, so an undeclared
+        # one would be a silent axis flip. Require it here rather than hoping the renderer guesses.
+        $handedness = [string](Get-JsonField $node 'handedness')
+        if ([string]::IsNullOrWhiteSpace($handedness)) {
+            Write-Failure 1 'channel-handedness-missing' "channel 'normal' is $kind but declares no handedness (opengl or directx)"
+        }
+        if ($handedness -cne 'opengl' -and $handedness -cne 'directx') {
+            Write-Failure 1 'channel-handedness-invalid' "channel 'normal' handedness '$handedness' is neither opengl nor directx"
+        }
     }
     $full = Resolve-RepoPath -RepoRoot $RepoRoot -RelativePath $relative
     if (-not (Test-Path -LiteralPath $full)) {

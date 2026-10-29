@@ -33,7 +33,7 @@ independent review of this implementation.
 
 | Id | Task | Status | Acceptance / evidence |
 |---|---|---|---|
-| T-001 | Create `content/{hero,materials,manifest,tools}` and `tests/content/fixtures`; add `content/README.md` stating C-01a/C-01b in one screen. No `.gitignore` edit is needed: the root file already ignores `out/` and any `.cache/` directory | DONE | `git check-ignore -v content/tools/.cache/x` resolves; `git ls-files content` shows no binary (`content/{hero,materials,manifest,tools}`, `tests/content/fixtures` and `content/README.md` created; the root `.gitignore` already ignores `out/` and any `.cache/`, so no edit was needed) |
+| T-001 | Create `content/{hero,materials,manifest,tools}` and `tests/content/fixtures`; add `content/README.md` stating C-01a/C-01b in one screen. No `.gitignore` edit is needed: the root file already ignores `out/` and any `.cache/` directory | DONE | `git check-ignore -v content/tools/.cache/x` resolves; `git ls-files content` shows no pack and no build product (authored PNGs are allowed by C-01b) (`content/{hero,materials,manifest,tools}`, `tests/content/fixtures` and `content/README.md` created; the root `.gitignore` already ignores `out/` and any `.cache/`, so no edit was needed) |
 | T-002 | Pin the encoder: `content/tools/pins.json` + `get-encoder.ps1` (download, SHA-256 verify, version check, fail closed) | DONE | `get-encoder.ps1` prints `ENCODER OK` and the version; a wrong hash exits 3. Pre-verified ad hoc on 2026-10-29: `texconv` 2026.5.8.1, 966,480 B, sha256 `DCFDEC10…5EEF06`, BC7 probe produced a 260-byte DX10 DDS (`get-encoder.ps1` -> `ENCODER OK: texconv 2026.5.8.1, 966480 bytes, sha256 dcfdec10...`; a wrong-pin control exits non-zero with `encoder hash mismatch`) |
 
 ---

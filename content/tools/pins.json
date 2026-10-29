@@ -26,6 +26,6 @@
     "observedVersion": "3.14.4",
     "pillowObserved": "12.3.0",
     "pinFile": "content/tools/requirements-content.txt",
-    "status": "observed, not pinned: the requirements pin lands with T-013 and every package records the versions it used"
+    "status": "pinned by content/tools/requirements-content.txt (Pillow==12.3.0); the observed version on the authoring host is recorded here and every package records the versions it actually used"
   }
 }

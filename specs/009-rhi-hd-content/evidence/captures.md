@@ -27,14 +27,18 @@ Spec 006's HD result is a **legacy OpenGL** result and is not Q4 evidence. Two g
 workstream did not inherit it:
 
 ```text
-$ git grep -n "HdTextures" -- specs/009-rhi-hd-content content
-(no output)
-$ git grep -n "image_usePrecompressedTextures" -- specs/009-rhi-hd-content content
-content/README.md:... (one mention, in the "not allowed" list, not a dependency)
+$ git grep -n "HdTextures" -- content
+(no output: no script or asset under content/ depends on the legacy switch)
+
+$ git grep -n "image_usePrecompressedTextures" -- content
+(no output: no pipeline step forces the legacy texture path)
+
+$ git grep -n "HdTextures" -- specs/009-rhi-hd-content/evidence
+specs/009-rhi-hd-content/evidence/captures.md: <this file, describing the rule>
 ```
 
-The second match is documentation: the README lists the cvar as something the pipeline must not depend
-on. No script references it.
+The prose documents the rule; the commands prove the pipeline does not depend on it. Earlier versions of
+this file quoted a grep over `specs/` as well, which matched the prose itself and proved nothing.
 
 ## What would change this file
 

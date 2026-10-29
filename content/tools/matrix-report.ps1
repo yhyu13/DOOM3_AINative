@@ -62,20 +62,43 @@ foreach ($cell in $cells) {
         }
     }
 
+    # A budget row is valid only as one of two things: a recorded measurement with an artefact, or an
+    # explicit blocked reason. "Some string plus an artifact" is not a measurement.
     $budget = @($budgets.rows | Where-Object { $_.cell -eq $cell.id })
-    if ($budget.Count -eq 0) { $budgetState = 'MISSING ROW'; $missing++ }
-    elseif ($budget[0].state -like 'blocked:*') { $budgetState = $budget[0].state }
-    elseif ($budget[0].artifact) { $budgetState = "recorded ($($budget[0].task))" }
-    else { $budgetState = 'INVALID (no artifact)'; $missing++ }
+    $budgetValid = $false
+    if ($budget.Count -eq 0) { $budgetState = 'MISSING ROW' }
+    elseif ($budget.Count -gt 1) { $budgetState = 'DUPLICATE ROW' }
+    elseif ($budget[0].state -like 'blocked:*') {
+        $budgetState = $budget[0].state
+        $budgetValid = ($budget[0].state.Length -gt 8)
+    } elseif ($budget[0].state -eq 'recorded' -and $budget[0].artifact) {
+        $budgetState = "recorded ($($budget[0].task))"
+        $budgetValid = $true
+    } else {
+        $budgetState = "INVALID (state '$($budget[0].state)')"
+    }
+    if (-not $budgetValid) { $missing++ }
 
     if (-not $hasSidecar) { $missing++ }
+
+    # Capture state comes from an artefact the capture stage would write, never from a hard-coded string:
+    # a hard-coded BLOCKED would keep saying BLOCKED after a capture landed.
+    $capturePath = if ($material) { Join-Path $OutDir "$material\capture.json" } else { '' }
+    if ($capturePath -and (Test-Path -LiteralPath $capturePath)) {
+        try {
+            $cap = Read-Json $capturePath
+            $captureState = "captured ($($cap.backend) / $($cap.adapter))"
+        } catch { $captureState = 'INVALID capture.json' }
+    } else {
+        $captureState = 'BLOCKED: spec 004 has not reached Q4'
+    }
 
     $rows += [pscustomobject]@{
         Cell     = $cell.label
         Material = if ($material) { $material } else { '-' }
         Sidecar  = if ($hasSidecar) { 'yes' } else { 'NOT AUTHORED' }
         Package  = $packageState
-        Capture  = 'BLOCKED: spec 004 has not reached Q4'
+        Capture  = $captureState
         Budget   = $budgetState
     }
 }
@@ -108,6 +131,20 @@ if ($RequireComplete) {
     if ($bad.Count -gt 0) {
         Write-Host "MATRIX INCOMPLETE: $($bad.Count) cell(s) without a built package" -ForegroundColor Red
         exit 1
+    }
+    $badBudget = @($rows | Where-Object { $_.Budget -like 'INVALID*' -or $_.Budget -eq 'MISSING ROW' -or $_.Budget -eq 'DUPLICATE ROW' })
+    if ($badBudget.Count -gt 0) {
+        Write-Host "MATRIX INCOMPLETE: $($badBudget.Count) cell(s) without a valid budget row" -ForegroundColor Red
+        exit 1
+    }
+    # "Built" is not "verified": run the verifier for each material rather than trusting a file's name.
+    $verifyScript = Join-Path $PSScriptRoot 'verify-package.ps1'
+    foreach ($r in ($rows | Where-Object { $_.Material -ne '-' })) {
+        & powershell -NoProfile -ExecutionPolicy Bypass -File $verifyScript -OutDir (Join-Path $OutDir $r.Material) -RepoRoot $repo | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "MATRIX INCOMPLETE: package for '$($r.Material)' does not verify" -ForegroundColor Red
+            exit 1
+        }
     }
 }
 exit 0

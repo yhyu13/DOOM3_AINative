@@ -281,6 +281,11 @@ if ([string]::IsNullOrWhiteSpace($Compare)) {
 }
 
 $compareDir = Get-FullPath $Compare
+# Comparing a package with itself is not a determinism test: it would always pass. A real check needs a
+# second, independent build.
+if ($compareDir.TrimEnd([char[]]@('\', '/')) -ieq (Get-FullPath $OutDir).TrimEnd([char[]]@('\', '/'))) {
+    Write-Failure 'compare-same-directory' "-Compare must point at a second build, not at -OutDir"
+}
 $secondary = Invoke-PackageChecks -Dir $compareDir -Label 'compare-' -RepoRoot $RepoRoot
 
 if ($primary.material -cne $secondary.material) {

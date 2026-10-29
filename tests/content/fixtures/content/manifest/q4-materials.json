@@ -4,7 +4,7 @@
     {
       "material": "hero_dielectric",
       "mtr": "content/materials/hero_dielectric.mtr",
-      "cell": "opaque-dielectric"
+      "cell": "opaque_dielectric"
     }
   ]
 }
