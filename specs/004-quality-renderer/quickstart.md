@@ -1,6 +1,6 @@
 # Quickstart: Quality-first rendering
 
-**Status**: Planning guide. The standalone RHI source, test project and test names below do not exist until their implementation tasks are completed. The commands labeled **planned** are not evidence that a build or GPU test passed.
+**Status**: Planning guide plus the executed Q1a and Q7a commands. The standalone RHI source and test project exist (`src/renderer/rhi`, `src/renderer/d3d12`, `tests/renderer`), and `tests/webgpu` holds the Q7a spike. A command here is evidence only when its own recorded output exists.
 
 ## Safety and prerequisites
 
@@ -39,7 +39,7 @@ Retain complete command output and each exit code in a fresh worktree-local igno
 
 A different reviewer must inspect and record, in the authorized issue/PR review record: (1) every matrix row's capability, tier, explicit selectable fallback/unsupported and target evidence; (2) binding-group/index mapping and limits, conservative render/compute usage scopes, ordering, backend-proven retirement distinct from error/loss observation, async readback and native-lease lifetime, including Q1a's state/fence/diagnostic gates; (3) shader provenance, permissions and per-target compilation/execution; (4) the proposed T013 canonical expected-row integrity and per-byte tolerance policy; (5) T041–T047 and T085 before Q3 review, and the conditional T086 provider branch; and (6) the evidence template's identity, permissions, commands/exits, thresholds, result distinctions, exclusions and independent-review fields, plus the validator output and limitations. Record reviewer identity, decision and each unresolved item. A successful structural command is not this review and cannot mark T004 or T005 complete.
 
-## Q1a — Standalone RHI fixture (planned)
+## Q1a — Standalone RHI fixture (implemented; see `evidence-q1a.md`)
 
 From the dedicated implementation worktree, discover the VS-bundled tools and configure a new directory. The source paths below are planned in [plan.md](./plan.md); adjust only after their implementation lands. Select an installation that actually has the C++ tools, a bundled CMake of at least 3.21 and CTest; do not assume the newest `vswhere -latest` result qualifies.
 
@@ -89,6 +89,28 @@ For test-driven development, capture a real failing assertion before each code c
 
 Follow the existing [native target documentation](../../targets/win11-amd64/README.md), but first apply the refusal-first flags above and use an explicit executable, dedicated output directory and legally supplied data. Record source/submodule and patch identities, build command, GPU/driver, data identity and the four scene categories specified in [spec.md](./spec.md). Missing data, counters or capture prerequisites produce SKIPPED, not PASS. Historical screenshots and earlier save/demo fixes are not a fresh run.
 
+## Q7a — WebGPU mapping gate and conformance spike (executed 2026-10-29)
+
+From this issue's own worktree, with Node and an installed Chrome or Edge:
+
+```powershell
+node tests/webgpu/run-conformance.mjs --repeat 2 --out build/webgpu-q7a
+if ($LASTEXITCODE -ne 0) { throw "WebGPU conformance failed: $LASTEXITCODE" }
+py -3 -I scripts/validate-webgpu-mapping.py
+if ($LASTEXITCODE -ne 0) { throw "Mapping gate failed: $LASTEXITCODE" }
+py -3 -I scripts/validate-webgpu-mapping.py --self-test
+py -3 -I scripts/test-validate-webgpu-mapping.py
+py -3 -I scripts/validate-rhi-contract.py
+py -3 -I scripts/validate-rhi-contract.py --self-test
+```
+
+The runner serves `tests/webgpu` on `127.0.0.1` because `navigator.gpu` needs a secure context,
+launches the discovered browser headlessly over the DevTools protocol, and fails unless every
+required check passes on every repetition and the page echoes the per-run nonce. It writes
+`results.json`, `conformance.png` and `run.log`; add `--evidence specs/004-quality-renderer/evidence`
+to refresh the tracked artifacts. The Emscripten encoder leg stays NOT RUN until an authorized
+toolchain is recorded; do not download one to turn a gate green.
+
 ## Later gate checks
 
 - **Q1b/Q1**: Extend the fixture to draw/compute/MRT/depth/velocity/overlay and resize/history/lifetime tests. The full gate requires the debug layer and GPU-based validation to have actually run with zero unwaived errors.
@@ -97,4 +119,4 @@ Follow the existing [native target documentation](../../targets/win11-amd64/READ
 - **Q5**: Separately test the complete off path and observe clean default configure, build **and run** for attempted NVIDIA downloads (including failed/blocked attempts and child processes); inspect linked/bundled components independently. Record the observation method, coverage, commands, exits and retained logs; missing or insufficient observation is NOT RUN for that phase, not evidence of no attempt. Run the actual authorized SDK create/evaluate on the chosen backend only after access, hardware and distribution review; otherwise that provider check is NOT RUN.
 - **Q6/Q7**: Capture a converged path-traced reference and dynamic case, or exercise each actual future target with a documented capability/fallback table. A compile or feature flag alone is not a pass.
 
-Exact commands for Q1b–Q7 must be added when their implementations and fixtures exist. Each stage issue owns updating the commands for its own scope; T079 only re-runs commands already documented here. These are acceptance outlines, not already runnable tests.
+Exact commands for Q1b–Q6 must be added when their implementations and fixtures exist; the Q7a commands above are already documented. Each stage issue owns updating the commands for its own scope; T079 only re-runs commands already documented here. These are acceptance outlines, not already runnable tests.

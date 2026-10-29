@@ -1,16 +1,16 @@
 # Traceability: Quality-first rendering
 
-**Status**: Planning matrix maintained by T087. A row maps a requirement to its primary tasks and the artifact that will hold evidence. Draft contract/template artifacts are not stage execution or review evidence; coverage remains planned or partial until the named checks run. Q1a T012–T021 are complete and merged in `8638db8` (PR #18); `evidence-q1a.md` and `review-q1a.md` record the execution and independent agent review. Q1b T022–T031 and all later stages remain planned or partial.
+**Status**: Planning matrix maintained by T087. A row maps a requirement to its primary tasks and the artifact that will hold evidence. Draft contract/template artifacts are not stage execution or review evidence; coverage remains planned or partial until the named checks run. Q1a T012–T021 are complete and merged in `8638db8` (PR #18); `evidence-q1a.md` and `review-q1a.md` record the execution and independent agent review. Q1b T022–T031 and all later stages remain planned or partial. Q7a T088 is partial: the lexical and structural mapping gates and the browser spike are executed (issue #35), the Emscripten encoder leg is NOT RUN, and T089 owns the header reconciliation.
 
-Evidence files: `evidence-rhi-contract.md`, `evidence-q0.md`, `evidence-q1a.md`, `evidence-q1.md`, `evidence-q2.md`, `evidence-q3.md`, `evidence-q4.md`, `evidence-q5.md`, `evidence-q6.md`, `evidence-q7.md`, `evidence-q7a.md`. Review records: `review-rhi-contract.md`, `review-q1a.md`, `review-q1.md`, `review-q2.md`, `review-q3.md`, `review-q4.md`, `review-q6.md`, `review-q7.md`, `review-programme.md`.
+Evidence files: `evidence-rhi-contract.md`, `evidence-q0.md`, `evidence-q1a.md`, `evidence-q1.md`, `evidence-q2.md`, `evidence-q3.md`, `evidence-q4.md`, `evidence-q5.md`, `evidence-q6.md`, `evidence-q7.md`, `evidence-q7a.md`. Review records: `review-rhi-contract.md`, `review-q1a.md`, `review-q1.md`, `review-q2.md`, `review-q3.md`, `review-q4.md`, `review-q6.md`, `review-q7.md`, `review-q7a.md`, `review-spec-consistency.md`, `review-programme.md`.
 
 ## Functional requirements
 
 | Requirement | Primary tasks | Evidence / artifact | Coverage note |
 |---|---|---|---|
-| FR-001 | T006, T009, T010, T011 | `baseline-procedure.md`, `evidence-q0.md` | Planned |
-| FR-002 | T007, T010 | `reference-scenes.md`, `evidence-q0.md` | Planned; data-dependent cases may be SKIPPED |
-| FR-003 | T004, T012, T014, T035 | `contracts/rhi-foundation.md`, `engine-integration.md` | T004 signed off 2026-10-28 on 11ea64a (agent reviewer; human caveat); Q1a T012–T021 complete and merged in `8638db8`; Q2 still needs Q7a/T088; Q1a is not portability evidence |
+| FR-001 | T006, T009, T010, T011 | `baseline-procedure.md`, `evidence-q0.md` | **Established (2026-10-29)** — all four categories captured twice; see `evidence-q0.md` §8 for the T011 review |
+| FR-002 | T007, T010 | `reference-scenes.md`, `evidence-q0.md` | **Established (2026-10-29)** — scene identities and tolerances recorded; no case SKIPPED on this host |
+| FR-003 | T004, T012, T014, T035 | `contracts/rhi-foundation.md`, `engine-integration.md` | T004 signed off 2026-10-28 on 11ea64a (agent reviewer; human caveat); Q1a T012–T021 complete and merged in `8638db8`; Q2 still needs Q7a/T088; Q1a is not portability evidence; Q2 also needs the remaining Q7a encoder leg and T089 |
 | FR-004 | T004, T012, T022–T029 | `contracts/rhi-foundation.md`, `data-model.md` | **Partial** — Q1a T012–T021 complete and merged; Q1b T022–T031 not started; native extensions are optional |
 | FR-005 | T013–T019, T024–T028, T030 | `evidence-q1a.md`, `evidence-q1.md` | **Partial** — Q1a T012–T021 complete and merged (`evidence-q1a.md`, `review-q1a.md`); full Q1 T022–T031 not started; debug layer and GPU-based validation SKIPPED (`0x887A002D`), so full Q1 remains blocked |
 | FR-006 | T036, T037, T039, T080–T083 | `classic-parity.md`, `evidence-q2.md` | Planned; T080–T082 production, T083 integration check |
@@ -24,7 +24,7 @@ Evidence files: `evidence-rhi-contract.md`, `evidence-q0.md`, `evidence-q1a.md`,
 | FR-014 | T055, T058–T061 | `provider-clearance.md`, `evidence-q5.md` | Planned; **partial** — T055 supplies the independent off path; T059 separately observes clean configure/build and run, and inspects dependencies/artifacts |
 | FR-015 | T060–T062 | `provider-clearance.md`, `evidence-q5.md` | Planned; NOT RUN until access and clearance exist |
 | FR-016 | T063–T070 | `path-tracing-rubric.md`, `evidence-q6.md` | Planned |
-| FR-017 | T004, T088, T071–T075 | `contracts/rhi-foundation.md`, `portable-profile-contract.md`, `evidence-q7a.md`, `evidence-q7.md` | Planned; T004 signed off 2026-10-28 on 11ea64a (agent reviewer; human caveat); three-tier contract is design only; T088 is a pre-Q2 header/mapping and WebGPU conformance spike, not target support; per-target implementation and real-scene validation remain required |
+| FR-017 | T004, T088, T071–T075 | `contracts/rhi-foundation.md`, `portable-profile-contract.md`, `evidence-q7a.md`, `evidence-q7.md` | Planned; T004 signed off 2026-10-28 on 11ea64a (agent reviewer; human caveat); three-tier contract is design only; T088 is a pre-Q2 header/mapping and WebGPU conformance spike, not target support — **partial (2026-10-29)**: lexical and structural gates plus a pinned-browser spike executed, encoder leg NOT RUN, T089 open; per-target implementation and real-scene validation remain required |
 | FR-018 | T005, T056, T060, T069, T074 | `evidence-template.md` and each evidence file | Template and validator signed off 2026-10-28 on 11ea64a (agent reviewer; human caveat); stage evidence remains open |
 | FR-019 | T001–T003, T033, T040, T084 | `review-q2.md`, repository history | Planned; no exception to the constitution |
 
@@ -32,7 +32,7 @@ Evidence files: `evidence-rhi-contract.md`, `evidence-q0.md`, `evidence-q1a.md`,
 
 | Criterion | Primary tasks | Evidence / artifact | Coverage note |
 |---|---|---|---|
-| SC-001 | T009–T011 | `evidence-q0.md` | Planned; two captures or explicit SKIPPED |
+| SC-001 | T009–T011 | `evidence-q0.md` | **Met on this host (2026-10-29)** — two captures per category inside the frozen ceilings; a different host or data set still needs its own run |
 | SC-002 | T013–T031 | `evidence-q1a.md`, `evidence-q1.md` | **Partial** — Q1a half (T012–T021) complete and merged; full SC-002 needs Q1b/full Q1; pitch, completion-token and outstanding-submission controls are in `evidence-q1a.md`, with fence values asserted only in the D3D12-private hook |
 | SC-003 | T032, T037, T038, T039, T040 | `classic-parity.md`, `evidence-q2.md` | Planned; T080–T082 required for production behavior, T083 for integration |
 | SC-004 | T041–T048, T085 | `motion-fixtures.md`, `evidence-q3.md` | Planned; T041–T047 and T085 precede T048 execution/review, including T043 isolation, T045 invalidation and T047 overlay ordering |

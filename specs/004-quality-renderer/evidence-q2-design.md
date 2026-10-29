@@ -239,7 +239,7 @@ does not prove semantic correctness.
 | `motion-fixtures.md` path | **Resolved**: Q1a merged, so `tests/renderer/motion-fixtures.md` now holds the byte-identical T041 delivery copy; the spec copy is the design mirror. The C++ consumer tests (T042/T044/T046) and T048 are still pending |
 | Q0 category thresholds | **Fixed** from `baseline-final13`: corridor 0.5/0.5, open-view 2.0/2.0, close-character 0.5/0.5, moving-light 3.0/5.0; HUD/ROI controls (T-05/06/08/09) remain pending |
 | Engine build/run | **Build wiring probed** with the real engine source tree and a stub adapter (both EXEs, `/MT`/`/MTd`, RHI linked); **real adapter and game run not done**; T035/T036/T083 |
-| Q1/Q1a/T088 | **Q1a** built and CTest 7/7 (Debug/Release); **Q1b/Q1 and T088 not run**; Q2 remains blocked |
+| Q1/Q1a/T088 | **Q1a** built and CTest 7/7 (Debug/Release); **Q1b/Q1 and the Q7a encoder leg not run**; the Q7a lexical/structural gate and browser spike executed in issue #35 (`evidence-q7a.md`); Q2 remains blocked |
 | T037/T038 fixtures | **Not authored**; the matrix rows are `NOT RUN` |
 | S4 task completion | **T032/T033/T041 are ticked** after the Round 8 PASS; programme checkbox count is **22/88** after the Q0/Q1a and S4 tasks landed. |
 | Q1a tracker drift | **Resolved**: PR #30 checked T012–T021 on `main`. |

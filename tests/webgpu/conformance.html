@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Q7a WebGPU conformance spike</title>
+<style>
+  :root { color-scheme: dark; }
+  body { font: 14px/1.45 "Cascadia Mono", Consolas, monospace; background: #10131a; color: #d7dce5; margin: 24px; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  p.sub { color: #8b94a6; margin: 0 0 16px; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid #232936; vertical-align: top; }
+  th { color: #8b94a6; font-weight: 600; }
+  .PASS { color: #3ddc84; font-weight: 700; }
+  .FAIL { color: #ff5f56; font-weight: 700; }
+  .NOTRUN { color: #f2c744; font-weight: 700; }
+  td.detail { color: #a8b1c2; max-width: 760px; word-break: break-word; }
+  #surface { width: 96px; height: 96px; margin-top: 16px; border: 2px solid #3ddc84; image-rendering: pixelated; }
+  #status { margin-top: 12px; color: #8b94a6; }
+</style>
+</head>
+<body>
+<h1>Q7a WebGPU conformance spike</h1>
+<p class="sub">Synthetic, provider-free checks that mirror the portable RHI surface. No network, no game data.</p>
+<table>
+  <thead><tr><th>Check</th><th>Result</th><th>Observed</th></tr></thead>
+  <tbody id="rows"><tr><td colspan="3">running…</td></tr></tbody>
+</table>
+<canvas id="surface" width="64" height="64"></canvas>
+<div id="status">starting</div>
+<script type="module">
+// Every check runs against the real WebGPU implementation in the host browser.
+// Expected values are literals written here, never derived from a readback.
+
+const CHECKS = [
+  ["C1-device", "Device: adapter selection, device creation, adapter identity"],
+  ["C2-buffer", "Buffer: create, write, mapAsync(READ), byte-exact compare"],
+  ["C3-bind-group", "Immutable bind group reused across two compute dispatches"],
+  ["C4-mrt", "One render pass with two colour attachments (MRT)"],
+  ["C5-compute", "One compute dispatch over 64 u32 elements"],
+  ["C6-pitch256", "copyTextureToBuffer with 256-byte bytesPerRow plus mapAsync"],
+  ["C7-surface", "Canvas surface configure, acquire, clear, commit and readback"],
+  ["C8-device-loss", "Device-loss path: destroy() resolves device.lost as 'destroyed'"],
+  ["N1-negative-comparator", "Negative control: a mutated expectation is rejected"],
+  ["N2-negative-pitch", "Negative control: packed-offset read differs from pitched-offset read"],
+  ["N3-negative-liveness", "Negative control: a live device's lost promise does not resolve"],
+  ["E-uncaptured", "No uncaptured WebGPU validation or out-of-memory error was raised"],
+  ["A1-software-adapter", "Attempt a fallback adapter and run one buffer round trip on it"],
+];
+
+const results = new Map();
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function record(id, status, detail, observed) {
+  results.set(id, { id, status, detail: String(detail), observed: observed === undefined ? null : observed });
+  render();
+}
+
+function render() {
+  const rows = [];
+  for (const [id, title] of CHECKS) {
+    const r = results.get(id);
+    const status = r ? r.status : "PENDING";
+    const cls = status === "PASS" ? "PASS" : status === "FAIL" ? "FAIL" : status === "NOT RUN" ? "NOTRUN" : "";
+    const detail = r ? r.detail : title;
+    const observed = r && r.observed ? JSON.stringify(r.observed) : "";
+    rows.push(`<tr><td>${id}<br><span class="sub">${title}</span></td><td class="${cls}">${status}</td><td class="detail">${escapeHtml(detail)}<br><code>${escapeHtml(observed)}</code></td></tr>`);
+  }
+  document.getElementById("rows").innerHTML = rows.join("");
+  const done = [...results.values()];
+  const failed = done.filter((r) => r.status === "FAIL").length;
+  document.getElementById("status").textContent =
+    `${done.length}/${CHECKS.length} checks reported, ${failed} failed`;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+}
+
+async function withTimeout(promise, ms, label) {
+  let timer;
+  const timeout = new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(`timeout after ${ms} ms: ${label}`)), ms); });
+  try { return await Promise.race([promise, timeout]); } finally { clearTimeout(timer); }
+}
+
+function bytesEqual(actual, expected) {
+  if (actual.length !== expected.length) return { equal: false, reason: `length ${actual.length} != ${expected.length}` };
+  for (let i = 0; i < actual.length; i++) {
+    if (actual[i] !== expected[i]) return { equal: false, reason: `byte ${i}: ${actual[i]} != ${expected[i]}` };
+  }
+  return { equal: true, reason: "all bytes equal" };
+}
+
+// UNORM8 conversion for a literal float, round-half-to-even, used only for the
+// canvas readback where the driver performs the conversion.
+function unorm8(v) { return Math.round(Math.min(1, Math.max(0, v)) * 255); }
+
+async function mapAndRead(device, buffer, size) {
+  await buffer.mapAsync(GPUMapMode.READ, 0, size);
+  const copy = new Uint8Array(buffer.getMappedRange(0, size)).slice();
+  buffer.unmap();
+  return copy;
+}
+
+async function createDevice(forceFallback) {
+  const adapter = await navigator.gpu.requestAdapter(forceFallback ? { forceFallbackAdapter: true } : {});
+  if (!adapter) return { adapter: null, device: null };
+  const device = await adapter.requestDevice();
+  return { adapter, device };
+}
+
+const C6_WIDTH = 4, C6_HEIGHT = 4, C6_PITCH = 256;
+// Four rows of four identical pixels each: 16 bytes per row, 64 bytes total, and
+// the row index is recoverable from the literal bytes.
+const C6_ROWS = [
+  [...Array(4)].flatMap(() => [10, 20, 30, 255]),
+  [...Array(4)].flatMap(() => [40, 50, 60, 255]),
+  [...Array(4)].flatMap(() => [70, 80, 90, 255]),
+  [...Array(4)].flatMap(() => [200, 210, 220, 255]),
+];
+
+async function run() {
+  const start = performance.now();
+  const env = {
+    runNonce: new URLSearchParams(location.search).get("run") || "",
+    userAgent: navigator.userAgent,
+    secureContext: isSecureContext,
+    origin: location.origin,
+    hasGpu: !!navigator.gpu,
+    preferredCanvasFormat: null,
+    adapter: null,
+    limits: null,
+  };
+
+  if (!navigator.gpu) {
+    record("C1-device", "FAIL", "navigator.gpu is undefined: this page must be served from a secure context (http://127.0.0.1 or https).", env);
+    for (const [id] of CHECKS) if (id !== "C1-device") record(id, "NOT RUN", "no WebGPU entry point");
+    return finish(env, start);
+  }
+  env.preferredCanvasFormat = navigator.gpu.getPreferredCanvasFormat();
+
+  let adapter, device;
+  try {
+    ({ adapter, device } = await withTimeout(createDevice(false), 10000, "requestAdapter/requestDevice"));
+  } catch (e) {
+    record("C1-device", "FAIL", `device creation threw: ${e.message}`, env);
+    for (const [id] of CHECKS) if (id !== "C1-device") record(id, "NOT RUN", "no device");
+    return finish(env, start);
+  }
+  if (!adapter || !device) {
+    record("C1-device", "FAIL", "requestAdapter returned null: no WebGPU adapter on this host", env);
+    for (const [id] of CHECKS) if (id !== "C1-device") record(id, "NOT RUN", "no adapter");
+    return finish(env, start);
+  }
+
+  const info = adapter.info || {};
+  env.adapter = {
+    vendor: info.vendor || "",
+    architecture: info.architecture || "",
+    device: info.device || "",
+    description: info.description || "",
+    isFallbackAdapter: info.isFallbackAdapter === true,
+  };
+  env.limits = {
+    maxTextureDimension2D: adapter.limits.maxTextureDimension2D,
+    maxColorAttachments: adapter.limits.maxColorAttachments,
+    maxComputeWorkgroupSizeX: adapter.limits.maxComputeWorkgroupSizeX,
+    maxBindGroups: adapter.limits.maxBindGroups,
+    minUniformBufferOffsetAlignment: adapter.limits.minUniformBufferOffsetAlignment,
+    minStorageBufferOffsetAlignment: adapter.limits.minStorageBufferOffsetAlignment,
+  };
+  record("C1-device", "PASS", `adapter "${env.adapter.vendor}/${env.adapter.architecture}" created a device`, env.adapter);
+
+  const deviceErrors = [];
+  device.addEventListener("uncapturederror", (e) => deviceErrors.push(String(e.error && e.error.message)));
+
+  // ---- A1: software/fallback adapter attempt ---------------------------------
+  try {
+    const fallback = await withTimeout(navigator.gpu.requestAdapter({ forceFallbackAdapter: true }), 10000, "fallback adapter request");
+    if (!fallback) {
+      record("A1-software-adapter", "NOT RUN", "requestAdapter({forceFallbackAdapter:true}) returned no adapter; the software leg is not a pass", { fallbackAdapter: null });
+    } else {
+      const fbDevice = await fallback.requestDevice();
+      const fbPayload = new Uint8Array([4, 8, 15, 16, 23, 42]);
+      const fbBuffer = fbDevice.createBuffer({ size: 8, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST });
+      fbDevice.queue.writeBuffer(fbBuffer, 0, fbPayload);
+      const fbRead = await withTimeout(mapAndRead(fbDevice, fbBuffer, 8), 5000, "fallback readback");
+      const fbCmp = bytesEqual(fbRead.slice(0, 6), fbPayload);
+      record("A1-software-adapter", fbCmp.equal ? "PASS" : "FAIL",
+        `fallback adapter ran a buffer round trip; isFallbackAdapter=${(fallback.info || {}).isFallbackAdapter}`,
+        { vendor: (fallback.info || {}).vendor || "", architecture: (fallback.info || {}).architecture || "", bytes: Array.from(fbRead.slice(0, 6)) });
+      fbBuffer.destroy();
+      fbDevice.destroy();
+    }
+  } catch (e) {
+    record("A1-software-adapter", "NOT RUN", `fallback adapter attempt threw: ${e.message}`);
+  }
+
+  // ---- C2: buffer write + mapAsync round trip -------------------------------
+  try {
+    const payload = new Uint8Array([1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 0, 127, 128, 255]);
+    const buffer = device.createBuffer({ size: 16, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST });
+    device.queue.writeBuffer(buffer, 0, payload);
+    const read = await withTimeout(mapAndRead(device, buffer, 16), 5000, "buffer mapAsync");
+    const cmp = bytesEqual(read, payload);
+    buffer.destroy();
+    record("C2-buffer", cmp.equal ? "PASS" : "FAIL", cmp.reason, { expected: Array.from(payload), actual: Array.from(read) });
+  } catch (e) {
+    record("C2-buffer", "FAIL", `buffer round trip threw: ${e.message}`);
+  }
+
+  // ---- C3 + C5: compute dispatch with one immutable bind group --------------
+  const ELEMENTS = 64;
+  const expectedCompute = Array.from({ length: ELEMENTS }, (_, i) => (i * 3 + 1) >>> 0);
+  try {
+    const module = device.createShaderModule({
+      label: "q7a-compute",
+      code: `
+        @group(0) @binding(0) var<storage, read_write> data: array<u32>;
+        @compute @workgroup_size(64) fn main(@builtin(global_invocation_id) gid: vec3u) {
+          let i = gid.x;
+          if (i < arrayLength(&data)) { data[i] = i * 3u + 1u; }
+        }`,
+    });
+    const bgl = device.createBindGroupLayout({
+      entries: [{ binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } }],
+    });
+    const pipeline = device.createComputePipeline({
+      layout: device.createPipelineLayout({ bindGroupLayouts: [bgl] }),
+      compute: { module, entryPoint: "main" },
+    });
+    const storage = device.createBuffer({
+      size: ELEMENTS * 4,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+    });
+    // One bind group, created once and reused for both dispatches.
+    const bindGroup = device.createBindGroup({ layout: bgl, entries: [{ binding: 0, resource: { buffer: storage } }] });
+    const readback = device.createBuffer({ size: ELEMENTS * 4, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST });
+
+    async function dispatchAndRead() {
+      const enc = device.createCommandEncoder();
+      const pass = enc.beginComputePass();
+      pass.setPipeline(pipeline);
+      pass.setBindGroup(0, bindGroup);
+      pass.dispatchWorkgroups(1);
+      pass.end();
+      enc.copyBufferToBuffer(storage, 0, readback, 0, ELEMENTS * 4);
+      device.queue.submit([enc.finish()]);
+      const bytes = await withTimeout(mapAndRead(device, readback, ELEMENTS * 4), 5000, "compute readback");
+      return new Uint32Array(bytes.buffer, bytes.byteOffset, ELEMENTS);
+    }
+
+    const first = await dispatchAndRead();
+    record("C5-compute", bytesEqual(new Uint8Array(first.buffer.slice(0)), new Uint8Array(new Uint32Array(expectedCompute).buffer)).equal
+      ? "PASS" : "FAIL", `dispatch wrote ${ELEMENTS} u32; expected i*3+1`, { first: Array.from(first).slice(0, 8), expected: expectedCompute.slice(0, 8) });
+
+    const second = await dispatchAndRead();
+    const reuseOk = first.every((v, i) => v === expectedCompute[i]) && second.every((v, i) => v === expectedCompute[i]);
+    record("C3-bind-group", reuseOk ? "PASS" : "FAIL",
+      "the same GPUBindGroup drove two dispatches; both readbacks match the literal expectation",
+      { first: Array.from(first).slice(0, 4), second: Array.from(second).slice(0, 4) });
+
+    storage.destroy(); readback.destroy();
+  } catch (e) {
+    record("C5-compute", "FAIL", `compute path threw: ${e.message}`);
+    record("C3-bind-group", "FAIL", `compute path threw: ${e.message}`);
+  }
+
+  // ---- C4: MRT ---------------------------------------------------------------
+  try {
+    const TEXEL = { a: [64, 128, 191, 255], b: [255, 0, 128, 64] }; // 0.25/0.5/0.75/1, 1/0/0.5/0.25
+    const texA = device.createTexture({ size: [4, 4], format: "rgba8unorm", usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC });
+    const texB = device.createTexture({ size: [4, 4], format: "rgba8unorm", usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC });
+    const module = device.createShaderModule({
+      label: "q7a-mrt",
+      code: `
+        struct VOut { @builtin(position) pos: vec4f };
+        struct FOut { @location(0) a: vec4f, @location(1) b: vec4f };
+        @vertex fn vs(@builtin(vertex_index) i: u32) -> VOut {
+          var p = array<vec2f, 3>(vec2f(-1.0, -1.0), vec2f(3.0, -1.0), vec2f(-1.0, 3.0));
+          var o: VOut;
+          o.pos = vec4f(p[i], 0.0, 1.0);
+          return o;
+        }
+        @fragment fn fs() -> FOut {
+          var o: FOut;
+          o.a = vec4f(0.25, 0.5, 0.75, 1.0);
+          o.b = vec4f(1.0, 0.0, 0.5, 0.25);
+          return o;
+        }`,
+    });
+    const pipeline = device.createRenderPipeline({
+      layout: "auto",
+      vertex: { module, entryPoint: "vs" },
+      fragment: { module, entryPoint: "fs", targets: [{ format: "rgba8unorm" }, { format: "rgba8unorm" }] },
+      primitive: { topology: "triangle-list" },
+    });
+    const enc = device.createCommandEncoder();
+    const pass = enc.beginRenderPass({
+      colorAttachments: [
+        { view: texA.createView(), clearValue: { r: 0, g: 0, b: 0, a: 0 }, loadOp: "clear", storeOp: "store" },
+        { view: texB.createView(), clearValue: { r: 0, g: 0, b: 0, a: 0 }, loadOp: "clear", storeOp: "store" },
+      ],
+    });
+    pass.setPipeline(pipeline);
+    pass.draw(3);
+    pass.end();
+    // A copy with bytesPerRow = 256 needs bytesPerRow * height bytes of destination.
+    const readA = device.createBuffer({ size: 256 * 4, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST });
+    const readB = device.createBuffer({ size: 256 * 4, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST });
+    enc.copyTextureToBuffer({ texture: texA }, { buffer: readA, bytesPerRow: 256 }, { width: 4, height: 4 });
+    enc.copyTextureToBuffer({ texture: texB }, { buffer: readB, bytesPerRow: 256 }, { width: 4, height: 4 });
+    device.queue.submit([enc.finish()]);
+    const gotA = (await withTimeout(mapAndRead(device, readA, 256 * 4), 5000, "MRT attachment 0")).slice(0, 16);
+    const gotB = (await withTimeout(mapAndRead(device, readB, 256 * 4), 5000, "MRT attachment 1")).slice(0, 16);
+    const okA = bytesEqual(gotA.slice(0, 4), new Uint8Array(TEXEL.a)).equal;
+    const okB = bytesEqual(gotB.slice(0, 4), new Uint8Array(TEXEL.b)).equal;
+    record("C4-mrt", okA && okB ? "PASS" : "FAIL",
+      `two attachments in one pass; expected A=${TEXEL.a} B=${TEXEL.b}`,
+      { a: Array.from(gotA), b: Array.from(gotB) });
+    texA.destroy(); texB.destroy(); readA.destroy(); readB.destroy();
+  } catch (e) {
+    record("C4-mrt", "FAIL", `MRT path threw: ${e.message}`);
+  }
+
+  // ---- C6: 256-byte pitch copyTextureToBuffer -------------------------------
+  try {
+    const texture = device.createTexture({
+      size: [C6_WIDTH, C6_HEIGHT], format: "rgba8unorm",
+      usage: GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC,
+    });
+    const packed = new Uint8Array(C6_ROWS.flat());
+    device.queue.writeTexture({ texture }, packed, { bytesPerRow: C6_WIDTH * 4, rowsPerImage: C6_HEIGHT }, { width: C6_WIDTH, height: C6_HEIGHT });
+
+    const staging = device.createBuffer({ size: C6_PITCH * C6_HEIGHT, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST, mappedAtCreation: true });
+    new Uint8Array(staging.getMappedRange()).fill(0xaa);
+    staging.unmap();
+
+    const enc = device.createCommandEncoder();
+    enc.copyTextureToBuffer({ texture }, { buffer: staging, bytesPerRow: C6_PITCH, rowsPerImage: C6_HEIGHT }, { width: C6_WIDTH, height: C6_HEIGHT });
+    device.queue.submit([enc.finish()]);
+
+    const bytes = await withTimeout(mapAndRead(device, staging, C6_PITCH * C6_HEIGHT), 5000, "pitched readback");
+    const rowsOk = C6_ROWS.every((row, r) => bytesEqual(bytes.slice(r * C6_PITCH, r * C6_PITCH + 16), new Uint8Array(row)).equal);
+    const paddingOk = C6_ROWS.every((_, r) => bytes.slice(r * C6_PITCH + 16, (r + 1) * C6_PITCH).every((b) => b === 0xaa));
+    const packedWouldBeWrong = !bytesEqual(bytes.slice(16, 32), new Uint8Array(C6_ROWS[1])).equal;
+    record("C6-pitch256", rowsOk && paddingOk && packedWouldBeWrong ? "PASS" : "FAIL",
+      `rows=${rowsOk} padding_untouched=${paddingOk} packed_offset_rejected=${packedWouldBeWrong}; texture is ${C6_WIDTH}x${C6_HEIGHT} packed (${C6_WIDTH * 4} B/row) but the copy pitch is ${C6_PITCH}`,
+      { row0: Array.from(bytes.slice(0, 16)), row3: Array.from(bytes.slice(3 * C6_PITCH, 3 * C6_PITCH + 16)), paddingByte: bytes[16] });
+    record("N2-negative-pitch", packedWouldBeWrong ? "PASS" : "FAIL",
+      "reading row 1 at the packed offset 16 does not equal the true row 1 (only offset 256 does)", null);
+    texture.destroy(); staging.destroy();
+  } catch (e) {
+    record("C6-pitch256", "FAIL", `copyTextureToBuffer path threw: ${e.message}`);
+    record("N2-negative-pitch", "NOT RUN", "pitched path failed");
+  }
+
+  // ---- C7: canvas surface configure/acquire/commit --------------------------
+  try {
+    const canvas = document.getElementById("surface");
+    const format = env.preferredCanvasFormat;
+    const ctx = canvas.getContext("webgpu");
+    ctx.configure({
+      device, format, alphaMode: "opaque",
+      usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
+    });
+    const CLEAR = { r: 1.0, g: 0.5, b: 0.0, a: 1.0 };
+    const tex = ctx.getCurrentTexture();
+    const enc = device.createCommandEncoder();
+    const pass = enc.beginRenderPass({
+      colorAttachments: [{ view: tex.createView(), clearValue: CLEAR, loadOp: "clear", storeOp: "store" }],
+    });
+    pass.end();
+    const staging = device.createBuffer({ size: 256 * canvas.height, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST });
+    enc.copyTextureToBuffer({ texture: tex }, { buffer: staging, bytesPerRow: 256, rowsPerImage: canvas.height }, { width: canvas.width, height: canvas.height });
+    device.queue.submit([enc.finish()]);
+    const pixel = (await withTimeout(mapAndRead(device, staging, 256 * canvas.height), 5000, "surface readback")).slice(0, 4);
+    const rgba = [unorm8(CLEAR.r), unorm8(CLEAR.g), unorm8(CLEAR.b), unorm8(CLEAR.a)];
+    const expected = format.startsWith("bgra") ? [rgba[2], rgba[1], rgba[0], rgba[3]] : rgba;
+    const cmp = bytesEqual(Array.from(pixel), expected);
+    record("C7-surface", cmp.equal ? "PASS" : "FAIL",
+      `format=${format}; configured, acquired ${tex.width}x${tex.height}, cleared and committed; pixel 0 expected ${expected}`,
+      { format, actual: Array.from(pixel) });
+    staging.destroy();
+  } catch (e) {
+    record("C7-surface", "FAIL", `surface path threw: ${e.message}`);
+  }
+
+  // ---- C8 + N3: device loss --------------------------------------------------
+  try {
+    const { device: doomed } = await withTimeout(createDevice(false), 10000, "second device");
+    const liveRace = await Promise.race([
+      doomed.lost.then((info) => ({ resolved: true, reason: info.reason })),
+      sleep(200).then(() => ({ resolved: false })),
+    ]);
+    record("N3-negative-liveness", liveRace.resolved ? "FAIL" : "PASS",
+      "a live device's lost promise stayed pending for 200 ms, so C8 is not vacuous", liveRace);
+    doomed.destroy();
+    const loss = await withTimeout(doomed.lost, 5000, "device.lost after destroy");
+    record("C8-device-loss", loss && loss.reason === "destroyed" ? "PASS" : "FAIL",
+      `device.destroy() resolved device.lost with reason "${loss && loss.reason}"`, { reason: loss && loss.reason });
+  } catch (e) {
+    record("C8-device-loss", "FAIL", `device-loss path threw: ${e.message}`);
+    record("N3-negative-liveness", "NOT RUN", "device-loss path failed");
+  }
+
+  // ---- N1: comparator sensitivity -------------------------------------------
+  {
+    const mutated = expectedCompute.slice();
+    mutated[5] = (mutated[5] + 1) >>> 0;
+    const cmp = bytesEqual(new Uint8Array(new Uint32Array(expectedCompute).buffer), new Uint8Array(new Uint32Array(mutated).buffer));
+    record("N1-negative-comparator", cmp.equal ? "FAIL" : "PASS",
+      `a one-unit mutation of the expected compute result is rejected: ${cmp.reason}`, null);
+  }
+
+  if (deviceErrors.length) {
+    record("E-uncaptured", "FAIL", `the device raised uncaptured errors: ${deviceErrors.join("; ")}`, { count: deviceErrors.length });
+  } else {
+    record("E-uncaptured", "PASS", "the device raised no uncaptured error during the whole run", { count: 0 });
+  }
+
+  device.destroy();
+  return finish(env, start);
+}
+
+function finish(env, start) {
+  const ordered = CHECKS.map(([id]) => results.get(id) || { id, status: "NOT RUN", detail: "check did not report", observed: null });
+  const summary = {
+    total: ordered.length,
+    pass: ordered.filter((r) => r.status === "PASS").length,
+    fail: ordered.filter((r) => r.status === "FAIL").length,
+    notRun: ordered.filter((r) => r.status === "NOT RUN").length,
+  };
+  const payload = { env, summary, checks: ordered, elapsedMs: Math.round(performance.now() - start) };
+  document.getElementById("status").textContent = `${summary.pass} pass, ${summary.fail} fail, ${summary.notRun} not run`;
+  window.__conformanceResult = payload;
+  return payload;
+}
+
+window.__conformanceResult = null;
+run().catch((e) => {
+  window.__conformanceResult = {
+    env: { userAgent: navigator.userAgent, secureContext: isSecureContext, origin: location.origin },
+    summary: { total: CHECKS.length, pass: 0, fail: 1, notRun: CHECKS.length - 1 },
+    checks: CHECKS.map(([id]) => ({ id, status: "NOT RUN", detail: "harness crashed before this check", observed: null }))
+      .concat([{ id: "harness", status: "FAIL", detail: String(e && e.stack || e), observed: null }]),
+  };
+  document.getElementById("status").textContent = "harness crashed: " + String(e);
+});
+</script>
+</body>
+</html>
