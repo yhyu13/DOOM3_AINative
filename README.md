@@ -103,11 +103,12 @@ Open the repo in Kilo and start with `/speckit.constitution`, then `/speckit.spe
 
 ## Workflow in one paragraph
 
-One issue = one branch = one worktree = one PR. A coordinator breaks the issue down and owns
-integration; each worker gets one worktree under `.kilo/worktrees/` and one ticket; a reviewer who
-did not write the code runs the `code-review` skill against the PR. Only squash merges into
-`main`, and the PR body must carry the evidence (command + output) that the change works. Full
-mechanics, scripts, and red lines: [`docs/GIT_WORKFLOW.md`](docs/GIT_WORKFLOW.md).
+One issue = one spec PR (merged first), then one branch = one worktree = one PR. A coordinator
+breaks the issue down, publishes the spec, and owns integration; each worker gets one worktree
+under `.kilo/worktrees/` and one ticket; a reviewer who did not write the code runs the
+`code-review` skill against the PR. Only squash merges into `main`, and the PR body must carry the
+evidence (command + output) that the change works. Full mechanics, scripts, and red lines:
+[`docs/GIT_WORKFLOW.md`](docs/GIT_WORKFLOW.md).
 
 ## Skills
 

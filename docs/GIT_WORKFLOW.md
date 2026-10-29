@@ -33,7 +33,8 @@ git check-ignore -q .kilo/worktrees; if (-not $?) { Add-Content .git\info\exclud
 
 ## 1. Model
 
-- One issue = one branch = one worktree = one PR. No multi-issue branches.
+- One issue = one spec PR (`docs/`) plus one implementation branch, worktree and PR (`feat/`,
+  `fix/`, `chore/`). No multi-issue branches; no second implementation branch for the same issue.
 - Trunk-based: `main` is protected and always releasable; branches are short-lived (target < 2 days).
 - Worktrees live in `.kilo/worktrees/<slug>`; slug is the branch name with `/` → `-`
   (`feat/42-webgl-audio` → `.kilo/worktrees/feat-42-webgl-audio`).
@@ -42,6 +43,14 @@ git check-ignore -q .kilo/worktrees; if (-not $?) { Add-Content .git\info\exclud
 - Specification artifacts come from spec-kit: `/speckit.specify` → `/speckit.plan` →
   `/speckit.tasks`, with `/speckit.clarify`, `/speckit.analyze`, `/speckit.checklist`
   as optional gates. `/speckit.taskstoissues` turns `tasks.md` into the issue set.
+- A specification is published by a `docs/<issue>-<slug>` PR — one PR may carry more than one
+  spec, as `docs/10-publish-renderer-specs` did for 003 and 004. `spec.md`, `plan.md` and
+  `tasks.md` merge to `main` **before** `scripts/new-worktree.ps1` creates the implementation
+  worktree, so the worktree starts from a main that already holds the design it implements.
+  The spec PR is reviewed like any other PR; its reviewer checks the design against the issue
+  contract, not the code.
+- Specs 001, 002, 006 and 007 predate that rule and landed inside their implementation PRs.
+  That history is a fact to record, not a route to copy.
 - Two integrations are installed and both drive the same `.specify/scripts/powershell/*.ps1`:
   `generic` writes `.kilo/command/speckit.*.md` (Kilo, `/speckit.specify`), `claude` writes
   `.claude/skills/speckit-*/SKILL.md` (Claude Code, `/speckit-specify`). `generic` stays the
@@ -57,10 +66,14 @@ git check-ignore -q .kilo/worktrees; if (-not $?) { Add-Content .git\info\exclud
 
 Handoffs are files/artifacts, not chat:
 
-1. **Issue brief** — the contract in §3, written by the coordinator before any branch exists.
-2. **Branch** — created by `scripts/new-worktree.ps1`; body of work ends with `git push -u origin <branch>`.
-3. **PR body** — §8 template: `Refs #N` (never `Closes #N` without the user's approval), evidence block, risk/rollback. Draft until verification passes.
-4. **Verification log** — exact commands, exit codes, counts, screenshot paths, pasted into the PR body.
+1. **Issue brief** — the contract in §3, written by the coordinator before the implementation branch
+   exists. It is the input to `/speckit.specify`, not the spec itself.
+2. **Spec PR** — `docs/<issue>-<slug>` carrying `specs/<feature>/`; merged to `main` before the
+   worktree is created. The implementation branch uses a different prefix (`feat/`, `fix/`,
+   `chore/`) and starts from a `main` that already contains the spec.
+3. **Branch** — created by `scripts/new-worktree.ps1` from the updated `main`; body of work ends with `git push -u origin <branch>`.
+4. **PR body** — §8 template: `Refs #N` (never `Closes #N` without the user's approval), evidence block, risk/rollback. Draft until verification passes.
+5. **Verification log** — exact commands, exit codes, counts, screenshot paths, pasted into the PR body.
    Machine-specific artifacts stay untracked; the log is text.
 
 ## 3. Issue contract (coordinator writes this, verbatim into the issue)
@@ -211,16 +224,19 @@ Refs #42
 ```mermaid
 flowchart LR
   A[Issue contract] --> B["/speckit.specify → plan → tasks"]
-  B --> C[new-worktree.ps1]
-  C --> D[Worker implements + verifies]
-  D --> E{Verification green?}
-  E -- no --> D
-  E -- yes --> F[push + gh pr create]
-  F --> G{Reviewer: code-review}
-  G -- changes --> D
-  G -- approve --> H[Squash merge + Refs #N]
-  H --> I[remove-worktree.ps1 + prune]
-  I --> J[Next issue]
+  B --> C["docs/<issue>-<slug> PR: publish specs/<feature>/**"]
+  C --> D{Spec PR merged?}
+  D -- no --> C
+  D -- yes --> E["new-worktree.ps1 from updated main"]
+  E --> F[Worker implements + verifies]
+  F --> G{Verification green?}
+  G -- no --> F
+  G -- yes --> H[push + gh pr create]
+  H --> I{Reviewer: code-review}
+  I -- changes --> F
+  I -- approve --> J[Squash merge + Refs #N]
+  J --> K[remove-worktree.ps1 + prune]
+  K --> L[Next issue]
 ```
 
 ## 10. Red lines and checklist
@@ -241,6 +257,7 @@ Red lines (max 10, no exceptions):
 Start (per worker):
 
 - [ ] Issue contract read; acceptance criteria checkable; blocking edges merged.
+- [ ] Spec PR merged to `main` (`git log --oneline -1 origin/main` shows the spec commit).
 - [ ] `git log --oneline -1 origin/main` succeeds; ownership table row assigned.
 - [ ] `new-worktree.ps1` printed path + branch; `git status` clean; submodule initialised if needed.
 - [ ] Ports/build dirs derived from `WORKTREE_PATH`.
