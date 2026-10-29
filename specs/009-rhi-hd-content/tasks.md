@@ -72,7 +72,7 @@ parallel by construction; the list is the matrix, not a sequence.
 | T-023 [P] | skinned character surface | T-013 | NOT STARTED | package plus a note that the skinned path is exercised by spec 004's Q3/Q4 fixtures, not here |
 | T-024 [P] | transmissive/glass | T-013 | NOT STARTED | `baseColor` + `roughness`; opacity modelling left to spec 004, recorded as a dependency |
 | T-025 [P] | large environment surface with a residency test surface | T-013 | NOT STARTED | ≥ 4K-equivalent tiled source assembled from ≤ 2K pieces, or an explicit statement that 2K caps the cell |
-| T-026 | RXGB conversion: `convert-normal.ps1` + one golden surface, before/after capture | T-013 | NOT STARTED | conversion on the local 006 corpus produces a linear normal; golden surface shows no axis swap or seam; the corpus is never committed |
+| T-026 | RXGB conversion: `convert-normal.ps1` + one golden surface, before/after capture | T-013 | NOT STARTED | conversion on the local 006 corpus produces a linear normal; golden surface shows no axis swap or seam; the corpus is never committed. This is a **conversion test, not a Q4 capture** (C-09): the corpus is stress data (C-04) and the output is not cited as RHI evidence |
 | T-027 | Budget-row citations for all seven cells | T-020…T-025 | NOT STARTED | every cell links to a spec-004 measurement task; **no number is written in 009** |
 | T-028 | `matrix-report.ps1`: render the seven-cell table with states and blockers | T-027 | NOT STARTED | table has no empty cell; a missing budget row fails the report |
 
