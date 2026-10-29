@@ -85,6 +85,41 @@ A software adapter functional pass is not a hardware-performance pass. A clear/r
 
 For test-driven development, capture a real failing assertion before each code change, a green run without modifying that test, and a deliberate mutation that makes the test fail; restore the code and rerun the suite. A compiler error or skipped GPU test is not a failing behavioral assertion.
 
+## Q1b — Programmable and surface fixtures
+
+Run from the Q1b worktree with a fresh build directory. The same VS-bundled
+CMake and Windows SDK requirements apply. The fixture compiles its programs at
+run time with `d3dcompiler_47`; no game data or proprietary SDK is used.
+
+```powershell
+$build = Join-Path (Get-Location) 'build-q1b'
+& $cmake -S tests/renderer -B $build -G 'Visual Studio 17 2022' -A x64
+if ($LASTEXITCODE -ne 0) { throw "Q1b configure failed: $LASTEXITCODE" }
+& $cmake --build $build --config Debug -- -m
+if ($LASTEXITCODE -ne 0) { throw "Q1b Debug build failed: $LASTEXITCODE" }
+& $ctest --test-dir $build -C Debug --no-tests=error -V --output-on-failure `
+    --output-junit (Join-Path $build 'ctest-junit.xml')
+if ($LASTEXITCODE -ne 0) { throw "Q1b Debug tests failed: $LASTEXITCODE" }
+& $cmake --build $build --config Release -- -m
+if ($LASTEXITCODE -ne 0) { throw "Q1b Release build failed: $LASTEXITCODE" }
+& $ctest --test-dir $build -C Release --no-tests=error -V --output-on-failure `
+    --output-junit (Join-Path $build 'ctest-Release-junit.xml')
+if ($LASTEXITCODE -ne 0) { throw "Q1b Release tests failed: $LASTEXITCODE" }
+py -3 -I scripts/validate-q1b-fixtures.py
+if ($LASTEXITCODE -ne 0) { throw "Q1b fixture validation failed: $LASTEXITCODE" }
+```
+
+Expected: 16 CTest cases, both available adapter classes attempted, and the
+public tests free of backend vocabulary. `rhi.q1b.device_removal` uses a private
+fault-injection hook; it is not a real device-loss run. The surface test needs a
+desktop session: `CreateSurface` may return `Unsupported` on a display stack
+without a window surface (SKIPPED, not PASS). `PrintWindow` captures are
+supplementary; the composed backbuffer readback is the asserted image.
+
+Debug layer and GPU-based validation are still attempted by
+`rhi.q1a.diagnostics` and are SKIPPED when `D3D12GetDebugInterface` returns
+`0x887A002D`. That skip keeps T030 and T031 open and full Q1 blocked; 16/16
+functional cases are not a Q1 pass.
 ## Q0 — Classic baseline (data-dependent)
 
 Follow the existing [native target documentation](../../targets/win11-amd64/README.md), but first apply the refusal-first flags above and use an explicit executable, dedicated output directory and legally supplied data. Record source/submodule and patch identities, build command, GPU/driver, data identity and the four scene categories specified in [spec.md](./spec.md). Missing data, counters or capture prerequisites produce SKIPPED, not PASS. Historical screenshots and earlier save/demo fixes are not a fresh run.
@@ -130,4 +165,4 @@ NOT RUN, never a pass.
 - **Q5**: Separately test the complete off path and observe clean default configure, build **and run** for attempted NVIDIA downloads (including failed/blocked attempts and child processes); inspect linked/bundled components independently. Record the observation method, coverage, commands, exits and retained logs; missing or insufficient observation is NOT RUN for that phase, not evidence of no attempt. Run the actual authorized SDK create/evaluate on the chosen backend only after access, hardware and distribution review; otherwise that provider check is NOT RUN.
 - **Q6/Q7**: Capture a converged path-traced reference and dynamic case, or exercise each actual future target with a documented capability/fallback table. A compile or feature flag alone is not a pass.
 
-Exact commands for Q1b–Q6 must be added when their implementations and fixtures exist; the Q7a commands above are already documented. Each stage issue owns updating the commands for its own scope; T079 only re-runs commands already documented here. These are acceptance outlines, not already runnable tests.
+Exact commands for Q2–Q6 must be added when their implementations and fixtures exist; the Q1b and Q7a commands above are already documented. Each stage issue owns updating the commands for its own scope; T079 only re-runs commands already documented here. These are acceptance outlines, not already runnable tests.

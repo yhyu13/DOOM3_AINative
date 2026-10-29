@@ -84,6 +84,8 @@ PROHIBITED_CORE = (
     ("GBV", r"\bgbv\b"),
     ("LUID family", r"(?<!f)luid"),
     ("native/raw handle", r"native[_-]?handle|raw[_-]?handle"),
+    ("Win32 window/DC/bitmap", r"\bhwnd\b|\bhdc\b|\bhbitmap\b"),
+    ("windows.h", r"windows\.h"),
     ("Present*", r"\bpresent\b|\bpresentation\b|\bpresentframe\b"),
     ("transition", r"\btransition"),
     ("barrier", r"\bbarrier"),
