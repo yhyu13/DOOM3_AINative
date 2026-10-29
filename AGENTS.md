@@ -83,15 +83,21 @@ own licences (see `THIRD_PARTY_NOTICES.md`). Game data is not covered and must n
     work, not the decision to close the issue.
 11. **An agent may merge its own PR after independent review.** The author may squash-merge only when
     all of the following hold:
-    - a reviewer with fresh context who did not write the change and did not share the author's
-      session or worktree records `APPROVED` in the PR or a review file, naming the reviewed commit
-      SHA. The reviewer may be a human or a fresh-context subagent;
-    - `gh pr view <N> --json mergeable,mergeStateStatus` reports `MERGEABLE` / `CLEAN` against the
-      current `origin/main`, and every required check passes;
-    - the main worktree is clean and current, and `git merge-tree` shows no conflict;
-    - no issue is closed without permission, and no game data, build output or unexplained submodule
-      dirt is included.
-    Self-review, the authoring session, or a reviewer sharing the author's worktree does not count.
+    - The PR contains an `APPROVED` verdict from a reviewer that is not the author and did not share
+      the author's session or worktree. A fresh-context subagent may serve only if it runs in its own
+      Agent Manager session/worktree, receives only the diff, the relevant specs and the verification
+      command, and records its verdict verbatim (PR comment or committed review file) with its session
+      ID and the reviewed SHA. The authoring session must not write, rewrite or paraphrase that
+      verdict. This is a process control, not cryptographic identity; do not claim more.
+    - The PR head at merge equals the reviewed SHA. Any new commit, rebase or force-push after the
+      review voids the approval and requires a new review.
+    - Submodule bumps (`doom3_orig/doom3`) and build-system changes are excluded from self-merge:
+      they require owner sign-off in addition to independent review.
+    - The merge gates in §8 hold: `git fetch origin`, `MERGEABLE` / `CLEAN` against current
+      `origin/main`, the documented verification command or required checks pass, the main worktree
+      is clean and current, `git merge-tree` shows no conflict, no out-of-scope paths, and no game
+      data, build output or unexplained submodule dirt.
+    - No issue is closed without permission.
     If any condition fails, do not merge: rebase, re-review, or stop. This grants merge authority, not
     permission to bypass evidence, file ownership, or the user's stop instructions.
 
