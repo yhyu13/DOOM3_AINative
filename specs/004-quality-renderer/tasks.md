@@ -25,12 +25,20 @@
 
 **Independent test**: Record a fresh native build and capture the four reference categories twice using predeclared tolerances, or report each unavailable data-dependent case as SKIPPED with its reason.
 
-- [ ] T006 [P] [US1] Inspect the side effects and acceptance of the existing native scripts, including run, smoke, verify and export, and record a safe isolated baseline procedure in `specs/004-quality-renderer/baseline-procedure.md`; do not terminate unrelated processes or overwrite existing outputs. The procedure must be refusal-first for non-empty output directories and must match the executable actually launched.
-- [ ] T007 [P] [US1] Specify the corridor, open view, close character/viewmodel and moving-light/combat scene identities, camera/initial state (`devmap`/`timedemo`/`loadgame`/script), scene-drive inputs and pre-run repeatability tolerances in `specs/004-quality-renderer/reference-scenes.md` without storing game data.
-- [ ] T008 [US1] Add a behavior-tested safe baseline capture/check entry point in `scripts/test-render-baseline.ps1` and its synthetic side-effect tests in `tests/renderer/test-render-baseline.ps1`, following T006 and a separate issue contract.
-- [ ] T009 [US1] Run a fresh isolated native configure/build and record commands, exits, executable identity, source/submodule and patch revisions in `specs/004-quality-renderer/evidence-q0.md`.
-- [ ] T010 [US1] Capture each available T007 scene twice and record data identity, GPU/driver, commands, comparison and tolerances in `specs/004-quality-renderer/evidence-q0.md`; mark each missing prerequisite or scene SKIPPED.
-- [ ] T011 [US1] Independently review the Q0 build, scene coverage and skipped checks in `specs/004-quality-renderer/evidence-q0.md`; retain the existing renderer as the reference.
+- [x] T006 [P] [US1] Inspect the side effects and acceptance of the existing native scripts, including run, smoke, verify and export, and record a safe isolated baseline procedure in `specs/004-quality-renderer/baseline-procedure.md`; do not terminate unrelated processes or overwrite existing outputs. The procedure must be refusal-first for non-empty output directories and must match the executable actually launched.
+- [x] T007 [P] [US1] Specify the corridor, open view, close character/viewmodel and moving-light/combat scene identities, camera/initial state (`devmap`/`timedemo`/`loadgame`/script), scene-drive inputs and pre-run repeatability tolerances in `specs/004-quality-renderer/reference-scenes.md` without storing game data.
+- [x] T008 [US1] Add a behavior-tested safe baseline capture/check entry point in `scripts/test-render-baseline.ps1` and its synthetic side-effect tests in `tests/renderer/test-render-baseline.ps1`, following T006 and a separate issue contract.
+- [x] T009 [US1] Run a fresh isolated native configure/build and record commands, exits, executable identity, source/submodule and patch revisions in `specs/004-quality-renderer/evidence-q0.md`.
+- [x] T010 [US1] Capture each available T007 scene twice and record data identity, GPU/driver, commands, comparison and tolerances in `specs/004-quality-renderer/evidence-q0.md`; mark each missing prerequisite or scene SKIPPED.
+- [x] T011 [US1] Independently review the Q0 build, scene coverage and skipped checks in `specs/004-quality-renderer/evidence-q0.md`; retain the existing renderer as the reference.
+
+**Q0 result (2026-10-29)**: all four requested categories are captured twice with the engine
+framebuffer screenshot at a fixed game tic (`com_fixedTic 1`) and pass the ceilings (meanAbs 0.1827
+/ 0.2258 / 0.1082 / 0.0550; diff 0.2079% / 0.2103% / 0.0982% / 0.0318%). SC-001 is met for this host,
+demo data and GL renderer. The OS-window attempts are retained as calibration history. T011 review 4
+read the final10 state; final13 is the post-rebase rerun. Its wording findings and the PR-level
+review are recorded in
+`evidence-q0.md` §8.
 
 ## Phase 4 — US2: Synthetic RHI foundation (P1; Q1a → Q1b → Q1)
 
