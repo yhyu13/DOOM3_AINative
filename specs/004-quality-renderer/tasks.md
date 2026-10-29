@@ -61,17 +61,27 @@ review are recorded in
 
 ### Q1b — programmable and temporal foundation
 
-- [ ] T022 [P] [US2] Define independent pixel/compute/depth/MRT expected values and supported shader/tool prerequisites in `tests/renderer/q1b-fixtures.md` before implementing them.
-- [ ] T023 [US2] Add a failing public-seam draw/pipeline fixture in `tests/renderer/rhi_draw_test.cpp`, then implement the smallest programmable draw/pipeline slice in `src/renderer/d3d12/rhi_pipeline.cpp` and prove red/green/mutation behavior.
-- [ ] T024 [US2] Add a failing public-seam compute/UAV readback fixture in `tests/renderer/rhi_compute_test.cpp`, then implement dispatch and required ordering in `src/renderer/d3d12/rhi_compute.cpp` and prove red/green/mutation behavior.
-- [ ] T025 [US2] Add a failing MRT and shader-readable depth fixture in `tests/renderer/rhi_mrt_depth_test.cpp`, then implement explicitly described attachments and transitions in `src/renderer/d3d12/rhi_attachments.cpp` and prove red/green/mutation behavior.
-- [ ] T026 [US2] Add failing frame-slot, descriptor/upload ownership and state-transition tests in `tests/renderer/rhi_frame_resources_test.cpp`, then implement fence-safe frame resources in `src/renderer/d3d12/frame_resources.cpp` and prove red/green/mutation behavior.
-- [ ] T027 [US2] Add synthetic numerical motion/validity and scene-versus-overlay tests in `tests/renderer/rhi_temporal_test.cpp`; implement only their bounded resources in `src/renderer/rhi/frame_resources.h`, keeping validity separate from a valid zero vector.
-- [ ] T028 [US2] Add window presentation, repeated resize/minimize, restart and history-reset tests in `tests/renderer/rhi_present_test.cpp`, then implement the required backend behavior in `src/renderer/d3d12/rhi_present.cpp` without unsafe retirement.
-- [ ] T029 [US2] Implement declared resource accesses and pass ordering, without speculative aliasing or multi-queue execution, in `src/renderer/rhi/frame_graph.cpp`; exercise ordering and invalid uses through `tests/renderer/frame_graph_test.cpp`.
+- [x] T022 [P] [US2] Define independent pixel/compute/depth/MRT expected values and supported shader/tool prerequisites in `tests/renderer/q1b-fixtures.md` before implementing them.
+- [x] T023 [US2] Add a failing public-seam draw/pipeline fixture in `tests/renderer/rhi_draw_test.cpp`, then implement the smallest programmable draw/pipeline slice in `src/renderer/d3d12/rhi_pipeline.cpp` and prove red/green/mutation behavior.
+- [x] T024 [US2] Add a failing public-seam compute/UAV readback fixture in `tests/renderer/rhi_compute_test.cpp`, then implement dispatch and required ordering in `src/renderer/d3d12/rhi_compute.cpp` and prove red/green/mutation behavior.
+- [x] T025 [US2] Add a failing MRT and shader-readable depth fixture in `tests/renderer/rhi_mrt_depth_test.cpp`, then implement explicitly described attachments and transitions in `src/renderer/d3d12/rhi_attachments.cpp` and prove red/green/mutation behavior.
+- [x] T026 [US2] Add failing frame-slot, descriptor/upload ownership and state-transition tests in `tests/renderer/rhi_frame_resources_test.cpp`, then implement fence-safe frame resources in `src/renderer/d3d12/frame_resources.cpp` and prove red/green/mutation behavior.
+- [x] T027 [US2] Add synthetic numerical motion/validity and scene-versus-overlay tests in `tests/renderer/rhi_temporal_test.cpp`; implement only their bounded resources in `src/renderer/rhi/frame_resources.h`, keeping validity separate from a valid zero vector.
+- [x] T028 [US2] Add window presentation, repeated resize/minimize, restart and history-reset tests in `tests/renderer/rhi_present_test.cpp`, then implement the required backend behavior in `src/renderer/d3d12/rhi_present.cpp` without unsafe retirement.
+- [x] T029 [US2] Implement declared resource accesses and pass ordering, without speculative aliasing or multi-queue execution, in `src/renderer/rhi/frame_graph.cpp`; exercise ordering and invalid uses through `tests/renderer/frame_graph_test.cpp`.
 - [ ] T030 [US2] Run all Q1 fixtures, genuine debug-layer and GPU-based validation, plus a fault-injected device-removal safe-failure test (bounded wait, cleanup and actionable reporting) and device-removal diagnostics where available; record unwaived messages, actual versus skipped checks and adapter class in `specs/004-quality-renderer/evidence-q1.md`.
 - [ ] T031 [US2] Independently review and rerun Q1 in `specs/004-quality-renderer/review-q1.md`; full Q1 is BLOCKED until debug layer and GBV actually execute with zero unwaived errors.
 
+**Q1b status (2026-10-29)**: T022–T029 pass with recorded red/green/mutation
+evidence, and the fault-injected device-removal part of T030 passes (bounded
+teardown, actionable DeviceLost, restart). T030 remains open because the debug
+layer and GPU-based validation are SKIPPED (`0x887A002D`). T031's independent
+review was performed and is recorded in
+[review-q1.md](./review-q1.md); it remains open because T030's gate is unmet.
+The author self-review is retained in
+[review-q1-self.md](./review-q1-self.md). The branch was rebased onto current main (`582b3ff`, after T089) and T030 was re-run: the debug layer and GPU-based validation are
+still SKIPPED (`0x887A002D`), so T031 remains unsatisfied. See
+[evidence-q1.md](./evidence-q1.md).
 ## Phase 5 — US3: Classic-compatible engine path (P1; Q2)
 
 **Goal**: Make the new path selectable and playable while preserving the GL reference and engine command semantics.

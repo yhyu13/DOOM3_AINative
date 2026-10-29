@@ -1,15 +1,21 @@
 #pragma once
 
-// Q1a portable RHI seam.
+// Portable RHI seam: Q1a clear/lifetime plus the Q1b programmable foundation.
 //
-// This header is the engine-facing core for the first vertical slice. It names
-// no native API type, handle or synchronization value. The backend
-// implementation lives outside this directory and keeps its own vocabulary.
+// This header is the engine-facing core. It names no native API type, handle or
+// synchronization value. The backend implementation lives outside this
+// directory and keeps its own vocabulary.
 //
-// Q1a is deliberately small: one offscreen synthetic clear, one row-pitched
-// readback exposed as tightly packed caller bytes, an opaque completion token,
-// and a release operation that refuses while the producing submission is still
-// running. It is not a renderer, a frame graph or the full Q1 contract.
+// Q1a covers one offscreen synthetic clear, one row-pitched readback exposed as
+// tightly packed caller bytes, an opaque completion token, and a release
+// operation that refuses while the producing submission is still running.
+//
+// Q1b adds opaque shader modules, graphics and compute pipelines, an ordered
+// draw frame with several colour attachments and a sampled depth attachment,
+// compute dispatch with a buffer readback, bounded frame slots, and a window
+// surface that composes and shows whole frames. Declared uses are described by
+// the portable frame graph in frame_graph.h; no native state operation appears
+// here.
 
 #include <cstdint>
 #include <memory>
@@ -112,6 +118,105 @@ struct ReadbackResult {
     AdapterInfo adapter;
 };
 
+struct BufferResult {
+    uint32_t elementCount = 0;
+    uint32_t elementSize = 0;
+    // Caller-owned tightly packed bytes, elementCount * elementSize in size.
+    std::vector<uint8_t> bytes;
+    AdapterInfo adapter;
+};
+
+// Opaque, device-scoped handles. Zero means "none"; a handle from another
+// device or after a new Initialize is rejected rather than reinterpreted.
+struct ShaderModule {
+    uint32_t id = 0;
+};
+
+enum class ShaderStage {
+    Vertex,
+    Pixel,
+    Compute,
+};
+
+struct ShaderModuleDesc {
+    ShaderStage stage = ShaderStage::Vertex;
+    // Opaque program text for the active backend's declared shader
+    // capability. The portable seam does not define the language, compiler or
+    // file format; a backend that cannot compile it fails with Unsupported.
+    std::string source;
+    std::string entryPoint = "main";
+};
+
+struct Pipeline {
+    uint32_t id = 0;
+};
+
+struct GraphicsPipelineDesc {
+    ShaderModule vertexShader;
+    ShaderModule pixelShader;
+    // Number of colour attachments the pixel program writes, 1..4.
+    uint32_t colorAttachmentCount = 1;
+    bool depthTest = false;
+    bool depthWrite = false;
+    // The pixel program reads the depth attachment as a sampled input.
+    bool sampleDepth = false;
+};
+
+struct ComputePipelineDesc {
+    ShaderModule computeShader;
+};
+
+// One ordered draw pass. `colorIndices` selects which frame attachments this
+// pass writes; each attachment is written by exactly one pass. `colorClears`
+// is parallel to `colorIndices` (entry i belongs to colorIndices[i]) and is
+// applied when the pass begins.
+struct DrawPassDesc {
+    Pipeline pipeline;
+    const uint32_t* colorIndices = nullptr;
+    uint32_t colorCount = 0;
+    const ClearRow* colorClears = nullptr;
+    // One uniform colour multiplier uploaded for this pass. It is deliberately
+    // per-submission data so frame-slot reuse can be checked for stale bytes.
+    float tint[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+};
+
+struct DrawFrameDesc {
+    uint32_t width = 0;
+    uint32_t height = 0;
+    // Total distinct colour attachments in the frame, 1..4.
+    uint32_t attachmentCount = 0;
+    bool depthEnabled = false;
+    // Q1b convention: the depth attachment is 32-bit float. A pass that sets
+    // sampleDepth reads it at group 0, binding 1, with a point sampler at
+    // group 0, binding 0.
+    float depthClear = 1.0f;
+    uint32_t passCount = 0;
+    const DrawPassDesc* passes = nullptr;
+};
+
+struct ComputeDispatchDesc {
+    Pipeline pipeline;
+    // Dispatch grid. `groupsX * groupsY * groupsZ` workgroups are recorded.
+    uint32_t groupsX = 0;
+    uint32_t groupsY = 0;
+    uint32_t groupsZ = 1;
+    // Size of the writable result buffer in 32-bit elements. The program writes
+    // it through group 0, binding 0; no other stride is defined by Q1b.
+    uint32_t elementCount = 0;
+};
+
+// Opaque application-visible output surface. The backend owns the window and
+// the composed images; a caller never receives a native handle.
+struct Surface {
+    uint32_t id = 0;
+};
+
+struct SurfaceDesc {
+    std::string title;
+    uint32_t width = 0;
+    uint32_t height = 0;
+};
+
 class Device {
 public:
     Device();
@@ -155,6 +260,42 @@ public:
     // it must not wait first.
     ReleaseStatus TryRelease(const Submission& submission, std::string* error);
 
+    // Compiles and retains one program. Compilation failures are actionable and
+    // leave no handle behind.
+    Status CreateShaderModule(const ShaderModuleDesc& desc, ShaderModule* module,
+                              std::string* error);
+    Status CreateGraphicsPipeline(const GraphicsPipelineDesc& desc, Pipeline* pipeline,
+                                  std::string* error);
+    Status CreateComputePipeline(const ComputePipelineDesc& desc, Pipeline* pipeline,
+                                 std::string* error);
+
+    // Records the ordered passes and readbacks, then returns without waiting.
+    // Colour attachments are read back by index with ReadbackAttachment.
+    Status SubmitDrawFrame(const DrawFrameDesc& desc, Submission* submission,
+                           std::string* error);
+    // Records one dispatch and a result-buffer readback.
+    Status SubmitCompute(const ComputeDispatchDesc& desc, Submission* submission,
+                         std::string* error);
+
+    // The producing submission must be complete; NotReady is returned
+    // otherwise. Attachment indices are the frame-wide indices declared in
+    // DrawFrameDesc, and zero selects the single image of a clear submission.
+    Status ReadbackAttachment(const Submission& submission, uint32_t attachmentIndex,
+                              ReadbackResult* result, std::string* error);
+    Status ReadbackBuffer(const Submission& submission, BufferResult* result,
+                          std::string* error);
+
+    // Creates an application-visible window surface at the requested size.
+    Status CreateSurface(const SurfaceDesc& desc, Surface* surface, std::string* error);
+    // Composes one solid-colour frame and shows it. A minimized surface returns
+    // NotReady without recording work. The composed image is available through
+    // ReadbackAttachment(submission, 0) after completion.
+    Status SubmitSurfaceFrame(const Surface& surface, const ClearRow& color,
+                              Submission* submission, std::string* error);
+    Status ResizeSurface(const Surface& surface, uint32_t width, uint32_t height,
+                         std::string* error);
+    Status DestroySurface(const Surface& surface, std::string* error);
+
 private:
     friend struct BackendAccess;
 
@@ -165,6 +306,7 @@ private:
 const char* ToString(AdapterClass value);
 const char* ToString(Status value);
 const char* ToString(ReleaseStatus value);
+const char* ToString(ShaderStage value);
 
 }  // namespace rhi
 }  // namespace doom3

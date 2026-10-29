@@ -61,6 +61,13 @@ struct RawReadback {
     std::vector<uint8_t> staging;
 };
 
+struct SlotObservation {
+    uint32_t slotIndex = 0;
+    uint64_t completedAtAcquire = 0;
+    uint64_t serial = 0;
+    bool inUse = false;
+};
+
 struct FenceObservation {
     uint64_t completedValue = 0;
     uint64_t signalValue = 0;
@@ -89,6 +96,11 @@ struct BackendAccess {
                                           std::string* error);
     static d3d12::FenceObservation Observe(const Device& device,
                                            const Submission& submission);
+    static Status SubmitDrawGated(Device& device, const DrawFrameDesc& desc,
+                                  Submission* submission, std::string* error);
+    static d3d12::SlotObservation Slot(const Device& device,
+                                        const Submission& submission);
+    static void InjectDeviceRemoval(Device& device, bool removed);
 };
 
 namespace d3d12 {
