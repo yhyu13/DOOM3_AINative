@@ -64,7 +64,13 @@ RHI backend: d3d12 (<adapter>)
 | `-Width/-Height <n>` | Display extent (default 1280x720). |
 | `-RenderScale <f>` | Scene extent scale; `< 1` exercises the bilinear reconstruction path. |
 | `-Frames <n>` | Frames rendered before capture (default 1). |
-| `-Exposure <f>` | Tone-map exposure (default 0.8). |
+| `-Exposure <f>` | Tone-map exposure (default 1.0). |
+| `-EmissiveScale <f>` | Override the sidecar `emissiveScale` (diagnostics). |
+| `-HdrProbe` | Copy the HDR scene target to a readback buffer and print peak/mean/`pixels_gt_1/8/32` before the tonemap. |
+| `-Hud` | Add the in-world GUI at render extent and the display-resolution HUD after tonemap. |
+| `-GlassThickness <f>` | Thin-slab refraction thickness in world units (default 0.35; 0 disables the offset). |
+| `-NoTransmission` | Skip the glass draw, producing the no-glass reference frame. |
+| `-CaptureExact` | Write `-Capture` verbatim instead of appending `-<scene>`. |
 | `-ContentDir <path>` | Directory that holds `content/`. |
 | `-PackageDir <path>` | Directory that holds `<material>/package.json`. |
 | `-ShaderDir <path>` | Directory that holds the HLSL. |
@@ -97,6 +103,16 @@ powershell -NoProfile -ExecutionPolicy Bypass -File content/tools/capture-q4.ps1
   indirect reference, `ResidencyPolicy` for texture-byte accounting, and
   `PlanReconstruction` for the render/display plan. The per-pixel form lives in
   the HLSL; the CPU values are logged as bounds, not as image parity claims.
+- Vertex skinning: every vertex carries four bone indices and weights; the host
+  writes a linear-blend palette per frame and the vertex shader applies it (the
+  same path is an exact identity for rigid draws). `moving` draws a 12-bone
+  procedural humanoid whose pose advances with the frame index.
+- Display composition: the scene (including an in-world GUI) is rendered at the
+  render extent, the glass composites a screen-space refraction of the copied
+  pre-glass scene, the tonemap/reconstruction runs to the display extent, and the
+  HUD is drawn last at integer display pixels with no scene sampler.
+- HDR emissive: the sidecar `emissiveScale` is applied after sRGB decode into the
+  `R16G16B16A16_FLOAT` target; `-HdrProbe` reads it back before the tonemap.
 - Four scene categories are defined. A category whose authored cells are absent
   is reported `NOT RUN`; no stand-in material or fabricated frame is produced.
 

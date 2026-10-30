@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <limits>
 
 namespace q4 {
 namespace {
@@ -17,6 +18,25 @@ XMMATRIX MakeTransform(float scale, float rotationYRadians, float x, float y,
         XMMatrixMultiply(XMMatrixScaling(scale, scale, scale),
                          XMMatrixRotationY(rotationYRadians)),
         XMMatrixTranslation(x, y, z));
+}
+
+// IEEE 754 binary16 -> float, for the HDR probe readback.
+float HalfToFloat(uint16_t value) {
+    const uint32_t sign = (value >> 15) & 1u;
+    const uint32_t exponent = (value >> 10) & 0x1Fu;
+    const uint32_t mantissa = value & 0x3FFu;
+    float result = 0.0f;
+    if (exponent == 0) {
+        result = mantissa == 0 ? 0.0f
+                               : std::ldexp(static_cast<float>(mantissa), -24);
+    } else if (exponent == 0x1F) {
+        result = mantissa == 0 ? std::numeric_limits<float>::infinity()
+                               : std::numeric_limits<float>::quiet_NaN();
+    } else {
+        result = std::ldexp(1.0f + static_cast<float>(mantissa) / 1024.0f,
+                            static_cast<int>(exponent) - 15);
+    }
+    return sign != 0 ? -result : result;
 }
 
 }  // namespace
@@ -40,6 +60,7 @@ bool D3D12Harness::Impl::BuildDraws(const ContentCatalog& catalog,
         item.alphaTest = alphaTest;
         item.emissive = emissive;
         item.transmission = transmission;
+        item.skinned = kind == MeshKind::SkinnedCharacter;
         draws->push_back(item);
     };
 
@@ -62,6 +83,17 @@ bool D3D12Harness::Impl::BuildDraws(const ContentCatalog& catalog,
         add(MeshKind::Plane, ground, "opaque_dielectric", false, false, false);
         add(MeshKind::Cube, movingCube, "opaque_dielectric", false, false, false);
         add(MeshKind::Sphere, sphere, "opaque_dielectric", false, false, false);
+        // Real skinned draw: a procedural 12-bone character with linear blend
+        // skinning. Its pose advances with the frame index, so the moving
+        // category covers skinned content instead of rigid props only.
+        if (HasMaterialImpl("skinned_character")) {
+            const XMMATRIX character = XMMatrixMultiply(
+                XMMatrixMultiply(XMMatrixScaling(1.15f, 1.15f, 1.15f),
+                                 XMMatrixRotationY(XMConvertToRadians(-18.0f))),
+                XMMatrixTranslation(-2.0f, 0.0f, 1.4f));
+            add(MeshKind::SkinnedCharacter, character, "skinned_character",
+                false, false, false);
+        }
     } else if (scene == "alpha_emissive") {
         if (!HasMaterialImpl("alpha_tested") || !HasMaterialImpl("emissive")) {
             *reason = "alpha_tested or emissive has no authored package";
@@ -86,11 +118,33 @@ bool D3D12Harness::Impl::BuildDraws(const ContentCatalog& catalog,
         const XMMATRIX glass =
             XMMatrixMultiply(XMMatrixScaling(2.4f, 2.4f, 1.0f),
                              XMMatrixTranslation(0.0f, 1.5f, 0.0f));
+        // An opaque marker behind the pane so refraction has background
+        // structure to displace, not just a flat gradient. It sits at the
+        // pane's centre so its silhouette crosses the refracted region.
+        const XMMATRIX marker =
+            MakeTransform(1.4f, XMConvertToRadians(20.0f), 0.05f, 1.30f, -2.2f);
         add(MeshKind::Plane, ground, "large_environment", false, false, false);
-        add(MeshKind::Quad, glass, "transmissive_glass", false, false, true);
+        add(MeshKind::Cube, marker, "opaque_dielectric", false, false, false);
+        if (!options.skipTransmission) {
+            add(MeshKind::Quad, glass, "transmissive_glass", false, false, true);
+        }
     } else {
         *reason = "unknown scene '" + scene + "'";
         return false;
+    }
+
+    if (options.hud) {
+        // In-world GUI: scene extent, depth-tested, follows the camera like
+        // scene content. It is deliberately not the display overlay.
+        detail::DrawItem gui;
+        gui.mesh = MeshKind::Quad;
+        gui.world = XMMatrixMultiply(XMMatrixScaling(1.7f, 1.0f, 1.0f),
+                                     XMMatrixTranslation(-0.2f, 2.35f, 0.9f));
+        gui.cell = "opaque_dielectric";
+        gui.worldGui = true;
+        if (HasMaterialImpl(gui.cell)) {
+            draws->push_back(gui);
+        }
     }
 
     if (draws->empty()) {
@@ -169,6 +223,32 @@ void D3D12Harness::Impl::BuildConstants(const detail::DrawItem& draw,
     out->params = XMFLOAT4(0.5f, draw.alphaTest ? 1.0f : 0.0f,
                            draw.transmission ? 1.0f : 0.0f,
                            static_cast<float>(frameIndex));
+    out->viewport = XMFLOAT4(static_cast<float>(renderWidth),
+                             static_cast<float>(renderHeight),
+                             static_cast<float>(displayWidth),
+                             static_cast<float>(displayHeight));
+    float emissiveScale = 1.0f;
+    bool emissiveApply = false;
+    if (material != nullptr && material->has[detail::kEmissive]) {
+        emissiveScale = material->emissiveScale;
+        emissiveApply = true;
+    }
+    out->emissiveParams =
+        XMFLOAT4(emissiveScale, emissiveApply ? 1.0f : 0.0f, 0.0f, 0.0f);
+    out->transmissionParams =
+        XMFLOAT4(1.5f, options.glassThickness,
+                 draw.transmission ? 1.0f : 0.0f,
+                 draw.transmission ? 1.0f : 0.0f);
+    const XMFLOAT4X4 zeroPalette = {};
+    for (uint32_t i = 0; i < detail::kMaxBones; ++i) {
+        out->bones[i] = zeroPalette;
+    }
+    if (draw.skinned) {
+        BuildCharacterSkinMatrices(static_cast<float>(frameIndex), out->bones,
+                                   detail::kMaxBones);
+    } else {
+        XMStoreFloat4x4(&out->bones[0], XMMatrixIdentity());
+    }
 }
 
 bool D3D12Harness::Impl::RenderFrame(
@@ -241,6 +321,13 @@ bool D3D12Harness::Impl::RenderFrame(
                            static_cast<size_t>(options.debugShadowCount));
         for (size_t i = 0; i < shadowCount; ++i) {
             const detail::DrawItem& draw = draws[i];
+            // Transmission is composited from the pre-glass scene and does not
+            // occlude the key light; it is not an opaque shadow caster. The
+            // in-world GUI is a scene overlay, not a physical caster. Both
+            // policies are recorded with the captures (review-q4 N7).
+            if (draw.transmission || draw.worldGui) {
+                continue;
+            }
             const detail::Mesh& mesh =
                 meshes[static_cast<uint32_t>(draw.mesh)];
             const auto material = materialIndex.find(draw.cell);
@@ -293,6 +380,72 @@ bool D3D12Harness::Impl::RenderFrame(
                            static_cast<size_t>(options.debugMainCount));
         for (size_t i = 0; i < mainCount; ++i) {
             const detail::DrawItem& draw = draws[i];
+            if (draw.transmission) {
+                continue;
+            }
+            const detail::Mesh& mesh =
+                meshes[static_cast<uint32_t>(draw.mesh)];
+            const auto material = materialIndex.find(draw.cell);
+            if (material == materialIndex.end()) {
+                continue;
+            }
+            const detail::MaterialResources& resources =
+                materials[material->second];
+            list->SetPipelineState(draw.worldGui ? worldGuiPso.Get()
+                                                 : mainPso.Get());
+            list->SetGraphicsRootConstantBufferView(
+                0, constantBuffer->GetGPUVirtualAddress() +
+                       i * detail::kCbSlotBytes);
+            list->SetGraphicsRootDescriptorTable(
+                1, GpuHandle(resources.descriptorBase));
+            list->IASetVertexBuffers(0, 1, &mesh.vertexView);
+            list->IASetIndexBuffer(&mesh.indexView);
+            list->DrawIndexedInstanced(mesh.indexCount, 1, 0, 0, 0);
+        }
+    }
+    list->OMSetRenderTargets(0, nullptr, FALSE, nullptr);
+
+    // Copy the pre-transmission scene so the glass pass can refract it. The
+    // glass is composited after every opaque draw and before reconstruction,
+    // so it never samples the display HUD.
+    bool hasTransmission = false;
+    for (const detail::DrawItem& draw : draws) {
+        hasTransmission = hasTransmission || draw.transmission;
+    }
+    if (hasTransmission && sceneCopy) {
+        detail::Transition(list.Get(), sceneColor.Get(), sceneState,
+                           D3D12_RESOURCE_STATE_COPY_SOURCE);
+        sceneState = D3D12_RESOURCE_STATE_COPY_SOURCE;
+        detail::Transition(list.Get(), sceneCopy.Get(), sceneCopyState,
+                           D3D12_RESOURCE_STATE_COPY_DEST);
+        sceneCopyState = D3D12_RESOURCE_STATE_COPY_DEST;
+        list->CopyResource(sceneCopy.Get(), sceneColor.Get());
+        detail::Transition(list.Get(), sceneCopy.Get(),
+                           D3D12_RESOURCE_STATE_COPY_DEST,
+                           D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        sceneCopyState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+        detail::Transition(list.Get(), sceneColor.Get(),
+                           D3D12_RESOURCE_STATE_COPY_SOURCE,
+                           D3D12_RESOURCE_STATE_RENDER_TARGET);
+        sceneState = D3D12_RESOURCE_STATE_RENDER_TARGET;
+    }
+
+    // Transmissive pass: screen-space refraction of the pre-glass scene. It
+    // writes an opaque composite (transmission * tint + Fresnel reflection), so
+    // no blend state or depth write is needed and no sort order is implied.
+    if (hasTransmission && sceneCopy) {
+        list->OMSetRenderTargets(1, &sceneRtv, FALSE, &mainDsv);
+        list->SetPipelineState(glassPso.Get());
+        list->SetGraphicsRootSignature(mainRoot.Get());
+        list->SetGraphicsRootDescriptorTable(3, sceneCopySrv);
+        list->RSSetViewports(1, &sceneViewport);
+        list->RSSetScissorRects(1, &sceneScissor);
+        list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        for (size_t i = 0; i < draws.size(); ++i) {
+            const detail::DrawItem& draw = draws[i];
+            if (!draw.transmission) {
+                continue;
+            }
             const detail::Mesh& mesh =
                 meshes[static_cast<uint32_t>(draw.mesh)];
             const auto material = materialIndex.find(draw.cell);
@@ -310,12 +463,30 @@ bool D3D12Harness::Impl::RenderFrame(
             list->IASetIndexBuffer(&mesh.indexView);
             list->DrawIndexedInstanced(mesh.indexCount, 1, 0, 0, 0);
         }
+        list->OMSetRenderTargets(0, nullptr, FALSE, nullptr);
     }
-    list->OMSetRenderTargets(0, nullptr, FALSE, nullptr);
-    detail::Transition(list.Get(), sceneColor.Get(),
-                       D3D12_RESOURCE_STATE_RENDER_TARGET,
-                       D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-    sceneState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+    if (options.hdrProbe && hdrReadback) {
+        detail::Transition(list.Get(), sceneColor.Get(), sceneState,
+                           D3D12_RESOURCE_STATE_COPY_SOURCE);
+        sceneState = D3D12_RESOURCE_STATE_COPY_SOURCE;
+        D3D12_TEXTURE_COPY_LOCATION destination{};
+        destination.pResource = hdrReadback.Get();
+        destination.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+        destination.PlacedFootprint = hdrFootprint;
+        D3D12_TEXTURE_COPY_LOCATION source{};
+        source.pResource = sceneColor.Get();
+        source.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+        source.SubresourceIndex = 0;
+        list->CopyTextureRegion(&destination, 0, 0, 0, &source, nullptr);
+        detail::Transition(list.Get(), sceneColor.Get(),
+                           D3D12_RESOURCE_STATE_COPY_SOURCE,
+                           D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        sceneState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+    } else {
+        detail::Transition(list.Get(), sceneColor.Get(), sceneState,
+                           D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+        sceneState = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+    }
 
     // Reconstruction + tone map to the display target.
     detail::Transition(list.Get(), display.Get(), displayState,
@@ -333,6 +504,22 @@ bool D3D12Harness::Impl::RenderFrame(
     list->RSSetScissorRects(1, &displayScissor);
     list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     list->DrawInstanced(3, 1, 0, 0);
+
+    // Display-resolution HUD: composed after reconstruction and tone mapping,
+    // at the display extent, in integer pixel space. It does not sample the
+    // scene, is not fogged, is not upscaled and is not part of any history.
+    if (options.hud && hudPso) {
+        list->SetPipelineState(hudPso.Get());
+        list->SetGraphicsRootSignature(hudRoot.Get());
+        const float hudConstants[4] = {
+            static_cast<float>(displayWidth), static_cast<float>(displayHeight),
+            static_cast<float>(frameIndex), 1.0f};
+        list->SetGraphicsRoot32BitConstants(0, 4, hudConstants, 0);
+        list->RSSetViewports(1, &displayViewport);
+        list->RSSetScissorRects(1, &displayScissor);
+        list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        list->DrawInstanced(3, 1, 0, 0);
+    }
     list->OMSetRenderTargets(0, nullptr, FALSE, nullptr);
     detail::Transition(list.Get(), display.Get(),
                        D3D12_RESOURCE_STATE_RENDER_TARGET,
@@ -345,6 +532,53 @@ bool D3D12Harness::Impl::RenderFrame(
     const auto end = std::chrono::steady_clock::now();
     lastFrameMs = std::chrono::duration<float, std::milli>(end - start).count();
     std::printf("FRAME %u: %.2f ms\n", frameIndex, lastFrameMs);
+
+    if (options.hdrProbe && hdrReadback) {
+        void* mapped = nullptr;
+        if (SUCCEEDED(hdrReadback->Map(0, nullptr, &mapped)) &&
+            mapped != nullptr) {
+            const uint16_t* base = static_cast<const uint16_t*>(mapped);
+            const size_t rowWords = hdrFootprint.Footprint.RowPitch / 2;
+            float peak = 0.0f;
+            double sum = 0.0;
+            uint64_t aboveOne = 0;
+            uint64_t aboveEight = 0;
+            uint64_t aboveThirtyTwo = 0;
+            uint64_t count = 0;
+            for (uint32_t y = 0; y < renderHeight; ++y) {
+                const uint16_t* row = base + static_cast<size_t>(y) * rowWords;
+                for (uint32_t x = 0; x < renderWidth; ++x) {
+                    const uint16_t* pixel = row + static_cast<size_t>(x) * 4;
+                    const float r = HalfToFloat(pixel[0]);
+                    const float g = HalfToFloat(pixel[1]);
+                    const float b = HalfToFloat(pixel[2]);
+                    const float m = std::max({r, g, b});
+                    peak = std::max(peak, m);
+                    sum += m;
+                    if (r > 1.0f || g > 1.0f || b > 1.0f) {
+                        ++aboveOne;
+                    }
+                    if (r > 8.0f || g > 8.0f || b > 8.0f) {
+                        ++aboveEight;
+                    }
+                    if (r > 32.0f || g > 32.0f || b > 32.0f) {
+                        ++aboveThirtyTwo;
+                    }
+                    ++count;
+                }
+            }
+            hdrReadback->Unmap(0, nullptr);
+            std::printf(
+                "Q4 hdr probe: peak=%.4f mean=%.4f pixels_gt_1=%llu "
+                "pixels_gt_8=%llu pixels_gt_32=%llu of %llu\n",
+                static_cast<double>(peak),
+                count == 0 ? 0.0 : sum / static_cast<double>(count),
+                static_cast<unsigned long long>(aboveOne),
+                static_cast<unsigned long long>(aboveEight),
+                static_cast<unsigned long long>(aboveThirtyTwo),
+                static_cast<unsigned long long>(count));
+        }
+    }
     return true;
 }
 

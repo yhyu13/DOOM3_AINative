@@ -1,13 +1,15 @@
 {
   "schema": "doom3-material-sidecar/1",
-  "comment": "PBR description for hero_emissive_sign (C-13). The emissive mask is authored SDR; the HDR half of the cell is recorded as blocked on the C-10 format decision rather than faked.",
+  "comment": "PBR description for hero_emissive_sign (C-13). The packaged mask is SDR; the HDR half is exercised by applying the sidecar emissiveScale after sRGB decode into the R16G16B16A16_FLOAT scene target, with the radiance probe recorded in T056 evidence.",
   "material": "hero_emissive_sign",
   "mtr": "content/materials/hero_emissive_sign.mtr",
   "surface": "painted sign panel with an illuminated glyph block",
   "emissiveScale": 16.0,
   "hdr": {
-    "state": "blocked",
-    "why": "the pinned BC7_UNORM_SRGB path clamps above 1.0 and no HDR container is decided (C-10); the authored mask keeps bar and glow detail so an HDR encode would not require re-authoring"
+    "state": "shaded-hdr",
+    "why": "the packaged emissive texture remains BC7_UNORM_SRGB (an SDR mask); the sidecar emissiveScale of 16.0 is applied at shading time, after sRGB decode, into the R16G16B16A16_FLOAT scene target. The T056 probe reads peak 15.21 before the ACES tonemap, so the value is not clipped by the texture or the intermediate target. A true HDR texture container is still the C-10 format decision and is not claimed.",
+    "probe": "specs/004-quality-renderer/evidence/t056/measurements.json#coverage.hdr_probe",
+    "diagnostic": "scale 2 capture (11-emissive-hdr-rolloff.png) exposes ACES rolloff without saturation; the authored 16x frame and probe cover the >1.0 case"
   },
   "channels": {
     "baseColor": {
@@ -45,7 +47,7 @@
       "format": "BC7_UNORM_SRGB",
       "srgb": true,
       "encoding": "SDR luminance mask with bar and glow detail",
-      "hdrRadiance": "blocked: see the hdr object; the source is not a clipped flat white plate"
+      "hdrRadiance": "scaled in the shader: sidecar emissiveScale 16.0; scene target R16G16B16A16_FLOAT; ACES tonemap"
     }
   }
 }

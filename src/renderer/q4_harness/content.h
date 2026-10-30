@@ -37,6 +37,8 @@ struct MaterialCell {
     bool present = false;   // listed in q4-materials.json
     bool authored = false;  // enough declared channels for the hybrid opaque route
     bool declaredDielectric = false;
+    float emissiveScale = 1.0f;   // sidecar emissiveScale, applied at shading
+    std::string hdrState;         // sidecar hdr.state, recorded not inferred
     std::string notRunReason;
 };
 

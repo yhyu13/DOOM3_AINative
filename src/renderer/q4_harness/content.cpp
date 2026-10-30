@@ -184,6 +184,11 @@ bool ContentCatalog::Load(const std::string& repoRoot, std::string* error) {
         ReadChannel(*channels, "metalness", &cell.metalness);
         ReadChannel(*channels, "ao", &cell.ao);
         ReadChannel(*channels, "emissive", &cell.emissive);
+        cell.emissiveScale = static_cast<float>(NumberOr(sidecar, "emissiveScale", 1.0));
+        const json::Value* hdr = sidecar.Find("hdr");
+        if (hdr != nullptr && hdr->IsObject()) {
+            cell.hdrState = StringOr(*hdr, "state");
+        }
 
         if (!cell.metalness.available) {
             const json::Value* metalness = channels->Find("metalness");

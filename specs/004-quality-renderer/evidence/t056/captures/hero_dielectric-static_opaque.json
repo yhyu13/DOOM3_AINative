@@ -5,21 +5,22 @@
     "adapter":  "Intel(R) Graphics",
     "identity_line":  "RHI backend: d3d12 (Intel(R) Graphics)",
     "image":  "capture.png",
-    "image_sha256":  "0574ac663906d0b673cbec2f63f8561b33d565ef5c445565a37dab95d36fa136",
+    "image_sha256":  "e686a8d72656c8e54aca537ed207d0a7299f9dd117a0dcc2d3221225cc8b5e57",
     "image_width":  1280,
     "image_height":  720,
-    "image_distinct":  6921,
-    "executable":  "build-q4-harness\\bin\\Release\\q4_harness.exe",
-    "executable_sha256":  "6a2d50bb2e23670e3334b43cace3962dfa1a2bca86819bcd429030a5d9690748",
+    "image_distinct":  7689,
+    "executable":  "build-q4-harness/bin/Release/q4_harness.exe",
+    "executable_sha256":  "4a8d931de4cba415522f8e8a69eca377fb9ddbc2d49c7f13aea2ee2269a3b3ea",
     "arguments":  [
                       "-Scene",
                       "static_opaque",
                       "-AdapterIndex",
                       "0",
+                      "-CaptureExact",
                       "-Capture",
-                      "out\\reca\\hero_dielectric-static_opaque.png"
+                      "out/recap/01.png"
                   ],
-    "started_utc":  "2026-10-30T15:25:25.6090370Z",
+    "started_utc":  "2026-10-30T16:15:26.4733568Z",
     "log":  "capture.log",
-    "package_sha256":  "65281cb4a2e3029de53b344858c2da8093fa74ea2ca28b6221d9cf6751abaee3"
+    "package_sha256":  "52951c51e64ceab0b77392c295f4f63ed30013d0bdee95197794e2a3f2059667"
 }

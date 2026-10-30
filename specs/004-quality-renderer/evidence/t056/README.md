@@ -1,73 +1,91 @@
 # T056 capture artifacts
 
-Everything here was produced on 2026-10-30 from base `50efd1a` (the B1/B2 fix session) by
+Everything here was produced on 2026-10-30 from base `4229bd5` (after the B1/B2 fixes) by
 `build-q4-harness/bin/Release/q4_harness.exe`
-(`6a2d50bb2e23670e3334b43cace3962dfa1a2bca86819bcd429030a5d9690748`) through
+(`4a8d931de4cba415522f8e8a69eca377fb9ddbc2d49c7f13aea2ee2269a3b3ea`) through
 `content/tools/capture-q4.ps1`. The numbers, commands and hashes live in
 [`measurements.json`](./measurements.json); the narrative is
-[`../../evidence-q4.md`](../../evidence-q4.md) §5. The pre-fix run at `348487c` — the artifact that
-`review-q4.md` judged — is still reachable at `50efd1a`; §5.7 records what was fixed and what was not.
+[`../../evidence-q4.md`](../../evidence-q4.md) §5 and §5.8. The earlier B1/B2-session set (base
+`50efd1a`, harness `6a2d50bb…0748`) is reachable in git history; these frames supersede it because the
+data-map encoding was corrected (see below).
 
 ## Frames
 
 | File | Scene | Backend / adapter | SHA-256 |
 |---|---|---|---|
-| `01-static-opaque-dielectric-metal.png` | `static_opaque` (dielectric plane/cube/sphere + metal sphere) | d3d12 / Intel(R) Graphics | `0574ac6639…a136` |
-| `02-alpha-tested-emissive.png` | `alpha_emissive` (cutout quad + emissive sign) | d3d12 / Intel(R) Graphics | `07d82c9a17…116b` |
-| `03-moving-frame-1.png` | `moving`, frame 0 (cube 20°) | d3d12 / Intel(R) Graphics | `746aba6333…a9ef` |
-| `04-moving-frame-8.png` | `moving`, frame 7 (cube 195°) | d3d12 / Intel(R) Graphics | `1cf980a10d…02c9` |
-| `05-transmissive-environment.png` | `transmissive_environment` (environment plane + glass quad) | d3d12 / Intel(R) Graphics | `1aedf7ff3d…b08b` |
-| `06-warp-static-opaque.png` | `static_opaque` | d3d12 / Microsoft Basic Render Driver | `46ac9241b9…cd61` |
-| `07-warp-transmissive-environment.png` | `transmissive_environment` | d3d12 / Microsoft Basic Render Driver | `2ef8b5e93e…5c53` |
+| `01-static-opaque-dielectric-metal.png` | `static_opaque` (dielectric plane/cube/sphere + metal sphere) | d3d12 / Intel(R) Graphics | `e686a8d726…` |
+| `02-alpha-tested-emissive.png` | `alpha_emissive` (cutout quad + emissive sign at the authored 16× scale) | d3d12 / Intel(R) Graphics | `a1abea25d8…` |
+| `03-moving-frame-1.png` | `moving`, frame 0: rigid cube + 12-bone skinned character, pose A | d3d12 / Intel(R) Graphics | `d43bf34cac…` |
+| `04-moving-frame-8.png` | `moving`, frame 7: same scene, pose B | d3d12 / Intel(R) Graphics | `6dc8e676c5…` |
+| `05-transmissive-environment.png` | `transmissive_environment`: environment plane + opaque marker + glass with thin-slab refraction | d3d12 / Intel(R) Graphics | `22fb8933d9…` |
+| `06-warp-static-opaque.png` | `static_opaque` | d3d12 / Microsoft Basic Render Driver | `fba5eb592a…` |
+| `07-warp-transmissive-environment.png` | `transmissive_environment` | d3d12 / Microsoft Basic Render Driver | `6509a33dc1…` |
+| `08-hud-overlay-display.png` | `static_opaque` + in-world GUI + display HUD; render 960×540, display 1280×720 | d3d12 / Intel(R) Graphics | `118b5c8b9c…` |
+| `09-transmission-reference.png` | `transmissive_environment` with the glass draw skipped (`-NoTransmission`) | d3d12 / Intel(R) Graphics | `6d816953a9…` |
+| `10-emissive-sdr-reference.png` | `alpha_emissive` at emissiveScale 1 (`-EmissiveScale 1`) | d3d12 / Intel(R) Graphics | `d8ee494e60…` |
+| `11-emissive-hdr-rolloff.png` | `alpha_emissive` at emissiveScale 2 (diagnostic; ACES rolloff without saturation) | d3d12 / Intel(R) Graphics | `34168a5e6a…` |
 
-`05` and `07` are **byte-identical to the pre-fix record**. That is the isolation check for this
-session: the two fixes touch the dielectric material and alpha-tested shadow casting, and nothing else
-in those two frames changed. Frames `01`-`04` and `06` carry the dielectric and/or the cutout shadow,
-so they changed.
-
-`03` and `04` are the first and last of eight consecutive frames of the same scene; the per-pair
-difference is recorded numerically in `measurements.json` (`motion.adjacent`) instead of committing
-eight near-identical images. They are produced by `-Frames 1` and `-Frames 8` runs, which is what
-`captures/hero_dielectric-moving-frame1.json` and `captures/hero_dielectric-moving.json` record.
+`09`, `10` and `11` are comparison controls, not category frames: `09` is the no-glass reference for the
+transmission metric, `10` is the SDR emissive control, and `11` exists because the authored 16× emissive
+saturates the 8-bit display by design while the scene-target probe holds the >1.0 radiance (peak 15.21).
+The 16× frame `02` plus `coverage.hdr_probe` are the HDR evidence; `11` shows the tonemap's rolloff.
 
 ## Crops
 
 | File | Shows |
 |---|---|
-| `crops/grating-shadow-solid.png` | 2× nearest-neighbour crop of the **rejected** `02` (at `50efd1a`): the alpha-tested grating casting a solid parallelogram shadow. Kept because `review-q4.md` §5 cites it. |
-| `crops/grating-shadow-cutout.png` | The same region at the same 2× scale from the current `02`: the shadow now carries the caster's hole pattern. |
+| `crops/glass-refraction-2x.png` | Reference (no glass) beside the refracting pane at the same crop. The marker's edge and the floor grid continue through the pane, displaced and frosted. |
+| `crops/skinned-pose-2x.png` | Frames 1 and 8 of the skinned character at 2×; the right arm and elbow change pose while the material and silhouette stay identifiable. |
+| `crops/emissive-hdr-rolloff-2x.png` | SDR scale 1 beside HDR scale 2; the HDR bars are brighter but keep the glyph shapes (0 saturated pixels after ACES). |
+| `crops/hud-texel-4x.png` | The HUD health plate at 4×: an exact 2-px border and 20-px cell pitch at the 1280×720 display extent, after the 960×540 scene is upscaled. |
+| `crops/grating-shadow-solid.png`, `crops/grating-shadow-cutout.png` | Kept from the B1 fix session; the rejected/current alpha-tested shadow comparison. |
 
-## Tools
+`tools/make_crops.py` rebuilds the first four crops from the committed frames (Pillow 12.3.0). The two
+grating crops are historical and are not regenerated by it.
 
-`tools/defect_metrics.py` and `tools/frame_diff.py` recompute the B1/B2 numbers and the frame
-differences in `measurements.json` from these PNGs (plus, for the "rejected" columns, the same frames
-from `50efd1a`). They are standard-library only, and each states the metric it applies, so the numbers
-are checkable without rebuilding the harness or trusting this file:
+## Metrics
 
-```bash
-git show 50efd1a:specs/004-quality-renderer/evidence/t056/02-alpha-tested-emissive.png > /tmp/old-02.png
-py -3 specs/004-quality-renderer/evidence/t056/tools/defect_metrics.py --only b1 \
-      --mask-from /tmp/old-02.png specs/004-quality-renderer/evidence/t056/02-alpha-tested-emissive.png
-```
+`tools/coverage_metrics.py` recomputes the B3–B6 numbers from these PNGs (standard library only; it
+imports `defect_metrics.read_png`):
+
+- **Glass** (`05` vs `09`): luminance correlation 0.9336, variance ratio 0.3929, 58.5 % of pane pixels
+  within 20/255 of the reference, best horizontal background shift −9 px with a 13.5 % SAD improvement
+  over zero shift. The pane is neither an opaque card nor a copy of the background.
+- **Emissive** (`02` vs `10`): the authored 16× frame has all 5,920 emissive-mask pixels at ≥250/255 in
+  the 8-bit capture, while the pre-tonemap probe reads peak 15.2109 and 5,541 pixels above 8.0. At
+  scale 1 the probe peak is 1.0059 with 0 pixels above 8.0. The diagnostic `11` (scale 2) has 0
+  saturated pixels and a non-zero spread, so ACES is rolling off rather than hard-clipping.
+- **HUD** (`08`): left border exactly 2 px at x 24–25, ten cells on a 20-px pitch, cyan mask spans
+  x 24–1256 and y 24–695. The 2-px edge after an upscaled scene is the texel-sharp signature.
+- **Skinned** (`03` vs `04`): 5,758 pixels change above 2/255 inside the character box (10.6 % of the
+  box), with the cube and shadow also moving outside it; `motion` in `measurements.json` records the
+  eight-frame series.
 
 ## Capture records
 
 `captures/*.json` are verbatim `capture.json` files written by `capture-q4.ps1`. `image` and `log` in
 those records are relative to `out/content/<material>/`, which is git-ignored; the committed frame is the
-copy named in the table above (identical SHA-256, verified). `image_sha256` in each record therefore
-matches the committed PNG of the same scene.
+copy named in the table above (identical SHA-256, verified). `image_sha256` in each record matches the
+committed PNG of the same scene.
 
 | Record | Material | Adapter | Committed frame |
 |---|---|---|---|
 | `hero_dielectric-static_opaque.json` | `hero_dielectric` | Intel(R) Graphics | `01-…` |
-| `hero_metal-static_opaque.json` | `hero_metal` | Intel(R) Graphics | `01-…` |
-| `hero_grating-alpha_emissive.json` | `hero_grating` | Intel(R) Graphics | `02-…` |
-| `hero_emissive_sign-alpha_emissive.json` | `hero_emissive_sign` | Intel(R) Graphics | `02-…` |
-| `hero_dielectric-moving-frame1.json` | `hero_dielectric` | Intel(R) Graphics | `03-…` (the `-Frames 1` capture) |
-| `hero_dielectric-moving.json` | `hero_dielectric` | Intel(R) Graphics | `04-…` (the `-Frames 8` capture) |
+| `hero_emissive_sign-alpha_emissive-hdr.json` | `hero_emissive_sign` | Intel(R) Graphics | `02-…` |
+| `hero_character_skin-moving-frame1.json` | `hero_character_skin` | Intel(R) Graphics | `03-…` (`-Frames 1`) |
+| `hero_character_skin-moving-frame8.json` | `hero_character_skin` | Intel(R) Graphics | `04-…` (`-Frames 8`) |
 | `hero_glass-transmissive_environment.json` | `hero_glass` | Intel(R) Graphics | `05-…` |
-| `hero_environment-transmissive_environment.json` | `hero_environment` | Intel(R) Graphics | `05-…` |
 | `hero_dielectric-static_opaque-warp.json` | `hero_dielectric` | Microsoft Basic Render Driver | `06-…` |
 | `hero_environment-transmissive_environment-warp.json` | `hero_environment` | Microsoft Basic Render Driver | `07-…` |
+| `hero_dielectric-hud-overlay.json` | `hero_dielectric` | Intel(R) Graphics | `08-…` |
+| `hero_glass-transmission-reference.json` | `hero_glass` | Intel(R) Graphics | `09-…` |
+| `hero_emissive_sign-alpha_emissive-sdr.json` | `hero_emissive_sign` | Intel(R) Graphics | `10-…` |
+| `hero_emissive_sign-alpha_emissive-rolloff.json` | `hero_emissive_sign` | Intel(R) Graphics | `11-…` |
 
-There is no `skinned_character` record: the scene never draws that cell, so there is nothing to capture.
+## Content-pipeline correction made by this session
+
+Recapturing the glass exposed that every packaged normal/roughness/metalness/ao map had been encoded
+with `-srgbi`, which linearised authored data (0.5 stored as 0.214) and decoded each normal with a ~54°
+tilt. `content/tools/pins.json` now leaves data channels linear; all seven packages were rebuilt and
+verified and every frame above was recaptured. That is why the frame hashes differ from the B1/B2
+session and why the B1/B2 metrics in `measurements.json` are marked as historical.

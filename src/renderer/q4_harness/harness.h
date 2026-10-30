@@ -24,7 +24,13 @@ struct HarnessOptions {
     uint32_t width = 1280;
     uint32_t height = 720;
     float renderScale = 1.0f;
-    float exposure = 0.8f;
+    float exposure = 1.0f;
+    float emissiveScale = -1.0f;  // < 0 = use the sidecar's emissiveScale
+    bool hud = false;             // in-world GUI + display-resolution HUD
+    bool hdrProbe = false;        // read back the HDR scene and print the peak
+    bool skipTransmission = false;  // reference frame without the glass draw
+    bool captureExact = false;      // write -Capture verbatim, no scene suffix
+    float glassThickness = 0.35f;   // thin-slab refraction thickness, world units
     uint32_t frames = 1;
     int debugPass = 0;  // 0 = all, 1 = tone-map only, 2 = shadow + tone-map
     int debugShadowCount = -1;  // -1 = all shadow draws
@@ -45,6 +51,8 @@ struct RuntimeHooks {
     std::string residency;
     std::string reconstruction;
     std::string shadow;
+    std::string emissive;
+    std::string skinning;
 };
 
 class D3D12Harness {

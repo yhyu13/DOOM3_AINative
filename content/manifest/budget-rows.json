@@ -8,7 +8,7 @@
     { "cell": "opaque_metal", "task": "T056", "artifact": "specs/004-quality-renderer/evidence/t056/measurements.json", "state": "recorded" },
     { "cell": "alpha_tested", "task": "T056", "artifact": "specs/004-quality-renderer/evidence/t056/measurements.json", "state": "recorded" },
     { "cell": "emissive", "task": "T056", "artifact": "specs/004-quality-renderer/evidence/t056/measurements.json", "state": "recorded" },
-    { "cell": "skinned_character", "task": "T056", "artifact": null, "state": "blocked: the cell is loaded and accounted (873880 texture bytes) but no draw uses it - the harness has no skinned mesh, rig or animation, so no frame and no frame-time measurement exists" },
+    { "cell": "skinned_character", "task": "T056", "artifact": "specs/004-quality-renderer/evidence/t056/measurements.json", "state": "recorded: the harness draws the cell on a 12-bone procedural rig; frame time and the motion delta are in measurements.json" },
     { "cell": "transmissive_glass", "task": "T056", "artifact": "specs/004-quality-renderer/evidence/t056/measurements.json", "state": "recorded" },
     { "cell": "large_environment", "task": "T056", "artifact": "specs/004-quality-renderer/evidence/t056/measurements.json", "state": "recorded" }
   ]

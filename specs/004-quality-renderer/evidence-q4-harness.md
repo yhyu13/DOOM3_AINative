@@ -22,6 +22,12 @@ merge at `127ab39` and therefore covers only `opaque_dielectric`.
 > `6a2d50bb2e23670e3334b43cace3962dfa1a2bca86819bcd429030a5d9690748`; what
 > changed and what was measured is in [`evidence-q4.md`](./evidence-q4.md) §5.7.
 
+> **Superseded again by the B3–B6 session at `4229bd5`.** Current binary SHA-256
+> `4a8d931de4cba415522f8e8a69eca377fb9ddbc2d49c7f13aea2ee2269a3b3ea`. The harness now draws a real
+> skinned character, a display-resolution HUD with an in-world GUI, an HDR emissive probe and a
+> thin-slab screen-space glass refraction; the data-map encoding was also corrected and all packages
+> rebuilt. What changed and what was measured is in [`evidence-q4.md`](./evidence-q4.md) §5.8.
+
 Issue: #70. Base: `127ab39` (PR #72 content merge); the capture run predates
 this rebase and used the one-cell content set.
 Host: Windows 11 22631, Visual Studio 2022 17.14.35228, Windows SDK 10.0.26100,
@@ -183,12 +189,32 @@ Q4 indirect reference: irradiance=(0.141, 0.160, 0.200) reflection=(0.262, 0.283
 Q4 residency: budget=268435456 uploadPerFrame=67108864 resident=873880 uploaded=873880 deferred=0
 Q4 reconstruction: Off
 Q4 shadow: 2048x2048 directional, PCF 3x3 comparison sampler
+Q4 emissive: material=hero_emissive_sign scale=16.00 apply=1 target=R16G16B16A16_FLOAT sidecarHdrState=blocked
+Q4 skinning: procedural=12 bones, 2-bone linear blend, 4 influences/vertex
+Q4 skinned mesh: 805 vertices, 4224 indices, bones=12, influences=4
 ```
 
 These are the portable T051/T052/T053/T054/T055 slices running inside the
 harness. The per-pixel shader implements the same material route, SH probe,
 environment fallback, fog and shadow contract; the CPU values are bounds and
 accounting, not an image-parity claim.
+
+## B3–B6 additions (2026-10-30b)
+
+These are the harness features added to close the review blockers; the frames and numbers are in
+`evidence-q4.md` §5.8 and `evidence/t056/`.
+
+| Feature | Implementation | CLI |
+|---|---|---|
+| skinned character | `mesh.{h,cpp}` builds a 12-bone procedural humanoid (805 vertices, 4,224 indices, 4 influences/vertex, smooth two-bone blend); `VSMain` and `VSShadow` apply a host linear-blend palette; `moving` draws it and advances the pose with the frame index | `-Scene moving -Frames 1..8`; the log prints `Q4 skinned mesh: 805 vertices, 4224 indices, bones=12` |
+| display HUD + in-world GUI | `q4_hud.hlsl` full-screen triangle in integer display pixels after tonemap, no scene sampler; `PSWorldGui` is an unlit, depth-tested quad at render extent; `hudRoot` has only four constants | `-Hud` (with `-RenderScale 0.75` for the ordering frame) |
+| HDR emissive | the sidecar `emissiveScale` is applied after sRGB decode in `PSMain` into the R16G16B16A16_FLOAT target; `-HdrProbe` copies the scene target to a readback buffer and prints peak/mean/`pixels_gt_1/8/32` before tonemap | `-EmissiveScale <f>`, `-HdrProbe` |
+| glass refraction | the opaque scene is copied to `sceneCopy`; `PSGlass` refracts the view ray through a 0.35-unit slab, samples the copy with five frost taps, tints by baseColor/alpha, adds a Fresnel environment reflection and writes an opaque composite; the pane is excluded from the opaque shadow pass and does not write depth | `-GlassThickness <f>`; `-NoTransmission` for the reference frame |
+| misc | `-CaptureExact` writes `-Capture` verbatim (the scene suffix is still appended otherwise); the probes and hooks are printed to stdout and captured in `capture.log` | — |
+
+The current capture commands are the same `capture-q4.ps1` contract with
+`-EngineArgs "...;-CaptureExact;-Capture;out/recap/<n>.png"`; the eleven records are in
+`evidence/t056/captures/`.
 
 ## Shared changes (reported)
 
@@ -208,6 +234,9 @@ accounting, not an image-parity claim.
    alpha test (`evidence-q4.md` §5.7, B-1). No root/target/test CMake change.
 
 ## Limitations / blockers
+
+These limitations describe the **one-cell run at `127ab39`**; the current limitations (procedural rig,
+bounded glass model, SDR texture container, no VRAM peak) are in `evidence-q4.md` §5.5 and §5.8.
 
 - The capture run used the one-cell content set (`opaque_dielectric`) and
   predates the six-cell content merge at `127ab39`. The metal, alpha-tested,
