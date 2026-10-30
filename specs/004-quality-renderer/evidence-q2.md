@@ -36,6 +36,15 @@ The missing MFC component is a host gap, not a property of this change: `neo/idl
 includes `tools/comafx/StdAfx.h`, which includes `<afxwin.h>` at line 38, so every engine translation
 unit needs MFC.
 
+### 2.1 Q1 residual (disclosure, not a pass)
+
+The Q1b fixtures are merged (`f1e4feb`) and ran here as part of the 26/26 ctest, but the debug layer
+and GPU-based validation still do **not** execute on this host: the diagnostics fixture reports
+`D3D12GetDebugInterface failed (hr=0x887A002D)` and `validation_executed=0`, exactly as recorded in
+`evidence-q1.md` T030/T031. The owner accepted that residual on 2026-10-29 as a recorded gap; that
+acceptance does not turn a skip into a pass. Nothing in this file depends on Q1 being green, and no
+statement here implies that it is.
+
 ## 3. What was implemented
 
 | Task | File | Behaviour |
