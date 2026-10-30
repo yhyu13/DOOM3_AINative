@@ -97,9 +97,10 @@ own licences (see `THIRD_PARTY_NOTICES.md`). Game data is not covered and must n
       a coordinator, reviewer or worker agent; the sign-off is a PR comment from the owner or an
       `owner-sign-off:` line in the PR body quoting it verbatim.
     - Build-system changes (root/target `CMakeLists.txt`, `CMakePresets.json`, generated build wiring)
-      may self-merge after independent review, provided the reviewer reran the build and the required
-      tests and recorded the commands and results. If the build cannot be verified on the reviewer's
-      host, the PR says so and remains blocked rather than merging on inspection alone.
+      may self-merge after independent review, provided the reviewer reran the build and the tests
+      required by `CONTRIBUTING.md`'s definition of done, and recorded the commands and results in the
+      APPROVED comment. If the build cannot be verified on the reviewer's host, the PR says so and
+      remains blocked rather than merging on inspection alone.
     - The merge gates in non-negotiable 8 (above) hold: `git fetch origin`, `MERGEABLE` / `CLEAN`
       against current `origin/main`, the documented verification command or required checks pass, the
       main worktree is clean and current, `git merge-tree` shows no conflict, no out-of-scope paths,

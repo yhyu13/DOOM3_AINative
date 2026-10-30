@@ -216,9 +216,9 @@ $env:D3_BUILD = Join-Path $env:WORKTREE_PATH 'build'
   review. Record it as a PR comment from the owner or an `owner-sign-off:` line quoting that comment
   verbatim.
 - Build-system changes (root/target `CMakeLists.txt`, `CMakePresets.json`, generated build wiring)
-  may self-merge after independent review, provided the reviewer reran the build and required tests
-  and recorded commands/results. If the build cannot be verified on the reviewer's host, the PR says
-  so and remains blocked.
+  may self-merge after independent review, provided the reviewer reran the build and the tests in
+  `CONTRIBUTING.md`'s definition of done, and recorded commands/results in the APPROVED comment. If
+  the build cannot be verified on the reviewer's host, the PR says so and remains blocked.
 - Reviewer runs the `code-review` skill pinned at `origin/main...HEAD`; comments cite file:line.
 - Merge only when: CI/verification green, independent review approved with the reviewed SHA, the
   head still equal to it, the merge base still equal to current `origin/main`, `MERGEABLE` / `CLEAN`
