@@ -123,6 +123,47 @@ add_q3_seam_test(q3_view_history_test view_history_test.cpp)
 add_q3_seam_test(q3_history_reset_test history_reset_test.cpp)
 add_q3_seam_test(q3_overlay_composition_test overlay_composition_test.cpp)
 
+# Q2 classic-path fixtures (T034/T037/T038). The scene adapter, the material plan and the
+# light plan are backend-neutral, so these tests link no device, window or shader compiler.
+# They still read the shipping manifest through the merged spec 008 resolver, because the
+# draw gate is the resolver's decision and must not be re-implemented here.
+add_library(q2_classic STATIC
+    "${Q1A_SOURCE_ROOT}/src/renderer/rhi/engine_scene_adapter.cpp"
+    "${Q1A_SOURCE_ROOT}/src/renderer/rhi/materials.cpp"
+    "${Q1A_SOURCE_ROOT}/src/renderer/d3d12/lighting.cpp")
+target_include_directories(q2_classic PUBLIC "${Q1A_HEADER_ROOT}")
+target_compile_features(q2_classic PUBLIC cxx_std_17)
+if(MSVC)
+    target_compile_options(q2_classic PRIVATE /W4 /permissive- /EHsc)
+endif()
+
+add_library(q2_shader_resolver STATIC
+    "${Q1A_SOURCE_ROOT}/src/renderer/shader/shader_resolver.cpp"
+    "${Q1A_SOURCE_ROOT}/src/renderer/shader/shader_json.cpp")
+target_include_directories(q2_shader_resolver PUBLIC
+    "${Q1A_SOURCE_ROOT}/src/renderer/shader")
+target_compile_features(q2_shader_resolver PUBLIC cxx_std_17)
+if(MSVC)
+    target_compile_options(q2_shader_resolver PRIVATE /W4 /permissive- /EHsc)
+endif()
+
+function(add_q2_test target source)
+    add_executable(${target} "${source}")
+    target_link_libraries(${target} PRIVATE q2_classic)
+    target_compile_features(${target} PRIVATE cxx_std_17)
+    target_include_directories(${target} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    if(MSVC)
+        target_compile_options(${target} PRIVATE /W4 /permissive- /EHsc)
+    endif()
+endfunction()
+
+add_q2_test(q2_engine_command_order_test engine_command_order_test.cpp)
+add_q2_test(q2_classic_compatibility_test classic_compatibility_test.cpp)
+add_q2_test(q2_classic_gui_test classic_gui_test.cpp)
+target_link_libraries(q2_classic_compatibility_test PRIVATE q2_shader_resolver)
+target_compile_definitions(q2_classic_compatibility_test PRIVATE
+    Q2_MANIFEST_PATH="${Q1A_SOURCE_ROOT}/shaders/manifest/classic-programs.json")
+
 enable_testing()
 
 set(Q1A_EVIDENCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/q1a-evidence")
@@ -195,4 +236,19 @@ set_tests_properties(
         WILL_FAIL TRUE
         LABELS "q3-expected-red"
         TIMEOUT 120
+)
+
+# Q2 classic-path fixtures. These are structural/classification checks: no legal demo data
+# and no owned classic program exist, so image parity is SKIPPED in evidence-q2.md and is
+# not claimed by any of these names.
+add_test(NAME renderer.q2.command_order COMMAND q2_engine_command_order_test)
+add_test(NAME renderer.q2.classic_compatibility COMMAND q2_classic_compatibility_test)
+add_test(NAME renderer.q2.classic_gui COMMAND q2_classic_gui_test)
+set_tests_properties(
+    renderer.q2.command_order
+    renderer.q2.classic_compatibility
+    renderer.q2.classic_gui
+    PROPERTIES
+        TIMEOUT 120
+        LABELS "q2"
 )
