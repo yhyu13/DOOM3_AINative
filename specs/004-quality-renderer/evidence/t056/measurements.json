@@ -6,10 +6,10 @@
     70
   ],
   "recordedAt": "2026-10-30",
-  "baseCommit": "348487c",
+  "baseCommit": "50efd1a",
+  "note": "Re-recorded after the B1/B2 fixes (this session). The frame set, package contents and capture pipeline are unchanged; the harness binary, the dielectric material images, frame 02's shadow and the four dielectric-bearing frames are new. `before` holds the rejected artifact's numbers so the pair is in one file.",
   "host": {
     "os": "Windows 11 10.0.22631 x64",
-    "cpu": null,
     "adapter": "Intel(R) Graphics (vendor=0x8086 device=0x7D67, reported dedicated memory 134217728 bytes)",
     "driver": "32.0.101.8331 (2025-11-26)",
     "warp": "Microsoft Basic Render Driver (vendor=0x1414 device=0x008C, memory=0)"
@@ -17,7 +17,7 @@
   "toolchain": {
     "cmake": "3.31.6 (VS-bundled)",
     "msvc": "14.44.35207 (toolset v143)",
-    "harness_exe_sha256": "562a20d68b739c201da261da4f5988e1fd6168a429a4f7f211bb20a41289eb69",
+    "harness_exe_sha256": "6a2d50bb2e23670e3334b43cace3962dfa1a2bca86819bcd429030a5d9690748",
     "content_toolchain": {
       "python": "3.14.4",
       "pillow": "12.3.0",
@@ -30,6 +30,16 @@
     "upscale": "none (PlanReconstruction: Off; -RenderScale 1.0)",
     "tonemap": "ACES filmic, -Exposure 1.0, display target R8G8B8A8_UNORM_SRGB"
   },
+  "timing": {
+    "method": "`q4_harness.exe -Scene <s> -Frames 30 -AdapterIndex 0` (hardware) and `-Frames 5 -Warp` (software). Three independent 30-frame windows per scene for hardware, each preceded by a discarded 5-frame warm-up run (the first run of a process on this host is 0.3-0.6 ms slower); statistics over frames 6..30 of each window, and `median` is the median of the three window medians. `median_range_over_windows` is the spread of those three medians, which is the honest noise floor: it is wider than the per-scene differences.",
+    "shadow_pass_cost": {
+      "scene": "alpha_emissive",
+      "with_shadow_draws": 1.47,
+      "with_shadow_draws_suppressed": 1.07,
+      "command": "q4_harness.exe -Scene alpha_emissive -Frames 30 -AdapterIndex 0 -DebugShadowCount 0",
+      "meaning": "cost of the whole shadow pass (3 draws into a 2048x2048 map), not of the alpha-test sample alone; -DebugShadowCount 0 skips every shadow draw"
+    }
+  },
   "packages": [
     {
       "material": "hero_character_skin",
@@ -41,7 +51,7 @@
     },
     {
       "material": "hero_dielectric",
-      "package_sha256": "8aaeb7328dd798877afc4e22829e8f4e082f307e7cf9bb506ab24bdda7471608",
+      "package_sha256": "65281cb4a2e3029de53b344858c2da8093fa74ea2ca28b6221d9cf6751abaee3",
       "textures": 3,
       "dds_bytes_on_disk": 874324,
       "texture_payload_bytes": 873880,
@@ -92,7 +102,7 @@
     "materials": 7,
     "dds_bytes_on_disk": 39675520,
     "texture_payload_bytes": 39671672,
-    "note": "payload = file bytes - 148-byte DDS header per texture; matches the harness MATERIAL line"
+    "note": "payload = file bytes - 148-byte DDS header per texture; matches the harness MATERIAL line. Unchanged from the pre-fix record: the dielectric fix changes texels, not dimensions, mip counts or formats."
   },
   "residency": {
     "budget_bytes": 268435456,
@@ -112,26 +122,30 @@
         "opaque_metal"
       ],
       "not_run": [],
-      "hardware": {
+      "hw": {
         "backend": "d3d12",
         "adapter": "Intel(R) Graphics",
-        "frames_sampled": 30,
+        "windows": 3,
+        "frames_per_window": 25,
         "frame_ms": {
-          "min": 1.34,
-          "median": 2.12,
-          "max": 5.17,
-          "mean": 2.071
+          "min": 1.24,
+          "median": 1.88,
+          "max": 4.48,
+          "median_range_over_windows": [
+            1.47,
+            2.21
+          ]
         }
       },
       "warp": {
         "backend": "d3d12",
         "adapter": "Microsoft Basic Render Driver",
-        "frames_sampled": 5,
+        "windows": 1,
+        "frames_per_window": 5,
         "frame_ms": {
-          "min": 23.45,
-          "median": 26.68,
-          "max": 56.73,
-          "mean": 32.584
+          "min": 24.58,
+          "median": 26.15,
+          "max": 58.29
         }
       }
     },
@@ -142,26 +156,30 @@
         "emissive"
       ],
       "not_run": [],
-      "hardware": {
+      "hw": {
         "backend": "d3d12",
         "adapter": "Intel(R) Graphics",
-        "frames_sampled": 30,
+        "windows": 3,
+        "frames_per_window": 25,
         "frame_ms": {
-          "min": 1.32,
-          "median": 1.43,
-          "max": 3.3,
-          "mean": 1.567
+          "min": 1.25,
+          "median": 1.74,
+          "max": 5.02,
+          "median_range_over_windows": [
+            1.57,
+            2.1
+          ]
         }
       },
       "warp": {
         "backend": "d3d12",
         "adapter": "Microsoft Basic Render Driver",
-        "frames_sampled": 5,
+        "windows": 1,
+        "frames_per_window": 5,
         "frame_ms": {
-          "min": 23.37,
-          "median": 24.29,
-          "max": 55.7,
-          "mean": 30.448
+          "min": 24.41,
+          "median": 25.36,
+          "max": 65.61
         }
       }
     },
@@ -173,26 +191,30 @@
       "not_run": [
         "skinned_character: no skinned mesh, rig or animation exists in the harness draw lists (harness_render.cpp:57-64) or in the content set; the cell is loaded and accounted but never drawn"
       ],
-      "hardware": {
+      "hw": {
         "backend": "d3d12",
         "adapter": "Intel(R) Graphics",
-        "frames_sampled": 30,
+        "windows": 3,
+        "frames_per_window": 25,
         "frame_ms": {
-          "min": 1.33,
-          "median": 1.73,
-          "max": 4.01,
-          "mean": 1.822
+          "min": 1.36,
+          "median": 2.05,
+          "max": 4.65,
+          "median_range_over_windows": [
+            1.53,
+            2.12
+          ]
         }
       },
       "warp": {
         "backend": "d3d12",
         "adapter": "Microsoft Basic Render Driver",
-        "frames_sampled": 5,
+        "windows": 1,
+        "frames_per_window": 5,
         "frame_ms": {
-          "min": 23.6,
-          "median": 23.91,
-          "max": 63.99,
-          "mean": 32.024
+          "min": 24.1,
+          "median": 26.07,
+          "max": 73.97
         }
       }
     },
@@ -203,177 +225,452 @@
         "large_environment"
       ],
       "not_run": [],
-      "hardware": {
+      "hw": {
         "backend": "d3d12",
         "adapter": "Intel(R) Graphics",
-        "frames_sampled": 30,
+        "windows": 3,
+        "frames_per_window": 25,
         "frame_ms": {
-          "min": 1.49,
+          "min": 1.24,
           "median": 1.83,
-          "max": 3.44,
-          "mean": 1.841
+          "max": 4.07,
+          "median_range_over_windows": [
+            1.54,
+            2.12
+          ]
         }
       },
       "warp": {
         "backend": "d3d12",
         "adapter": "Microsoft Basic Render Driver",
-        "frames_sampled": 5,
+        "windows": 1,
+        "frames_per_window": 5,
         "frame_ms": {
-          "min": 24.54,
-          "median": 26.21,
-          "max": 64.88,
-          "mean": 33.758
+          "min": 23.97,
+          "median": 26.15,
+          "max": 75.69
         }
       }
     }
   ],
   "warp_parity": {
-    "warp_vs_hardware_static_opaque": {
-      "mean_abs": 0.0806,
+    "metric": "d = max over R,G,B of |a-b|; changed = pixels with d > 2 (tools/frame_diff.py)",
+    "static_opaque_before": {
+      "a": "out\\old\\06-warp-static-opaque.png",
+      "b": "out\\old\\01-static-opaque-dielectric-metal.png",
+      "mean_abs": 0.1884,
       "max_abs": 168,
-      "changed_pixels_gt2": 329,
-      "changed_pct_gt2": 0.036,
+      "changed_pixels_gt2": 465,
+      "changed_pct_gt2": 0.05,
       "changed_bbox_xyxy": [
-        29,
-        281,
-        1254,
-        720
+        28,
+        275,
+        1272,
+        719
       ]
     },
-    "warp_vs_hardware_transmissive_environment": {
-      "mean_abs": 0.0704,
+    "static_opaque_after": {
+      "a": "specs\\004-quality-renderer\\evidence\\t056\\06-warp-static-opaque.png",
+      "b": "specs\\004-quality-renderer\\evidence\\t056\\01-static-opaque-dielectric-metal.png",
+      "mean_abs": 0.1402,
+      "max_abs": 168,
+      "changed_pixels_gt2": 67,
+      "changed_pct_gt2": 0.007,
+      "changed_bbox_xyxy": [
+        131,
+        278,
+        811,
+        481
+      ]
+    },
+    "transmissive_environment_after": {
+      "a": "specs\\004-quality-renderer\\evidence\\t056\\07-warp-transmissive-environment.png",
+      "b": "specs\\004-quality-renderer\\evidence\\t056\\05-transmissive-environment.png",
+      "mean_abs": 0.188,
       "max_abs": 166,
       "changed_pixels_gt2": 1,
       "changed_pct_gt2": 0.0,
       "changed_bbox_xyxy": [
         131,
         295,
-        132,
-        296
+        131,
+        295
       ]
-    }
+    },
+    "meaning": "hardware and WARP agree on the same image; neither is a blank, a fallback or a different code path"
   },
   "motion": {
-    "frames": 8,
-    "rule": "cube rotation = 20 deg + 25 deg * frameIndex (harness_render.cpp:57-63)",
     "adjacent": [
       {
-        "mean_abs": 3.2765,
-        "max_abs": 185,
-        "changed_pixels_gt2": 56597,
-        "changed_pct_gt2": 6.141,
+        "a": "..\\..\\..\\..\\..\\out\\motion\\f1-moving.png",
+        "b": "..\\..\\..\\..\\..\\out\\motion\\f2-moving.png",
+        "mean_abs": 3.694,
+        "max_abs": 186,
+        "changed_pixels_gt2": 57707,
+        "changed_pct_gt2": 6.262,
         "changed_bbox_xyxy": [
           438,
           240,
-          771,
-          486
-        ],
-        "from_frame": 1,
-        "to_frame": 2
+          770,
+          485
+        ]
       },
       {
-        "mean_abs": 2.6594,
-        "max_abs": 202,
-        "changed_pixels_gt2": 40842,
-        "changed_pct_gt2": 4.432,
+        "a": "..\\..\\..\\..\\..\\out\\motion\\f2-moving.png",
+        "b": "..\\..\\..\\..\\..\\out\\motion\\f3-moving.png",
+        "mean_abs": 2.8662,
+        "max_abs": 194,
+        "changed_pixels_gt2": 41072,
+        "changed_pct_gt2": 4.457,
         "changed_bbox_xyxy": [
           440,
           238,
-          774,
-          493
-        ],
-        "from_frame": 2,
-        "to_frame": 3
-      },
-      {
-        "mean_abs": 2.7836,
-        "max_abs": 194,
-        "changed_pixels_gt2": 49451,
-        "changed_pct_gt2": 5.366,
-        "changed_bbox_xyxy": [
-          438,
-          238,
-          781,
-          493
-        ],
-        "from_frame": 3,
-        "to_frame": 4
-      },
-      {
-        "mean_abs": 2.7513,
-        "max_abs": 166,
-        "changed_pixels_gt2": 61240,
-        "changed_pct_gt2": 6.645,
-        "changed_bbox_xyxy": [
-          433,
-          239,
-          781,
+          773,
           492
-        ],
-        "from_frame": 4,
-        "to_frame": 5
+        ]
       },
       {
-        "mean_abs": 3.4654,
-        "max_abs": 200,
-        "changed_pixels_gt2": 59579,
-        "changed_pct_gt2": 6.465,
+        "a": "..\\..\\..\\..\\..\\out\\motion\\f3-moving.png",
+        "b": "..\\..\\..\\..\\..\\out\\motion\\f4-moving.png",
+        "mean_abs": 3.0338,
+        "max_abs": 196,
+        "changed_pixels_gt2": 51754,
+        "changed_pct_gt2": 5.616,
+        "changed_bbox_xyxy": [
+          438,
+          238,
+          780,
+          492
+        ]
+      },
+      {
+        "a": "..\\..\\..\\..\\..\\out\\motion\\f4-moving.png",
+        "b": "..\\..\\..\\..\\..\\out\\motion\\f5-moving.png",
+        "mean_abs": 3.0035,
+        "max_abs": 168,
+        "changed_pixels_gt2": 61717,
+        "changed_pct_gt2": 6.697,
         "changed_bbox_xyxy": [
           433,
           239,
-          759,
-          488
-        ],
-        "from_frame": 5,
-        "to_frame": 6
+          780,
+          491
+        ]
       },
       {
-        "mean_abs": 2.419,
-        "max_abs": 168,
-        "changed_pixels_gt2": 41295,
-        "changed_pct_gt2": 4.481,
+        "a": "..\\..\\..\\..\\..\\out\\motion\\f5-moving.png",
+        "b": "..\\..\\..\\..\\..\\out\\motion\\f6-moving.png",
+        "mean_abs": 3.8317,
+        "max_abs": 179,
+        "changed_pixels_gt2": 59695,
+        "changed_pct_gt2": 6.477,
+        "changed_bbox_xyxy": [
+          433,
+          239,
+          758,
+          487
+        ]
+      },
+      {
+        "a": "..\\..\\..\\..\\..\\out\\motion\\f6-moving.png",
+        "b": "..\\..\\..\\..\\..\\out\\motion\\f7-moving.png",
+        "mean_abs": 2.6687,
+        "max_abs": 174,
+        "changed_pixels_gt2": 42731,
+        "changed_pct_gt2": 4.637,
         "changed_bbox_xyxy": [
           438,
           238,
-          780,
-          494
-        ],
-        "from_frame": 6,
-        "to_frame": 7
+          779,
+          493
+        ]
       },
       {
-        "mean_abs": 2.936,
-        "max_abs": 159,
-        "changed_pixels_gt2": 55387,
-        "changed_pct_gt2": 6.01,
+        "a": "..\\..\\..\\..\\..\\out\\motion\\f7-moving.png",
+        "b": "..\\..\\..\\..\\..\\out\\motion\\f8-moving.png",
+        "mean_abs": 3.3046,
+        "max_abs": 127,
+        "changed_pixels_gt2": 57168,
+        "changed_pct_gt2": 6.203,
         "changed_bbox_xyxy": [
           438,
           238,
-          780,
-          494
-        ],
-        "from_frame": 7,
-        "to_frame": 8
+          779,
+          493
+        ]
       }
     ],
-    "frame1_vs_frame8": {
-      "mean_abs": 1.473,
-      "max_abs": 172,
-      "changed_pixels_gt2": 46653,
-      "changed_pct_gt2": 5.062,
+    "first_vs_last": {
+      "a": "..\\..\\..\\..\\..\\out\\motion\\f1-moving.png",
+      "b": "..\\..\\..\\..\\..\\out\\motion\\f8-moving.png",
+      "mean_abs": 1.1929,
+      "max_abs": 174,
+      "changed_pixels_gt2": 46923,
+      "changed_pct_gt2": 5.091,
       "changed_bbox_xyxy": [
         442,
         239,
-        775,
-        488
+        774,
+        487
       ]
     }
   },
-  "vram": {
-    "peak_measured": false,
-    "reason": "no device-memory counter was sampled; the harness allocates committed resources from the D3D12 device and does not query DXGI budget or process GPU memory, and no external counter run was recorded"
+  "b2": {
+    "metric": "tools/defect_metrics.py --only b2; highpass_sd = sd of (pixel - 3x3 mean) luminance, isolated_spikes = pixels >= 200/255 and >= 25/255 above their 8-neighbour mean",
+    "before": {
+      "01-static-opaque-dielectric-metal.png": {
+        "dielectric_sphere": {
+          "mean": 150.26,
+          "sd": 34.078,
+          "min": 58,
+          "max": 230,
+          "highpass_sd": 16.214,
+          "highpass_abs_p99": 47.778,
+          "highpass_abs_max": 87.111,
+          "isolated_spikes": 550,
+          "isolated_spikes_per_kpx": 31.14,
+          "pixels": 18200
+        },
+        "dielectric_cube_face": {
+          "mean": 136.171,
+          "sd": 23.599,
+          "min": 71,
+          "max": 220,
+          "highpass_sd": 13.306,
+          "highpass_abs_p99": 52.111,
+          "highpass_abs_max": 74.889,
+          "isolated_spikes": 425,
+          "isolated_spikes_per_kpx": 13.46,
+          "pixels": 32300
+        },
+        "ground_near_left": {
+          "mean": 176.418,
+          "sd": 12.918,
+          "min": 116,
+          "max": 200,
+          "highpass_sd": 11.134,
+          "highpass_abs_p99": 27.0,
+          "highpass_abs_max": 39.556,
+          "isolated_spikes": 0,
+          "isolated_spikes_per_kpx": 0.0,
+          "pixels": 24000
+        },
+        "ground_mid_right": {
+          "mean": 177.908,
+          "sd": 7.66,
+          "min": 127,
+          "max": 204,
+          "highpass_sd": 5.71,
+          "highpass_abs_p99": 15.444,
+          "highpass_abs_max": 49.667,
+          "isolated_spikes": 0,
+          "isolated_spikes_per_kpx": 0.0,
+          "pixels": 31200
+        }
+      }
+    },
+    "after": {
+      "01-static-opaque-dielectric-metal.png": {
+        "dielectric_sphere": {
+          "mean": 157.657,
+          "sd": 32.515,
+          "min": 68,
+          "max": 232,
+          "highpass_sd": 2.394,
+          "highpass_abs_p99": 9.778,
+          "highpass_abs_max": 31.778,
+          "isolated_spikes": 2,
+          "isolated_spikes_per_kpx": 0.11,
+          "pixels": 18200
+        },
+        "dielectric_cube_face": {
+          "mean": 134.683,
+          "sd": 18.531,
+          "min": 71,
+          "max": 170,
+          "highpass_sd": 2.852,
+          "highpass_abs_p99": 9.667,
+          "highpass_abs_max": 32.111,
+          "isolated_spikes": 0,
+          "isolated_spikes_per_kpx": 0.0,
+          "pixels": 32300
+        },
+        "ground_near_left": {
+          "mean": 180.501,
+          "sd": 5.019,
+          "min": 167,
+          "max": 197,
+          "highpass_sd": 0.757,
+          "highpass_abs_p99": 2.0,
+          "highpass_abs_max": 4.0,
+          "isolated_spikes": 0,
+          "isolated_spikes_per_kpx": 0.0,
+          "pixels": 24000
+        },
+        "ground_mid_right": {
+          "mean": 172.874,
+          "sd": 3.33,
+          "min": 165,
+          "max": 187,
+          "highpass_sd": 0.662,
+          "highpass_abs_p99": 1.889,
+          "highpass_abs_max": 4.444,
+          "isolated_spikes": 0,
+          "isolated_spikes_per_kpx": 0.0,
+          "pixels": 31200
+        }
+      }
+    },
+    "moving_before": {
+      "04-moving-frame-8.png": {
+        "dielectric_sphere": {
+          "mean": 150.26,
+          "sd": 34.078,
+          "min": 58,
+          "max": 230,
+          "highpass_sd": 16.214,
+          "highpass_abs_p99": 47.778,
+          "highpass_abs_max": 87.111,
+          "isolated_spikes": 550,
+          "isolated_spikes_per_kpx": 31.14,
+          "pixels": 18200
+        },
+        "ground_near_left": {
+          "mean": 176.418,
+          "sd": 12.918,
+          "min": 116,
+          "max": 200,
+          "highpass_sd": 11.134,
+          "highpass_abs_p99": 27.0,
+          "highpass_abs_max": 39.556,
+          "isolated_spikes": 0,
+          "isolated_spikes_per_kpx": 0.0,
+          "pixels": 24000
+        },
+        "ground_mid_right": {
+          "mean": 177.908,
+          "sd": 7.66,
+          "min": 127,
+          "max": 204,
+          "highpass_sd": 5.71,
+          "highpass_abs_p99": 15.444,
+          "highpass_abs_max": 49.667,
+          "isolated_spikes": 0,
+          "isolated_spikes_per_kpx": 0.0,
+          "pixels": 31200
+        }
+      }
+    },
+    "moving_after": {
+      "04-moving-frame-8.png": {
+        "dielectric_sphere": {
+          "mean": 157.657,
+          "sd": 32.515,
+          "min": 68,
+          "max": 232,
+          "highpass_sd": 2.394,
+          "highpass_abs_p99": 9.778,
+          "highpass_abs_max": 31.778,
+          "isolated_spikes": 2,
+          "isolated_spikes_per_kpx": 0.11,
+          "pixels": 18200
+        },
+        "ground_near_left": {
+          "mean": 180.501,
+          "sd": 5.019,
+          "min": 167,
+          "max": 197,
+          "highpass_sd": 0.757,
+          "highpass_abs_p99": 2.0,
+          "highpass_abs_max": 4.0,
+          "isolated_spikes": 0,
+          "isolated_spikes_per_kpx": 0.0,
+          "pixels": 24000
+        },
+        "ground_mid_right": {
+          "mean": 172.874,
+          "sd": 3.33,
+          "min": 165,
+          "max": 187,
+          "highpass_sd": 0.662,
+          "highpass_abs_p99": 1.889,
+          "highpass_abs_max": 4.444,
+          "isolated_spikes": 0,
+          "isolated_spikes_per_kpx": 0.0,
+          "pixels": 31200
+        }
+      }
+    }
+  },
+  "b1": {
+    "metric": "tools/defect_metrics.py --only b1 --mask-from <rejected 02> <accepted 02>; the footprint mask is the rejected frame's solid shadow, eroded 2 px, and dark_components counts 8-connected pieces below 160 inside it",
+    "rows": [
+      {
+        "frame": "out\\old\\02-alpha-tested-emissive.png",
+        "footprint_px": 2385,
+        "mask_threshold": 159.0,
+        "median_based_mean": 146.68,
+        "sd": 1.53,
+        "min": 145,
+        "max": 156,
+        "dark_components": 1,
+        "dark_component_sizes": [
+          2385
+        ],
+        "lit_share": 0.0,
+        "lit_level": 169
+      },
+      {
+        "frame": "specs\\004-quality-renderer\\evidence\\t056\\02-alpha-tested-emissive.png",
+        "footprint_px": 2385,
+        "mask_threshold": 159.0,
+        "median_based_mean": 152.73,
+        "sd": 6.9,
+        "min": 138,
+        "max": 173,
+        "dark_components": 4,
+        "dark_component_sizes": [
+          1779,
+          86,
+          32,
+          3
+        ],
+        "lit_share": 0.0046,
+        "lit_level": 169
+      }
+    ]
   },
   "images": {
+    "01-static-opaque-dielectric-metal.png": {
+      "bytes": 604397,
+      "sha256": "0574ac663906d0b673cbec2f63f8561b33d565ef5c445565a37dab95d36fa136"
+    },
+    "02-alpha-tested-emissive.png": {
+      "bytes": 593494,
+      "sha256": "07d82c9a178f73d20c9b35ac2d5a21cd856c4f2344fdb75b93adc880a9eb116b"
+    },
+    "03-moving-frame-1.png": {
+      "bytes": 583127,
+      "sha256": "746aba633335a2e75b388818e9ab44a2dbbc069893007743a10419227a30a9ef"
+    },
+    "04-moving-frame-8.png": {
+      "bytes": 583495,
+      "sha256": "1cf980a10dc974868db39c38ddc4954332d3e8eeb877606418bf28c1f93b02c9"
+    },
+    "05-transmissive-environment.png": {
+      "bytes": 421789,
+      "sha256": "1aedf7ff3ddc627fa001bbca0a4ff5b78627315086f41a4323d1e7916fd8b08b"
+    },
+    "06-warp-static-opaque.png": {
+      "bytes": 602507,
+      "sha256": "46ac9241b9f471613ae2876584108492beb653eca79b49dfcefedf3fa725cd61"
+    },
+    "07-warp-transmissive-environment.png": {
+      "bytes": 419501,
+      "sha256": "2ef8b5e93e64f262247f8fdec5195cabe4a214b0dc96762dfb59c9b2a7545c53"
+    }
+  },
+  "images_before": {
     "01-static-opaque-dielectric-metal.png": {
       "bytes": 1030234,
       "sha256": "1c304e1633bd74655decf061ae752220a60340c76a60b0fd85313243648f8102"
@@ -405,107 +702,140 @@
   },
   "captures": [
     {
+      "record": "hero_dielectric-moving-frame1.json",
       "schema": "doom3-q4-capture/1",
       "material": "hero_dielectric",
       "backend": "d3d12",
       "adapter": "Intel(R) Graphics",
       "identity_line": "RHI backend: d3d12 (Intel(R) Graphics)",
       "image": "capture.png",
-      "image_sha256": "5d5dd3c9118b5651ef81ea66ba9a8e63214994a924fc3d5e8dd2658a78adfbb4",
+      "image_sha256": "746aba633335a2e75b388818e9ab44a2dbbc069893007743a10419227a30a9ef",
       "image_width": 1280,
       "image_height": 720,
-      "image_distinct": 6220,
+      "image_distinct": 3708,
       "executable": "build-q4-harness\\bin\\Release\\q4_harness.exe",
-      "executable_sha256": "562a20d68b739c201da261da4f5988e1fd6168a429a4f7f211bb20a41289eb69",
+      "executable_sha256": "6a2d50bb2e23670e3334b43cace3962dfa1a2bca86819bcd429030a5d9690748",
+      "arguments": [
+        "-Scene",
+        "moving",
+        "-Frames",
+        "1",
+        "-AdapterIndex",
+        "0",
+        "-Capture",
+        "out\\reca\\hero_dielectric-moving-f1.png"
+      ],
+      "started_utc": "2026-10-30T15:25:29.6991560Z",
+      "log": "capture.log",
+      "package_sha256": "65281cb4a2e3029de53b344858c2da8093fa74ea2ca28b6221d9cf6751abaee3"
+    },
+    {
+      "record": "hero_dielectric-moving.json",
+      "schema": "doom3-q4-capture/1",
+      "material": "hero_dielectric",
+      "backend": "d3d12",
+      "adapter": "Intel(R) Graphics",
+      "identity_line": "RHI backend: d3d12 (Intel(R) Graphics)",
+      "image": "capture.png",
+      "image_sha256": "1cf980a10dc974868db39c38ddc4954332d3e8eeb877606418bf28c1f93b02c9",
+      "image_width": 1280,
+      "image_height": 720,
+      "image_distinct": 3696,
+      "executable": "build-q4-harness\\bin\\Release\\q4_harness.exe",
+      "executable_sha256": "6a2d50bb2e23670e3334b43cace3962dfa1a2bca86819bcd429030a5d9690748",
       "arguments": [
         "-Scene",
         "moving",
         "-Frames",
         "8",
-        "-Capture",
-        "out\\content\\hero_dielectric\\c.png",
         "-AdapterIndex",
-        "0"
+        "0",
+        "-Capture",
+        "out\\reca\\hero_dielectric-moving-f8.png"
       ],
-      "started_utc": "2026-10-30T14:02:40.6658805Z",
+      "started_utc": "2026-10-30T15:25:30.3915708Z",
       "log": "capture.log",
-      "package_sha256": "8aaeb7328dd798877afc4e22829e8f4e082f307e7cf9bb506ab24bdda7471608"
+      "package_sha256": "65281cb4a2e3029de53b344858c2da8093fa74ea2ca28b6221d9cf6751abaee3"
     },
     {
+      "record": "hero_dielectric-static_opaque-warp.json",
       "schema": "doom3-q4-capture/1",
       "material": "hero_dielectric",
       "backend": "d3d12",
       "adapter": "Microsoft Basic Render Driver",
       "identity_line": "RHI backend: d3d12 (Microsoft Basic Render Driver)",
       "image": "capture.png",
-      "image_sha256": "36db9e832c591a7def0740c87fba9164bf6cf7edd5eca2872b0c75e73b98ad79",
+      "image_sha256": "46ac9241b9f471613ae2876584108492beb653eca79b49dfcefedf3fa725cd61",
       "image_width": 1280,
       "image_height": 720,
-      "image_distinct": 9070,
+      "image_distinct": 6940,
       "executable": "build-q4-harness\\bin\\Release\\q4_harness.exe",
-      "executable_sha256": "562a20d68b739c201da261da4f5988e1fd6168a429a4f7f211bb20a41289eb69",
+      "executable_sha256": "6a2d50bb2e23670e3334b43cace3962dfa1a2bca86819bcd429030a5d9690748",
       "arguments": [
         "-Scene",
         "static_opaque",
+        "-Warp",
         "-Capture",
-        "out\\content\\hero_dielectric\\static_opaque.png",
-        "-Warp"
+        "out\\reca\\hero_dielectric-static_opaque-warp.png"
       ],
-      "started_utc": "2026-10-30T14:03:05.6668899Z",
+      "started_utc": "2026-10-30T15:25:31.0737865Z",
       "log": "capture.log",
-      "package_sha256": "8aaeb7328dd798877afc4e22829e8f4e082f307e7cf9bb506ab24bdda7471608"
+      "package_sha256": "65281cb4a2e3029de53b344858c2da8093fa74ea2ca28b6221d9cf6751abaee3"
     },
     {
+      "record": "hero_dielectric-static_opaque.json",
       "schema": "doom3-q4-capture/1",
       "material": "hero_dielectric",
       "backend": "d3d12",
       "adapter": "Intel(R) Graphics",
       "identity_line": "RHI backend: d3d12 (Intel(R) Graphics)",
       "image": "capture.png",
-      "image_sha256": "1c304e1633bd74655decf061ae752220a60340c76a60b0fd85313243648f8102",
+      "image_sha256": "0574ac663906d0b673cbec2f63f8561b33d565ef5c445565a37dab95d36fa136",
       "image_width": 1280,
       "image_height": 720,
-      "image_distinct": 9086,
+      "image_distinct": 6921,
       "executable": "build-q4-harness\\bin\\Release\\q4_harness.exe",
-      "executable_sha256": "562a20d68b739c201da261da4f5988e1fd6168a429a4f7f211bb20a41289eb69",
+      "executable_sha256": "6a2d50bb2e23670e3334b43cace3962dfa1a2bca86819bcd429030a5d9690748",
       "arguments": [
         "-Scene",
         "static_opaque",
-        "-Capture",
-        "out\\content\\hero_dielectric\\static_opaque.png",
         "-AdapterIndex",
-        "0"
+        "0",
+        "-Capture",
+        "out\\reca\\hero_dielectric-static_opaque.png"
       ],
-      "started_utc": "2026-10-30T14:03:18.4693833Z",
+      "started_utc": "2026-10-30T15:25:25.6090370Z",
       "log": "capture.log",
-      "package_sha256": "8aaeb7328dd798877afc4e22829e8f4e082f307e7cf9bb506ab24bdda7471608"
+      "package_sha256": "65281cb4a2e3029de53b344858c2da8093fa74ea2ca28b6221d9cf6751abaee3"
     },
     {
+      "record": "hero_emissive_sign-alpha_emissive.json",
       "schema": "doom3-q4-capture/1",
       "material": "hero_emissive_sign",
       "backend": "d3d12",
       "adapter": "Intel(R) Graphics",
       "identity_line": "RHI backend: d3d12 (Intel(R) Graphics)",
       "image": "capture.png",
-      "image_sha256": "819dd294da2db34a18e07180393904cb48bfabbd26453e3a7b22084f539c7186",
+      "image_sha256": "07d82c9a178f73d20c9b35ac2d5a21cd856c4f2344fdb75b93adc880a9eb116b",
       "image_width": 1280,
       "image_height": 720,
-      "image_distinct": 9881,
+      "image_distinct": 7512,
       "executable": "build-q4-harness\\bin\\Release\\q4_harness.exe",
-      "executable_sha256": "562a20d68b739c201da261da4f5988e1fd6168a429a4f7f211bb20a41289eb69",
+      "executable_sha256": "6a2d50bb2e23670e3334b43cace3962dfa1a2bca86819bcd429030a5d9690748",
       "arguments": [
         "-Scene",
         "alpha_emissive",
-        "-Capture",
-        "out\\content\\hero_emissive_sign\\c.png",
         "-AdapterIndex",
-        "0"
+        "0",
+        "-Capture",
+        "out\\reca\\hero_emissive_sign.png"
       ],
-      "started_utc": "2026-10-30T14:02:35.2671168Z",
+      "started_utc": "2026-10-30T15:25:27.7292440Z",
       "log": "capture.log",
       "package_sha256": "f05241390081d16741e6cea6593c2171e250d112151c19357a5c3f234259a382"
     },
     {
+      "record": "hero_environment-transmissive_environment-warp.json",
       "schema": "doom3-q4-capture/1",
       "material": "hero_environment",
       "backend": "d3d12",
@@ -517,19 +847,20 @@
       "image_height": 720,
       "image_distinct": 2244,
       "executable": "build-q4-harness\\bin\\Release\\q4_harness.exe",
-      "executable_sha256": "562a20d68b739c201da261da4f5988e1fd6168a429a4f7f211bb20a41289eb69",
+      "executable_sha256": "6a2d50bb2e23670e3334b43cace3962dfa1a2bca86819bcd429030a5d9690748",
       "arguments": [
         "-Scene",
         "transmissive_environment",
+        "-Warp",
         "-Capture",
-        "out\\content\\hero_environment\\c.png",
-        "-Warp"
+        "out\\reca\\hero_environment-warp.png"
       ],
-      "started_utc": "2026-10-30T14:03:10.0431286Z",
+      "started_utc": "2026-10-30T15:25:31.8025146Z",
       "log": "capture.log",
       "package_sha256": "5eb7222f11d6edf941073e8633528b4218be15d77d787fc5065b2e58a6374808"
     },
     {
+      "record": "hero_environment-transmissive_environment.json",
       "schema": "doom3-q4-capture/1",
       "material": "hero_environment",
       "backend": "d3d12",
@@ -541,20 +872,21 @@
       "image_height": 720,
       "image_distinct": 2245,
       "executable": "build-q4-harness\\bin\\Release\\q4_harness.exe",
-      "executable_sha256": "562a20d68b739c201da261da4f5988e1fd6168a429a4f7f211bb20a41289eb69",
+      "executable_sha256": "6a2d50bb2e23670e3334b43cace3962dfa1a2bca86819bcd429030a5d9690748",
       "arguments": [
         "-Scene",
         "transmissive_environment",
-        "-Capture",
-        "out\\content\\hero_environment\\c.png",
         "-AdapterIndex",
-        "0"
+        "0",
+        "-Capture",
+        "out\\reca\\hero_environment.png"
       ],
-      "started_utc": "2026-10-30T14:02:49.0192740Z",
+      "started_utc": "2026-10-30T15:25:29.0636811Z",
       "log": "capture.log",
       "package_sha256": "5eb7222f11d6edf941073e8633528b4218be15d77d787fc5065b2e58a6374808"
     },
     {
+      "record": "hero_glass-transmissive_environment.json",
       "schema": "doom3-q4-capture/1",
       "material": "hero_glass",
       "backend": "d3d12",
@@ -566,79 +898,84 @@
       "image_height": 720,
       "image_distinct": 2245,
       "executable": "build-q4-harness\\bin\\Release\\q4_harness.exe",
-      "executable_sha256": "562a20d68b739c201da261da4f5988e1fd6168a429a4f7f211bb20a41289eb69",
+      "executable_sha256": "6a2d50bb2e23670e3334b43cace3962dfa1a2bca86819bcd429030a5d9690748",
       "arguments": [
         "-Scene",
         "transmissive_environment",
-        "-Capture",
-        "out\\content\\hero_glass\\c.png",
         "-AdapterIndex",
-        "0"
+        "0",
+        "-Capture",
+        "out\\reca\\hero_glass.png"
       ],
-      "started_utc": "2026-10-30T14:02:44.7350648Z",
+      "started_utc": "2026-10-30T15:25:28.4020015Z",
       "log": "capture.log",
       "package_sha256": "2abd99e62dfd5724077571ed5ebb1fd6a8564482a6db5f6a28077b91ca5d26a7"
     },
     {
+      "record": "hero_grating-alpha_emissive.json",
       "schema": "doom3-q4-capture/1",
       "material": "hero_grating",
       "backend": "d3d12",
       "adapter": "Intel(R) Graphics",
       "identity_line": "RHI backend: d3d12 (Intel(R) Graphics)",
       "image": "capture.png",
-      "image_sha256": "819dd294da2db34a18e07180393904cb48bfabbd26453e3a7b22084f539c7186",
+      "image_sha256": "07d82c9a178f73d20c9b35ac2d5a21cd856c4f2344fdb75b93adc880a9eb116b",
       "image_width": 1280,
       "image_height": 720,
-      "image_distinct": 9881,
+      "image_distinct": 7512,
       "executable": "build-q4-harness\\bin\\Release\\q4_harness.exe",
-      "executable_sha256": "562a20d68b739c201da261da4f5988e1fd6168a429a4f7f211bb20a41289eb69",
+      "executable_sha256": "6a2d50bb2e23670e3334b43cace3962dfa1a2bca86819bcd429030a5d9690748",
       "arguments": [
         "-Scene",
         "alpha_emissive",
-        "-Capture",
-        "out\\content\\hero_grating\\c.png",
         "-AdapterIndex",
-        "0"
+        "0",
+        "-Capture",
+        "out\\reca\\hero_grating.png"
       ],
-      "started_utc": "2026-10-30T14:02:30.2316928Z",
+      "started_utc": "2026-10-30T15:25:27.0419458Z",
       "log": "capture.log",
       "package_sha256": "398f7bbe5bc4a463a2848f617df03573f29a5ddfa31e9d09ee503f74f3996f42"
     },
     {
+      "record": "hero_metal-static_opaque.json",
       "schema": "doom3-q4-capture/1",
       "material": "hero_metal",
       "backend": "d3d12",
       "adapter": "Intel(R) Graphics",
       "identity_line": "RHI backend: d3d12 (Intel(R) Graphics)",
       "image": "capture.png",
-      "image_sha256": "1c304e1633bd74655decf061ae752220a60340c76a60b0fd85313243648f8102",
+      "image_sha256": "0574ac663906d0b673cbec2f63f8561b33d565ef5c445565a37dab95d36fa136",
       "image_width": 1280,
       "image_height": 720,
-      "image_distinct": 9086,
+      "image_distinct": 6921,
       "executable": "build-q4-harness\\bin\\Release\\q4_harness.exe",
-      "executable_sha256": "562a20d68b739c201da261da4f5988e1fd6168a429a4f7f211bb20a41289eb69",
+      "executable_sha256": "6a2d50bb2e23670e3334b43cace3962dfa1a2bca86819bcd429030a5d9690748",
       "arguments": [
         "-Scene",
         "static_opaque",
-        "-Capture",
-        "out\\content\\hero_metal\\static_opaque.png",
         "-AdapterIndex",
-        "0"
+        "0",
+        "-Capture",
+        "out\\reca\\hero_metal-static_opaque.png"
       ],
-      "started_utc": "2026-10-30T14:02:24.6348005Z",
+      "started_utc": "2026-10-30T15:25:26.3933021Z",
       "log": "capture.log",
       "package_sha256": "7b0b0cc6b643656ba3ce682f631807e528b0a4073ae6b54f393697adbe5319f6"
     }
   ],
   "commands": [
-    "powershell -NoProfile -File content/tools/get-encoder.ps1  -> 0",
-    "powershell -NoProfile -File content/tools/build-material.ps1 -Material <m> -OutDir out/content/<m>  (7 materials) -> 0 each",
+    "py -3 content/tools/generators/dielectric.py --size 512 -> 0",
+    "powershell -NoProfile -File content/tools/validate.ps1 -> 0",
+    "powershell -NoProfile -File content/tools/build-material.ps1 -Material <m> -OutDir out/content/<m> (7 materials) -> 0 each",
+    "powershell -NoProfile -File content/tools/verify-package.ps1 -OutDir out/content/<m> (7 materials) -> 0 each",
     "cmake -S src/renderer/q4_harness -B build-q4-harness -G \"Visual Studio 17 2022\" -A x64 -> 0",
     "cmake --build build-q4-harness --config Release -- -m -> 0",
-    "q4_harness.exe -ListAdapters -> 0",
-    "capture-q4.ps1 ... (see captures/*.json arguments) -> 0 each",
+    "powershell -NoProfile -File out/recapture-t056.ps1 (10 capture-q4.ps1 calls) -> 0 each",
+    "q4_harness.exe -Scene moving -Frames 1..8 -Capture out/motion/f<n>.png -> 0 each",
     "q4_harness.exe -Scene <s> -Frames 30 -AdapterIndex 0 -> 0 each",
     "q4_harness.exe -Scene <s> -Frames 5 -Warp -> 0 each",
-    "q4_harness.exe -Scene moving -Frames 1..8 -AdapterIndex 0 -> 0 each"
+    "py -3 specs/004-quality-renderer/evidence/t056/tools/frame_diff.py --series <f1..f8>",
+    "py -3 specs/004-quality-renderer/evidence/t056/tools/defect_metrics.py ..."
   ]
 }

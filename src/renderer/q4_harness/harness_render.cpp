@@ -243,9 +243,19 @@ bool D3D12Harness::Impl::RenderFrame(
             const detail::DrawItem& draw = draws[i];
             const detail::Mesh& mesh =
                 meshes[static_cast<uint32_t>(draw.mesh)];
+            const auto material = materialIndex.find(draw.cell);
+            if (material == materialIndex.end()) {
+                continue;
+            }
+            const detail::MaterialResources& resources =
+                materials[material->second];
             list->SetGraphicsRootConstantBufferView(
                 0, constantBuffer->GetGPUVirtualAddress() +
                        i * detail::kCbSlotBytes);
+            // The caster's baseColor.alpha decides the cutout, so every draw
+            // binds its own material table in the shadow pass too.
+            list->SetGraphicsRootDescriptorTable(
+                1, GpuHandle(resources.descriptorBase));
             list->IASetVertexBuffers(0, 1, &mesh.vertexView);
             list->IASetIndexBuffer(&mesh.indexView);
             list->DrawIndexedInstanced(mesh.indexCount, 1, 0, 0, 0);

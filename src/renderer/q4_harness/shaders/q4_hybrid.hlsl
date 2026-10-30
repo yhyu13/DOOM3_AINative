@@ -74,6 +74,7 @@ VSOutput VSMain(VSInput input)
 struct ShadowOutput
 {
     float4 position : SV_Position;
+    float2 uv : TEXCOORD0;
 };
 
 ShadowOutput VSShadow(VSInput input)
@@ -81,7 +82,22 @@ ShadowOutput VSShadow(VSInput input)
     ShadowOutput output;
     float4 worldPosition = mul(float4(input.position, 1.0), world);
     output.position = mul(worldPosition, lightViewProj);
+    // The shadow pixel shader needs the same UV the visible pass samples with,
+    // so an alpha-tested caster writes depth only where its cutout is opaque.
+    output.uv = input.uv;
     return output;
+}
+
+// Alpha-tested shadow pass. A caster whose material declares an alpha test
+// (params.y) discards texels below the same cutoff (params.x) the visible pass
+// uses, so a perforated surface casts a perforated shadow instead of its solid
+// silhouette. Casters without an alpha test draw the full silhouette.
+void PSShadowAlpha(ShadowOutput input)
+{
+    if (params.y > 0.5)
+    {
+        clip(baseColorTexture.Sample(linearSampler, input.uv).a - params.x);
+    }
 }
 
 #define Q4_PI 3.14159265359
