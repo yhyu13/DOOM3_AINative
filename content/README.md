@@ -116,5 +116,6 @@ Without a Q4 build the command stays at exit 3. The harness is still tested:
 `tests/content/run-capture-harness.ps1` drives the script with a stub renderer
 (`tests/content/fixtures/fake-rhi.cmd`) that breaks exactly one precondition at a time, and asserts that
 a missing identity, a wrong adapter, a blank frame, a missing frame and a failed build are each refused
-with a distinct exit code. The stub is not a renderer and its output is never evidence; the suite also
-asserts that `specs/009-rhi-hd-content/evidence/captures.md` still records zero captures.
+with a distinct exit code. The stub is not a renderer and its output is never evidence; the suite asserts
+that `specs/009-rhi-hd-content/evidence/captures.md` never cites the stub adapter (`Fake RHI Adapter`),
+so a stub capture cannot enter the index now that real captures exist.

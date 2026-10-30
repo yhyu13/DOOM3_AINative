@@ -221,12 +221,17 @@ only. The real inventory stays `SKIPPED` until a pack is present.
 
 ## 8. Not done, and why
 
+> **Superseded 2026-10-30** for the content and capture rows below, and for the §6 report excerpt
+> (which shows the 1/7-authored state of that run): PR #72 authored the six cells and T056 (PR #75)
+> recorded six frames for seven cells plus the budget measurements. The remaining rows are unchanged.
+> Read this table as the state when the tooling landed, not as the current state.
+
 | Item | State | Why |
 |---|---|---|
-| Six content cells (T-020…T-025) | not started | authoring work, not tooling; each needs its own art pass and review |
-| Budget measurements (T-027) | partial | rows exist as `blocked: spec 004 has not reached Q4`; a number without a measurement would violate FR-012 |
+| Six content cells (T-020…T-025) | done (was "not started") | authored by PR #72; all seven cells now have a generator, `LICENSE`, `provenance.json`, a sidecar and a buildable package |
+| Budget measurements (T-027) | recorded | six rows carry `recorded` with `specs/004-quality-renderer/evidence/t056/measurements.json`; `skinned_character` is `blocked` because the cell is never drawn (no rigged mesh or animation), not because spec 004 has not reached Q4. A number without a measurement would still violate FR-012 |
 | Independent review of this implementation (T-041) | not started | the author may not review their own PR (`docs/GIT_WORKFLOW.md`) |
-| Q4 captures (T-050) | BLOCKED | no RHI path renders a PBR material |
+| Q4 captures (T-050) | recorded (was BLOCKED) | six frames for seven cells on d3d12 `Intel(R) Graphics` plus WARP, indexed in `evidence/captures.md`; `skinned_character` has no frame |
 | Retail texture study (T-051) | BLOCKED | no counsel review |
 | Real corpus suffix inventory (T-007 evidence) | SKIPPED | no pack staged on this host |
 | `rxgb` layout verified against authorized data | not done | open question 6; the converter declares the layout instead of assuming it |
