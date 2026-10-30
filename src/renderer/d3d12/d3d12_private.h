@@ -13,6 +13,10 @@
 #include <string>
 #include <vector>
 
+// Forward declaration only: this header stays free of native D3D12 types, and
+// the one accessor that returns the device is defined in the backend .cpp.
+struct ID3D12Device;
+
 namespace doom3 {
 namespace rhi {
 namespace d3d12 {
@@ -101,6 +105,12 @@ struct BackendAccess {
     static d3d12::SlotObservation Slot(const Device& device,
                                         const Submission& submission);
     static void InjectDeviceRemoval(Device& device, bool removed);
+    // Q4 capture harness: the device the RHI selected. The harness creates its
+    // own command queue/resources on this device so adapter selection, adapter
+    // identity and device creation still come from the RHI. Returns nullptr
+    // before Initialize or after a failing Shutdown. This is backend-private
+    // vocabulary, not a public RHI seam.
+    static ID3D12Device* NativeDevice(Device& device);
 };
 
 namespace d3d12 {

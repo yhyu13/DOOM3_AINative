@@ -483,5 +483,10 @@ void BackendAccess::InjectDeviceRemoval(Device& device, bool removed) {
     device.impl_->simulatedRemoval = removed;
 }
 
+ID3D12Device* BackendAccess::NativeDevice(Device& device) {
+    return (device.impl_ && device.impl_->initialized) ? device.impl_->device.Get()
+                                                        : nullptr;
+}
+
 }  // namespace rhi
 }  // namespace doom3
