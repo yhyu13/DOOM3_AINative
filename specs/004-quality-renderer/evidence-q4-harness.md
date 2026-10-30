@@ -66,6 +66,12 @@ Software adapters:
   [0] Microsoft Basic Render Driver (vendor=0x1414 device=0x008C memory=0)
 ```
 
+> **VRAM probe added at `feat/q4-vram-measure`.** `-VramProbe` samples
+> `IDXGIAdapter3::QueryVideoMemoryInfo` for the calling process after init, after the material upload,
+> at scene start and after every frame, then prints one `VRAM_JSON` line. Binary
+> `994c91267db131710d962b50cd01a90ab25584351009d22de421379301c3d7a9`; it does not change the rendered
+> frames. The measurement is in `evidence-q4.md` §5.9 and `evidence/t056/vram.json`.
+
 ## Official capture
 
 ```powershell
@@ -236,7 +242,8 @@ The current capture commands are the same `capture-q4.ps1` contract with
 ## Limitations / blockers
 
 These limitations describe the **one-cell run at `127ab39`**; the current limitations (procedural rig,
-bounded glass model, SDR texture container, no VRAM peak) are in `evidence-q4.md` §5.5 and §5.8.
+bounded glass model, SDR texture container) and the measured process VRAM peak are in
+`evidence-q4.md` §5.5, §5.8 and §5.9.
 
 - The capture run used the one-cell content set (`opaque_dielectric`) and
   predates the six-cell content merge at `127ab39`. The metal, alpha-tested,

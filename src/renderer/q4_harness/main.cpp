@@ -237,6 +237,7 @@ void Usage() {
         "  -CaptureExact          write -Capture verbatim (no scene suffix)\n"
         "  -GlassThickness <f>    thin-slab refraction thickness in world units\n"
         "  -HdrProbe              read back the HDR scene and print the peak\n"
+        "  -VramProbe             sample DXGI process video memory and print VRAM_JSON\n"
         "  -ContentDir <path>     directory that holds content/\n"
         "  -PackageDir <path>     directory that holds <material>/package.json\n"
         "  -ShaderDir <path>      directory that holds q4_hybrid.hlsl\n");
@@ -320,6 +321,8 @@ int main(int argc, char** argv) {
             options.hud = true;
         } else if (arg == "-HdrProbe") {
             options.hdrProbe = true;
+        } else if (arg == "-VramProbe") {
+            options.vramProbe = true;
         } else if (arg == "-NoTransmission") {
             options.skipTransmission = true;
         } else if (arg == "-CaptureExact") {
@@ -558,6 +561,9 @@ int main(int argc, char** argv) {
         }
     }
 
+    if (options.vramProbe) {
+        std::printf("VRAM_JSON %s\n", harness.vramJson().c_str());
+    }
     harness.Shutdown();
     device.Shutdown();
     if (com == S_OK) {

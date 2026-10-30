@@ -7,7 +7,7 @@
   ],
   "recordedAt": "2026-10-30 (B3-B6 session)",
   "baseCommit": "4229bd5",
-  "note": "Re-recorded for the B-3..B-6 coverage session. The four missing artifacts now exist: a real skinned character (12-bone procedural rig, 2-bone linear blend) in `moving`, a display-resolution HUD composed after tonemap with an in-world GUI at render extent, HDR emissive with a scene-target radiance probe (peak 15.21 at the authored 16x scale), and a thin-slab screen-space refraction for the glass. Recapturing exposed a content-pipeline defect: normal/roughness/metalness/ao were encoded with `-srgbi`, linearising data (0.5 -> 0.214) and giving every normal a ~54 degree tilt. `content/tools/pins.json` was corrected, all seven packages rebuilt, and every frame recaptured, so these images supersede the B1/B2-session set. The VRAM peak remains unmeasured; Q4 is not green.",
+  "note": "Re-recorded for the B-3..B-6 coverage session, with the VRAM peak added on 2026-10-31. The four earlier missing artifacts exist: a real skinned character (12-bone procedural rig, 2-bone linear blend) in `moving`, a display-resolution HUD composed after tonemap with an in-world GUI at render extent, HDR emissive with a scene-target radiance probe (peak 15.21 at the authored 16x scale), and a thin-slab screen-space refraction for the glass. Recapturing exposed a content-pipeline defect: normal/roughness/metalness/ao were encoded with `-srgbi`, linearising data (0.5 -> 0.214) and giving every normal a ~54 degree tilt. `content/tools/pins.json` was corrected, all seven packages rebuilt, and every frame recaptured, so these images supersede the B1/B2-session set. The `vram` block is the process LOCAL CurrentUsage peak measured with IDXGIAdapter3::QueryVideoMemoryInfo (107,110,400 bytes; 4 scenes x 3 x 30 frames). The b1/b2 `current` rows are recomputations on the committed frames; the `before`/`after` rows are history. T056 is complete, but Q4 is not green: T057 r3/addendum decides.",
   "host": {
     "os": "Windows 11 10.0.22631 x64",
     "adapter": "Intel(R) Graphics (vendor=0x8086 device=0x7D67, reported dedicated memory 134217728 bytes)",
@@ -188,11 +188,13 @@
     },
     {
       "material": "hero_environment",
-      "package_sha256": "c5abb8318c54675f2679dda7385d82c66aba4651fc0d84a2f2652b99f13a98d0",
+      "package_sha256": "61d8a7000e4a6da434969f9dd3d5369ca769445f68096e766b339b30737d9620",
       "textures": 4,
       "dds_bytes_on_disk": 33555104,
       "texture_payload_bytes": 33554512,
-      "cell": "large_environment"
+      "cell": "large_environment",
+      "package_sha256_previous": "c5abb8318c54675f2679dda7385d82c66aba4651fc0d84a2f2652b99f13a98d0",
+      "package_sha256_note": "Rebuilt 2026-10-31 after a metadata-only sidecar residency correction; texture SHA-256 unchanged, frame byte-identical, not recaptured. Previous package SHA-256: c5abb8318c54675f2679dda7385d82c66aba4651fc0d84a2f2652b99f13a98d0"
     },
     {
       "material": "hero_glass",
@@ -765,7 +767,58 @@
         }
       }
     },
-    "scope": "B1/B2 session (base 50efd1a); retained as history. Frames were recaptured after the data-map encoding fix, so these numbers no longer describe the committed frames."
+    "scope": "B1/B2 session (base 50efd1a); retained as history. Frames were recaptured after the data-map encoding fix, so the before/after rows no longer describe the committed frames. b2.current is the recomputation on the committed 01 with the same tool.",
+    "current": {
+      "frame": "01-static-opaque-dielectric-metal.png",
+      "dielectric_sphere": {
+        "mean": 126.018,
+        "sd": 30.538,
+        "min": 73,
+        "max": 207,
+        "highpass_sd": 0.947,
+        "highpass_abs_p99": 3.0,
+        "highpass_abs_max": 9.667,
+        "isolated_spikes": 0,
+        "isolated_spikes_per_kpx": 0.0,
+        "pixels": 18200
+      },
+      "dielectric_cube_face": {
+        "mean": 102.231,
+        "sd": 18.435,
+        "min": 75,
+        "max": 171,
+        "highpass_sd": 3.354,
+        "highpass_abs_p99": 14.333,
+        "highpass_abs_max": 31.0,
+        "isolated_spikes": 0,
+        "isolated_spikes_per_kpx": 0.0,
+        "pixels": 32300
+      },
+      "ground_near_left": {
+        "mean": 164.982,
+        "sd": 2.317,
+        "min": 157,
+        "max": 176,
+        "highpass_sd": 0.402,
+        "highpass_abs_p99": 1.222,
+        "highpass_abs_max": 2.667,
+        "isolated_spikes": 0,
+        "isolated_spikes_per_kpx": 0.0,
+        "pixels": 24000
+      },
+      "ground_mid_right": {
+        "mean": 172.552,
+        "sd": 4.584,
+        "min": 160,
+        "max": 195,
+        "highpass_sd": 1.151,
+        "highpass_abs_p99": 3.556,
+        "highpass_abs_max": 8.222,
+        "isolated_spikes": 0,
+        "isolated_spikes_per_kpx": 0.0,
+        "pixels": 31200
+      }
+    }
   },
   "b1": {
     "metric": "tools/defect_metrics.py --only b1 --mask-from <rejected 02> <accepted 02>; the footprint mask is the rejected frame's solid shadow, eroded 2 px, and dark_components counts 8-connected pieces below 160 inside it",
@@ -804,7 +857,24 @@
         "lit_level": 169
       }
     ],
-    "scope": "B1/B2 session (base 50efd1a); retained as history. Frames were recaptured after the data-map encoding fix, so these numbers no longer describe the committed frames."
+    "scope": "B1/B2 session (base 50efd1a); retained as history. Frames were recaptured after the data-map encoding fix, so the rows above no longer describe the committed frames. b1.current is the recomputation on the committed 02 with the same tool.",
+    "current": {
+      "frame": "specs/004-quality-renderer/evidence/t056/02-alpha-tested-emissive.png",
+      "footprint_px": 2385,
+      "mask_threshold": 159.0,
+      "median_based_mean": 145.03,
+      "sd": 15.39,
+      "min": 105,
+      "max": 178,
+      "dark_components": 1,
+      "dark_component_sizes": [
+        1895
+      ],
+      "lit_share": 0.0595,
+      "lit_level": 169,
+      "footprint_source": "50efd1a:02-alpha-tested-emissive.png (rejected solid-shadow frame)",
+      "note": "dark_components is threshold-sensitive: the committed cutout shadow has soft, foreshortened holes that do not all separate at the 160 luminance threshold, so the count stays 1. lit_share rises to 0.0595 and sd to 15.39 against the historical fixed row; the visible closure evidence is crops/grating-shadow-cutout.png, not this count."
+    }
   },
   "images": {
     "01-static-opaque-dielectric-metal.png": {
@@ -1151,8 +1221,10 @@
       ],
       "started_utc": "2026-10-30T16:15:31.3402575Z",
       "log": "capture.log",
-      "package_sha256": "c5abb8318c54675f2679dda7385d82c66aba4651fc0d84a2f2652b99f13a98d0",
-      "record": "hero_environment-transmissive_environment-warp.json"
+      "package_sha256": "61d8a7000e4a6da434969f9dd3d5369ca769445f68096e766b339b30737d9620",
+      "record": "hero_environment-transmissive_environment-warp.json",
+      "package_sha256_previous": "c5abb8318c54675f2679dda7385d82c66aba4651fc0d84a2f2652b99f13a98d0",
+      "package_sha256_note": "Rebuilt 2026-10-31 after a metadata-only sidecar residency correction; texture SHA-256 unchanged, frame byte-identical, not recaptured. Previous package SHA-256: c5abb8318c54675f2679dda7385d82c66aba4651fc0d84a2f2652b99f13a98d0"
     },
     {
       "schema": "doom3-q4-capture/1",
@@ -1427,5 +1499,90 @@
     },
     "ordering": "scene (render extent, including the in-world GUI) -> copy -> glass composite -> tonemap/reconstruction -> HUD (display extent, integer pixels, not tonemapped)",
     "glass_model_limits": "single thin slab, one refraction event, five-tap frost, no dispersion, no caustics, no per-layer depth rejection; the pane is excluded from the opaque shadow pass"
+  },
+  "vram": {
+    "measuredAt": "2026-10-31T01:16:58+08:00",
+    "method": "The harness calls IDXGIAdapter3::QueryVideoMemoryInfo(node 0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL) for the calling process after harness initialization, after the material upload, at scene start and after every rendered frame. The recorded peak is the maximum CurrentUsage over those samples; it is process usage, not adapter capacity and not ResidencyPolicy bookkeeping.",
+    "counter": "IDXGIAdapter3::QueryVideoMemoryInfo",
+    "segmentGroup": "LOCAL",
+    "adapter": "Intel(R) Graphics",
+    "driver": "32.0.101.8331",
+    "exe": "build-q4-harness/bin/Release/q4_harness.exe",
+    "exe_sha256": "994c91267db131710d962b50cd01a90ab25584351009d22de421379301c3d7a9",
+    "adapterDedicatedBytes": 134217728,
+    "adapterDedicatedMeaning": "adapter capacity reported by DXGI; not a use figure and not substituted for the measured peak",
+    "runsPerScene": 3,
+    "framesPerRun": 30,
+    "scenes": {
+      "static_opaque": {
+        "peakLocalUsageBytes": 107110400,
+        "peakLocalBudgetBytes": 37979832729,
+        "minPeakBytes": 107110400,
+        "maxPeakBytes": 107110400,
+        "medianPeakBytes": 107110400,
+        "runPeaksBytes": [
+          107110400,
+          107110400,
+          107110400
+        ],
+        "peakPhase": "materials_loaded",
+        "peakFrame": 0,
+        "peakNonLocalUsageBytes": 0
+      },
+      "alpha_emissive": {
+        "peakLocalUsageBytes": 107110400,
+        "peakLocalBudgetBytes": 37979832729,
+        "minPeakBytes": 107110400,
+        "maxPeakBytes": 107110400,
+        "medianPeakBytes": 107110400,
+        "runPeaksBytes": [
+          107110400,
+          107110400,
+          107110400
+        ],
+        "peakPhase": "materials_loaded",
+        "peakFrame": 0,
+        "peakNonLocalUsageBytes": 0
+      },
+      "moving": {
+        "peakLocalUsageBytes": 107110400,
+        "peakLocalBudgetBytes": 37979832729,
+        "minPeakBytes": 107110400,
+        "maxPeakBytes": 107110400,
+        "medianPeakBytes": 107110400,
+        "runPeaksBytes": [
+          107110400,
+          107110400,
+          107110400
+        ],
+        "peakPhase": "materials_loaded",
+        "peakFrame": 0,
+        "peakNonLocalUsageBytes": 0
+      },
+      "transmissive_environment": {
+        "peakLocalUsageBytes": 107110400,
+        "peakLocalBudgetBytes": 37979832729,
+        "minPeakBytes": 107110400,
+        "maxPeakBytes": 107110400,
+        "medianPeakBytes": 107110400,
+        "runPeaksBytes": [
+          107110400,
+          107110400,
+          107110400
+        ],
+        "peakPhase": "materials_loaded",
+        "peakFrame": 0,
+        "peakNonLocalUsageBytes": 0
+      }
+    },
+    "peak": {
+      "scene": "all (tied)",
+      "localUsageBytes": 107110400,
+      "localBudgetBytes": 37979832729,
+      "phase": "materials_loaded",
+      "frame": 0,
+      "nonLocalUsageBytes": 0
+    },
+    "artifact": "specs/004-quality-renderer/evidence/t056/vram.json"
   }
 }

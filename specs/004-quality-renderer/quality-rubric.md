@@ -1,6 +1,6 @@
 # Q4 quality rubric, provenance and measurement plan (T049)
 
-Status: **rubric, with the T056 measurement record updated 2026-10-30 (B3–B6 session)** for issue #65.
+Status: **rubric, with the T056 measurement record updated 2026-10-31 (VRAM-peak session)** for issue #65.
 The rubric itself is unchanged; §5 carries the measured numbers from
 `evidence/t056/measurements.json` and the budgets derived from them. This is still not the Q4 review
 (T057) and not a modern-look claim: the review rows are candidate observations, not verdicts.
@@ -96,7 +96,8 @@ listed in `evidence-q4.md` §5.2 and §5.8.
 Three limits remain explicit rather than hidden: the skinned rig is procedural (no retail mesh), the
 glass model is a screen-space approximation (no dispersion/caustics/multiple internal reflections), and
 the emissive >1.0 case is exercised at shading time because the packaged texture is still an SDR mask.
-The `large_environment` residency measurement exists; no VRAM peak exists.
+The `large_environment` residency measurement exists and the process VRAM peak is now measured
+(§5.1, §5.2 B4).
 
 ## 4. Rubric dimensions
 
@@ -203,9 +204,10 @@ Source artifact: `evidence/t056/measurements.json` (image hashes, package hashes
 diffs and the coverage metrics are produced by `evidence/t056/tools/`, so no figure is hand-copied).
 Host: Windows 11 10.0.22631 x64; adapter `Intel(R) Graphics` (vendor 0x8086, device 0x7D67, reported
 dedicated memory 134,217,728 bytes), driver 32.0.101.8331; WARP `Microsoft Basic Render Driver`.
-Base `4229bd5` (after the B1/B2 fixes; the pre-fix record at `348487c` is in git history), harness
-`4a8d931d…a3ea`. Extent 1280×720 render = display (frame 08 renders at 960×540 and displays at
-1280×720), `PlanReconstruction: Off`, ACES exposure 1.0.
+Base `4229bd5` (after the B1/B2 fixes; the pre-fix record at `348487c` is in git history), capture
+harness `4a8d931d…a3ea`. Extent 1280×720 render = display (frame 08 renders at 960×540 and displays at
+1280×720), `PlanReconstruction: Off`, ACES exposure 1.0. The 2026-10-31 VRAM session added the probe to
+the harness (`994c9126…d7a9`); it did not recapture or replace the eleven committed frames.
 
 | Field | Recorded |
 |---|---|
@@ -223,11 +225,24 @@ Base `4229bd5` (after the B1/B2 fixes; the pre-fix record at `348487c` is in git
 | glass transmission | 05 vs 09 (no-glass reference): luminance corr 0.9336, variance ratio 0.3929, 58.5 % of pane pixels within 20/255 of the reference, best background shift −9 px (13.5 % SAD improvement over zero shift) |
 | HUD | display 1280×720, left border exactly 2 px, health cells at 20-px pitch, cyan mask spans x 24–1256; ordering scene → copy → glass → tonemap → HUD |
 | accepted/rejected examples | `evidence-q4.md` §5.4, §5.7 and §5.8; artifacts under `evidence/t056/` |
-| VRAM peak | **not measured** — no DXGI budget or process GPU-memory counter was sampled |
+| VRAM peak | **107,110,400 bytes** LOCAL `CurrentUsage` for the harness process (102.15 MiB), sampled with `IDXGIAdapter3::QueryVideoMemoryInfo` on `Intel(R) Graphics` at 1280×720; all four scenes and all 12 runs report the same peak at `materials_loaded` |
 
 Numerical contrast was not measured; §4.4's "no numeric contrast threshold is invented here" still
 holds. The per-category frames are single-pose (the moving scene apart), so nothing here characterises
 a camera path.
+
+**VRAM-peak method and scope (2026-10-31).** The harness now samples
+`IDXGIAdapter3::QueryVideoMemoryInfo(node 0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL)` for the calling process
+after harness initialization, after the material upload, at scene start and after every rendered frame
+(`src/renderer/q4_harness/vram_probe.*`, `-VramProbe`). The probe resolved the DXGI adapter by the
+device's LUID, so the numbers belong to the same adapter the RHI selected. Each of the four scenes was
+run three times with 30 frames per run (12 processes); every run reported the same LOCAL peak,
+**107,110,400 bytes**, reached at `materials_loaded`, because the harness uploads all seven cells in
+every process. The per-frame samples after upload are lower (106,971,136 bytes), so rendering does not
+raise the peak. NON_LOCAL usage is 0. The adapter's reported dedicated memory (134,217,728 bytes) is
+recorded as identity only and is **not** the use figure; the LOCAL budget on this UMA host is
+37,979,832,729 bytes and is also not a use figure. Artifact:
+`evidence/t056/vram.json`; compact record: `evidence/t056/measurements.json` `vram`.
 
 ### 5.2 Budgets set from the measurement
 
@@ -241,24 +256,26 @@ opinion.
 | B2 residency | environment cell ≤ 256 MiB budget, 0 deferred uploads, 0 over-budget at a 64 MiB/frame throttle | logged `ResidencyPolicy` accounting (33,554,512 resident) |
 | B3 frame time at 1280×720 on `Intel(R) Graphics` | median ≤ 2.2 ms per scene, measured over 3 windows | measured medians 1.56–2.19 ms after adding the skinned draw, the glass pass and the HUD; the window-to-window spread (0.14–0.76 ms) is comparable to the differences, so this is an envelope, not a tight gate |
 | B3 note | a single-window **max** is not a gate on this host: repeated runs of one unchanged scene gave maxima of 4.09–5.51 ms, wider than any per-scene difference, so the max is reported for information only | three repeats per scene on one binary |
-| B4 VRAM peak | **unset** | not measured; the adapter's reported 128 MiB is not a use figure |
+| B4 VRAM peak | process LOCAL `CurrentUsage` **≤ 107,110,400 bytes** at 1280×720 on `Intel(R) Graphics`; no growth without a new T056 measurement and artifact | measured with `IDXGIAdapter3::QueryVideoMemoryInfo`; 3 × 30-frame runs per scene, 12 runs, all 107,110,400 bytes at `materials_loaded`. Process usage including driver overhead, not adapter capacity |
 | B5 HDR radiance | the authored emissive must reach the tonemap above 1.0; the pre-tonemap probe is the evidence | `coverage.hdr_probe` in `measurements.json`: 15.2109 peak at 16× |
 | B6 display overlay | the HUD is drawn at the display extent after tonemap, with no scene sampling; a 2-px border is the texel-sharp check | `coverage.hud_display_overlay` and frame 08 |
 
 ## 6. What is not claimed
 
-- T056 is **PARTIAL**, not green. Seven packages build and all four category frames exist (static,
-  alpha/emissive, moving with a skinned draw, transmissive/environment) plus WARP parity and a separate
-  display-overlay frame. The remaining gap is the **VRAM peak**, which no tool sampled. The skinned rig is
-  procedural rather than a retail asset, and the glass model is a bounded screen-space approximation;
-  both limits are stated with the frames.
-- T057 has **run once** and its point-in-time verdict is **BLOCKED** (`review-q4.md`, merged `50efd1a`).
-  B-1/B-2 were closed in the previous session; this session closes B-3 (skinned motion), B-4 (HUD),
-  B-5 (HDR emissive) and B-6 (transmission) with artifacts. A closed blocker is not an acceptance
-  verdict: **T057 must be re-run** against the new frames and hashes before any dimension moves from
-  reject to accept or before Q4 can be called green.
+- T056 is **complete** as a measurement: seven packages build and all four category frames exist
+  (static, alpha/emissive, moving with a skinned draw, transmissive/environment) plus WARP parity, a
+  separate display-overlay frame and a measured process VRAM peak (107,110,400 bytes). The skinned rig
+  is procedural rather than a retail asset, and the glass model is a bounded screen-space
+  approximation; both limits are stated with the frames. T056 completion is not Q4 green.
+- T057 has **run twice**. The first run (`review-q4.md`, merged `50efd1a`) was **BLOCKED**. The
+  round-2 review (PR #84, `review-q4-r2.md`) closes B-1…B-6 and accepts 4.1–4.7 with limits, but is
+  **BLOCKED for Q4 on the unmeasured VRAM peak only**. This session measures that peak and sets B4, so
+  **T057 must be re-run or addended (r3)** against this record before Q4 can be called green. A
+  measured B4 is not an acceptance verdict.
 - The T086 provider-specific display-stage position is `NOT RUN`: no authorized provider exists (T060),
   and the check requires T062 execution.
 - B1/B2 are recorded from one host; B3 is a median envelope from three 30-frame windows on that host,
-  and a single-window max is not a gate; B4 (VRAM peak) remains unset with the reason recorded. That is
-  the measured state, not an omission.
+  and a single-window max is not a gate; B4 is the process LOCAL `CurrentUsage` peak on that host and
+  those scene identities (107,110,400 bytes), not a device-wide or cross-vendor figure. A driver,
+  content or harness allocation change that raises it requires a new T056 measurement. That is the
+  measured state, not an omission.

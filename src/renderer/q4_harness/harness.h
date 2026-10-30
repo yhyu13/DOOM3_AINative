@@ -30,6 +30,7 @@ struct HarnessOptions {
     bool hdrProbe = false;        // read back the HDR scene and print the peak
     bool skipTransmission = false;  // reference frame without the glass draw
     bool captureExact = false;      // write -Capture verbatim, no scene suffix
+    bool vramProbe = false;         // sample IDXGIAdapter3 video memory per frame
     float glassThickness = 0.35f;   // thin-slab refraction thickness, world units
     uint32_t frames = 1;
     int debugPass = 0;  // 0 = all, 1 = tone-map only, 2 = shadow + tone-map
@@ -90,6 +91,11 @@ public:
     uint32_t displayHeight() const;
     const std::string& reconstructionMode() const;
     bool HasMaterial(const std::string& cell) const;
+
+    // True only when -VramProbe was requested and the DXGI probe initialized.
+    bool vramAvailable() const;
+    // Identity, every sample and the LOCAL/NON_LOCAL peaks as one JSON object.
+    std::string vramJson() const;
 
 private:
     struct Impl;

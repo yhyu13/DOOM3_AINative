@@ -67,6 +67,7 @@ RHI backend: d3d12 (<adapter>)
 | `-Exposure <f>` | Tone-map exposure (default 1.0). |
 | `-EmissiveScale <f>` | Override the sidecar `emissiveScale` (diagnostics). |
 | `-HdrProbe` | Copy the HDR scene target to a readback buffer and print peak/mean/`pixels_gt_1/8/32` before the tonemap. |
+| `-VramProbe` | Sample `IDXGIAdapter3::QueryVideoMemoryInfo` for the calling process after init, after the material upload, at scene start and after every frame, then print one `VRAM_JSON` line (adapter, LUID, every sample, LOCAL/NON_LOCAL peaks). |
 | `-Hud` | Add the in-world GUI at render extent and the display-resolution HUD after tonemap. |
 | `-GlassThickness <f>` | Thin-slab refraction thickness in world units (default 0.35; 0 disables the offset). |
 | `-NoTransmission` | Skip the glass draw, producing the no-glass reference frame. |
@@ -115,6 +116,21 @@ powershell -NoProfile -ExecutionPolicy Bypass -File content/tools/capture-q4.ps1
   `R16G16B16A16_FLOAT` target; `-HdrProbe` reads it back before the tonemap.
 - Four scene categories are defined. A category whose authored cells are absent
   is reported `NOT RUN`; no stand-in material or fabricated frame is produced.
+
+## VRAM measurement
+
+T056's VRAM figure comes from the harness process, not from the adapter's capacity:
+
+```powershell
+py -3 specs/004-quality-renderer/evidence/t056/tools/vram_measure.py `
+  --exe build-q4-harness\bin\Release\q4_harness.exe --runs 3 --frames 30
+```
+
+The tool runs each of the four scenes three times, parses the one `VRAM_JSON` line each run prints,
+keeps the maximum LOCAL `CurrentUsage`, writes `evidence/t056/vram.json`, and merges the compact record
+into `evidence/t056/measurements.json`. The adapter's reported dedicated memory is recorded as
+identity only and is never substituted for the measured peak. On the measured host the peak was
+107,110,400 bytes in all 12 runs (`evidence-q4.md` §5.9).
 
 ## RHI integration
 

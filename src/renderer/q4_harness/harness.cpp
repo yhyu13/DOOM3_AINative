@@ -741,6 +741,14 @@ bool D3D12Harness::Initialize(ID3D12Device* device,
         !impl_->CreateTargets(error)) {
         return false;
     }
+    if (impl_->options.vramProbe) {
+        std::string probeError;
+        if (!impl_->vram.Initialize(impl_->device.Get(), &probeError)) {
+            return detail::FailMessage(
+                error, "VRAM probe requested but unavailable: " + probeError);
+        }
+        impl_->vram.Sample("harness_ready", 0);
+    }
     return true;
 }
 
@@ -770,6 +778,9 @@ bool D3D12Harness::LoadMaterials(const ContentCatalog& catalog,
     if (hookCell != nullptr) {
         impl_->BuildHooks(catalog, *hookCell);
     }
+    if (impl_->options.vramProbe) {
+        impl_->vram.Sample("materials_loaded", 0);
+    }
     return true;
 }
 
@@ -780,6 +791,9 @@ bool D3D12Harness::RenderScene(const ContentCatalog& catalog,
         return detail::FailMessage(error, "harness is not initialized");
     }
     const uint32_t frames = std::max<uint32_t>(1, impl_->options.frames);
+    if (impl_->options.vramProbe) {
+        impl_->vram.Sample("scene_start", 0);
+    }
     for (uint32_t frame = 0; frame < frames; ++frame) {
         (void)frameIndex;
         std::vector<detail::DrawItem> draws;
@@ -791,6 +805,9 @@ bool D3D12Harness::RenderScene(const ContentCatalog& catalog,
         }
         if (!impl_->RenderFrame(draws, frame, error)) {
             return false;
+        }
+        if (impl_->options.vramProbe) {
+            impl_->vram.Sample("frame", frame);
         }
     }
     return true;
@@ -902,6 +919,14 @@ const std::string& D3D12Harness::reconstructionMode() const {
 
 bool D3D12Harness::HasMaterial(const std::string& cell) const {
     return impl_ ? impl_->HasMaterialImpl(cell) : false;
+}
+
+bool D3D12Harness::vramAvailable() const {
+    return impl_ && impl_->vram.available();
+}
+
+std::string D3D12Harness::vramJson() const {
+    return impl_ ? impl_->vram.ToJson() : std::string();
 }
 
 }  // namespace q4

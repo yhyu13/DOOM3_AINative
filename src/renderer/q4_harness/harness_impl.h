@@ -6,6 +6,7 @@
 #include "dds.h"
 #include "harness.h"
 #include "mesh.h"
+#include "vram_probe.h"
 
 #include <windows.h>
 
@@ -184,6 +185,7 @@ struct D3D12Harness::Impl {
     std::map<std::string, size_t> materialIndex;
     RuntimeHooks hooks;
     std::string reconstructionMode;
+    VramProbe vram;
     uint32_t renderWidth = 0;
     uint32_t renderHeight = 0;
     uint32_t displayWidth = 0;

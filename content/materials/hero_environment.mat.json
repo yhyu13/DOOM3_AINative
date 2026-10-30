@@ -5,8 +5,15 @@
   "mtr": "content/materials/hero_environment.mtr",
   "surface": "large industrial wall with 512-px panels, recessed seams, rivets, concrete grime and rust streaks",
   "residency": {
-    "state": "blocked",
-    "why": "the residency budget is a T056 measurement; no Q4 frame exists, so the budget row stays blocked rather than carrying a guessed number"
+    "state": "recorded",
+    "measured_resident_bytes": 33554512,
+    "budget_bytes": 268435456,
+    "upload_per_frame_bytes": 67108864,
+    "deferred_uploads": 0,
+    "over_budget": false,
+    "scope": "hero_environment cell, ResidencyPolicy accounting at a 256 MiB budget and a 64 MiB/frame throttle; it is not a claim that the policy owns the D3D12 allocation and it is not the process VRAM peak",
+    "frame": "specs/004-quality-renderer/evidence/t056/05-transmissive-environment.png",
+    "artifact": "specs/004-quality-renderer/evidence/t056/measurements.json (residency and vram blocks)"
   },
   "channels": {
     "baseColor": {
