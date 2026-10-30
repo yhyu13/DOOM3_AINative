@@ -268,3 +268,55 @@ set_tests_properties(
         TIMEOUT 120
         LABELS "q2"
 )
+
+# Q4 hybrid-quality portable slices (T050/T051/T052/T053/T054/T055). Like the
+# Q2/Q3 fixtures these are CPU-only: no device, window, shader compiler or GPU
+# work, so no native library is linked. The D3D12-named translation units under
+# src/renderer/d3d12/ hold the backend-neutral arithmetic, not a device.
+add_library(q4_quality STATIC
+    "${Q1A_SOURCE_ROOT}/src/renderer/rhi/materials.cpp"
+    "${Q1A_SOURCE_ROOT}/src/renderer/rhi/residency.cpp"
+    "${Q1A_SOURCE_ROOT}/src/renderer/rhi/reconstruction.cpp"
+    "${Q1A_SOURCE_ROOT}/src/renderer/rhi/overlay_composition.cpp"
+    "${Q1A_SOURCE_ROOT}/src/renderer/d3d12/hybrid_opaque.cpp"
+    "${Q1A_SOURCE_ROOT}/src/renderer/d3d12/lighting.cpp"
+    "${Q1A_SOURCE_ROOT}/src/renderer/d3d12/indirect_lighting.cpp")
+target_include_directories(q4_quality PUBLIC "${Q1A_HEADER_ROOT}")
+target_compile_features(q4_quality PUBLIC cxx_std_17)
+if(MSVC)
+    target_compile_options(q4_quality PRIVATE /W4 /permissive- /EHsc)
+endif()
+
+function(add_q4_test target source)
+    add_executable(${target} "${source}")
+    target_link_libraries(${target} PRIVATE q4_quality)
+    target_compile_features(${target} PRIVATE cxx_std_17)
+    target_include_directories(${target} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    if(MSVC)
+        target_compile_options(${target} PRIVATE /W4 /permissive- /EHsc)
+    endif()
+endfunction()
+
+add_q4_test(q4_material_contract_test material_contract_test.cpp)
+add_q4_test(q4_lighting_test lighting_test.cpp)
+add_q4_test(q4_indirect_atmosphere_test indirect_atmosphere_test.cpp)
+add_q4_test(q4_residency_test residency_test.cpp)
+add_q4_test(q4_reconstruction_test reconstruction_test.cpp)
+
+# The names are structural/arithmetic checks. No capture, no engine frame and
+# no art acceptance is claimed by any of them; T056/T057 remain BLOCKED.
+add_test(NAME renderer.q4.material_contract COMMAND q4_material_contract_test)
+add_test(NAME renderer.q4.lighting COMMAND q4_lighting_test)
+add_test(NAME renderer.q4.indirect_atmosphere COMMAND q4_indirect_atmosphere_test)
+add_test(NAME renderer.q4.residency COMMAND q4_residency_test)
+add_test(NAME renderer.q4.reconstruction COMMAND q4_reconstruction_test)
+set_tests_properties(
+    renderer.q4.material_contract
+    renderer.q4.lighting
+    renderer.q4.indirect_atmosphere
+    renderer.q4.residency
+    renderer.q4.reconstruction
+    PROPERTIES
+        TIMEOUT 120
+        LABELS "q4"
+)
