@@ -1,0 +1,27 @@
+// Hero material 4 of 7 for Q4 content coverage (spec 009, C-12 cell "emissive").
+//
+// The emissive stage is an additive luminance mask authored in the sidecar. The mask is SDR in the
+// pinned BC7_UNORM_SRGB path; radiance above 1.0 is recorded as blocked on the C-10 format decision,
+// not faked by clipping a flat white plate. PBR channels are in hero_emissive_sign.mat.json.
+
+material hero_emissive_sign
+{
+    description "Q4 hero: painted sign with an illuminated glyph block"
+
+    {
+        blend diffusemap
+        map textures/hero/emissive_sign_d
+    }
+    {
+        blend bumpmap
+        map textures/hero/emissive_sign_local
+    }
+    {
+        blend specularmap
+        map textures/hero/emissive_sign_s
+    }
+    {
+        blend add
+        map textures/hero/emissive_sign_e
+    }
+}

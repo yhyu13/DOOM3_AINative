@@ -1,0 +1,86 @@
+{
+  "schema": "doom3-hero-provenance/1",
+  "comment": "One record per committed asset (spec 009, FR-003). Byte origin is established here and by review, not by content inspection: retail_text_consulted answers the only question that matters for the derivative-work position.",
+  "generator": {
+    "name": "content/tools/generators/character_skin.py",
+    "version": "1.0.0",
+    "sha256": "8ebfa0ec7f574a045dff3b3adb3c28d9966aff57843944674cd53a8ac54f5039",
+    "runtime": "Python 3.14.4",
+    "helper": {
+      "name": "content/tools/generators/hero_common.py",
+      "version": "1.0.0",
+      "sha256": "8a9757af8e43b68207f78c93fe4dce6bf7894acacf74e9c2bfe2d36ec00f35e8"
+    }
+  },
+  "assets": [
+    {
+      "id": "HD-CHAR-01",
+      "path": "baseColor.png",
+      "sha256": "afe6396db5a3d97276a90fa23142d4bb46dacf25bffc8cdc0d5532d2ac8d5208",
+      "author": "this workstream, procedural: content/tools/generators/character_skin.py --size 512",
+      "licence": "CC0-1.0",
+      "retail_text_consulted": "no",
+      "inputs": [
+        "content/tools/generators/character_skin.py (procedural, deterministic, CC0)",
+        "content/tools/generators/hero_common.py (shared generator helpers, CC0)"
+      ],
+      "tool": {
+        "name": "content/tools/generators/character_skin.py",
+        "version": "1.0.0",
+        "sha256": "8ebfa0ec7f574a045dff3b3adb3c28d9966aff57843944674cd53a8ac54f5039",
+        "runtime": "Python 3.14.4",
+        "helper": {
+          "name": "content/tools/generators/hero_common.py",
+          "version": "1.0.0",
+          "sha256": "8a9757af8e43b68207f78c93fe4dce6bf7894acacf74e9c2bfe2d36ec00f35e8"
+        }
+      }
+    },
+    {
+      "id": "HD-CHAR-02",
+      "path": "normal.png",
+      "sha256": "5f9e435dd6e1cee546c7d82fd38b1cdde9e5a87b11a12bc091a3cc3d2d88b972",
+      "author": "this workstream, procedural: content/tools/generators/character_skin.py --size 512",
+      "licence": "CC0-1.0",
+      "retail_text_consulted": "no",
+      "inputs": [
+        "content/tools/generators/character_skin.py (procedural, deterministic, CC0)",
+        "content/tools/generators/hero_common.py (shared generator helpers, CC0)"
+      ],
+      "tool": {
+        "name": "content/tools/generators/character_skin.py",
+        "version": "1.0.0",
+        "sha256": "8ebfa0ec7f574a045dff3b3adb3c28d9966aff57843944674cd53a8ac54f5039",
+        "runtime": "Python 3.14.4",
+        "helper": {
+          "name": "content/tools/generators/hero_common.py",
+          "version": "1.0.0",
+          "sha256": "8a9757af8e43b68207f78c93fe4dce6bf7894acacf74e9c2bfe2d36ec00f35e8"
+        }
+      }
+    },
+    {
+      "id": "HD-CHAR-03",
+      "path": "roughness.png",
+      "sha256": "71a6d862b31c8f247f561cfd1a349d28b0a52037a6dd50bd5f7eedd2e046365a",
+      "author": "this workstream, procedural: content/tools/generators/character_skin.py --size 512",
+      "licence": "CC0-1.0",
+      "retail_text_consulted": "no",
+      "inputs": [
+        "content/tools/generators/character_skin.py (procedural, deterministic, CC0)",
+        "content/tools/generators/hero_common.py (shared generator helpers, CC0)"
+      ],
+      "tool": {
+        "name": "content/tools/generators/character_skin.py",
+        "version": "1.0.0",
+        "sha256": "8ebfa0ec7f574a045dff3b3adb3c28d9966aff57843944674cd53a8ac54f5039",
+        "runtime": "Python 3.14.4",
+        "helper": {
+          "name": "content/tools/generators/hero_common.py",
+          "version": "1.0.0",
+          "sha256": "8a9757af8e43b68207f78c93fe4dce6bf7894acacf74e9c2bfe2d36ec00f35e8"
+        }
+      }
+    }
+  ]
+}

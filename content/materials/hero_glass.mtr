@@ -1,0 +1,24 @@
+// Hero material 6 of 7 for Q4 content coverage (spec 009, C-12 cell "transmissive / glass").
+//
+// Opacity and refraction are modelled by spec 004; this cell authors baseColor (including alpha),
+// normal and roughness only. The translucent keyword records the intent and is not a renderer change.
+// PBR channels are described in hero_glass.mat.json.
+
+material hero_glass
+{
+    description "Q4 hero: pale frosted glass pane"
+    translucent
+
+    {
+        blend diffusemap
+        map textures/hero/glass_d
+    }
+    {
+        blend bumpmap
+        map textures/hero/glass_local
+    }
+    {
+        blend specularmap
+        map textures/hero/glass_s
+    }
+}

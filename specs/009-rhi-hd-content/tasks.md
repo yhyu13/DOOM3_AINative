@@ -71,15 +71,15 @@ parallel by construction; the list is the matrix, not a sequence.
 
 | Id | Cell | Depends on | Status | Acceptance |
 |---|---|---|---|---|
-| T-020 [P] | opaque metal (authored metalness) | T-013 | NOT STARTED | package + sidecar; `metalness: authored` |
-| T-021 [P] | alpha-tested geometry (grating/foliage) | T-013 | NOT STARTED | baseColor with alpha; engine-side alpha-test note recorded, no shader change here |
-| T-022 [P] | emissive | T-013 | NOT STARTED | `emissive: authored`, BC7 sRGB; if only SDR is authored, that is stated |
-| T-023 [P] | skinned character surface | T-013 | NOT STARTED | package plus a note that the skinned path is exercised by spec 004's Q3/Q4 fixtures, not here |
-| T-024 [P] | transmissive/glass | T-013 | NOT STARTED | `baseColor` + `roughness`; opacity modelling left to spec 004, recorded as a dependency |
-| T-025 [P] | large environment surface with a residency test surface | T-013 | NOT STARTED | a package of at least 4096 px per axis assembled from committed ≤ 2K sources, with the assembly and the assembled dimensions recorded in the package manifest (no "2K caps the cell" fallback) |
+| T-020 [P] | opaque metal (authored metalness) | T-013 | DONE | package + sidecar; `metalness: authored` (`content/hero/metal/`; `hero_metal.mat.json`; `BUILD OK: hero_metal 4 textures`, `VERIFY OK`; evidence: `evidence/hero-cells.md`) |
+| T-021 [P] | alpha-tested geometry (grating/foliage) | T-013 | DONE | baseColor with alpha; engine-side alpha-test note recorded, no shader change here (`content/hero/grating/baseColor.png` alpha cutout; `hero_grating.mtr` records `alphaTest 0.5`; `BUILD OK`, `VERIFY OK`) |
+| T-022 [P] | emissive | T-013 | DONE | `emissive: authored`, BC7 sRGB; if only SDR is authored, that is stated (SDR mask in `emissive.png`; `hdr` state `blocked` on C-10; `BUILD OK`, `VERIFY OK`) |
+| T-023 [P] | skinned character surface | T-013 | DONE | package plus a note that the skinned path is exercised by spec 004's Q3/Q4 fixtures, not here (`hero_character_skin.mat.json` `skinnedPath: blocked`; `BUILD OK`, `VERIFY OK`) |
+| T-024 [P] | transmissive/glass | T-013 | DONE | `baseColor` + `roughness`; opacity modelling left to spec 004, recorded as a dependency (`hero_glass.mat.json` `transmission: blocked`; baseColor alpha authored; `BUILD OK`, `VERIFY OK`) |
+| T-025 [P] | large environment surface with a residency test surface | T-013 | DONE | a package of at least 4096 px per axis assembled from committed ≤ 2K sources, with the assembly and the assembled dimensions recorded in the package manifest (no "2K caps the cell" fallback) (`hero_environment` baseColor 4096x4096 from four 2048 tiles, 13 mips, `assembled` in package.json; `BUILD OK`, `VERIFY OK`) |
 | T-026 | RXGB conversion: `convert-normal.ps1` + the committed fixture `tests/content/fixtures/golden-rxgb.png` | T-013 | DONE | the fixture converts within ≤ 2/255 per channel including reconstructed Z, with no axis swap; before/after images are derived from the fixture and are the only ones committed. A local corpus conversion is an optional extra check, never committed and never cited (C-04, C-09) (`VERIFY OK: max channel error 0 <= 2` on `tests/content/fixtures/golden-rxgb.png`; wrong layout -> error 217, wrong expected image -> error 255) |
 | T-027 | Budget rows for all seven cells: `{task: T056, artifact, state}` | T-020…T-025 | PARTIAL | every cell has a row with `T056`, an artifact and a state of `recorded` or `blocked:<reason>`; a citation without an artifact fails; **no number is written in 009** (seven rows present with `task: T056` and `state: blocked: spec 004 has not reached Q4`; no artifact can exist before a measurement, so FR-012 is satisfied only in its blocked form) |
-| T-028 | `matrix-report.ps1`: render the seven-cell table with states and blockers | T-027 | PARTIAL | table has no empty cell; a missing budget row fails the report (`matrix-report.ps1` renders the table (`coverage 1/7`) and `-RequireComplete` exits 1 with `6 cell(s) not authored`; the remaining six cells are T-020..T-025) |
+| T-028 | `matrix-report.ps1`: render the seven-cell table with states and blockers | T-027 | DONE | table has no empty cell; a missing budget row fails the report (`MATRIX: coverage 7/7 cells authored, 7/7 captures BLOCKED, budget rows 7/7 present`; `-RequireComplete` exits 0 with all seven packages built into git-ignored `out/content`) |
 
 ---
 

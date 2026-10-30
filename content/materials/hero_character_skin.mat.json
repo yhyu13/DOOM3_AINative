@@ -1,0 +1,44 @@
+{
+  "schema": "doom3-material-sidecar/1",
+  "comment": "PBR description for hero_character_skin (C-13). The material is the character surface 009 can author; the rigged mesh and animation that exercise skinning are outside this contract.",
+  "material": "hero_character_skin",
+  "mtr": "content/materials/hero_character_skin.mtr",
+  "surface": "worn woven character-suit surface, intended for a skinned mesh",
+  "skinnedPath": {
+    "state": "blocked",
+    "why": "a rigged mesh, skeleton and animation are outside the 009 material contract; spec 004 Q3/Q4 fixtures own the skinned path and no Q4 frame exists"
+  },
+  "channels": {
+    "baseColor": {
+      "state": "authored",
+      "path": "content/hero/character_skin/baseColor.png",
+      "format": "BC7_UNORM_SRGB",
+      "srgb": true
+    },
+    "normal": {
+      "state": "authored",
+      "path": "content/hero/character_skin/normal.png",
+      "format": "BC5_UNORM",
+      "srgb": false,
+      "handedness": "opengl"
+    },
+    "roughness": {
+      "state": "authored",
+      "path": "content/hero/character_skin/roughness.png",
+      "format": "BC4_UNORM",
+      "srgb": false
+    },
+    "metalness": {
+      "state": "unavailable",
+      "why": "woven suit fabric is a dielectric; no metal is modelled in this cell"
+    },
+    "ao": {
+      "state": "unavailable",
+      "why": "no baked AO authored for this cell; AO is not synthesised from the albedo"
+    },
+    "emissive": {
+      "state": "unavailable",
+      "why": "not an emissive material"
+    }
+  }
+}

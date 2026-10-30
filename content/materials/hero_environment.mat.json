@@ -1,0 +1,55 @@
+{
+  "schema": "doom3-material-sidecar/1",
+  "comment": "PBR description for hero_environment (C-13). baseColor is a tiled assembly: four authored 2048 sources cover a 4096x4096 canvas exactly. The assembled image is a build product in git-ignored out/, never a committed source.",
+  "material": "hero_environment",
+  "mtr": "content/materials/hero_environment.mtr",
+  "surface": "large industrial wall with 512-px panels, recessed seams, rivets, concrete grime and rust streaks",
+  "residency": {
+    "state": "blocked",
+    "why": "the residency budget is a T056 measurement; no Q4 frame exists, so the budget row stays blocked rather than carrying a guessed number"
+  },
+  "channels": {
+    "baseColor": {
+      "state": "authored",
+      "format": "BC7_UNORM_SRGB",
+      "srgb": true,
+      "assembly": {
+        "width": 4096,
+        "height": 4096,
+        "tiles": [
+          { "path": "content/hero/environment/baseColor_x0_y0.png", "x": 0, "y": 0 },
+          { "path": "content/hero/environment/baseColor_x1_y0.png", "x": 2048, "y": 0 },
+          { "path": "content/hero/environment/baseColor_x0_y1.png", "x": 0, "y": 2048 },
+          { "path": "content/hero/environment/baseColor_x1_y1.png", "x": 2048, "y": 2048 }
+        ]
+      }
+    },
+    "normal": {
+      "state": "authored",
+      "path": "content/hero/environment/normal.png",
+      "format": "BC5_UNORM",
+      "srgb": false,
+      "handedness": "opengl"
+    },
+    "roughness": {
+      "state": "authored",
+      "path": "content/hero/environment/roughness.png",
+      "format": "BC4_UNORM",
+      "srgb": false
+    },
+    "metalness": {
+      "state": "authored",
+      "path": "content/hero/environment/metalness.png",
+      "format": "BC4_UNORM",
+      "srgb": false
+    },
+    "ao": {
+      "state": "unavailable",
+      "why": "no baked AO authored for this cell; AO is not synthesised from the albedo"
+    },
+    "emissive": {
+      "state": "unavailable",
+      "why": "not an emissive material"
+    }
+  }
+}

@@ -1,0 +1,178 @@
+{
+  "schema": "doom3-hero-provenance/1",
+  "comment": "One record per committed asset (spec 009, FR-003). Byte origin is established here and by review, not by content inspection: retail_text_consulted answers the only question that matters for the derivative-work position.",
+  "generator": {
+    "name": "content/tools/generators/environment.py",
+    "version": "1.0.0",
+    "sha256": "958bff2d073efe33e0240e934d71269bfaf540ee18755e894abbf682de92a67f",
+    "runtime": "Python 3.14.4",
+    "helper": {
+      "name": "content/tools/generators/hero_common.py",
+      "version": "1.0.0",
+      "sha256": "8a9757af8e43b68207f78c93fe4dce6bf7894acacf74e9c2bfe2d36ec00f35e8"
+    }
+  },
+  "assets": [
+    {
+      "id": "HD-ENV-01",
+      "path": "baseColor_x0_y0.png",
+      "sha256": "f1f886955c10686b8e7fcca9420012db915f5821e907674b44b8e6007dcdbdc5",
+      "author": "this workstream, procedural: content/tools/generators/environment.py --tile 2048",
+      "licence": "CC0-1.0",
+      "retail_text_consulted": "no",
+      "inputs": [
+        "content/tools/generators/environment.py (procedural, deterministic, CC0)",
+        "content/tools/generators/hero_common.py (shared generator helpers, CC0)"
+      ],
+      "tool": {
+        "name": "content/tools/generators/environment.py",
+        "version": "1.0.0",
+        "sha256": "958bff2d073efe33e0240e934d71269bfaf540ee18755e894abbf682de92a67f",
+        "runtime": "Python 3.14.4",
+        "helper": {
+          "name": "content/tools/generators/hero_common.py",
+          "version": "1.0.0",
+          "sha256": "8a9757af8e43b68207f78c93fe4dce6bf7894acacf74e9c2bfe2d36ec00f35e8"
+        }
+      }
+    },
+    {
+      "id": "HD-ENV-02",
+      "path": "baseColor_x1_y0.png",
+      "sha256": "4ef12df276adbd4ba92a537664d2c6afeba07b6a2d54ebccbb805c1d1cee87ec",
+      "author": "this workstream, procedural: content/tools/generators/environment.py --tile 2048",
+      "licence": "CC0-1.0",
+      "retail_text_consulted": "no",
+      "inputs": [
+        "content/tools/generators/environment.py (procedural, deterministic, CC0)",
+        "content/tools/generators/hero_common.py (shared generator helpers, CC0)"
+      ],
+      "tool": {
+        "name": "content/tools/generators/environment.py",
+        "version": "1.0.0",
+        "sha256": "958bff2d073efe33e0240e934d71269bfaf540ee18755e894abbf682de92a67f",
+        "runtime": "Python 3.14.4",
+        "helper": {
+          "name": "content/tools/generators/hero_common.py",
+          "version": "1.0.0",
+          "sha256": "8a9757af8e43b68207f78c93fe4dce6bf7894acacf74e9c2bfe2d36ec00f35e8"
+        }
+      }
+    },
+    {
+      "id": "HD-ENV-03",
+      "path": "baseColor_x0_y1.png",
+      "sha256": "bfe97533c890b32f6f66f5363113971d70b075f1f13fe6dd5a09d3342607e941",
+      "author": "this workstream, procedural: content/tools/generators/environment.py --tile 2048",
+      "licence": "CC0-1.0",
+      "retail_text_consulted": "no",
+      "inputs": [
+        "content/tools/generators/environment.py (procedural, deterministic, CC0)",
+        "content/tools/generators/hero_common.py (shared generator helpers, CC0)"
+      ],
+      "tool": {
+        "name": "content/tools/generators/environment.py",
+        "version": "1.0.0",
+        "sha256": "958bff2d073efe33e0240e934d71269bfaf540ee18755e894abbf682de92a67f",
+        "runtime": "Python 3.14.4",
+        "helper": {
+          "name": "content/tools/generators/hero_common.py",
+          "version": "1.0.0",
+          "sha256": "8a9757af8e43b68207f78c93fe4dce6bf7894acacf74e9c2bfe2d36ec00f35e8"
+        }
+      }
+    },
+    {
+      "id": "HD-ENV-04",
+      "path": "baseColor_x1_y1.png",
+      "sha256": "14e8cd818b55af18017e416ac3fad5cb0b02dea29a42873f8ec9ee00cc02212f",
+      "author": "this workstream, procedural: content/tools/generators/environment.py --tile 2048",
+      "licence": "CC0-1.0",
+      "retail_text_consulted": "no",
+      "inputs": [
+        "content/tools/generators/environment.py (procedural, deterministic, CC0)",
+        "content/tools/generators/hero_common.py (shared generator helpers, CC0)"
+      ],
+      "tool": {
+        "name": "content/tools/generators/environment.py",
+        "version": "1.0.0",
+        "sha256": "958bff2d073efe33e0240e934d71269bfaf540ee18755e894abbf682de92a67f",
+        "runtime": "Python 3.14.4",
+        "helper": {
+          "name": "content/tools/generators/hero_common.py",
+          "version": "1.0.0",
+          "sha256": "8a9757af8e43b68207f78c93fe4dce6bf7894acacf74e9c2bfe2d36ec00f35e8"
+        }
+      }
+    },
+    {
+      "id": "HD-ENV-05",
+      "path": "normal.png",
+      "sha256": "5bc36292851d8a340aa663905c477c36f22f1e941b4ffbe7307da8253cc532e5",
+      "author": "this workstream, procedural: content/tools/generators/environment.py --tile 2048",
+      "licence": "CC0-1.0",
+      "retail_text_consulted": "no",
+      "inputs": [
+        "content/tools/generators/environment.py (procedural, deterministic, CC0)",
+        "content/tools/generators/hero_common.py (shared generator helpers, CC0)"
+      ],
+      "tool": {
+        "name": "content/tools/generators/environment.py",
+        "version": "1.0.0",
+        "sha256": "958bff2d073efe33e0240e934d71269bfaf540ee18755e894abbf682de92a67f",
+        "runtime": "Python 3.14.4",
+        "helper": {
+          "name": "content/tools/generators/hero_common.py",
+          "version": "1.0.0",
+          "sha256": "8a9757af8e43b68207f78c93fe4dce6bf7894acacf74e9c2bfe2d36ec00f35e8"
+        }
+      }
+    },
+    {
+      "id": "HD-ENV-06",
+      "path": "roughness.png",
+      "sha256": "4d12f7ca6ceace33cbe1f480af9b036dc4e5e28e93a59001a2374a2e8d82b97a",
+      "author": "this workstream, procedural: content/tools/generators/environment.py --tile 2048",
+      "licence": "CC0-1.0",
+      "retail_text_consulted": "no",
+      "inputs": [
+        "content/tools/generators/environment.py (procedural, deterministic, CC0)",
+        "content/tools/generators/hero_common.py (shared generator helpers, CC0)"
+      ],
+      "tool": {
+        "name": "content/tools/generators/environment.py",
+        "version": "1.0.0",
+        "sha256": "958bff2d073efe33e0240e934d71269bfaf540ee18755e894abbf682de92a67f",
+        "runtime": "Python 3.14.4",
+        "helper": {
+          "name": "content/tools/generators/hero_common.py",
+          "version": "1.0.0",
+          "sha256": "8a9757af8e43b68207f78c93fe4dce6bf7894acacf74e9c2bfe2d36ec00f35e8"
+        }
+      }
+    },
+    {
+      "id": "HD-ENV-07",
+      "path": "metalness.png",
+      "sha256": "a1c6a4c6a3512cda498c75a7e99e573b031be375057801318dc6386634c7aca3",
+      "author": "this workstream, procedural: content/tools/generators/environment.py --tile 2048",
+      "licence": "CC0-1.0",
+      "retail_text_consulted": "no",
+      "inputs": [
+        "content/tools/generators/environment.py (procedural, deterministic, CC0)",
+        "content/tools/generators/hero_common.py (shared generator helpers, CC0)"
+      ],
+      "tool": {
+        "name": "content/tools/generators/environment.py",
+        "version": "1.0.0",
+        "sha256": "958bff2d073efe33e0240e934d71269bfaf540ee18755e894abbf682de92a67f",
+        "runtime": "Python 3.14.4",
+        "helper": {
+          "name": "content/tools/generators/hero_common.py",
+          "version": "1.0.0",
+          "sha256": "8a9757af8e43b68207f78c93fe4dce6bf7894acacf74e9c2bfe2d36ec00f35e8"
+        }
+      }
+    }
+  ]
+}

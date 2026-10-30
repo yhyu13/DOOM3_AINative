@@ -13,7 +13,8 @@
       4. licence                 a LICENSE file containing CC0 in every hero directory
       5. size                    every hero PNG is <= 2048 px on each axis (dimensions read with Pillow)
       6. denylist                no hero file whose SHA-256 is listed in the pack denylist
-      7. sidecars                every materials/*.mat.json is a complete, explicit channel declaration
+      7. sidecars                every materials/*.mat.json is a complete, explicit channel declaration;
+                                 an authored channel names a repo-relative path or a tile assembly
       8. Q4 set pairing          every Q4 set entry has an .mtr and a sidecar, and no sidecar is outside the set
       9. corpus manifest         every pack is described; a staged pack must be present; search_order resolves
      10. hygiene                 no absolute machine path, key block or credential pattern in content/**
@@ -505,12 +506,49 @@ foreach ($sidecar in $sidecars) {
                 continue
             }
             $channelPath = Get-Prop $channel 'path'
-            if (-not (Test-NonEmptyString $channelPath)) {
-                Add-Violation "$sidecarRel`: channel $channelName has state '$state' but no path"
-            } elseif (-not (Test-RepoRelativePath -RelativePath $channelPath)) {
-                Add-Violation "$sidecarRel`: channel $channelName path must be repo-relative: '$channelPath'"
-            } elseif (-not (Test-Path -LiteralPath (Join-Path $script:RepoRoot ($channelPath -replace '/', '\')) -PathType Leaf)) {
-                Add-Violation "$sidecarRel`: channel $channelName path does not exist: '$channelPath'"
+            $channelAssembly = Get-Prop $channel 'assembly'
+            if ((Test-NonEmptyString $channelPath) -and ($null -ne $channelAssembly)) {
+                Add-Violation "$sidecarRel`: channel $channelName declares both path and assembly; choose one"
+            } elseif (Test-NonEmptyString $channelPath) {
+                if (-not (Test-RepoRelativePath -RelativePath $channelPath)) {
+                    Add-Violation "$sidecarRel`: channel $channelName path must be repo-relative: '$channelPath'"
+                } elseif (-not (Test-Path -LiteralPath (Join-Path $script:RepoRoot ($channelPath -replace '/', '\')) -PathType Leaf)) {
+                    Add-Violation "$sidecarRel`: channel $channelName path does not exist: '$channelPath'"
+                }
+            } elseif ($null -ne $channelAssembly) {
+                # A tiled channel is authored as <= 2048 px tiles and assembled by the builder (T-025).
+                # The gate checks the declaration and every tile's existence; the builder checks the
+                # rectangle geometry and the assembled dimensions.
+                $assemblyWidth = Get-Prop $channelAssembly 'width'
+                $assemblyHeight = Get-Prop $channelAssembly 'height'
+                if (-not (Test-PositiveInteger $assemblyWidth) -or -not (Test-PositiveInteger $assemblyHeight)) {
+                    Add-Violation "$sidecarRel`: channel $channelName assembly needs a positive width and height"
+                } elseif (($assemblyWidth % 4) -ne 0 -or ($assemblyHeight % 4) -ne 0 -or
+                    $assemblyWidth -gt 8192 -or $assemblyHeight -gt 8192) {
+                    Add-Violation "$sidecarRel`: channel $channelName assembly is ${assemblyWidth}x${assemblyHeight}; axes must be multiples of 4 up to 8192"
+                }
+                $tiles = @(Get-Prop $channelAssembly 'tiles' @())
+                if ($tiles.Count -eq 0) {
+                    Add-Violation "$sidecarRel`: channel $channelName assembly declares no tiles"
+                }
+                foreach ($tile in $tiles) {
+                    $tilePath = Get-Prop $tile 'path'
+                    $tileX = Get-Prop $tile 'x'
+                    $tileY = Get-Prop $tile 'y'
+                    if (-not (Test-NonEmptyString $tilePath) -or $null -eq $tileX -or $null -eq $tileY) {
+                        Add-Violation "$sidecarRel`: channel $channelName has a tile with no path, x or y"
+                        continue
+                    }
+                    if (-not (Test-RepoRelativePath -RelativePath $tilePath)) {
+                        Add-Violation "$sidecarRel`: channel $channelName tile path must be repo-relative: '$tilePath'"
+                        continue
+                    }
+                    if (-not (Test-Path -LiteralPath (Join-Path $script:RepoRoot ($tilePath -replace '/', '\')) -PathType Leaf)) {
+                        Add-Violation "$sidecarRel`: channel $channelName tile does not exist: '$tilePath'"
+                    }
+                }
+            } else {
+                Add-Violation "$sidecarRel`: channel $channelName has state '$state' but no path or assembly"
             }
             $declaredFormat = Get-Prop $channel 'format'
             if (-not (Test-NonEmptyString $declaredFormat)) {

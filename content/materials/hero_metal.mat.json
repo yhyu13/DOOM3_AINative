@@ -1,0 +1,42 @@
+{
+  "schema": "doom3-material-sidecar/1",
+  "comment": "PBR description for hero_metal (C-13). Every channel carries an explicit state (C-05): a channel that is not authored is declared unavailable with a reason, never omitted and never synthesised.",
+  "material": "hero_metal",
+  "mtr": "content/materials/hero_metal.mtr",
+  "surface": "brushed steel with light oxidation; metalness is authored, so the cell is a true conductor rather than a grey dielectric",
+  "channels": {
+    "baseColor": {
+      "state": "authored",
+      "path": "content/hero/metal/baseColor.png",
+      "format": "BC7_UNORM_SRGB",
+      "srgb": true
+    },
+    "normal": {
+      "state": "authored",
+      "path": "content/hero/metal/normal.png",
+      "format": "BC5_UNORM",
+      "srgb": false,
+      "handedness": "opengl"
+    },
+    "roughness": {
+      "state": "authored",
+      "path": "content/hero/metal/roughness.png",
+      "format": "BC4_UNORM",
+      "srgb": false
+    },
+    "metalness": {
+      "state": "authored",
+      "path": "content/hero/metal/metalness.png",
+      "format": "BC4_UNORM",
+      "srgb": false
+    },
+    "ao": {
+      "state": "unavailable",
+      "why": "no baked AO authored for this cell; AO is not synthesised from the albedo"
+    },
+    "emissive": {
+      "state": "unavailable",
+      "why": "not an emissive material"
+    }
+  }
+}

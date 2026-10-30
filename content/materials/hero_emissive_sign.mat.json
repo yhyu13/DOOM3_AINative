@@ -1,0 +1,51 @@
+{
+  "schema": "doom3-material-sidecar/1",
+  "comment": "PBR description for hero_emissive_sign (C-13). The emissive mask is authored SDR; the HDR half of the cell is recorded as blocked on the C-10 format decision rather than faked.",
+  "material": "hero_emissive_sign",
+  "mtr": "content/materials/hero_emissive_sign.mtr",
+  "surface": "painted sign panel with an illuminated glyph block",
+  "emissiveScale": 16.0,
+  "hdr": {
+    "state": "blocked",
+    "why": "the pinned BC7_UNORM_SRGB path clamps above 1.0 and no HDR container is decided (C-10); the authored mask keeps bar and glow detail so an HDR encode would not require re-authoring"
+  },
+  "channels": {
+    "baseColor": {
+      "state": "authored",
+      "path": "content/hero/emissive_sign/baseColor.png",
+      "format": "BC7_UNORM_SRGB",
+      "srgb": true
+    },
+    "normal": {
+      "state": "authored",
+      "path": "content/hero/emissive_sign/normal.png",
+      "format": "BC5_UNORM",
+      "srgb": false,
+      "handedness": "opengl"
+    },
+    "roughness": {
+      "state": "authored",
+      "path": "content/hero/emissive_sign/roughness.png",
+      "format": "BC4_UNORM",
+      "srgb": false
+    },
+    "metalness": {
+      "state": "authored",
+      "path": "content/hero/emissive_sign/metalness.png",
+      "format": "BC4_UNORM",
+      "srgb": false
+    },
+    "ao": {
+      "state": "unavailable",
+      "why": "no baked AO authored for this cell; AO is not synthesised from the albedo"
+    },
+    "emissive": {
+      "state": "authored",
+      "path": "content/hero/emissive_sign/emissive.png",
+      "format": "BC7_UNORM_SRGB",
+      "srgb": true,
+      "encoding": "SDR luminance mask with bar and glow detail",
+      "hdrRadiance": "blocked: see the hdr object; the source is not a clipped flat white plate"
+    }
+  }
+}

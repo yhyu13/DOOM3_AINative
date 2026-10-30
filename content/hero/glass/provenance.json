@@ -1,0 +1,86 @@
+{
+  "schema": "doom3-hero-provenance/1",
+  "comment": "One record per committed asset (spec 009, FR-003). Byte origin is established here and by review, not by content inspection: retail_text_consulted answers the only question that matters for the derivative-work position.",
+  "generator": {
+    "name": "content/tools/generators/glass.py",
+    "version": "1.0.0",
+    "sha256": "212a6e3ca4be1b4eeffbac1f1e1b27ca77338e41abc885b1eca6e21bca1a0f80",
+    "runtime": "Python 3.14.4",
+    "helper": {
+      "name": "content/tools/generators/hero_common.py",
+      "version": "1.0.0",
+      "sha256": "8a9757af8e43b68207f78c93fe4dce6bf7894acacf74e9c2bfe2d36ec00f35e8"
+    }
+  },
+  "assets": [
+    {
+      "id": "HD-GLASS-01",
+      "path": "baseColor.png",
+      "sha256": "2cc4e0173166f5bb6ed78b321a8d0be155ccfbce6cdd8b29fc214688596decae",
+      "author": "this workstream, procedural: content/tools/generators/glass.py --size 512",
+      "licence": "CC0-1.0",
+      "retail_text_consulted": "no",
+      "inputs": [
+        "content/tools/generators/glass.py (procedural, deterministic, CC0)",
+        "content/tools/generators/hero_common.py (shared generator helpers, CC0)"
+      ],
+      "tool": {
+        "name": "content/tools/generators/glass.py",
+        "version": "1.0.0",
+        "sha256": "212a6e3ca4be1b4eeffbac1f1e1b27ca77338e41abc885b1eca6e21bca1a0f80",
+        "runtime": "Python 3.14.4",
+        "helper": {
+          "name": "content/tools/generators/hero_common.py",
+          "version": "1.0.0",
+          "sha256": "8a9757af8e43b68207f78c93fe4dce6bf7894acacf74e9c2bfe2d36ec00f35e8"
+        }
+      }
+    },
+    {
+      "id": "HD-GLASS-02",
+      "path": "normal.png",
+      "sha256": "e9d87960335cb4e7c1fe70339265e911d3e4978123468d7a9bcab10277d2ec8a",
+      "author": "this workstream, procedural: content/tools/generators/glass.py --size 512",
+      "licence": "CC0-1.0",
+      "retail_text_consulted": "no",
+      "inputs": [
+        "content/tools/generators/glass.py (procedural, deterministic, CC0)",
+        "content/tools/generators/hero_common.py (shared generator helpers, CC0)"
+      ],
+      "tool": {
+        "name": "content/tools/generators/glass.py",
+        "version": "1.0.0",
+        "sha256": "212a6e3ca4be1b4eeffbac1f1e1b27ca77338e41abc885b1eca6e21bca1a0f80",
+        "runtime": "Python 3.14.4",
+        "helper": {
+          "name": "content/tools/generators/hero_common.py",
+          "version": "1.0.0",
+          "sha256": "8a9757af8e43b68207f78c93fe4dce6bf7894acacf74e9c2bfe2d36ec00f35e8"
+        }
+      }
+    },
+    {
+      "id": "HD-GLASS-03",
+      "path": "roughness.png",
+      "sha256": "0f1644144a68c19807aff6e64008fd029b903a0bcbb4f6cd6670ddce941b923e",
+      "author": "this workstream, procedural: content/tools/generators/glass.py --size 512",
+      "licence": "CC0-1.0",
+      "retail_text_consulted": "no",
+      "inputs": [
+        "content/tools/generators/glass.py (procedural, deterministic, CC0)",
+        "content/tools/generators/hero_common.py (shared generator helpers, CC0)"
+      ],
+      "tool": {
+        "name": "content/tools/generators/glass.py",
+        "version": "1.0.0",
+        "sha256": "212a6e3ca4be1b4eeffbac1f1e1b27ca77338e41abc885b1eca6e21bca1a0f80",
+        "runtime": "Python 3.14.4",
+        "helper": {
+          "name": "content/tools/generators/hero_common.py",
+          "version": "1.0.0",
+          "sha256": "8a9757af8e43b68207f78c93fe4dce6bf7894acacf74e9c2bfe2d36ec00f35e8"
+        }
+      }
+    }
+  ]
+}
