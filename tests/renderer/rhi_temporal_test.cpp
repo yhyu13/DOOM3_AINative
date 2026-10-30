@@ -11,7 +11,7 @@ using doom3::rhi::Float2;
 using doom3::rhi::HistoryBuffer;
 using doom3::rhi::LayerDeclaration;
 using doom3::rhi::LayerKind;
-using doom3::rhi::MotionSample;
+using doom3::rhi::PerPixelMotionSample;
 using doom3::rhi::PlanComposition;
 using doom3::rhi::Status;
 
@@ -25,7 +25,7 @@ int RunTemporal() {
     moved.center = Float2{0.5f, 0.0f};
     const Float2 world{0.0f, 0.0f};
 
-    const MotionSample analytic = doom3::rhi::ProjectMotion(still, moved, world, 2.0f,
+    const PerPixelMotionSample analytic = doom3::rhi::ProjectMotion(still, moved, world, 2.0f,
                                                             64, 64);
     q1b_test::Log("MOTION analytic x=%.4f y=%.4f valid=%s", analytic.x, analytic.y,
                   analytic.valid ? "true" : "false");
@@ -35,12 +35,12 @@ int RunTemporal() {
         return 1;
     }
 
-    const MotionSample zero = doom3::rhi::ProjectMotion(still, still, world, 2.0f, 64, 64);
+    const PerPixelMotionSample zero = doom3::rhi::ProjectMotion(still, still, world, 2.0f, 64, 64);
     if (!zero.valid || !NearlyEqual(zero.x, 0.0f) || !NearlyEqual(zero.y, 0.0f)) {
         q1b_test::Require(false, "a static camera did not produce a valid zero motion");
         return 1;
     }
-    const MotionSample invalid;
+    const PerPixelMotionSample invalid;
     if (zero.valid == invalid.valid) {
         q1b_test::Require(false, "validity is not separate from a valid zero vector");
         return 1;
@@ -76,7 +76,7 @@ int RunTemporal() {
             }
         }
     }
-    MotionSample stored;
+    PerPixelMotionSample stored;
     stored.valid = true;
     if (!history.Store(0, 0, stored)) {
         return 1;

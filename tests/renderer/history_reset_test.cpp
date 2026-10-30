@@ -2,10 +2,8 @@
 // topology, entity reuse and renderer/provider switch (motion-fixtures.md
 // rows VAL-08..10, section 7).
 //
-// The invalidation contract is part of the T045 production slice
-// (src/renderer/rhi/view_history.cpp). That slice is absent from this branch,
-// so the store assertions are RED by design and the seam comes from
-// tests/renderer/q3_view_history_seam.h plus a build-only stub.
+// The invalidation contract is part of the T045 production slice in
+// src/renderer/rhi/view_history.cpp; this test links it directly.
 //
 // The store contract this test pins:
 //  * a rejected lookup reports one explicit reason and never a usable state;
@@ -17,7 +15,7 @@
 //    (cut/teleport/level), resize, topology, entity reuse, view generation.
 
 #include "motion_test_support.h"
-#include "q3_view_history_seam.h"
+#include "rhi/view_history.h"
 
 #include <cstdint>
 #include <string>

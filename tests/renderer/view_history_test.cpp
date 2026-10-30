@@ -1,11 +1,9 @@
 // T043 consumer test: rendered-frame history and main/mirror/camera/shadow
 // isolation (motion-fixtures.md section 7, rows SEQ-01..03).
 //
-// The numeric rows are re-derived from the merged T042 seam and pass; the
-// history store is the T043 production slice named in tasks.md
-// (src/renderer/rhi/view_history.cpp). That slice is absent from this branch,
-// so the store assertions are RED by design and the seam comes from
-// tests/renderer/q3_view_history_seam.h plus a build-only stub.
+// The numeric rows are re-derived from the merged T042 seam and pass. The
+// history store is the T043 production slice in
+// src/renderer/rhi/view_history.cpp; this test links it directly.
 //
 // The store contract this test pins:
 //  * previous state is the last ACTUALLY RENDERED state, so an interval with
@@ -16,7 +14,7 @@
 //  * a changed view generation is an explicit reason, not silent reuse.
 
 #include "motion_test_support.h"
-#include "q3_view_history_seam.h"
+#include "rhi/view_history.h"
 
 #include <cstdint>
 #include <string>
