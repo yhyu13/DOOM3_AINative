@@ -112,10 +112,18 @@ exact tile geometry. The eight negative controls still pass.
 
 ## 5. What is not claimed
 
-- No capture exists; `specs/009-rhi-hd-content/evidence/captures.md` still records zero captures.
-- No numeric budget exists; all seven budget rows remain `blocked`.
-- The skinned character surface has no rigged mesh or animation in this repository.
-- The emissive cell has no authored representation above 1.0 radiance.
-- The glass cell has no transmission model; spec 004 owns it.
-- The large environment has no residency measurement; T056 owns it.
+- **Superseded 2026-10-30**: captures now exist — six frames covering seven cells and four categories
+  under `specs/004-quality-renderer/evidence/t056/`, indexed in
+  [`captures.md`](./captures.md#captures). Before that run this section said no capture and no budget
+  row existed.
+- No numeric budget exists in this spec, by design; the rows in
+  `content/manifest/budget-rows.json` are now `recorded` for six cells against
+  `specs/004-quality-renderer/evidence/t056/measurements.json`, and `skinned_character` stays `blocked`
+  because it is never drawn.
+- The skinned character surface has no rigged mesh or animation, so it has no frame at all.
+- The emissive cell has no authored representation above 1.0 radiance; its captured frame is SDR.
+- The glass cell has no transmission model; spec 004 owns it, and the captured panel is a tinted
+  environment approximation.
+- The large environment residency is now measured (33,554,512 committed texture bytes at a 256 MiB
+  budget); no device VRAM peak was measured.
 - The art review has not run. Sizes and dimensions are authoring facts, not quality verdicts.

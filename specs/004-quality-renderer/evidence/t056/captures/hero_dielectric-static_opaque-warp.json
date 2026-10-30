@@ -1,0 +1,24 @@
+{
+    "schema":  "doom3-q4-capture/1",
+    "material":  "hero_dielectric",
+    "backend":  "d3d12",
+    "adapter":  "Microsoft Basic Render Driver",
+    "identity_line":  "RHI backend: d3d12 (Microsoft Basic Render Driver)",
+    "image":  "capture.png",
+    "image_sha256":  "36db9e832c591a7def0740c87fba9164bf6cf7edd5eca2872b0c75e73b98ad79",
+    "image_width":  1280,
+    "image_height":  720,
+    "image_distinct":  9070,
+    "executable":  "build-q4-harness\\bin\\Release\\q4_harness.exe",
+    "executable_sha256":  "562a20d68b739c201da261da4f5988e1fd6168a429a4f7f211bb20a41289eb69",
+    "arguments":  [
+                      "-Scene",
+                      "static_opaque",
+                      "-Capture",
+                      "out\\content\\hero_dielectric\\static_opaque.png",
+                      "-Warp"
+                  ],
+    "started_utc":  "2026-10-30T14:03:05.6668899Z",
+    "log":  "capture.log",
+    "package_sha256":  "8aaeb7328dd798877afc4e22829e8f4e082f307e7cf9bb506ab24bdda7471608"
+}

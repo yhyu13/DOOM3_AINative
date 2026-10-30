@@ -90,7 +90,7 @@ foreach ($cell in $cells) {
             $captureState = "captured ($($cap.backend) / $($cap.adapter))"
         } catch { $captureState = 'INVALID capture.json' }
     } else {
-        $captureState = 'BLOCKED: spec 004 has not reached Q4'
+        $captureState = 'BLOCKED: no capture record in the output directory (reason in the spec 004 evidence)'
     }
 
     $rows += [pscustomobject]@{
@@ -120,7 +120,9 @@ if ($OutputPath) {
 
 Write-Host $table
 Write-Host ''
-Write-Host ("MATRIX: coverage {0}/{1} cells authored, {2}/7 captures BLOCKED, budget rows {3}/7 present" -f $coverage, $cells.Count, $cells.Count, (@($budgets.rows).Count))
+$blockedCaptures = @($rows | Where-Object { "$($_.Capture)" -like 'BLOCKED*' }).Count
+$capturedCells = $cells.Count - $blockedCaptures
+Write-Host ("MATRIX: coverage {0}/{1} cells authored, {2}/{1} captured, {3}/{1} captures BLOCKED, budget rows {4}/7 present" -f $coverage, $cells.Count, $capturedCells, $blockedCaptures, (@($budgets.rows).Count))
 
 if ($RequireComplete) {
     if ($coverage -ne $cells.Count) {

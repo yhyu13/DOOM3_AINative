@@ -24,3 +24,7 @@ content/tools/generators/*.py text eol=lf
 # Patches against CRLF sources must keep their CRs byte-for-byte, or git apply fails
 targets/*/patches/*.patch binary
 targets/*/patches/*.manifest.txt -text
+
+# The T056 measurement artifact is hashed byte-for-byte in evidence-q4.md and PR #75. Pin LF so a
+# Windows checkout does not rewrite it and the recorded hash drifts.
+specs/004-quality-renderer/evidence/t056/measurements.json text eol=lf
