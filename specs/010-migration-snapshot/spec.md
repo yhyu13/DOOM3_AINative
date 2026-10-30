@@ -6,6 +6,9 @@ new files, no engine or build-system change.
 **Input**: "迁移也有 snapshot 的意义，size 是次要的，关键数据需要保留备份" — a repository move must also
 be a backup, and a restore must be provable.
 
+Numbers quoted in this spec are the recorded measurements in §8 unless a command in this PR re-verified
+them; no measurement below was re-taken for this specification.
+
 ---
 
 ## 1. Problem
@@ -80,7 +83,8 @@ lists every produced file, and the inventory names every ignored path with its s
 ### US2 — Restore on a new machine, offline (P1)
 
 **Independent test**: deploy the snapshot into a fresh directory with `-NoNetwork`; the tree hash
-matches the source, targets verify against their patches, and the skills gate is green.
+matches the source, targets verify against their patches (72/72 and 66/66), and the skills gate is
+green (25 skills checked, 25 OK).
 
 1. **Given** a snapshot directory, **when** `deploy-repo.ps1 -Bundle <dir> -Dest <fresh>` runs,
    **then** it exits 0 and prints `checksums verified`.
@@ -90,7 +94,8 @@ matches the source, targets verify against their patches, and the skills gate is
    every local branch exists, upstreams point at `origin/<same-name>`, and `git status` is clean
    except untracked files intentionally restored from `local-state/untracked/`.
 4. **Given** target copies, **when** the restore runs, **then** each `targets/<name>/doom3` is created
-   from pristine + its tracked patch and `apply-target-patches.ps1` reports `0 mismatches`; the
+   from pristine + its tracked patch and `apply-target-patches.ps1` reports `0 mismatches`
+   (72 files for `win11-amd64`, 66 for `win11-amd64-hd`); the
    archived target tree is kept for inspection but never copied over the rebuilt one.
 5. **Given** `-Build`, **when** VS2022 + SDK 10.0.26100 are present, **then** `DOOM3.exe` and
    `DOOM3XP.exe` exist afterwards and the build log is retained; when the toolchain is missing the

@@ -52,10 +52,11 @@ Legend: `[P]` = can run in parallel with its neighbours; `[USn]` = user story fr
 
 ## Phase 4 — Verification gate and evidence
 
-- [ ] T024 `scripts/test-migration.ps1`: portable + snapshot metadata, no-game-data check, checksum
-      check, offline restore, `HEAD^{tree}` equality, `finally` cleanup, `-KeepTemp` [US3]
+- [ ] T024 `scripts/test-migration.ps1`: portable (no `archive/`) + snapshot metadata, no-game-data
+      check, checksum check, offline full restore with targets, `HEAD^{tree}` equality, `0 mismatches`
+      for both target patches, `verify-skills.ps1` 25/25, `finally` cleanup, `-KeepTemp` [US3]
 - [ ] T025 Run the gate on the recorded host; paste commands, exit codes and counts into the PR body [US3]
-- [ ] T026 Run the full snapshot + restore with targets (and `-Build` when the toolchain is present);
+- [ ] T026 Run the snapshot + restore with `-Build` when the toolchain is present (targets are covered by T024);
       record `checksums verified`, `0 mismatches`, `25/25`, tree hash, artifact sizes [US2]
 - [ ] T027 Update `MIGRATION-NOTES.md` and `IGNORED-INVENTORY.txt` wording if the run exposes a gap [US1]
 - [ ] T028 Open the implementation PR with `Refs #77`, evidence, risk/rollback; merge after

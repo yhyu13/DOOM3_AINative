@@ -14,7 +14,7 @@
 | Runtime deps | `git` (2.25 verified), `robocopy`, `cmd` |
 | Optional deps | Visual Studio 2022 v143 + Windows SDK 10.0.26100 + bundled CMake, for `-Build` |
 | Data deps | none (no game assets needed for any gate) |
-| Temp footprint | ~1 GB during `test-migration.ps1`, removed on success and failure |
+| Temp footprint | ~1.5 GB during `test-migration.ps1`, removed on success and failure |
 | Output | a self-contained snapshot directory + a restore report under `out/` |
 
 The scripts follow the repository conventions: PowerShell 5.1, exits 0/1/2, English messages,
@@ -47,7 +47,7 @@ Pipeline, each step fail-closed:
 Archive set: `showcase/evidence`, `out`, `shaders/tools/.cache`, `content/tools/.cache`,
 `.specify/integrations/.cache`, `.kilo/skills`, `targets/*/doom3`, `build*/bin`, all `*.log` under the
 root and build dirs, and optionally `.kilo/worktrees` (`-IncludeWorktrees`). Build intermediates,
-`targets/*/build`, and game data are never archived; the inventory records their size and reason.
+`targets/*/build`, and game data are never archived; the inventory records their size and reason. Read, never edited: no script writes to `.kilo/**` or `.claude/skills`, which keeps issue #77's "`.kilo/**` out of scope" true for the diff.
 
 ### 2.2 `scripts/deploy-repo.ps1`
 
@@ -74,21 +74,22 @@ Order matters:
 
 ### 2.3 `scripts/test-migration.ps1`
 
-Self-contained gate:
+Self-contained gate (runs everything US3.1 promises; builds are the only exclusion):
 
-1. Create `<temp>/snap` and `<temp>/restore`.
-2. Run migrate `-Profile portable` (fast path) and assert: exit 0, no `archive/`, bundles verify.
-3. Run migrate `-Profile snapshot -NoDanglingBundle` over the same tree; assert archive, inventory,
-   notes, facts, checksums exist.
-4. Assert no `*.pk4`/`*.pk3`/`*.pak` or `CMakeFiles` inside the snapshot.
-5. Run `deploy-repo.ps1 -CheckOnly` (checksums) and a full restore with `-NoNetwork -SkipTargets`
-   (fast), then assert `HEAD^{tree}` equality. A second restore with targets is out of the gate's
-   fast path; the PR evidence records the full-target restore separately.
-6. `finally`: remove both directories unless `-KeepTemp`.
-7. Exit 0/1 with one summary line per gate.
+1. Create `<temp>/snap-portable`, `<temp>/snap`, `<temp>/restore`.
+2. Run migrate `-Profile portable` and assert: exit 0, no `archive/` directory, both bundles verify.
+3. Run migrate `-Profile snapshot -NoDanglingBundle` and assert: exit 0, `archive/`,
+   `IGNORED-INVENTORY.txt`, `MIGRATION-NOTES.md`, `machine-facts.json` and `checksums.sha256` exist.
+4. Assert the snapshot tree contains no `*.pk4`/`*.pk3`/`*.pak` and no `CMakeFiles`.
+5. Run `deploy-repo.ps1 -CheckOnly` (checksums) and then a full restore with `-NoNetwork` (targets
+   included, no build); assert exit 0, `HEAD^{tree}` equality, `0 mismatches` for both target
+   patches, `25 skills checked, 25 OK`, and a clean status except restored untracked files.
+6. Run `verify-skills.ps1` in the restored tree as an explicit skills gate; exit 0 required.
+7. `finally`: remove every temp directory unless `-KeepTemp`.
+8. Exit 0/1 with one summary line per gate, including `patch verify: 72/72` and `skills: 25/25`.
 
-Decision: the gate deliberately skips target recreation and builds to stay under ~2 minutes; the
-acceptance evidence for those paths lives in the issue and the PR body, produced by the same scripts.
+Build evidence is separate (T026) because `-Build` needs VS2022 + SDK 10.0.26100 and the gate must run
+without them. Expected footprint ~1.5 GB and 3-5 minutes on the recorded host.
 
 ---
 
@@ -115,7 +116,7 @@ acceptance evidence for those paths lives in the issue and the PR body, produced
 | Concurrent work on the source repo | The bundle is a point-in-time ref set; facts record HEAD; the PR says to re-run migrate at the actual cutover. |
 | Partial copy reported as success | robocopy exit >= 8 and every gate exit code are fatal. |
 | Line-ending drift between source worktree and checkout | Equality is defined by `HEAD^{tree}`, not directory bytes; documented in the notes. |
-| Reviewer cannot run the gate (disk/time) | The gate uses `-Profile portable` plus a snapshot-metadata check; ~1 GB temp is documented. |
+| Reviewer cannot run the gate (disk/time) | The gate restores targets and therefore needs ~1.5 GB and 3-5 minutes; this is documented, and `-KeepTemp` exposes both trees when a gate fails. |
 
 **Rollback**: the PR adds three new scripts and one spec directory. Reverting the squash commit removes
 them; nothing else references them. No data migration, no engine state.
