@@ -25,7 +25,7 @@ when a dependency returns.
 | Independent reviewer | own Agent Manager session/worktree; read diff/specs/command; rerun; record verdict with session ID and reviewed SHA | be the author, share the author's worktree, be prompted for a predetermined verdict |
 | Human owner | final authority for submodule bumps, policy changes, stop instructions | — |
 
-Maximum 3–4 active sessions. One writer per file. Agents may merge their own PR only under
+Operating guideline: at most 3–4 active sessions (not a tool limit). One writer per file. Agents may merge their own PR only under
 `AGENTS.md` §11.
 
 ## 3. Per-tick loop
@@ -53,8 +53,8 @@ All must hold immediately before merge:
 - local main worktree clean and current; `git merge-tree` shows no conflict;
 - no out-of-scope paths, game data, build output or unexplained submodule dirt;
 - no issue is closed without permission;
-- owner sign-off present when required (submodule bumps; build-system until the self-merge policy is
-  merged — check current `AGENTS.md`).
+- owner sign-off present when required (submodule bumps). Build-system changes are self-mergeable
+  after an independent review that reran the build/tests and recorded the evidence.
 
 Any new commit, rebase, force-push or advance of `origin/main` **voids every other approval at an
 older base**. Rebase the remaining PR and request a new review; do not merge on “still CLEAN”.
@@ -84,12 +84,17 @@ Do not use `--delete-branch`: Agent Manager worktrees still reference the branch
 3. A new SHA requires a new verdict. Do not reuse an earlier approval.
 4. If the fix is documentation-only, the reviewer may re-review quickly, but still at the new SHA.
 
-An approval comment must state the reviewed SHA and the reviewer session ID. A template, a
+An approval comment must state the reviewed SHA and the reviewer session ID. For a build-system
+change it must also contain the build/test commands and results in that same comment. A template, a
 conditional sentence, or an author-written approval is not a verdict.
 
 ## 6. Dependency and file rules
 
-- Follow the graph: `S2 → S8 → S9 → S10`; `S6`/`S7` feed `S10`; `S11`/`S12`/`S13` follow Q4.
+- Use the Q-phase names the specifications use: **Q2 adapter → Q3 integration → Q4 modern**, with
+  Q5/Q6 and Q7b/Q7c after Q4. The published sequence is
+  `specs/005-web-renderer/research.md:830-839`. Chat shorthand such as “S2/S8/S9” is not a second
+  numbering scheme: in `specs/004-quality-renderer/q2-adapter-brief.md:177-182`, S8–S13 are **stop
+  conditions**, not workstreams.
 - A node starts only when its inputs are on `main`, not merely open in a PR.
 - Two sessions may run in parallel only with disjoint file ownership.
 - Shared files (`src/renderer/rhi/**`, target CMake, `tests/renderer/CMakeLists.txt`) are serialised.
@@ -125,16 +130,18 @@ serialise.
 
 - **Submodule bumps** (`doom3_orig/doom3`): human owner sign-off is required. Record it as a PR
   comment from the owner or an `owner-sign-off:` line quoting that comment.
-- **Build-system changes**: check current `AGENTS.md` §11. The policy is moving toward
-  self-merge after an independent reviewer reruns the build/tests and records the evidence; until
-  that policy is merged, the owner sign-off requirement still applies.
+- **Build-system changes** (root/target CMake, presets, generated wiring): no owner sign-off. They
+  may self-merge after an independent review that reran the build and required tests and recorded
+  the commands/results in the APPROVED comment. If the reviewer cannot verify the build, the PR stays
+  blocked.
 - **Policy changes and stopping work**: owner only. A cron message is not owner authorization.
 
 Owner sign-off must be unconditional and name the reviewed SHA. A request template is not a sign-off.
 
 ## 10. Cron configuration
 
-- Cadence: 5 minutes (`*/5 * * * *`), bounded to roughly 5 minutes of work per tick.
+- Cadence: 5 minutes (`*/5 * * * *`), bounded to roughly 5 minutes of work per tick (2026-10-30,
+  local setup).
 - If the only blocker is a human decision, **pause the cron** (`cron_delete`) instead of repeating
   no-op checks; resume after the owner responds.
 - Keep one cron task. `cron_list` shows the current id; recreate with `cron_create` after changing the
@@ -167,10 +174,10 @@ Include exact SHAs, paths and exits when they are the evidence.
 
 ## 13. Snapshot (2026-10-30) — verify, do not assume
 
-- S2 resolver wiring merged at `2487baf`; S8 Q2 adapter merged at `9bb40c9`.
-- S9 Q3 integration is active on `feat/q3-motion-hud-integration`.
-- Policy PR #61 (build-system self-merge after review) is under review.
-- S10 waits for S9 and S7; S11/S12/S13 wait for Q4.
+- Classic shader resolver wiring merged at `2487baf`; Q2 adapter merged at `9bb40c9`.
+- Q3 integration is active on `feat/q3-motion-hud-integration`.
+- Build-system self-merge policy merged at `c4a595b` (PR #61).
+- Q4 waits for Q3 and the RHI-era HD content spec (`specs/009-rhi-hd-content`); Q5/Q6/Q7 follow Q4.
 - This snapshot is historical; always re-read the repository.
 
 ## 14. References
