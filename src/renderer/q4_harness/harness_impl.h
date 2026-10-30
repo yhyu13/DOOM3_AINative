@@ -29,13 +29,15 @@ using namespace DirectX;
 
 constexpr uint32_t kShadowSize = 2048;
 constexpr uint32_t kMaxDraws = 64;
-constexpr uint32_t kCbSlotBytes = 512;
+constexpr uint32_t kMaxBones = 12;
+constexpr uint32_t kCbSlotBytes = 2048;
 constexpr uint32_t kMaxMaterials = 16;
 constexpr uint32_t kMaterialChannelCount = 6;
 constexpr uint32_t kShadowDescriptorIndex =
     kMaxMaterials * kMaterialChannelCount;
 constexpr uint32_t kSceneDescriptorIndex = kShadowDescriptorIndex + 1;
-constexpr uint32_t kDescriptorCount = kSceneDescriptorIndex + 1;
+constexpr uint32_t kSceneCopyDescriptorIndex = kSceneDescriptorIndex + 1;
+constexpr uint32_t kDescriptorCount = kSceneCopyDescriptorIndex + 1;
 
 constexpr DXGI_FORMAT kHdrFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
 constexpr DXGI_FORMAT kDepthFormat = DXGI_FORMAT_D32_FLOAT;
@@ -68,6 +70,10 @@ struct alignas(16) FrameConstants {
     XMFLOAT4 fog;       // density, heightFalloff, cameraHeight, fogHeight
     XMFLOAT4 fogColor;  // rgb, w = enabled
     XMFLOAT4 params;    // x = alpha cutoff, y = alpha test, z = transmission
+    XMFLOAT4 viewport;  // xy = render extent, zw = display extent
+    XMFLOAT4 emissiveParams;    // x = scale, y = apply scale, zw unused
+    XMFLOAT4 transmissionParams;  // x = ior, y = thickness, z = frost, w = enabled
+    XMFLOAT4X4 bones[kMaxBones];  // linear-blend skinning palette (row vectors)
 };
 
 struct Mesh {
@@ -86,6 +92,8 @@ struct MaterialResources {
     uint32_t descriptorBase = 0;
     float metalnessDefault = 0.0f;
     float aoDefault = 1.0f;
+    float emissiveScale = 1.0f;
+    bool emissiveHdr = false;
     bool normalOpenGL = false;
     std::string packageSha;
 };
@@ -97,6 +105,8 @@ struct DrawItem {
     bool alphaTest = false;
     bool emissive = false;
     bool transmission = false;
+    bool worldGui = false;
+    bool skinned = false;
 };
 
 bool Fail(const char* operation, HRESULT hr, std::string* error);
@@ -132,14 +142,23 @@ struct D3D12Harness::Impl {
     ComPtr<ID3D12RootSignature> mainRoot;
     ComPtr<ID3D12RootSignature> shadowRoot;
     ComPtr<ID3D12RootSignature> tonemapRoot;
+    ComPtr<ID3D12RootSignature> hudRoot;
     ComPtr<ID3D12PipelineState> mainPso;
+    ComPtr<ID3D12PipelineState> worldGuiPso;
+    ComPtr<ID3D12PipelineState> glassPso;
     ComPtr<ID3D12PipelineState> shadowPso;
     ComPtr<ID3D12PipelineState> tonemapPso;
+    ComPtr<ID3D12PipelineState> hudPso;
 
     ComPtr<ID3D12Resource> sceneColor;
+    ComPtr<ID3D12Resource> sceneCopy;
     ComPtr<ID3D12Resource> depth;
     ComPtr<ID3D12Resource> shadowMap;
     ComPtr<ID3D12Resource> display;
+    ComPtr<ID3D12Resource> hdrReadback;
+    D3D12_PLACED_SUBRESOURCE_FOOTPRINT hdrFootprint{};
+    UINT hdrRowCount = 0;
+    UINT64 hdrTotalBytes = 0;
     ComPtr<ID3D12Resource> readback;
     D3D12_PLACED_SUBRESOURCE_FOOTPRINT readbackFootprint{};
     UINT readbackRowCount = 0;
@@ -153,12 +172,14 @@ struct D3D12Harness::Impl {
     D3D12_CPU_DESCRIPTOR_HANDLE shadowDsv{};
     D3D12_GPU_DESCRIPTOR_HANDLE shadowSrv{};
     D3D12_GPU_DESCRIPTOR_HANDLE sceneSrv{};
+    D3D12_GPU_DESCRIPTOR_HANDLE sceneCopySrv{};
 
     D3D12_RESOURCE_STATES sceneState = D3D12_RESOURCE_STATE_RENDER_TARGET;
+    D3D12_RESOURCE_STATES sceneCopyState = D3D12_RESOURCE_STATE_COPY_DEST;
     D3D12_RESOURCE_STATES shadowState = D3D12_RESOURCE_STATE_DEPTH_WRITE;
     D3D12_RESOURCE_STATES displayState = D3D12_RESOURCE_STATE_RENDER_TARGET;
 
-    detail::Mesh meshes[4];
+    detail::Mesh meshes[5];
     std::vector<detail::MaterialResources> materials;
     std::map<std::string, size_t> materialIndex;
     RuntimeHooks hooks;

@@ -1,12 +1,13 @@
 {
   "schema": "doom3-material-sidecar/1",
-  "comment": "PBR description for hero_character_skin (C-13). The material is the character surface 009 can author; the rigged mesh and animation that exercise skinning are outside this contract.",
+  "comment": "PBR description for hero_character_skin (C-13). The Q4 harness now draws this cell on a procedural skinned mesh with a host linear-blend pose, so the material is exercised on a deforming surface.",
   "material": "hero_character_skin",
   "mtr": "content/materials/hero_character_skin.mtr",
   "surface": "worn woven character-suit surface, intended for a skinned mesh",
   "skinnedPath": {
-    "state": "blocked",
-    "why": "a rigged mesh, skeleton and animation are outside the 009 material contract; spec 004 Q3/Q4 fixtures own the skinned path and no Q4 frame exists"
+    "state": "harness-procedural-rig",
+    "why": "the Q4 harness draws this cell on a 12-bone procedural humanoid (805 vertices, 2-bone linear blend, 4 influences per vertex) and advances the pose with the frame index; a retail or engine rig remains outside the 009 material contract",
+    "evidence": "specs/004-quality-renderer/evidence/t056/03-moving-frame-1.png and 04-moving-frame-8.png; coverage.skinned_motion in measurements.json"
   },
   "channels": {
     "baseColor": {

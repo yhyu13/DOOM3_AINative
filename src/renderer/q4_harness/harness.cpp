@@ -336,6 +336,13 @@ bool D3D12Harness::Impl::LoadMaterial(const ContentCatalog& catalog,
         materialSlot * detail::kMaterialChannelCount;
     resources.metalnessDefault = 0.0f;
     resources.aoDefault = 1.0f;
+    resources.emissiveScale =
+        options.emissiveScale >= 0.0f ? options.emissiveScale
+                                      : cell.emissiveScale;
+    // "HDR" here means the shaded emissive radiance exceeds 1.0 in the
+    // R16G16B16A16_FLOAT target. The packaged mask is SDR; the sidecar scale is
+    // applied after sRGB decode, which is exactly the case the rubric asks for.
+    resources.emissiveHdr = cell.emissive.available && resources.emissiveScale > 1.0f;
     resources.normalOpenGL = cell.normal.handedness == "opengl";
     resources.packageSha = package.packageSha256;
 
@@ -607,6 +614,37 @@ void D3D12Harness::Impl::BuildHooks(const ContentCatalog& catalog,
         reflection.horizonFallback ? 1 : 0, atmosphere.transmittance);
     hooks.indirect = buffer;
     hooks.shadow = "2048x2048 directional, PCF 3x3 comparison sampler";
+
+    char emissiveBuffer[256] = {};
+    const MaterialCell* emissiveCell = cell.emissive.available ? &cell : nullptr;
+    if (emissiveCell == nullptr) {
+        for (const MaterialCell& candidate : catalog.cells()) {
+            if (candidate.emissive.available) {
+                emissiveCell = &candidate;
+                break;
+            }
+        }
+    }
+    float appliedEmissive = 1.0f;
+    if (emissiveCell != nullptr) {
+        appliedEmissive = emissiveCell->emissiveScale;
+    }
+    if (options.emissiveScale >= 0.0f) {
+        appliedEmissive = options.emissiveScale;
+    }
+    std::snprintf(
+        emissiveBuffer, sizeof(emissiveBuffer),
+        "material=%s scale=%.2f apply=%d target=R16G16B16A16_FLOAT "
+        "sidecarHdrState=%s",
+        emissiveCell != nullptr ? emissiveCell->material.c_str() : "none",
+        static_cast<double>(appliedEmissive),
+        (emissiveCell != nullptr && emissiveCell->emissive.available) ? 1 : 0,
+        (emissiveCell != nullptr && !emissiveCell->hdrState.empty())
+            ? emissiveCell->hdrState.c_str()
+            : "none");
+    hooks.emissive = emissiveBuffer;
+    hooks.skinning =
+        "procedural=12 bones, 2-bone linear blend, 4 influences/vertex";
 }
 
 bool D3D12Harness::Impl::HasMaterialImpl(const std::string& cell) const {

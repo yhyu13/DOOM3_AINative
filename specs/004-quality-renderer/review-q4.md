@@ -407,3 +407,26 @@ What is accepted as far as it goes: metal distinctness, the alpha cutout (not it
 darkness/readability, indirect lift and the below-horizon fallback, rigid per-frame stability,
 and hardware/WARP parity for categories 1 and 4. None of these converts a blocked row into a
 pass, and none of them is a Q4 acceptance.
+
+## 10. Addendum: blocker artifacts added after this review (not a verdict)
+
+This review is a **point-in-time record against the frames at `50efd1a`**. B-1/B-2 were closed in the
+B1/B2 session; B-3/B-4/B-5/B-6 were closed with artifacts in the B3–B6 session at `4229bd5`. The
+verdict above stands until T057 is re-run by a reviewer independent of the author; this addendum only
+maps each blocker to the artifact that is now available.
+
+| Blocker | Artifact now available | Recomputable evidence |
+|---|---|---|
+| B-3 skinned motion | `evidence/t056/03-moving-frame-1.png`, `04-moving-frame-8.png`, `crops/skinned-pose-2x.png` | 5,758 px change inside the character box between frames 1 and 8 (`coverage.skinned_motion`); the harness prints `Q4 skinned mesh: 805 vertices, 4224 indices, bones=12` |
+| B-4 HUD | `evidence/t056/08-hud-overlay-display.png`, `crops/hud-texel-4x.png` | display 1280×720 from render 960×540; 2-px border at x 24–25; ordering scene → copy → glass → tonemap → HUD (`coverage.hud_display_overlay`) |
+| B-5 HDR emissive | `evidence/t056/02-alpha-tested-emissive.png`; controls `10-…sdr-reference.png`, `11-…rolloff.png` | pre-tonemap probe peak 15.2109, 5,541 px > 8.0 at the authored 16×; scale 1 peak 1.0059, 0 px > 8.0 (`coverage.hdr_probe`) |
+| B-6 transmission | `evidence/t056/05-transmissive-environment.png` vs `09-transmission-reference.png`, `crops/glass-refraction-2x.png` | corr 0.9336, variance ratio 0.3929, 58.5 % within 20/255, best shift −9 px (13.5 % SAD gain); the model's limits are stated with the frame |
+
+Two facts a re-review must account for. First, the frames are **new**: the data-map encoding was
+corrected in this session (normal/roughness/metalness/ao were wrongly linearised at encode), so every
+committed frame and package hash differs from the ones this review cites. Second, the glass result is a
+**bounded screen-space model** (single slab, no dispersion/caustics), not an engine transmission
+implementation; the reviewer should judge it as such and not as a claim of physical completeness.
+
+The same rules still apply: a closed blocker is not an acceptance, and the re-review — not this
+addendum — is what moves a dimension from reject/blocked to accept.

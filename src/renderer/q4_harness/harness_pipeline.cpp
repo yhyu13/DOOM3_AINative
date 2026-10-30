@@ -67,7 +67,15 @@ bool D3D12Harness::Impl::CreateRootSignatures(std::string* error) {
     shadowRange.RegisterSpace = 0;
     shadowRange.OffsetInDescriptorsFromTableStart = 0;
 
-    D3D12_ROOT_PARAMETER mainParams[3]{};
+    // The glass pass samples the pre-glass scene at register t7.
+    D3D12_DESCRIPTOR_RANGE sceneCopyRange{};
+    sceneCopyRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
+    sceneCopyRange.NumDescriptors = 1;
+    sceneCopyRange.BaseShaderRegister = detail::kMaterialChannelCount + 1;
+    sceneCopyRange.RegisterSpace = 0;
+    sceneCopyRange.OffsetInDescriptorsFromTableStart = 0;
+
+    D3D12_ROOT_PARAMETER mainParams[4]{};
     mainParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     mainParams[0].Descriptor.ShaderRegister = 0;
     mainParams[0].Descriptor.RegisterSpace = 0;
@@ -82,6 +90,11 @@ bool D3D12Harness::Impl::CreateRootSignatures(std::string* error) {
     mainParams[2].DescriptorTable.NumDescriptorRanges = 1;
     mainParams[2].DescriptorTable.pDescriptorRanges = &shadowRange;
     mainParams[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+    mainParams[3].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    mainParams[3].DescriptorTable.NumDescriptorRanges = 1;
+    mainParams[3].DescriptorTable.pDescriptorRanges = &sceneCopyRange;
+    mainParams[3].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
     D3D12_STATIC_SAMPLER_DESC samplers[2]{};
     samplers[0].Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
@@ -118,7 +131,7 @@ bool D3D12Harness::Impl::CreateRootSignatures(std::string* error) {
     samplers[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
     D3D12_ROOT_SIGNATURE_DESC mainDesc{};
-    mainDesc.NumParameters = 3;
+    mainDesc.NumParameters = 4;
     mainDesc.pParameters = mainParams;
     mainDesc.NumStaticSamplers = 2;
     mainDesc.pStaticSamplers = samplers;
@@ -248,6 +261,40 @@ bool D3D12Harness::Impl::CreateRootSignatures(std::string* error) {
         return detail::Fail("ID3D12Device::CreateRootSignature(tonemap)", hr,
                             error);
     }
+
+    // HUD: four 32-bit constants and nothing else. No scene sampler, no
+    // scene SRV, no depth, so the overlay cannot be resampled or fogged.
+    D3D12_ROOT_PARAMETER hudParam{};
+    hudParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+    hudParam.Constants.ShaderRegister = 0;
+    hudParam.Constants.RegisterSpace = 0;
+    hudParam.Constants.Num32BitValues = 4;
+    hudParam.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    D3D12_ROOT_SIGNATURE_DESC hudDesc{};
+    hudDesc.NumParameters = 1;
+    hudDesc.pParameters = &hudParam;
+    hudDesc.NumStaticSamplers = 0;
+    hudDesc.pStaticSamplers = nullptr;
+    hudDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
+    blob.Reset();
+    messages.Reset();
+    hr = D3D12SerializeRootSignature(&hudDesc, D3D_ROOT_SIGNATURE_VERSION_1_0,
+                                     &blob, &messages);
+    if (FAILED(hr)) {
+        std::string detail = "D3D12SerializeRootSignature(hud) failed";
+        if (messages) {
+            detail += ": ";
+            detail += static_cast<const char*>(messages->GetBufferPointer());
+        }
+        return detail::FailMessage(error, detail);
+    }
+    hr = device->CreateRootSignature(
+        0, blob->GetBufferPointer(), blob->GetBufferSize(),
+        IID_PPV_ARGS(&hudRoot));
+    if (FAILED(hr)) {
+        return detail::Fail("ID3D12Device::CreateRootSignature(hud)", hr,
+                            error);
+    }
     return true;
 }
 
@@ -262,21 +309,30 @@ bool D3D12Harness::Impl::CreatePipelines(std::string* error) {
     }
     const fs::path hybridPath = shaderDir / "q4_hybrid.hlsl";
     const fs::path tonemapPath = shaderDir / "q4_tonemap.hlsl";
+    const fs::path hudPath = shaderDir / "q4_hud.hlsl";
 
     ComPtr<ID3DBlob> vs;
     ComPtr<ID3DBlob> ps;
+    ComPtr<ID3DBlob> worldGuiPs;
+    ComPtr<ID3DBlob> glassPs;
     ComPtr<ID3DBlob> shadowVs;
     ComPtr<ID3DBlob> shadowPs;
     ComPtr<ID3DBlob> tonemapVs;
     ComPtr<ID3DBlob> tonemapPs;
+    ComPtr<ID3DBlob> hudVs;
+    ComPtr<ID3DBlob> hudPs;
     if (!CompileShader(hybridPath, "VSMain", "vs_5_1", &vs, error) ||
         !CompileShader(hybridPath, options.debugShaderEntry.c_str(), "ps_5_1",
                        &ps, error) ||
+        !CompileShader(hybridPath, "PSWorldGui", "ps_5_1", &worldGuiPs, error) ||
+        !CompileShader(hybridPath, "PSGlass", "ps_5_1", &glassPs, error) ||
         !CompileShader(hybridPath, "VSShadow", "vs_5_1", &shadowVs, error) ||
         !CompileShader(hybridPath, "PSShadowAlpha", "ps_5_1", &shadowPs,
                        error) ||
         !CompileShader(tonemapPath, "VSMain", "vs_5_1", &tonemapVs, error) ||
-        !CompileShader(tonemapPath, "PSMain", "ps_5_1", &tonemapPs, error)) {
+        !CompileShader(tonemapPath, "PSMain", "ps_5_1", &tonemapPs, error) ||
+        !CompileShader(hudPath, "HudVS", "vs_5_1", &hudVs, error) ||
+        !CompileShader(hudPath, "PSHud", "ps_5_1", &hudPs, error)) {
         return false;
     }
 
@@ -290,6 +346,12 @@ bool D3D12Harness::Impl::CreatePipelines(std::string* error) {
          offsetof(Vertex, tangent),
          D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
         {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(Vertex, uv),
+         D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+        {"BLENDINDICES", 0, DXGI_FORMAT_R8G8B8A8_UINT, 0,
+         offsetof(Vertex, boneIndices),
+         D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+        {"BLENDWEIGHT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0,
+         offsetof(Vertex, boneWeights),
          D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
     };
 
@@ -347,6 +409,27 @@ bool D3D12Harness::Impl::CreatePipelines(std::string* error) {
         return detail::Fail("CreateGraphicsPipelineState(main)", hr, error);
     }
 
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC worldGuiDesc = mainDesc;
+    worldGuiDesc.PS = {worldGuiPs->GetBufferPointer(),
+                       worldGuiPs->GetBufferSize()};
+    hr = device->CreateGraphicsPipelineState(&worldGuiDesc,
+                                             IID_PPV_ARGS(&worldGuiPso));
+    if (FAILED(hr)) {
+        return detail::Fail("CreateGraphicsPipelineState(world gui)", hr,
+                            error);
+    }
+
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC glassDesc = mainDesc;
+    glassDesc.PS = {glassPs->GetBufferPointer(), glassPs->GetBufferSize()};
+    // The glass composites in the pixel shader and must not occlude later
+    // draws, so it tests against the opaque depth but does not write it.
+    glassDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+    hr = device->CreateGraphicsPipelineState(&glassDesc,
+                                             IID_PPV_ARGS(&glassPso));
+    if (FAILED(hr)) {
+        return detail::Fail("CreateGraphicsPipelineState(glass)", hr, error);
+    }
+
     D3D12_GRAPHICS_PIPELINE_STATE_DESC shadowDesc{};
     shadowDesc.pRootSignature = shadowRoot.Get();
     shadowDesc.VS = {shadowVs->GetBufferPointer(), shadowVs->GetBufferSize()};
@@ -394,6 +477,44 @@ bool D3D12Harness::Impl::CreatePipelines(std::string* error) {
     if (FAILED(hr)) {
         return detail::Fail("CreateGraphicsPipelineState(tonemap)", hr, error);
     }
+
+    D3D12_BLEND_DESC hudBlend{};
+    hudBlend.AlphaToCoverageEnable = FALSE;
+    hudBlend.IndependentBlendEnable = FALSE;
+    hudBlend.RenderTarget[0].BlendEnable = TRUE;
+    hudBlend.RenderTarget[0].LogicOpEnable = FALSE;
+    hudBlend.RenderTarget[0].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+    hudBlend.RenderTarget[0].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+    hudBlend.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+    hudBlend.RenderTarget[0].SrcBlendAlpha = D3D12_BLEND_ONE;
+    hudBlend.RenderTarget[0].DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+    hudBlend.RenderTarget[0].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+    hudBlend.RenderTarget[0].LogicOp = D3D12_LOGIC_OP_NOOP;
+    hudBlend.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC hudDesc{};
+    hudDesc.pRootSignature = hudRoot.Get();
+    hudDesc.VS = {hudVs->GetBufferPointer(), hudVs->GetBufferSize()};
+    hudDesc.PS = {hudPs->GetBufferPointer(), hudPs->GetBufferSize()};
+    hudDesc.BlendState = hudBlend;
+    hudDesc.SampleMask = UINT_MAX;
+    hudDesc.RasterizerState = rasterizer;
+    hudDesc.DepthStencilState.DepthEnable = FALSE;
+    hudDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+    hudDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_ALWAYS;
+    hudDesc.DepthStencilState.StencilEnable = FALSE;
+    hudDesc.InputLayout = {};
+    hudDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    hudDesc.NumRenderTargets = 1;
+    hudDesc.RTVFormats[0] = detail::kDisplayFormat;
+    hudDesc.DSVFormat = DXGI_FORMAT_UNKNOWN;
+    hudDesc.SampleDesc.Count = 1;
+    hudDesc.SampleDesc.Quality = 0;
+    hr = device->CreateGraphicsPipelineState(&hudDesc,
+                                             IID_PPV_ARGS(&hudPso));
+    if (FAILED(hr)) {
+        return detail::Fail("CreateGraphicsPipelineState(hud)", hr, error);
+    }
     return true;
 }
 
@@ -408,11 +529,20 @@ bool D3D12Harness::Impl::CreateMeshes(std::string* error) {
         {MeshKind::Cube, MakeCubeVertices(), MakeCubeIndices()},
         {MeshKind::Sphere, MakeSphereVertices(32, 16), MakeSphereIndices(32, 16)},
         {MeshKind::Quad, MakeQuadVertices(), MakeQuadIndices()},
+        {MeshKind::SkinnedCharacter, MakeCharacterVertices(),
+         MakeCharacterIndices()},
     };
 
     for (const Definition& definition : definitions) {
         detail::Mesh& mesh =
             meshes[static_cast<uint32_t>(definition.kind)];
+        if (definition.kind == MeshKind::SkinnedCharacter) {
+            std::printf(
+                "Q4 skinned mesh: %zu vertices, %zu indices, bones=%u, "
+                "influences=4\n",
+                definition.vertices.size(), definition.indices.size(),
+                kCharacterBoneCount);
+        }
         const UINT64 vbBytes = definition.vertices.size() * sizeof(Vertex);
         const UINT64 ibBytes = definition.indices.size() * sizeof(uint32_t);
         const D3D12_HEAP_PROPERTIES uploadHeap =
@@ -525,6 +655,19 @@ bool D3D12Harness::Impl::CreateTargets(std::string* error) {
         return detail::Fail("CreateCommittedResource(scene HDR)", hr, error);
     }
 
+    // Pre-transmission copy of the scene colour. Created in COPY_DEST because
+    // the first use is a copy target; the state is tracked by the renderer.
+    const D3D12_RESOURCE_DESC sceneCopyDesc = detail::TextureDesc(
+        renderWidth, renderHeight, 1, detail::kHdrFormat,
+        D3D12_RESOURCE_FLAG_NONE);
+    hr = device->CreateCommittedResource(
+        &defaultHeap, D3D12_HEAP_FLAG_NONE, &sceneCopyDesc,
+        D3D12_RESOURCE_STATE_COPY_DEST, nullptr,
+        IID_PPV_ARGS(&sceneCopy));
+    if (FAILED(hr)) {
+        return detail::Fail("CreateCommittedResource(scene copy)", hr, error);
+    }
+
     D3D12_CLEAR_VALUE depthClear{};
     depthClear.Format = detail::kDepthFormat;
     depthClear.DepthStencil.Depth = 1.0f;
@@ -623,6 +766,12 @@ bool D3D12Harness::Impl::CreateTargets(std::string* error) {
         sceneColor.Get(), &sceneSrvDesc, CpuHandle(detail::kSceneDescriptorIndex));
     sceneSrv = GpuHandle(detail::kSceneDescriptorIndex);
 
+    D3D12_SHADER_RESOURCE_VIEW_DESC sceneCopySrvDesc = sceneSrvDesc;
+    device->CreateShaderResourceView(
+        sceneCopy.Get(), &sceneCopySrvDesc,
+        CpuHandle(detail::kSceneCopyDescriptorIndex));
+    sceneCopySrv = GpuHandle(detail::kSceneCopyDescriptorIndex);
+
     const D3D12_RESOURCE_DESC copyDesc = display->GetDesc();
     UINT64 totalBytes = 0;
     UINT64 rowSize = 0;
@@ -634,6 +783,23 @@ bool D3D12Harness::Impl::CreateTargets(std::string* error) {
         D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&readback));
     if (FAILED(hr)) {
         return detail::Fail("CreateCommittedResource(readback)", hr, error);
+    }
+
+    // HDR probe readback (R16G16B16A16_FLOAT scene target). Only used when the
+    // caller asks for it; it proves the emissive radiance that reached the
+    // tonemap instead of inferring it from the 8-bit frame.
+    const D3D12_RESOURCE_DESC sceneCopyDescForProbe = sceneColor->GetDesc();
+    UINT64 probeRowSize = 0;
+    device->GetCopyableFootprints(&sceneCopyDescForProbe, 0, 1, 0,
+                                  &hdrFootprint, &hdrRowCount, &probeRowSize,
+                                  &hdrTotalBytes);
+    const D3D12_RESOURCE_DESC probeDesc = detail::BufferDesc(hdrTotalBytes);
+    hr = device->CreateCommittedResource(
+        &readbackHeap, D3D12_HEAP_FLAG_NONE, &probeDesc,
+        D3D12_RESOURCE_STATE_COPY_DEST, nullptr,
+        IID_PPV_ARGS(&hdrReadback));
+    if (FAILED(hr)) {
+        return detail::Fail("CreateCommittedResource(hdr probe)", hr, error);
     }
 
     const UINT64 cbBytes =

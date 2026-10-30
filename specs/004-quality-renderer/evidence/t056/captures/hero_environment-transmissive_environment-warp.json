@@ -5,20 +5,21 @@
     "adapter":  "Microsoft Basic Render Driver",
     "identity_line":  "RHI backend: d3d12 (Microsoft Basic Render Driver)",
     "image":  "capture.png",
-    "image_sha256":  "2ef8b5e93e64f262247f8fdec5195cabe4a214b0dc96762dfb59c9b2a7545c53",
+    "image_sha256":  "6509a33dc1ea909067f771996ee617a7d306063aaafab3d267806b43a8ce3b95",
     "image_width":  1280,
     "image_height":  720,
-    "image_distinct":  2244,
-    "executable":  "build-q4-harness\\bin\\Release\\q4_harness.exe",
-    "executable_sha256":  "6a2d50bb2e23670e3334b43cace3962dfa1a2bca86819bcd429030a5d9690748",
+    "image_distinct":  13738,
+    "executable":  "build-q4-harness/bin/Release/q4_harness.exe",
+    "executable_sha256":  "4a8d931de4cba415522f8e8a69eca377fb9ddbc2d49c7f13aea2ee2269a3b3ea",
     "arguments":  [
                       "-Scene",
                       "transmissive_environment",
                       "-Warp",
+                      "-CaptureExact",
                       "-Capture",
-                      "out\\reca\\hero_environment-warp.png"
+                      "out/recap/07.png"
                   ],
-    "started_utc":  "2026-10-30T15:25:31.8025146Z",
+    "started_utc":  "2026-10-30T16:15:31.3402575Z",
     "log":  "capture.log",
-    "package_sha256":  "5eb7222f11d6edf941073e8633528b4218be15d77d787fc5065b2e58a6374808"
+    "package_sha256":  "c5abb8318c54675f2679dda7385d82c66aba4651fc0d84a2f2652b99f13a98d0"
 }

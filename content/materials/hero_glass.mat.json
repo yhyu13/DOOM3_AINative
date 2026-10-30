@@ -1,13 +1,14 @@
 {
   "schema": "doom3-material-sidecar/1",
-  "comment": "PBR description for hero_glass (C-13). 009 authors baseColor (including alpha), normal and roughness; opacity and refraction are modelled by spec 004 and recorded as a dependency.",
+  "comment": "PBR description for hero_glass (C-13). 009 authors baseColor (including alpha), normal and roughness; the Q4 harness exercises a bounded screen-space transmission model over those inputs. Engine-side transmission remains unimplemented.",
   "material": "hero_glass",
   "mtr": "content/materials/hero_glass.mtr",
   "surface": "pale frosted glass pane with a thicker, more opaque edge",
   "transmission": {
-    "state": "blocked",
-    "why": "opacity and refraction are spec 004's model; this cell authors baseColor.alpha and a low roughness, not a transmission shader",
-    "alpha": "authored in baseColor.alpha: 242 at the edge falling to 196 in the pane"
+    "state": "screen-space-bounded (harness)",
+    "why": "the Q4 harness copies the pre-glass scene and composites a thin-slab screen-space refraction (IoR 1.5, 0.35 world-unit slab, five-tap frost) tinted by baseColor with a Fresnel environment reflection. The pane is excluded from the opaque shadow pass and does not write depth. Not modelled: dispersion, caustics, multiple internal reflections, per-layer depth rejection. Engine-side transmission is still not implemented.",
+    "alpha": "authored in baseColor.alpha: 242 at the edge falling to 196 in the pane; the harness scales tint strength by alpha",
+    "evidence": "specs/004-quality-renderer/evidence/t056/05-transmissive-environment.png vs 09-transmission-reference.png (corr 0.93, variance ratio 0.39, best background shift -9 px)"
   },
   "channels": {
     "baseColor": {

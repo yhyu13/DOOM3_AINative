@@ -14,12 +14,12 @@
   "encoderFlags": {
     "baseColor": ["-f", "BC7_UNORM_SRGB", "-srgb"],
     "emissive": ["-f", "BC7_UNORM_SRGB", "-srgb"],
-    "normal": ["-f", "BC5_UNORM", "-srgbi"],
-    "roughness": ["-f", "BC4_UNORM", "-srgbi"],
-    "metalness": ["-f", "BC4_UNORM", "-srgbi"],
-    "ao": ["-f", "BC4_UNORM", "-srgbi"],
+    "normal": ["-f", "BC5_UNORM"],
+    "roughness": ["-f", "BC4_UNORM"],
+    "metalness": ["-f", "BC4_UNORM"],
+    "ao": ["-f", "BC4_UNORM"],
     "common": ["-m", "0", "-vflip", "-nogpu", "-dx10", "-y"],
-    "comment": "-m 0 writes the full mip chain; -vflip stores top-down (sources are authored top-down, so the engine samples without a V flip); -nogpu forces the deterministic CPU path so package hashes do not depend on the GPU; -dx10 emits the DX10 extended header that the verifier parses; -y overwrites an existing output."
+    "comment": "-m 0 writes the full mip chain; -vflip stores top-down (sources are authored top-down, so the engine samples without a V flip); -nogpu forces the deterministic CPU path so package hashes do not depend on the GPU; -dx10 emits the DX10 extended header that the verifier parses; -y overwrites an existing output. Only colour channels use -srgb; normal/roughness/metalness/ao are authored data and must not be linearised (`-srgbi` was wrongly applied until 2026-10-30, storing 0.5 as 0.214 and decoding every normal with a ~54 deg tilt)."
   },
   "python": {
     "launcher": "py -3",

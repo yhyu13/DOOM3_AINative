@@ -6,12 +6,12 @@ what the portable slices do on this host and what could not run.
 
 **Headline: T049–T055 and the T086 off-path branch are implemented as CPU-testable, backend-neutral
 slices and their tests are green in Debug and Release (32/32 CTest, 0 failures). A device frame now
-exists for all seven content cells: the standalone D3D12 harness captured four scene categories on
-Intel(R) Graphics and WARP after the six-cell content merge. T056 is PARTIAL, not green: the
-skinned-character sub-case never draws, the glass panel is a bounded tinted-environment approximation
-rather than demonstrated transmission, and no device VRAM peak was measured. T057 is still NOT RUN
-(no independent verdict); the T086 provider branch is NOT RUN (no authorized provider). Budgets are now
-recorded where a measurement exists and stay unset where one does not.**
+exists for all seven content cells: the standalone D3D12 harness captured the four scene categories on
+Intel(R) Graphics and WARP, including a real skinned character, a display-resolution HUD, emissive
+radiance above 1.0 read back from the scene target, and a thin-slab screen-space refraction for the
+glass. T056 remains PARTIAL only because no device VRAM peak was measured. T057 ran once and its
+point-in-time verdict is BLOCKED; it must be re-run against the new frames before any dimension is
+accepted or Q4 is called green. The T086 provider branch is NOT RUN (no authorized provider).
 
 ## Identity and scope
 
@@ -53,8 +53,8 @@ recorded where a measurement exists and stay unset where one does not.**
 | T054 | `src/renderer/rhi/residency.*`, `tests/renderer/residency_test.cpp` | Mip/quality selection against remaining budget, per-frame upload throttle, completion-epoch release (deferred while in flight), no eviction to satisfy an upload. |
 | T055 | `src/renderer/rhi/reconstruction.*`, `tests/renderer/reconstruction_test.cpp` | Identity off path and bilinear spatial upscale; identity is byte-exact; provider never required. |
 | T086 | `tests/renderer/reconstruction_test.cpp` | Real `PlanPostReconstruction` ordering around the reconstruction plan: scene → world GUI → display overlay, overlay excluded from reconstruction, one-to-one HUD texels, refused render-extent HUD, identical order on the off path. |
-| T056 | `content/tools/{get-encoder,build-material,capture-q4}.ps1`, `src/renderer/q4_harness/`, `specs/004-quality-renderer/evidence/t056/` | **PARTIAL** (§5): 7/7 packages built; four category frames plus WARP parity on the named adapter; skinned-character sub-case NOT RUN; no VRAM peak |
-| T057 | — | **NOT RUN** (see §5). |
+| T056 | `content/tools/{get-encoder,build-material,capture-q4}.ps1`, `content/tools/pins.json`, `src/renderer/q4_harness/`, `specs/004-quality-renderer/evidence/t056/` | **PARTIAL** (§5): 7/7 packages built; four category frames plus WARP parity; skinned draw, display HUD, HDR emissive and glass refraction captured in this session; no VRAM peak |
+| T057 | — | **ran once, BLOCKED**; re-run required against the new frames (§5.8). |
 
 Design boundaries worth stating:
 
@@ -109,54 +109,63 @@ The provider branch is not a pass and does not block the off-path check.
 
 | Task | State | Exact reason |
 |---|---|---|
-| T056 | **PARTIAL** | All seven cells build a package, and four category frames exist on `Intel(R) Graphics` plus a WARP parity frame. Three coverage gaps remain and are not filled by a stand-in: (a) `skinned_character` is loaded and accounted but never drawn — the harness has no skinned mesh, rig or animation, so the moving category is rigid-only; (b) the `transmissive_glass` panel returns `alpha = 1` with a tinted environment term and no refraction, so no frame shows a background through glass; (c) no device VRAM peak was measured. Committed texture bytes and frame envelopes are recorded; the numeric budgets that follow from them are in `quality-rubric.md` §5. |
-| T057 | **NOT RUN** | The four category frames exist, but this file is authored by the implementer and cannot substitute for an independent art verdict. The reviewer still has to judge materials, lighting, darkness/readability, identity, motion and HUD in `review-q4.md`. |
+| T056 | **PARTIAL** | All seven cells build a package and all four category frames exist on `Intel(R) Graphics`, with WARP parity for static and transmissive. The B3–B6 session added a real skinned draw (805 vertices, 12 bones, 2-node linear blend), a display-resolution HUD with an in-world GUI, an HDR-emissive scene-target probe (peak 15.21 at the authored 16× scale) and a thin-slab screen-space glass refraction with a no-glass reference. The only remaining gap is the **device VRAM peak**. Committed texture bytes and frame envelopes are in §5.3; the numeric budgets are in `quality-rubric.md` §5. |
+| T057 | **ran once, BLOCKED** | The point-in-time review at `50efd1a` is in `review-q4.md`. B-1/B-2 were closed in that session; this session closes B-3/B-4/B-5/B-6 with artifacts (§5.8). A closed blocker is not an acceptance verdict: the review must be re-run against the new frames and hashes before any dimension moves from reject to accept or Q4 is called green. |
 
 ### 5.1 What was built and run
 
-This record was **re-taken at `50efd1a` for the B1/B2 fix session** (see 5.7). The commands below are
-the ones that produced the committed artifacts; the superseded run at `348487c` is in git history.
+This record was **re-taken at `4229bd5` for the B3–B6 coverage session** (§5.8). Recapturing exposed a
+data-map encoding defect, so the packages were rebuilt and every frame below was produced from one
+binary afterwards. The previous B1/B2-session record is at `50efd1a` in git history.
 
 ```text
 powershell -NoProfile -File content/tools/get-encoder.ps1                              -> 0
   ENCODER OK: texconv 2026.5.8.1, 966480 bytes, sha256 dcfdec10...ef06
-py -3 content/tools/generators/dielectric.py --size 512                                -> 0
 powershell -NoProfile -File content/tools/validate.ps1                                 -> 0
   VALIDATE OK: 29 hero files, 7 sidecars, 7 Q4 materials, 1 packs (1 absent)
-content/tools/build-material.ps1 -Material <m> -OutDir out/content/<m>  (7 materials)   -> 0 each
-content/tools/verify-package.ps1 -OutDir out/content/<m>                 (7 materials)   -> 0 each
+content/tools/build-material.ps1 -Material <m> -OutDir out/content/<m> -Force (7)        -> 0 each
+content/tools/verify-package.ps1 -OutDir out/content/<m>                 (7 materials)   -> VERIFY OK each
 cmake -S src/renderer/q4_harness -B build-q4-harness -G "Visual Studio 17 2022" -A x64 -> 0
 cmake --build build-q4-harness --config Release -- -m                                  -> 0
-q4_harness.exe -ListAdapters                                                           -> 0
-content/tools/capture-q4.ps1 ... (ten invocations; ten records kept in evidence/t056/captures) -> 0 each
-q4_harness.exe -Scene <s> -Frames 30 -AdapterIndex 0  (4 scenes)                        -> 0 each
+content/tools/capture-q4.ps1 ... (eleven invocations; eleven records in evidence/t056/captures) -> CAPTURE OK each
+q4_harness.exe -Scene <s> -Frames 30 -AdapterIndex 0  (4 scenes, 3 windows)             -> 0 each
 q4_harness.exe -Scene <s> -Frames 5  -Warp            (4 scenes)                        -> 0 each
 q4_harness.exe -Scene moving -Frames 1..8 -AdapterIndex 0                               -> 0 each
+q4_harness.exe -Scene alpha_emissive -HdrProbe (scale 1, 16, 2)                         -> peaks 1.0059 / 15.2109 / 1.9531
 ```
 
 Artifacts: harness `build-q4-harness/bin/Release/q4_harness.exe`,
-SHA-256 `6a2d50bb2e23670e3334b43cace3962dfa1a2bca86819bcd429030a5d9690748`; toolchain CMake 3.31.6
+SHA-256 `4a8d931de4cba415522f8e8a69eca377fb9ddbc2d49c7f13aea2ee2269a3b3ea`; toolchain CMake 3.31.6
 (VS-bundled), MSVC 14.44.35207, content toolchain Python 3.14.4 / Pillow 12.3.0 / texconv 2026.5.8.1.
 Host: Windows 11 10.0.22631 x64. Adapter `Intel(R) Graphics` vendor 0x8086 device 0x7D67, reported
 dedicated memory 134,217,728 bytes, driver 32.0.101.8331 (2025-11-26); software adapter
 `Microsoft Basic Render Driver` vendor 0x1414 device 0x008C.
 
 Every number below is in `evidence/t056/measurements.json`; the derived ones (image hashes, package
-hashes, byte totals, frame diffs, B1/B2 metrics) are produced by the scripts in
+hashes, byte totals, frame diffs, coverage metrics) are produced by the scripts in
 `evidence/t056/tools/`, so no figure is hand-copied.
+
+**Data-map correction.** `content/tools/pins.json` applied `-srgbi` to normal/roughness/metalness/ao,
+linearising authored data: a flat normal stored 0.5 as 0.214, decoded by the shader as `2v-1 = -0.57`,
+i.e. a ~54° tilt on every surface. That is why the first glass attempt washed out (its Fresnel saw a
+grazing normal) and why the dielectric looked flatter than authored. The pin now leaves data channels
+linear; all seven packages were rebuilt, verified, and every frame in this record was recaptured. The
+B1/B2 metrics in `measurements.json` are marked historical for the same reason.
 
 ### 5.2 Scene coverage
 
 | Category | Scene | Cells drawn | Cells NOT RUN | Intel frame | WARP frame | Category state |
 |---|---|---|---|---|---|---|
 | static opaque | `static_opaque` | `opaque_dielectric` (plane, cube, sphere) + `opaque_metal` (sphere) | — | `01-static-opaque-dielectric-metal.png` | `06-warp-static-opaque.png` | **RUN** |
-| alpha / emissive | `alpha_emissive` | `alpha_tested` (cutout quad) + `emissive` (sign quad) | — | `02-alpha-tested-emissive.png` | timing only (WARP frame not committed) | **RUN**, HDR > 1.0 not demonstrated |
-| moving | `moving` | `opaque_dielectric` (rotating cube + static sphere/ground) | `skinned_character`: no skinned mesh, rig or animation exists in the harness draw list (`harness_render.cpp:57-64`) or in the content set | `03-moving-frame-1.png`, `04-moving-frame-8.png` | timing only (WARP frame not committed) | **PARTIAL** (rigid only) |
-| transmissive / large environment | `transmissive_environment` | `large_environment` (24×24 ground plane, 4096² atlas) + `transmissive_glass` (2.4×2.4 quad) | true transmission/refraction: the panel writes `alpha = 1` and uses a tinted environment term (`q4_hybrid.hlsl:287-294`, "not a refraction claim") | `05-transmissive-environment.png` | `07-warp-transmissive-environment.png` | **PARTIAL** |
+| alpha / emissive | `alpha_emissive` | `alpha_tested` (cutout quad) + `emissive` (sign quad, authored 16× HDR scale) | — | `02-alpha-tested-emissive.png`; controls `10-emissive-sdr-reference.png`, `11-emissive-hdr-rolloff.png` | timing only (WARP frame not committed) | **RUN**, HDR > 1.0 probed |
+| moving | `moving` | `opaque_dielectric` (rotating cube + static sphere/ground) + `skinned_character` (12-bone procedural humanoid, host linear blend) | — | `03-moving-frame-1.png`, `04-moving-frame-8.png` | timing only (WARP frame not committed) | **RUN** |
+| transmissive / large environment | `transmissive_environment` | `large_environment` (24×24 ground plane, 4096² atlas) + `opaque_dielectric` marker cube + `transmissive_glass` (2.4×2.4 pane, thin-slab refraction) | — | `05-transmissive-environment.png`; reference `09-transmission-reference.png` | `07-warp-transmissive-environment.png` | **RUN** |
+| display overlay | `static_opaque` + `-Hud` | the static scene + in-world GUI at render extent + display HUD | — | `08-hud-overlay-display.png` (render 960×540 → display 1280×720) | not run | **RUN** |
 
-The four category frames are captures, not generated placeholders. The glass and environment captures
-are the same frame (one scene draws both cells), so a per-material `capture.json` exists for both
-without duplicating the image.
+The category frames are captures, not generated placeholders. `08` exists to exercise ordering at a
+non-1.0 render scale: the scene and the in-world GUI are rendered at 960×540, then the HUD is drawn at
+1280×720 after tonemap. `09` is the same scene with the glass draw skipped, so the transmission metric
+has a reference; `10`/`11` isolate the emissive tone-map behaviour.
 
 ### 5.3 Frame behaviour and resource accounting
 
@@ -172,39 +181,39 @@ difference between the four scenes.
 
 | Scene | Windows × frames (hw / WARP) | Intel median (median range), min / max observed | WARP min / median / max |
 |---|---|---|---|
-| `static_opaque` | 3 × 25 / 5 | 1.88 (1.47-2.21), 1.24 / 4.48 | 24.58 / 26.15 / 58.29 |
-| `alpha_emissive` | 3 × 25 / 5 | 1.74 (1.57-2.10), 1.25 / 5.02 | 24.41 / 25.36 / 65.61 |
-| `moving` | 3 × 25 / 5 | 2.05 (1.53-2.12), 1.36 / 4.65 | 24.10 / 26.07 / 73.97 |
-| `transmissive_environment` | 3 × 25 / 5 | 1.83 (1.54-2.12), 1.24 / 4.07 | 23.97 / 26.15 / 75.69 |
+| `static_opaque` | 3 × 25 / 5 | 2.18 (1.55-2.31), 1.31 / 5.20 | 23.12 / 26.28 / 65.83 |
+| `alpha_emissive` | 3 × 25 / 5 | 1.56 (1.51-2.06), 1.29 / 5.51 | 23.61 / 24.00 / 67.85 |
+| `moving` | 3 × 25 / 5 | 2.19 (1.59-2.20), 1.41 / 5.24 | 23.33 / 25.37 / 64.73 |
+| `transmissive_environment` | 3 × 25 / 5 | 1.68 (1.50-1.70), 1.35 / 5.59 | 25.57 / 27.68 / 79.09 |
+| `static_opaque` + HUD, 0.75 render scale | 3 × 25 / — | 1.48, 1.39 / 2.73 | — |
 
-The shadow pass now has a pixel shader, so its cost is measured rather than assumed:
-`-Scene alpha_emissive -Frames 30 -AdapterIndex 0 -DebugShadowCount 0` (no shadow draws at all)
-gives 1.07 ms median against 1.47 ms with them. That 0.40 ms is the whole shadow pass, three draws
-into a 2048² map — not the alpha-test sample, which is one texture fetch plus a `clip` on the
-caster's pixels. The four scene medians (1.74-2.05 ms) sit inside the pre-fix record's 1.43-2.12 ms and
-inside this host's ±0.35 ms window-to-window noise, so this session claims no frame-time change; it
-does not claim the change is free either, because the noise is larger than the shadow-pass delta.
+The shadow pass now has a pixel shader; its cost was measured in the B1/B2 session (1.07 ms median
+with no shadow draws against 1.47 ms with them) and was not re-measured this session, because the
+data-map rebuild changes shading, not the shadow pass. The four scene medians (1.56-2.19 ms) are
+envelopes: the window-to-window spread (0.14-0.76 ms) is comparable to the differences, so this session
+claims no frame-time improvement, and the added skinned/glass/HUD draws did not push any median above
+the recorded 2.2 ms ceiling.
 
 WARP versus hardware on the same scene identity, `d = max over R,G,B of |a-b|` and "changed" meaning
-`d > 2` (`tools/frame_diff.py`): `static_opaque` differs at **67 of 921,600 pixels (0.007 %)**, down
-from 465 (0.050 %) on the pre-fix frames, because the dielectric surfaces no longer carry per-texel
-noise for the two rasterisers to sample differently; `transmissive_environment` differs at 1 pixel
-(mean over-pixel max-channel difference 0.188; both `05` and `07` are byte-identical to the pre-fix pair, so this is the same measurement the review saw). The software path renders the same
-image, not a blank or a fallback frame.
+`d > 2` (`tools/coverage_metrics.py`): `static_opaque` differs at **4 of 921,600 pixels (0.000 %,
+mean 0.152)** and `transmissive_environment` at **1 pixel (mean 0.129)**. Both rasterisers produce the
+same image, not a blank or a fallback frame. The WARP transmissive frame includes the refraction and
+the marker cube; the old "byte-identical to pre-fix" statement no longer applies because the packages
+and the shader changed.
 
 Committed texture payload (DDS bytes minus the 148-byte header per texture; the harness `MATERIAL`
-lines report the same values). The dielectric package hash changes because its texels changed; the
-other six are byte-identical to the pre-fix packages, which is the isolation check for this change:
+lines report the same values). All seven package hashes changed because the data maps were re-encoded;
+the payload sizes did not:
 
 | Cell | Material | Textures | Payload bytes | `package_sha256` |
 |---|---|---|---|---|
-| `opaque_dielectric` | `hero_dielectric` | 3 | 873,880 | `65281cb4…aee3` |
-| `opaque_metal` | `hero_metal` | 4 | 1,048,656 | `7b0b0cc6…19f6` |
-| `alpha_tested` | `hero_grating` | 4 | 1,048,656 | `398f7bbe…9f42` |
-| `emissive` | `hero_emissive_sign` | 5 | 1,398,208 | `f0524139…a382` |
-| `skinned_character` | `hero_character_skin` | 3 | 873,880 | `f3e69aad…e712` |
-| `transmissive_glass` | `hero_glass` | 3 | 873,880 | `2abd99e6…d6a7` |
-| `large_environment` | `hero_environment` | 4 | 33,554,512 | `5eb7222f…4808` |
+| `opaque_dielectric` | `hero_dielectric` | 3 | 873,880 | `52951c51…` |
+| `opaque_metal` | `hero_metal` | 4 | 1,048,656 | `cc4861cb…` |
+| `alpha_tested` | `hero_grating` | 4 | 1,048,656 | `ad68e7e6…` |
+| `emissive` | `hero_emissive_sign` | 5 | 1,398,208 | `42aa309c…` |
+| `skinned_character` | `hero_character_skin` | 3 | 873,880 | `fca5d611…` |
+| `transmissive_glass` | `hero_glass` | 3 | 873,880 | `750c4664…` |
+| `large_environment` | `hero_environment` | 4 | 33,554,512 | `c5abb831…` |
 | **total** | | **26** | **39,671,672** | |
 
 Residency, logged once per process: `budget=268435456 uploadPerFrame=67108864
@@ -220,15 +229,14 @@ queries `IDXGIAdapter3::QueryVideoMemoryInfo` or a process GPU-memory counter, a
 run was recorded. The reported 134,217,728 bytes is the adapter's *reported dedicated memory*, not a
 measurement of use.
 
-Motion: eight frames of `moving`, cube rotation `20° + 25° × frameIndex`. Adjacent frames differ over
-4.46–6.70 % of pixels (mean over-pixel max-channel difference 2.67–3.83) and every changed pixel lies
-inside x ∈ [438, 781], y ∈ [238, 494] — the rotating cube and its shadow. Everything outside that box
-is byte-identical between frames. There is no temporal reprojection in the harness, so this measures
+Motion: eight frames of `moving`, cube rotation `20° + 25° × frameIndex` and the character pose
+advancing with the same index. Adjacent frames differ over 4.79–7.09 % of pixels (mean over-pixel
+max-channel difference 2.29–3.69) and the difference box covers the cube, its shadow and the
+character. Within the character-only box (x 850–1020, y 150–470) **5,758 pixels change above 2/255
+(10.6 % of the box)** between frames 1 and 8, with the arm and elbow moving while the material and
+silhouette stay identifiable. There is no temporal reprojection in the harness, so this measures
 per-frame identity and the absence of frame-to-frame material drift, not history rejection. The metric
-is stated in `evidence/t056/tools/frame_diff.py` because T057 finding N3 could not reproduce the
-older figure from the committed pair; `mean_abs` here is the mean of the per-pixel max channel
-difference, which is larger than a mean over all channels and is not directly comparable to the
-pre-fix record's 1.47.
+is stated in `evidence/t056/tools/coverage_metrics.py` and `frame_diff.py`.
 
 ### 5.4 Accepted and rejected examples (candidate rows for T057)
 
@@ -241,33 +249,39 @@ and 06, which this session replaced. The rejected frames remain reachable at `50
 | 4.1 materials | `01-static-opaque-dielectric-metal.png` | The dielectric plane/cube/sphere reads as a painted panel with a broad, coherent highlight and a subtle orange-peel bump; the metal sphere is darker, tinted, and carries a tight bright specular lobe. The two are distinguishable without moving the camera. The metal cannot show reflected scene structure because the reflection source is the analytic sky gradient, not a scene probe. | accept (distinctness); the reflection-source limit is 4.3, not a metalness failure |
 | 4.1 / 4.2 alpha cutout | `02-alpha-tested-emissive.png` | Light passes through the grating holes: sky above the horizon and the ground below it are visible through them; the hole edges are clean at this extent. | accept (cutout) |
 | 4.2 shadows | `crops/grating-shadow-cutout.png` | The grating's cast shadow now carries the caster's hole pattern instead of its silhouette. The holes are soft rather than crisp: see 5.7 for the measurement and the reason. | accept (shape matches the caster); softness recorded as a residual |
-| 4.2 / 4.1 transmission | `05-transmissive-environment.png` | The panel is a smooth tinted surface; the floor and horizon do not show through it, and there is no refraction or thickness. The shader documents this as a bounded approximation (`q4_hybrid.hlsl:287-294`). | **reject** for the transmission claim; accept only as "the transmissive route renders and does not take the full opaque direct term" |
-| 4.4 darkness / readability | `02-alpha-tested-emissive.png` | The emissive bars are the brightest element but the panel frame and the surrounding ground keep their separation; no clipped white blob swallows neighbouring detail. The emissive is SDR: radiance above 1.0 is blocked on the C-10 format decision, so "HDR emissive keeps detail above 1.0" is **not tested**. | accept (readability); HDR part NOT TESTED |
-| 4.5 identity / reproducibility | `04-moving-frame-8.png` | Frame identity is deterministic across runs and across the content change: re-running `-Scene moving -Frames 8` after the dielectric regeneration reproduces this exact PNG (SHA-256 `1cf980a1…02c9`), and frames 05/07 are byte-identical to the pre-fix record because neither the sampler nor the shadow depth of non-cutout casters changed. | accept (deterministic frame identity) |
-| 4.6 motion | `03-moving-frame-1.png` → `04-moving-frame-8.png` | 4.46–6.70 % of pixels change per adjacent pair, all inside the cube/shadow box; the background is unchanged. No ghost or smear is possible on this path (no history), and no material swim was observed. | accept (rigid stability); skinned motion is NOT RUN |
-| 4.7 HUD / overlay | none | The harness draws no HUD; the T086 ordering check is CPU-only. | not applicable / NOT RUN for this capture set |
+| 4.2 / 4.1 transmission | `05-transmissive-environment.png` vs `09-transmission-reference.png` | The pane transmits the scene behind it: luminance correlation 0.9336, variance ratio 0.3929, 58.5 % of pane pixels within 20/255 of the no-glass reference. Fitting the background displacement gives a best shift of −9 px (13.5 % SAD improvement over zero shift), so the pane is refracting, not copying. The Fresnel reflection lifts the sky region, and the model's limits (single slab, no dispersion/caustics) are recorded. | accept (bounded transmission); engine-side transmission remains a separate limit |
+| 4.4 darkness / readability | `02-alpha-tested-emissive.png`, `11-emissive-hdr-rolloff.png` | The scene-target probe reads peak 15.2109 at the authored 16× scale (5,541 px > 8.0) while the scale-1 control peaks at 1.0059 (0 px > 8.0); the tonemap therefore receives radiance above 1.0. At 16× the 8-bit display saturates by design; the scale-2 diagnostic shows ACES rolling off with **0 saturated pixels** and a non-zero spread, so detail is compressed, not hard-clipped. | accept (readability + HDR exercised) |
+| 4.5 identity under skinning | `03-moving-frame-1.png`, `04-moving-frame-8.png`, `crops/skinned-pose-2x.png` | The skinned character keeps the woven suit material and its silhouette while the right arm and elbow change pose between frames. No weight-smear or material swim is visible in the 2× crop; the rig is procedural (805 vertices, 12 bones) and is labelled as such rather than presented as a retail asset. | accept (identity stable on a procedural rig) |
+| 4.6 motion | the eight-frame `moving` series; `coverage.skinned_motion` | 4.79–7.09 % of pixels change per adjacent pair; 5,758 px (10.6 %) change inside the character box between frames 1 and 8. No ghost or smear exists on this path (no history), and no material swim was observed. | accept (rigid + skinned motion) |
+| 4.7 HUD / overlay | `08-hud-overlay-display.png`, `crops/hud-texel-4x.png` | The scene and in-world GUI render at 960×540, the HUD at 1280×720 after tonemap. The 4× crop shows an exact 2-px border and 20-px cells; the HUD samples no scene texture, is not fogged or upscaled, and lies outside motion history. Ordering: scene → copy → glass → tonemap → HUD. | accept (display-resolution overlay; ordering recorded) |
 
 ### 5.5 What these frames do not show
 
-- **Skinned character**: `skinned_character` has a package and is loaded into slot 5, but no draw uses
-  it. A skinned frame would require a rigged mesh and animation, which exist in neither the harness nor
-  the content set. No stand-in material was substituted.
-- **Transmission through glass**: see 5.4. The category frame proves the route renders; it does not
-  prove a see-through or refractive glass result.
-- **HDR emissive**: the sign is shaded from an SDR mask; the > 1.0 radiance case depends on the C-10
-  format decision.
+- **A retail rig or animation**: the skinned character is a 12-bone procedural humanoid with a
+  two-bone linear-blend pose generated by the harness. It proves the skinning path and material
+  stability, not a retail mesh or a game animation.
+- **A full transmission model**: the glass is a single thin slab with a screen-space refraction, a
+  five-tap frost and a Fresnel reflection. It does not model dispersion, caustics, multiple internal
+  reflections, or per-layer depth rejection at silhouettes, and the pane is excluded from the opaque
+  shadow pass. Engine-side transmission is still unimplemented.
+- **A packaged HDR texture**: the emissive radiance above 1.0 is produced by applying the sidecar scale
+  after sRGB decode into the HDR scene target; the texture container remains the C-10 decision.
 - **Engine integration**: the harness is standalone. These frames are not engine frames, not classic
   parity, and not the fork's call sites.
 - **VRAM peak**: not measured (5.3).
 
 ### 5.6 Measured basis for the budgets
 
-`quality-rubric.md` §5 now carries the per-cell committed texture bytes and the per-scene frame
-envelope from the tables above. VRAM peak stays unset with the reason recorded. The budget rows in
-`content/manifest/budget-rows.json` are `recorded` for the six cells a frame or a residency reading
-covers, and `blocked` for `skinned_character` with the exact reason.
+`quality-rubric.md` §5 carries the per-cell committed texture bytes and the per-scene frame envelope
+from the tables above. VRAM peak stays unset with the reason recorded. All seven rows in
+`content/manifest/budget-rows.json` are now `recorded`, including `skinned_character`, whose artifact
+is this file's `measurements.json`.
 
 ### 5.7 B1/B2 fix record
+
+Scope: this subsection is the **B1/B2 session at `50efd1a`**. The packages and frames were recaptured
+after the data-map fix (§5.8), so statements here about unchanged hashes or byte-identical frames
+describe that session, not the current tree.
 
 The T057 review left two visible defects open (`review-q4.md` §6). Both were reproduced, diagnosed to
 a mechanism, fixed, and re-measured. Neither fix moved a byte of content size or a frame-time budget.
@@ -340,14 +354,42 @@ over-blur into shimmer. That cell is out of scope for this session, so the chang
 reason is recorded in a comment at the sampler. The proof that the revert is clean is that frames 05
 and 07 are **byte-identical** to the pre-fix record.
 
-**What did not change:** target and root `CMakeLists.txt`, `tests/renderer/`, Q6/Q7 content or code, and
-every material other than `hero_dielectric` — all six other `package_sha256` values are unchanged, and
-so is every byte count and the residency reading.
+**What did not change (B1/B2 session only):** target and root `CMakeLists.txt`, `tests/renderer/`, Q6/Q7
+content or code, and every material other than `hero_dielectric` were untouched *in that session*.
+The later B3–B6 session rebuilt all packages for the data-map encoding fix (§5.8), so the byte-identity
+statements above describe the B1/B2 frame set, not the current one.
+
+### 5.8 B3–B6 closure (base `4229bd5`)
+
+This session closes the four review blockers that `review-q4.md` left open. It does not close the
+review: T057 must be re-run against the new frames and hashes, and Q4 is still not green.
+
+| Blocker | Change | Artifact | Measurement | State |
+|---|---|---|---|---|
+| B-3 skinned motion | `mesh.{h,cpp}` builds a 12-bone procedural humanoid (805 vertices, 4,224 indices, 4 influences/vertex, smooth two-bone blend at elbows/knees); `VSMain`/`VSShadow` apply a host linear-blend palette; `moving` now draws `skinned_character` and advances the pose with the frame index. | `03-moving-frame-1.png`, `04-moving-frame-8.png`, `crops/skinned-pose-2x.png` | 5,758 px (10.6 % of the character box) change between frames 1 and 8; the woven material and silhouette stay identifiable; the shadow pass uses the same skinning. | **CLOSED** (artifact exists) |
+| B-4 HUD | `q4_hud.hlsl` draws a display-extent HUD after tonemap at integer pixels with no scene sampler; the in-world GUI uses `PSWorldGui` at render extent; `-Hud` and `-RenderScale` exercise the ordering. | `08-hud-overlay-display.png`, `crops/hud-texel-4x.png` | scene 960×540 → copy → glass → tonemap → HUD 1280×720; 2-px border at x 24–25, 20-px cell pitch, cyan mask x 24–1256 / y 24–695. | **CLOSED** (artifact exists) |
+| B-5 HDR emissive | the sidecar `emissiveScale` (16.0) is applied after sRGB decode into the R16G16B16A16_FLOAT target; `-HdrProbe` reads the scene target back before tonemap; `-EmissiveScale` provides controls. | `02-alpha-tested-emissive.png`, `10-emissive-sdr-reference.png`, `11-emissive-hdr-rolloff.png` | probe peak **15.2109**, 5,541 px > 8.0 at 16×; scale 1 peak 1.0059 with 0 px > 8.0; scale-2 diagnostic has 0 saturated display pixels and a 5.33 std, so ACES rolls off. | **CLOSED** (artifact exists) |
+| B-6 transmission | a scene copy is taken after the opaque pass; `PSGlass` refracts the view ray through a 0.35-unit slab, samples the copy with a five-tap frost, tints by baseColor/alpha, adds a Fresnel environment reflection, composites opaquely and is excluded from the opaque shadow pass and depth writes. `-NoTransmission` gives the reference. | `05-transmissive-environment.png`, `09-transmission-reference.png`, `crops/glass-refraction-2x.png` | corr 0.9336, variance ratio 0.3929, 58.5 % of pane pixels within 20/255 of the reference, best background shift −9 px (13.5 % SAD improvement). | **CLOSED** (bounded model; limits stated) |
+
+**Root cause found while closing B-6.** `content/tools/pins.json` passed `-srgbi` to every data channel,
+so normal/roughness/metalness/ao were linearised at encode (0.5 → 0.214) and every normal decoded with a
+~54° tilt. The glass Fresnel exposed it as a milky, grazing-angle wash. The pin now leaves data channels
+linear; all seven packages were rebuilt and verified, the harness was rebuilt, and all eleven captures
+plus the timing and motion series were re-taken from the new binary
+(`4a8d931d…a3ea`). The B1/B2 metrics in `measurements.json` are marked historical for this reason. This
+also changes the lighting of frames 01–04, which is why the previous hashes cannot be used to judge this
+session.
+
+**Not done / not claimed.** No engine or fork integration; no retail rig; no packaged HDR texture; no
+dispersion/caustics; no VRAM peak. T057 re-run is required, and the PR is not merged.
 
 ## 6. What is not claimed
 
-- Q4 is **not complete** and not green. T056 is PARTIAL (skinned motion, transmission and VRAM peak
-  missing). T057 ran and its verdict is **BLOCKED**: B-1/B-2 were closed in this session (5.7), B-3 to B-6 (skinned motion, HUD, HDR emissive, transmission) are still missing artifacts. The provider branch of T086 is NOT RUN.
+- Q4 is **not complete** and not green. T056 is PARTIAL only on the **VRAM peak**; all four categories
+  and the four B3–B6 artifacts exist. T057 ran once and its point-in-time verdict is **BLOCKED**; B-1 to
+  B-6 now have artifacts (B-1/B-2 in §5.7, B-3/B-4/B-5/B-6 in §5.8), but the review must be re-run
+  against the new frames before any dimension moves from reject to accept. The provider branch of T086
+  is NOT RUN.
 - No modern-look acceptance, no classic parity, no DXR, no DLSS. There is a measured frame envelope on
   one adapter and there is still **no VRAM figure**; the frame numbers are a regression ceiling for this
   host, not a performance claim for any other device.

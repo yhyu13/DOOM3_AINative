@@ -231,6 +231,12 @@ void Usage() {
         "  -RenderScale <f>       render-extent scale (default 1.0)\n"
         "  -Frames <n>            frames to render before capture (default 1)\n"
         "  -Exposure <f>          tone-map exposure (default 1.0)\n"
+        "  -EmissiveScale <f>     override the sidecar emissiveScale\n"
+        "  -Hud                   add the in-world GUI and the display HUD\n"
+        "  -NoTransmission        reference frame without the glass draw\n"
+        "  -CaptureExact          write -Capture verbatim (no scene suffix)\n"
+        "  -GlassThickness <f>    thin-slab refraction thickness in world units\n"
+        "  -HdrProbe              read back the HDR scene and print the peak\n"
         "  -ContentDir <path>     directory that holds content/\n"
         "  -PackageDir <path>     directory that holds <material>/package.json\n"
         "  -ShaderDir <path>      directory that holds q4_hybrid.hlsl\n");
@@ -307,6 +313,20 @@ int main(int argc, char** argv) {
         } else if (arg == "-Exposure") {
             options.exposure =
                 static_cast<float>(std::atof(value("-Exposure").c_str()));
+        } else if (arg == "-EmissiveScale") {
+            options.emissiveScale =
+                static_cast<float>(std::atof(value("-EmissiveScale").c_str()));
+        } else if (arg == "-Hud") {
+            options.hud = true;
+        } else if (arg == "-HdrProbe") {
+            options.hdrProbe = true;
+        } else if (arg == "-NoTransmission") {
+            options.skipTransmission = true;
+        } else if (arg == "-CaptureExact") {
+            options.captureExact = true;
+        } else if (arg == "-GlassThickness") {
+            options.glassThickness =
+                static_cast<float>(std::atof(value("-GlassThickness").c_str()));
         } else if (arg == "-ContentDir") {
             contentDir = value("-ContentDir");
         } else if (arg == "-PackageDir") {
@@ -424,6 +444,8 @@ int main(int argc, char** argv) {
     std::printf("Q4 residency: %s\n", harness.hooks().residency.c_str());
     std::printf("Q4 reconstruction: %s\n", harness.reconstructionMode().c_str());
     std::printf("Q4 shadow: %s\n", harness.hooks().shadow.c_str());
+    std::printf("Q4 emissive: %s\n", harness.hooks().emissive.c_str());
+    std::printf("Q4 skinning: %s\n", harness.hooks().skinning.c_str());
 
     // Report every rubric category and the cells it needs. A cell without an
     // authored package is NOT RUN; it is never replaced by a stand-in frame.
@@ -521,7 +543,9 @@ int main(int argc, char** argv) {
         if (debugLayer) {
             PrintDiagnostics(device);
         }
-        const std::string output = CapturePathFor(capturePath, scene);
+        const std::string output =
+            options.captureExact ? capturePath
+                                 : CapturePathFor(capturePath, scene);
         if (!harness.WriteCapture(output, &error)) {
             std::fprintf(stderr, "ERROR: capture %s: %s\n", scene.c_str(),
                          error.c_str());
