@@ -116,6 +116,58 @@ set(DOOM3_LINK_LIBS
     ws2_32 wsock32 comctl32 version imm32
 )
 
+# Portable RHI plus the classic scene adapter (spec 004 Q2, T035/T080/T081/T082).
+#
+# Everything below inherits the directory-level CMAKE_MSVC_RUNTIME_LIBRARY set above, so the
+# static library and both executables agree on /MT in Release and /MTd in Debug; there is no
+# per-target override and no prebuilt library. doom3_rhi is linked into the engine object
+# library and appended to DOOM3_LINK_LIBS before both doom3_add_exe calls, so DOOM3.exe and
+# DOOM3XP.exe get the same backend. The game object libraries never link it.
+#
+# The adapter is a superproject file compiled through this tracked CMake file, not through the
+# generated sources.cmake, so it is not also part of ENGINE_SOURCES. Deleting it fails
+# configure instead of silently building a backend that is not there.
+set(PORT_RENDERER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../src/renderer")
+
+set(DOOM3_RHI_SOURCES
+    "${PORT_RENDERER_DIR}/d3d12/rhi_d3d12.cpp"
+    "${PORT_RENDERER_DIR}/d3d12/rhi_pipeline.cpp"
+    "${PORT_RENDERER_DIR}/d3d12/rhi_compute.cpp"
+    "${PORT_RENDERER_DIR}/d3d12/rhi_attachments.cpp"
+    "${PORT_RENDERER_DIR}/d3d12/rhi_present.cpp"
+    "${PORT_RENDERER_DIR}/d3d12/frame_resources.cpp"
+    "${PORT_RENDERER_DIR}/d3d12/lighting.cpp"
+    "${PORT_RENDERER_DIR}/rhi/frame_graph.cpp"
+    "${PORT_RENDERER_DIR}/rhi/engine_scene_adapter.cpp"
+    "${PORT_RENDERER_DIR}/rhi/materials.cpp"
+)
+foreach(rhi_source IN LISTS DOOM3_RHI_SOURCES)
+    if(NOT EXISTS "${rhi_source}")
+        message(FATAL_ERROR
+            "Portable RHI source is missing: ${rhi_source}\n"
+            "The Q2 classic path is built from the superproject sources listed in "
+            "targets/win11-amd64/CMakeLists.txt; restoring or adding the file is required.")
+    endif()
+endforeach()
+
+add_library(doom3_rhi STATIC ${DOOM3_RHI_SOURCES})
+target_include_directories(doom3_rhi PUBLIC "${PORT_RENDERER_DIR}")
+target_compile_features(doom3_rhi PUBLIC cxx_std_17)
+# NOMINMAX is required: <windows.h> otherwise defines a max macro that breaks
+# std::numeric_limits<uint64_t>::max() in the D3D12 backend (C2589, seen at
+# src/renderer/d3d12/rhi_d3d12.cpp).
+target_compile_definitions(doom3_rhi PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
+target_link_libraries(doom3_rhi PUBLIC d3d12 dxgi d3dcompiler)
+if(MSVC)
+    target_compile_options(doom3_rhi PRIVATE /W4 /permissive- /EHsc)
+endif()
+
+# Include directories and link semantics for the compiled adapter. Do not rely on
+# $<TARGET_OBJECTS:doom3_engine> to carry usage requirements; the explicit entry in
+# DOOM3_LINK_LIBS below is what puts the library on both link lines.
+target_link_libraries(doom3_engine PRIVATE doom3_rhi)
+list(APPEND DOOM3_LINK_LIBS doom3_rhi)
+
 function(doom3_add_exe exe_name game_objects)
     add_executable(${exe_name} $<TARGET_OBJECTS:doom3_engine> $<TARGET_OBJECTS:${game_objects}>)
     target_link_options(${exe_name} PRIVATE "/DEBUG" "/SUBSYSTEM:WINDOWS" "/STACK:16777216")
