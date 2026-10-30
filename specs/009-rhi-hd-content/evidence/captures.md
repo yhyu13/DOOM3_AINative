@@ -1,6 +1,6 @@
 # Capture index: what exists, and what is blocked
 
-**Date**: 2026-10-29
+**Date**: 2026-10-30 (first real captures; the 2026-10-29 revision recorded zero)
 **Spec**: [`../spec.md`](../spec.md) FR-011, FR-013, FR-015 (task T-031)
 
 Every Q4 content claim needs a capture that names its backend and adapter, or an explicit `BLOCKED`
@@ -8,18 +8,26 @@ reason. This file is the index of those claims. It is deliberately short.
 
 ## Captures
 
+The frames live under
+[`specs/004-quality-renderer/evidence/t056/`](../../004-quality-renderer/evidence/t056/) with the
+measurement record in `measurements.json`; the harness that produced them is described in
+[`evidence-q4-harness.md`](../../004-quality-renderer/evidence-q4-harness.md).
+
 | Cell | Material | Capture | Backend | Adapter | Reason |
 |---|---|---|---|---|---|
-| opaque dielectric | `hero_dielectric` | **BLOCKED** | — | — | spec 004 has not reached Q2/Q3/Q4; no RHI path renders a PBR material |
-| opaque metal | — | **BLOCKED** | — | — | same, and no material is authored yet |
-| alpha-tested geometry | — | **BLOCKED** | — | — | same |
-| emissive | — | **BLOCKED** | — | — | same |
-| skinned character | — | **BLOCKED** | — | — | same |
-| transmissive / glass | — | **BLOCKED** | — | — | same |
-| large environment surface | — | **BLOCKED** | — | — | same |
+| opaque dielectric | `hero_dielectric` | `01-static-opaque-dielectric-metal.png` | d3d12 | Intel(R) Graphics | static opaque scene (§5.2) |
+| opaque metal | `hero_metal` | `01-static-opaque-dielectric-metal.png` | d3d12 | Intel(R) Graphics | same frame; the metal sphere is the second cell |
+| alpha-tested geometry | `hero_grating` | `02-alpha-tested-emissive.png` | d3d12 | Intel(R) Graphics | cutout works; **the cast shadow is solid** (no alpha test in the shadow pass) |
+| emissive | `hero_emissive_sign` | `02-alpha-tested-emissive.png` | d3d12 | Intel(R) Graphics | SDR emissive; radiance above 1.0 is not represented |
+| skinned character | `hero_character_skin` | **BLOCKED** | — | — | no skinned mesh, rig or animation exists in the harness or the content set, so the cell is loaded and accounted but never drawn |
+| transmissive / glass | `hero_glass` | `05-transmissive-environment.png` | d3d12 | Intel(R) Graphics | tinted environment approximation, **not** transmission or refraction |
+| large environment surface | `hero_environment` | `05-transmissive-environment.png` | d3d12 | Intel(R) Graphics | 4096² assembled atlas, 33,554,512 committed texture bytes |
 
-**Captures on file: 0.** Nothing in this workstream may claim otherwise, and `capture-q4.ps1` is the
-only script allowed to produce one; it exits 3 today with `BLOCKED: spec 004 has not reached Q4`.
+**Captures on file: 6 distinct frames covering 7 cells and 4 categories**, plus a WARP parity frame for
+`static_opaque` (`06-warp-static-opaque.png`, `Microsoft Basic Render Driver`) and for
+`transmissive_environment` (`07-warp-transmissive-environment.png`). Every capture names its backend and
+adapter, and each has a `capture.json` under `evidence/t056/captures/`. A capture is not an art verdict:
+the independent review is T057 and has not run.
 
 ## Separation from the legacy track (FR-015)
 
@@ -42,8 +50,9 @@ this file quoted a grep over `specs/` as well, which matched the prose itself an
 
 ## What would change this file
 
-1. Spec 004 delivers Q4 (which itself needs Q2/Q3).
-2. `capture-q4.ps1` gains its pass path and writes `<material>/capture.png` plus a line naming the
-   backend and adapter.
-3. The matrix report (`content/tools/matrix-report.ps1`) then shows a capture instead of `BLOCKED` for
-   that cell.
+1. A `skinned_character` frame becomes possible only when the harness (or the engine) has a rigged mesh
+   and animation; until then the row stays `BLOCKED`.
+2. The glass row changes when spec 004 delivers a transmission model; the current panel writes
+   `alpha = 1` with a tinted environment term.
+3. The zero-capture guard in `tests/content/run-capture-harness.ps1` now asserts that the **stub**
+   adapter never appears here (the stub is not evidence), instead of asserting that the file says zero.

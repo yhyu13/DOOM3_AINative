@@ -5,6 +5,14 @@ Q4-capable D3D12 build renders an authored PBR cell, not Q4 acceptance and not
 an art verdict (T057 stays independent). The run predates the six-cell content
 merge at `127ab39` and therefore covers only `opaque_dielectric`.
 
+> **This file records the pre-merge one-cell run.** The later seven-cell /
+> four-category run at `348487c` is recorded in
+> [`evidence-q4.md`](./evidence-q4.md) §5 and
+> [`evidence/t056/measurements.json`](./evidence/t056/measurements.json), with
+> frames under [`evidence/t056/`](./evidence/t056/). Where the two disagree, the
+> later run is current: the static frame now includes the metal sphere, and the
+> scene-status table below is superseded.
+
 Issue: #70. Base: `127ab39` (PR #72 content merge); the capture run predates
 this rebase and used the one-cell content set.
 Host: Windows 11 22631, Visual Studio 2022 17.14.35228, Windows SDK 10.0.26100,

@@ -133,14 +133,14 @@ if ($matrixOut -match 'captured \(d3d12 / Fake RHI Adapter\)') {
     $script:failures++
 }
 
-# 9. The real capture index must still say zero: the stub is not evidence.
+# 9. The real capture index must never cite the stub adapter: the stub is not evidence.
 $index = Join-Path $repo 'specs\009-rhi-hd-content\evidence\captures.md'
 if (Test-Path -LiteralPath $index) {
     $text = [System.IO.File]::ReadAllText($index)
-    if ($text -match 'Captures on file: 0') {
-        Write-Host 'index-still-zero: ok'
+    if ($text -notmatch 'Fake RHI Adapter') {
+        Write-Host 'index-no-stub: ok'
     } else {
-        Write-Host 'index-still-zero: FAILED (the capture index no longer says 0)' -ForegroundColor Red
+        Write-Host 'index-no-stub: FAILED (the capture index cites the stub adapter)' -ForegroundColor Red
         $script:failures++
     }
 }

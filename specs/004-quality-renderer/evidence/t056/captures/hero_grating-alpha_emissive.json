@@ -1,0 +1,25 @@
+{
+    "schema":  "doom3-q4-capture/1",
+    "material":  "hero_grating",
+    "backend":  "d3d12",
+    "adapter":  "Intel(R) Graphics",
+    "identity_line":  "RHI backend: d3d12 (Intel(R) Graphics)",
+    "image":  "capture.png",
+    "image_sha256":  "819dd294da2db34a18e07180393904cb48bfabbd26453e3a7b22084f539c7186",
+    "image_width":  1280,
+    "image_height":  720,
+    "image_distinct":  9881,
+    "executable":  "build-q4-harness\\bin\\Release\\q4_harness.exe",
+    "executable_sha256":  "562a20d68b739c201da261da4f5988e1fd6168a429a4f7f211bb20a41289eb69",
+    "arguments":  [
+                      "-Scene",
+                      "alpha_emissive",
+                      "-Capture",
+                      "out\\content\\hero_grating\\c.png",
+                      "-AdapterIndex",
+                      "0"
+                  ],
+    "started_utc":  "2026-10-30T14:02:30.2316928Z",
+    "log":  "capture.log",
+    "package_sha256":  "398f7bbe5bc4a463a2848f617df03573f29a5ddfa31e9d09ee503f74f3996f42"
+}

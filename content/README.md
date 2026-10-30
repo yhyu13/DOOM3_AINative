@@ -70,11 +70,12 @@ PNGs byte-for-byte, and `metal.py`, `grating.py`, `emissive_sign.py`, `character
 `environment.py` do the same for the other six cells; `hero_common.py` holds the shared deterministic
 helpers. The committed images therefore have an explanation rather than a mystery.
 
-The six new cells are authored and build into packages, but **no capture and no budget exists**:
-`matrix-report.ps1` reports 7/7 sidecars authored and 7/7 captures `BLOCKED`. The skinned-character
-mesh/animation, the emissive HDR radiance above 1.0, the glass transmission model and the large
-environment residency budget are recorded as dependencies or blocked in their sidecars, not invented.
-See `specs/009-rhi-hd-content/evidence/hero-cells.md` for the per-cell record.
+The six new cells are authored and build into packages, and a capture now exists for all but one of
+them: `matrix-report.ps1` reports 7/7 sidecars authored, 7/7 packages built and six cells captured, with
+`skinned_character` `BLOCKED` because no draw uses it. The skinned-character mesh/animation, the emissive
+HDR radiance above 1.0 and the glass transmission model are still recorded as dependencies, not
+invented; the large-environment residency is now measured (33,554,512 committed texture bytes). See
+`specs/004-quality-renderer/evidence-q4.md` §5 and `specs/009-rhi-hd-content/evidence/hero-cells.md`.
 
 ## Corpora are described, never committed
 
@@ -85,10 +86,12 @@ its hash, and when it is absent the gate reports `SKIPPED` rather than failing o
 `tools/scan-pack.ps1 -Pack <path>` writes two artefacts from a locally staged pack — a hash denylist
 (names and hashes only) and a suffix inventory — and reads no member into the repository.
 
-## Captures: blocked today, testable today
+## Captures: real, and refused when they are not
 
-`capture-q4.ps1` exits 3 with `BLOCKED: spec 004 has not reached Q4` when no build is supplied. There is
-no RHI path that renders a PBR material yet, so there is nothing to capture.
+`capture-q4.ps1` exits 3 with `BLOCKED: spec 004 has not reached Q4` when no build is supplied. When a
+harness is supplied it captures the frame (§5 of `specs/004-quality-renderer/evidence-q4.md`); the
+`-Material` argument selects the cell whose `capture.json` records the run, not the material the frame
+is drawn with.
 
 The pass path is implemented and refuses to be satisfied by anything less than a real Q4 build. A build
 qualifies only when it:
