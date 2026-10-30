@@ -179,7 +179,9 @@ try {
 
     $checksumFile = Join-Path $snapDir 'checksums.sha256'
     $checksumLines = if (Test-Path -LiteralPath $checksumFile) { @(Get-Content -LiteralPath $checksumFile | Where-Object { $_ -and $_.Trim() }).Count } else { 0 }
-    Write-Gate 'checksum coverage' ($checksumLines -gt 10) "$checksumLines entries"
+    $snapshotFiles = @(Get-ChildItem -LiteralPath $snapDir -Recurse -File -Force -ErrorAction SilentlyContinue).Count
+    # The manifest must cover every produced file except itself.
+    Write-Gate 'checksum coverage' ($checksumLines -eq ($snapshotFiles - 1)) "$checksumLines entries for $snapshotFiles files"
 
     # ---- 3. no game data or build intermediates ------------------------------
     $forbidden = @(Get-ChildItem -LiteralPath $snapDir -Recurse -File -Force -ErrorAction SilentlyContinue |
