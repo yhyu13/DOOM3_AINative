@@ -1,0 +1,24 @@
+// Hero material 7 of 7 for Q4 content coverage (spec 009, C-12 cell "large environment").
+//
+// baseColor is authored as four 2048 tiles and assembled into 4096x4096 by the builder (T-025); the
+// other channels are 2048. The assembled image is a build product and is never committed. PBR
+// channels and the assembly are described in hero_environment.mat.json; the residency budget is a
+// T056 measurement and stays blocked until a Q4 frame exists.
+
+material hero_environment
+{
+    description "Q4 hero: large industrial wall / residency test surface"
+
+    {
+        blend diffusemap
+        map textures/hero/environment_d
+    }
+    {
+        blend bumpmap
+        map textures/hero/environment_local
+    }
+    {
+        blend specularmap
+        map textures/hero/environment_s
+    }
+}

@@ -1,0 +1,46 @@
+{
+  "schema": "doom3-material-sidecar/1",
+  "comment": "PBR description for hero_glass (C-13). 009 authors baseColor (including alpha), normal and roughness; opacity and refraction are modelled by spec 004 and recorded as a dependency.",
+  "material": "hero_glass",
+  "mtr": "content/materials/hero_glass.mtr",
+  "surface": "pale frosted glass pane with a thicker, more opaque edge",
+  "transmission": {
+    "state": "blocked",
+    "why": "opacity and refraction are spec 004's model; this cell authors baseColor.alpha and a low roughness, not a transmission shader",
+    "alpha": "authored in baseColor.alpha: 242 at the edge falling to 196 in the pane"
+  },
+  "channels": {
+    "baseColor": {
+      "state": "authored",
+      "path": "content/hero/glass/baseColor.png",
+      "format": "BC7_UNORM_SRGB",
+      "srgb": true,
+      "alpha": "authored opacity; see transmission.alpha"
+    },
+    "normal": {
+      "state": "authored",
+      "path": "content/hero/glass/normal.png",
+      "format": "BC5_UNORM",
+      "srgb": false,
+      "handedness": "opengl"
+    },
+    "roughness": {
+      "state": "authored",
+      "path": "content/hero/glass/roughness.png",
+      "format": "BC4_UNORM",
+      "srgb": false
+    },
+    "metalness": {
+      "state": "unavailable",
+      "why": "glass is a dielectric; no metal is modelled in this cell"
+    },
+    "ao": {
+      "state": "unavailable",
+      "why": "no baked AO authored for this cell; AO is not synthesised from the albedo"
+    },
+    "emissive": {
+      "state": "unavailable",
+      "why": "not an emissive material"
+    }
+  }
+}

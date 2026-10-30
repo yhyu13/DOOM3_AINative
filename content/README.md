@@ -65,8 +65,16 @@ powershell -NoProfile -File content/tools/capture-q4.ps1 -Material hero_dielectr
    is what makes a sidecar mandatory.
 5. Run the pipeline above.
 
-`hero/dielectric` is generated, not painted: `tools/generators/dielectric.py` reproduces its three PNGs
-byte-for-byte, so the committed images have an explanation rather than a mystery.
+All seven cells are generated, not painted. `tools/generators/dielectric.py` reproduces the dielectric
+PNGs byte-for-byte, and `metal.py`, `grating.py`, `emissive_sign.py`, `character_skin.py`, `glass.py` and
+`environment.py` do the same for the other six cells; `hero_common.py` holds the shared deterministic
+helpers. The committed images therefore have an explanation rather than a mystery.
+
+The six new cells are authored and build into packages, but **no capture and no budget exists**:
+`matrix-report.ps1` reports 7/7 sidecars authored and 7/7 captures `BLOCKED`. The skinned-character
+mesh/animation, the emissive HDR radiance above 1.0, the glass transmission model and the large
+environment residency budget are recorded as dependencies or blocked in their sidecars, not invented.
+See `specs/009-rhi-hd-content/evidence/hero-cells.md` for the per-cell record.
 
 ## Corpora are described, never committed
 

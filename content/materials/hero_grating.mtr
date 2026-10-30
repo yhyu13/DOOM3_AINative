@@ -1,0 +1,24 @@
+// Hero material 3 of 7 for Q4 content coverage (spec 009, C-12 cell "alpha-tested geometry").
+//
+// The cutout is the alpha channel of baseColor; the threshold below records the intent only. The
+// engine-side alpha-test stage and any shader change belong to spec 004/008 and are not made here.
+// PBR channels are described in hero_grating.mat.json.
+
+material hero_grating
+{
+    description "Q4 hero: perforated galvanised grating, alpha-tested cutout"
+
+    {
+        blend diffusemap
+        map textures/hero/grating_d
+        alphaTest 0.5
+    }
+    {
+        blend bumpmap
+        map textures/hero/grating_local
+    }
+    {
+        blend specularmap
+        map textures/hero/grating_s
+    }
+}

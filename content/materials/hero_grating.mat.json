@@ -1,0 +1,49 @@
+{
+  "schema": "doom3-material-sidecar/1",
+  "comment": "PBR description for hero_grating (C-13). The cutout lives in baseColor's alpha channel; the engine-side alpha test is owned by spec 004/008 and is not changed here.",
+  "material": "hero_grating",
+  "mtr": "content/materials/hero_grating.mtr",
+  "surface": "perforated galvanised-steel grating with rust around the cut edges",
+  "alphaTest": {
+    "state": "authored",
+    "channel": "baseColor.alpha",
+    "threshold": 0.5,
+    "note": "recorded intent only; the stage itself belongs to spec 004/008"
+  },
+  "channels": {
+    "baseColor": {
+      "state": "authored",
+      "path": "content/hero/grating/baseColor.png",
+      "format": "BC7_UNORM_SRGB",
+      "srgb": true,
+      "alpha": "authored cutout: 0 in the holes, 255 on the bars and border"
+    },
+    "normal": {
+      "state": "authored",
+      "path": "content/hero/grating/normal.png",
+      "format": "BC5_UNORM",
+      "srgb": false,
+      "handedness": "opengl"
+    },
+    "roughness": {
+      "state": "authored",
+      "path": "content/hero/grating/roughness.png",
+      "format": "BC4_UNORM",
+      "srgb": false
+    },
+    "metalness": {
+      "state": "authored",
+      "path": "content/hero/grating/metalness.png",
+      "format": "BC4_UNORM",
+      "srgb": false
+    },
+    "ao": {
+      "state": "unavailable",
+      "why": "no baked AO authored for this cell; AO is not synthesised from the albedo"
+    },
+    "emissive": {
+      "state": "unavailable",
+      "why": "not an emissive material"
+    }
+  }
+}

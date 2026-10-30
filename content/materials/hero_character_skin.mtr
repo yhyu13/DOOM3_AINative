@@ -1,0 +1,23 @@
+// Hero material 5 of 7 for Q4 content coverage (spec 009, C-12 cell "skinned character").
+//
+// This is the character's suit surface only. A rigged mesh, skeleton and animation are outside the
+// 009 material contract; the skinned path is exercised by spec 004's Q3/Q4 fixtures and is recorded
+// as blocked in hero_character_skin.mat.json. PBR channels are in that sidecar.
+
+material hero_character_skin
+{
+    description "Q4 hero: worn character-suit surface (skinned)"
+
+    {
+        blend diffusemap
+        map textures/hero/character_skin_d
+    }
+    {
+        blend bumpmap
+        map textures/hero/character_skin_local
+    }
+    {
+        blend specularmap
+        map textures/hero/character_skin_s
+    }
+}

@@ -13,6 +13,10 @@ showcase/index.html text eol=lf
 # Provenance hashes are byte hashes of the working file (shaders/tools/provenance-record.ps1).
 # Without this, a Windows checkout rewrites LF to CRLF and all ten recorded hashes drift.
 shaders/** text eol=lf
+
+# Hero provenance records the generator and helper SHA-256 as byte hashes. Without LF pinning, a
+# Windows checkout rewrites these scripts to CRLF and every recorded tool hash drifts.
+content/tools/generators/*.py text eol=lf
 *.pk4 binary
 *.pk3 binary
 *.wasm binary

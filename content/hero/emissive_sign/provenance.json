@@ -1,0 +1,132 @@
+{
+  "schema": "doom3-hero-provenance/1",
+  "comment": "One record per committed asset (spec 009, FR-003). Byte origin is established here and by review, not by content inspection: retail_text_consulted answers the only question that matters for the derivative-work position.",
+  "generator": {
+    "name": "content/tools/generators/emissive_sign.py",
+    "version": "1.0.0",
+    "sha256": "fda332eeee5556b0fb1b8bb308613de8045ead9d128c1f42d89bafe7449b6b10",
+    "runtime": "Python 3.14.4",
+    "helper": {
+      "name": "content/tools/generators/hero_common.py",
+      "version": "1.0.0",
+      "sha256": "8a9757af8e43b68207f78c93fe4dce6bf7894acacf74e9c2bfe2d36ec00f35e8"
+    }
+  },
+  "assets": [
+    {
+      "id": "HD-EMIT-01",
+      "path": "baseColor.png",
+      "sha256": "3fdf18e3f771726b9404634610095e42fdc6095a94e9b5ff70fe67b735c9dd8d",
+      "author": "this workstream, procedural: content/tools/generators/emissive_sign.py --size 512",
+      "licence": "CC0-1.0",
+      "retail_text_consulted": "no",
+      "inputs": [
+        "content/tools/generators/emissive_sign.py (procedural, deterministic, CC0)",
+        "content/tools/generators/hero_common.py (shared generator helpers, CC0)"
+      ],
+      "tool": {
+        "name": "content/tools/generators/emissive_sign.py",
+        "version": "1.0.0",
+        "sha256": "fda332eeee5556b0fb1b8bb308613de8045ead9d128c1f42d89bafe7449b6b10",
+        "runtime": "Python 3.14.4",
+        "helper": {
+          "name": "content/tools/generators/hero_common.py",
+          "version": "1.0.0",
+          "sha256": "8a9757af8e43b68207f78c93fe4dce6bf7894acacf74e9c2bfe2d36ec00f35e8"
+        }
+      }
+    },
+    {
+      "id": "HD-EMIT-02",
+      "path": "normal.png",
+      "sha256": "b9183302351a0b9b38d36a24f308b7388cd4658baceed90379077c9a7e552817",
+      "author": "this workstream, procedural: content/tools/generators/emissive_sign.py --size 512",
+      "licence": "CC0-1.0",
+      "retail_text_consulted": "no",
+      "inputs": [
+        "content/tools/generators/emissive_sign.py (procedural, deterministic, CC0)",
+        "content/tools/generators/hero_common.py (shared generator helpers, CC0)"
+      ],
+      "tool": {
+        "name": "content/tools/generators/emissive_sign.py",
+        "version": "1.0.0",
+        "sha256": "fda332eeee5556b0fb1b8bb308613de8045ead9d128c1f42d89bafe7449b6b10",
+        "runtime": "Python 3.14.4",
+        "helper": {
+          "name": "content/tools/generators/hero_common.py",
+          "version": "1.0.0",
+          "sha256": "8a9757af8e43b68207f78c93fe4dce6bf7894acacf74e9c2bfe2d36ec00f35e8"
+        }
+      }
+    },
+    {
+      "id": "HD-EMIT-03",
+      "path": "roughness.png",
+      "sha256": "a664f5f227bc9e7fc5ddd54e7a070a29b1c18853f764c3d79b037ed4bc99147e",
+      "author": "this workstream, procedural: content/tools/generators/emissive_sign.py --size 512",
+      "licence": "CC0-1.0",
+      "retail_text_consulted": "no",
+      "inputs": [
+        "content/tools/generators/emissive_sign.py (procedural, deterministic, CC0)",
+        "content/tools/generators/hero_common.py (shared generator helpers, CC0)"
+      ],
+      "tool": {
+        "name": "content/tools/generators/emissive_sign.py",
+        "version": "1.0.0",
+        "sha256": "fda332eeee5556b0fb1b8bb308613de8045ead9d128c1f42d89bafe7449b6b10",
+        "runtime": "Python 3.14.4",
+        "helper": {
+          "name": "content/tools/generators/hero_common.py",
+          "version": "1.0.0",
+          "sha256": "8a9757af8e43b68207f78c93fe4dce6bf7894acacf74e9c2bfe2d36ec00f35e8"
+        }
+      }
+    },
+    {
+      "id": "HD-EMIT-04",
+      "path": "metalness.png",
+      "sha256": "e665fb7eff15077783f6929efd8dc199f917450918fd6fc620c48b07d7b7e65f",
+      "author": "this workstream, procedural: content/tools/generators/emissive_sign.py --size 512",
+      "licence": "CC0-1.0",
+      "retail_text_consulted": "no",
+      "inputs": [
+        "content/tools/generators/emissive_sign.py (procedural, deterministic, CC0)",
+        "content/tools/generators/hero_common.py (shared generator helpers, CC0)"
+      ],
+      "tool": {
+        "name": "content/tools/generators/emissive_sign.py",
+        "version": "1.0.0",
+        "sha256": "fda332eeee5556b0fb1b8bb308613de8045ead9d128c1f42d89bafe7449b6b10",
+        "runtime": "Python 3.14.4",
+        "helper": {
+          "name": "content/tools/generators/hero_common.py",
+          "version": "1.0.0",
+          "sha256": "8a9757af8e43b68207f78c93fe4dce6bf7894acacf74e9c2bfe2d36ec00f35e8"
+        }
+      }
+    },
+    {
+      "id": "HD-EMIT-05",
+      "path": "emissive.png",
+      "sha256": "ff30047e9107621bee952924ba2b456199cfe0c86cc832ae75af0bddb06f905d",
+      "author": "this workstream, procedural: content/tools/generators/emissive_sign.py --size 512",
+      "licence": "CC0-1.0",
+      "retail_text_consulted": "no",
+      "inputs": [
+        "content/tools/generators/emissive_sign.py (procedural, deterministic, CC0)",
+        "content/tools/generators/hero_common.py (shared generator helpers, CC0)"
+      ],
+      "tool": {
+        "name": "content/tools/generators/emissive_sign.py",
+        "version": "1.0.0",
+        "sha256": "fda332eeee5556b0fb1b8bb308613de8045ead9d128c1f42d89bafe7449b6b10",
+        "runtime": "Python 3.14.4",
+        "helper": {
+          "name": "content/tools/generators/hero_common.py",
+          "version": "1.0.0",
+          "sha256": "8a9757af8e43b68207f78c93fe4dce6bf7894acacf74e9c2bfe2d36ec00f35e8"
+        }
+      }
+    }
+  ]
+}

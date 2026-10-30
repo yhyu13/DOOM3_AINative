@@ -1,0 +1,26 @@
+// Hero material 2 of 7 for Q4 content coverage (spec 009, C-12 cell "opaque metal").
+//
+// The .mtr keeps material identity, stage composition and program keys (C-13). PBR channels are
+// described in hero_metal.mat.json and compiled into a package by content/tools/build-material.ps1;
+// this file names the material and the stage images the engine will sample at run time.
+//
+// Paths here are engine texture names, not repository paths: the packager maps them to the package the
+// renderer loads. Do not put repository paths in a .mtr.
+
+material hero_metal
+{
+    description "Q4 hero: brushed, lightly oxidised steel"
+
+    {
+        blend diffusemap
+        map textures/hero/metal_d
+    }
+    {
+        blend bumpmap
+        map textures/hero/metal_local
+    }
+    {
+        blend specularmap
+        map textures/hero/metal_s
+    }
+}

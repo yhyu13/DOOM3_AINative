@@ -1,0 +1,109 @@
+{
+  "schema": "doom3-hero-provenance/1",
+  "comment": "One record per committed asset (spec 009, FR-003). Byte origin is established here and by review, not by content inspection: retail_text_consulted answers the only question that matters for the derivative-work position.",
+  "generator": {
+    "name": "content/tools/generators/metal.py",
+    "version": "1.0.0",
+    "sha256": "84e96bffbe488a69b13479cde3b2c6c15286c450bbd6f74e22264cfb8b892edb",
+    "runtime": "Python 3.14.4",
+    "helper": {
+      "name": "content/tools/generators/hero_common.py",
+      "version": "1.0.0",
+      "sha256": "8a9757af8e43b68207f78c93fe4dce6bf7894acacf74e9c2bfe2d36ec00f35e8"
+    }
+  },
+  "assets": [
+    {
+      "id": "HD-METAL-01",
+      "path": "baseColor.png",
+      "sha256": "dae5eb20759983e04fd7c58424e94c0ba3f201ef7f8a5202aa296c4180bab2f5",
+      "author": "this workstream, procedural: content/tools/generators/metal.py --size 512",
+      "licence": "CC0-1.0",
+      "retail_text_consulted": "no",
+      "inputs": [
+        "content/tools/generators/metal.py (procedural, deterministic, CC0)",
+        "content/tools/generators/hero_common.py (shared generator helpers, CC0)"
+      ],
+      "tool": {
+        "name": "content/tools/generators/metal.py",
+        "version": "1.0.0",
+        "sha256": "84e96bffbe488a69b13479cde3b2c6c15286c450bbd6f74e22264cfb8b892edb",
+        "runtime": "Python 3.14.4",
+        "helper": {
+          "name": "content/tools/generators/hero_common.py",
+          "version": "1.0.0",
+          "sha256": "8a9757af8e43b68207f78c93fe4dce6bf7894acacf74e9c2bfe2d36ec00f35e8"
+        }
+      }
+    },
+    {
+      "id": "HD-METAL-02",
+      "path": "normal.png",
+      "sha256": "a3acbfd280cd8013a6c66ff9a09e6ff5450a44700fd8290b30f1e58e9255071d",
+      "author": "this workstream, procedural: content/tools/generators/metal.py --size 512",
+      "licence": "CC0-1.0",
+      "retail_text_consulted": "no",
+      "inputs": [
+        "content/tools/generators/metal.py (procedural, deterministic, CC0)",
+        "content/tools/generators/hero_common.py (shared generator helpers, CC0)"
+      ],
+      "tool": {
+        "name": "content/tools/generators/metal.py",
+        "version": "1.0.0",
+        "sha256": "84e96bffbe488a69b13479cde3b2c6c15286c450bbd6f74e22264cfb8b892edb",
+        "runtime": "Python 3.14.4",
+        "helper": {
+          "name": "content/tools/generators/hero_common.py",
+          "version": "1.0.0",
+          "sha256": "8a9757af8e43b68207f78c93fe4dce6bf7894acacf74e9c2bfe2d36ec00f35e8"
+        }
+      }
+    },
+    {
+      "id": "HD-METAL-03",
+      "path": "roughness.png",
+      "sha256": "02616b944afef3b1d451a18012c81e51bfe0058c286ffe19b12eed3337d699cf",
+      "author": "this workstream, procedural: content/tools/generators/metal.py --size 512",
+      "licence": "CC0-1.0",
+      "retail_text_consulted": "no",
+      "inputs": [
+        "content/tools/generators/metal.py (procedural, deterministic, CC0)",
+        "content/tools/generators/hero_common.py (shared generator helpers, CC0)"
+      ],
+      "tool": {
+        "name": "content/tools/generators/metal.py",
+        "version": "1.0.0",
+        "sha256": "84e96bffbe488a69b13479cde3b2c6c15286c450bbd6f74e22264cfb8b892edb",
+        "runtime": "Python 3.14.4",
+        "helper": {
+          "name": "content/tools/generators/hero_common.py",
+          "version": "1.0.0",
+          "sha256": "8a9757af8e43b68207f78c93fe4dce6bf7894acacf74e9c2bfe2d36ec00f35e8"
+        }
+      }
+    },
+    {
+      "id": "HD-METAL-04",
+      "path": "metalness.png",
+      "sha256": "bb8e08654edf4e6087a32a8613814eb414a706e5374cb372215dde05a3b086db",
+      "author": "this workstream, procedural: content/tools/generators/metal.py --size 512",
+      "licence": "CC0-1.0",
+      "retail_text_consulted": "no",
+      "inputs": [
+        "content/tools/generators/metal.py (procedural, deterministic, CC0)",
+        "content/tools/generators/hero_common.py (shared generator helpers, CC0)"
+      ],
+      "tool": {
+        "name": "content/tools/generators/metal.py",
+        "version": "1.0.0",
+        "sha256": "84e96bffbe488a69b13479cde3b2c6c15286c450bbd6f74e22264cfb8b892edb",
+        "runtime": "Python 3.14.4",
+        "helper": {
+          "name": "content/tools/generators/hero_common.py",
+          "version": "1.0.0",
+          "sha256": "8a9757af8e43b68207f78c93fe4dce6bf7894acacf74e9c2bfe2d36ec00f35e8"
+        }
+      }
+    }
+  ]
+}

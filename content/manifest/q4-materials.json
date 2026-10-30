@@ -6,6 +6,36 @@
       "material": "hero_dielectric",
       "mtr": "content/materials/hero_dielectric.mtr",
       "cell": "opaque_dielectric"
+    },
+    {
+      "material": "hero_metal",
+      "mtr": "content/materials/hero_metal.mtr",
+      "cell": "opaque_metal"
+    },
+    {
+      "material": "hero_grating",
+      "mtr": "content/materials/hero_grating.mtr",
+      "cell": "alpha_tested"
+    },
+    {
+      "material": "hero_emissive_sign",
+      "mtr": "content/materials/hero_emissive_sign.mtr",
+      "cell": "emissive"
+    },
+    {
+      "material": "hero_character_skin",
+      "mtr": "content/materials/hero_character_skin.mtr",
+      "cell": "skinned_character"
+    },
+    {
+      "material": "hero_glass",
+      "mtr": "content/materials/hero_glass.mtr",
+      "cell": "transmissive_glass"
+    },
+    {
+      "material": "hero_environment",
+      "mtr": "content/materials/hero_environment.mtr",
+      "cell": "large_environment"
     }
   ]
 }

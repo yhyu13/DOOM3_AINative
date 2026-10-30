@@ -1,0 +1,109 @@
+{
+  "schema": "doom3-hero-provenance/1",
+  "comment": "One record per committed asset (spec 009, FR-003). Byte origin is established here and by review, not by content inspection: retail_text_consulted answers the only question that matters for the derivative-work position.",
+  "generator": {
+    "name": "content/tools/generators/grating.py",
+    "version": "1.0.0",
+    "sha256": "7cd4180e85a0deb64da9170058620bc631b83475ed65f308b3f76c2b9ae5f67c",
+    "runtime": "Python 3.14.4",
+    "helper": {
+      "name": "content/tools/generators/hero_common.py",
+      "version": "1.0.0",
+      "sha256": "8a9757af8e43b68207f78c93fe4dce6bf7894acacf74e9c2bfe2d36ec00f35e8"
+    }
+  },
+  "assets": [
+    {
+      "id": "HD-GRAT-01",
+      "path": "baseColor.png",
+      "sha256": "772be4277d061282723ff2c5f34a263a59f474d1af27c3c2d881d634da86e0db",
+      "author": "this workstream, procedural: content/tools/generators/grating.py --size 512",
+      "licence": "CC0-1.0",
+      "retail_text_consulted": "no",
+      "inputs": [
+        "content/tools/generators/grating.py (procedural, deterministic, CC0)",
+        "content/tools/generators/hero_common.py (shared generator helpers, CC0)"
+      ],
+      "tool": {
+        "name": "content/tools/generators/grating.py",
+        "version": "1.0.0",
+        "sha256": "7cd4180e85a0deb64da9170058620bc631b83475ed65f308b3f76c2b9ae5f67c",
+        "runtime": "Python 3.14.4",
+        "helper": {
+          "name": "content/tools/generators/hero_common.py",
+          "version": "1.0.0",
+          "sha256": "8a9757af8e43b68207f78c93fe4dce6bf7894acacf74e9c2bfe2d36ec00f35e8"
+        }
+      }
+    },
+    {
+      "id": "HD-GRAT-02",
+      "path": "normal.png",
+      "sha256": "f42731081d7d0e4fe005be1353d9407a526a148475efe6c58230df8889eafa89",
+      "author": "this workstream, procedural: content/tools/generators/grating.py --size 512",
+      "licence": "CC0-1.0",
+      "retail_text_consulted": "no",
+      "inputs": [
+        "content/tools/generators/grating.py (procedural, deterministic, CC0)",
+        "content/tools/generators/hero_common.py (shared generator helpers, CC0)"
+      ],
+      "tool": {
+        "name": "content/tools/generators/grating.py",
+        "version": "1.0.0",
+        "sha256": "7cd4180e85a0deb64da9170058620bc631b83475ed65f308b3f76c2b9ae5f67c",
+        "runtime": "Python 3.14.4",
+        "helper": {
+          "name": "content/tools/generators/hero_common.py",
+          "version": "1.0.0",
+          "sha256": "8a9757af8e43b68207f78c93fe4dce6bf7894acacf74e9c2bfe2d36ec00f35e8"
+        }
+      }
+    },
+    {
+      "id": "HD-GRAT-03",
+      "path": "roughness.png",
+      "sha256": "014bbd6eacd352a7c490341ec2e5b26b07c2a8c60d9947109b626f5a13c46046",
+      "author": "this workstream, procedural: content/tools/generators/grating.py --size 512",
+      "licence": "CC0-1.0",
+      "retail_text_consulted": "no",
+      "inputs": [
+        "content/tools/generators/grating.py (procedural, deterministic, CC0)",
+        "content/tools/generators/hero_common.py (shared generator helpers, CC0)"
+      ],
+      "tool": {
+        "name": "content/tools/generators/grating.py",
+        "version": "1.0.0",
+        "sha256": "7cd4180e85a0deb64da9170058620bc631b83475ed65f308b3f76c2b9ae5f67c",
+        "runtime": "Python 3.14.4",
+        "helper": {
+          "name": "content/tools/generators/hero_common.py",
+          "version": "1.0.0",
+          "sha256": "8a9757af8e43b68207f78c93fe4dce6bf7894acacf74e9c2bfe2d36ec00f35e8"
+        }
+      }
+    },
+    {
+      "id": "HD-GRAT-04",
+      "path": "metalness.png",
+      "sha256": "8ba812cb9275dba87a6622d569ff588a26d357dd5c518d3cc51c5972f5e4b516",
+      "author": "this workstream, procedural: content/tools/generators/grating.py --size 512",
+      "licence": "CC0-1.0",
+      "retail_text_consulted": "no",
+      "inputs": [
+        "content/tools/generators/grating.py (procedural, deterministic, CC0)",
+        "content/tools/generators/hero_common.py (shared generator helpers, CC0)"
+      ],
+      "tool": {
+        "name": "content/tools/generators/grating.py",
+        "version": "1.0.0",
+        "sha256": "7cd4180e85a0deb64da9170058620bc631b83475ed65f308b3f76c2b9ae5f67c",
+        "runtime": "Python 3.14.4",
+        "helper": {
+          "name": "content/tools/generators/hero_common.py",
+          "version": "1.0.0",
+          "sha256": "8a9757af8e43b68207f78c93fe4dce6bf7894acacf74e9c2bfe2d36ec00f35e8"
+        }
+      }
+    }
+  ]
+}
