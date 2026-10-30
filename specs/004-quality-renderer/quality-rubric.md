@@ -198,10 +198,11 @@ Rules:
    only with an artifact path. A bare number is a spec 009 SC-009 violation.
 4. No measurement in this plan is a vendor claim; the hardware is whatever the host actually reports.
 
-### 5.1 Recorded measurement (T056, 2026-10-30, B3–B6 session)
+### 5.1 Recorded measurement (T056; B3–B6 session 2026-10-30, VRAM peak 2026-10-31)
 
 Source artifact: `evidence/t056/measurements.json` (image hashes, package hashes, byte totals, frame
-diffs and the coverage metrics are produced by `evidence/t056/tools/`, so no figure is hand-copied).
+diffs and the coverage metrics are produced by `evidence/t056/tools/`; the VRAM samples and peaks by
+`evidence/t056/tools/vram_measure.py`, so no figure is hand-copied).
 Host: Windows 11 10.0.22631 x64; adapter `Intel(R) Graphics` (vendor 0x8086, device 0x7D67, reported
 dedicated memory 134,217,728 bytes), driver 32.0.101.8331; WARP `Microsoft Basic Render Driver`.
 Base `4229bd5` (after the B1/B2 fixes; the pre-fix record at `348487c` is in git history), capture

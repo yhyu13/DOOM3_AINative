@@ -1,8 +1,9 @@
 # Q4 hybrid-quality evidence (T049–T055, T056, T057, T086)
 
 Status: author evidence for issue [#65](https://github.com/yhyu13/DOOM3_AINative/issues/65), written
-2026-10-30. This is **not** Q4 acceptance, not an engine frame and not an independent review. It records
-what the portable slices do on this host and what could not run.
+2026-10-30 and updated 2026-10-31 with the measured VRAM peak. This is **not** Q4 acceptance, not an
+engine frame and not an independent review. It records what the portable slices do on this host and
+what could not run.
 
 **Headline: T049–T055 and the T086 off-path branch are implemented as CPU-testable, backend-neutral
 slices and their tests are green in Debug and Release (32/32 CTest, 0 failures). A device frame now
@@ -117,7 +118,8 @@ The provider branch is not a pass and does not block the off-path check.
 
 This record was **re-taken at `4229bd5` for the B3–B6 coverage session** (§5.8). Recapturing exposed a
 data-map encoding defect, so the packages were rebuilt and every frame below was produced from one
-binary afterwards. The previous B1/B2-session record is at `50efd1a` in git history.
+binary afterwards. The previous B1/B2-session record is at `50efd1a` in git history. The VRAM peak was
+added on 2026-10-31 from harness `994c9126…d7a9` (§5.9); it did not recapture the frames.
 
 ```text
 powershell -NoProfile -File content/tools/get-encoder.ps1                              -> 0
