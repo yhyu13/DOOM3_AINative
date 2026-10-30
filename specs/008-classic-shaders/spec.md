@@ -3,8 +3,11 @@
 **Feature**: `008-classic-shaders`
 **Status**: specification **complete and reviewed three times**; implementation **partly done**
 (2026-10-29). Six authored programs compile for DXIL and SPIR-V, the resolver core is implemented and
-tested standalone, and the shader toolchain is pinned. No engine wiring, no `owned` program, no parity
-capture, and no runtime census exists yet — see `tasks.md` section B and `evidence/implementation.md`.
+tested standalone, the shader toolchain is pinned, and the resolver is wired into the renderer through
+the tracked target patch (call sites, atomic material parse, draw gate, `shader_status`/`shader_reload`,
+in-engine self-test). No program is `owned`, tolerant mode does not yet draw the visible error material,
+and no parity capture or runtime census exists — see `tasks.md` section B and
+`evidence/implementation.md` §12.
 **Input**: the S2 workstream of the renderer plan: program census, provenance, fail-loud resolver,
 HLSL library ownership.
 

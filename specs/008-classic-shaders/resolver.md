@@ -1,7 +1,8 @@
 # Fail-loud shader resolver: contract
 
-**Status**: contract **complete**; executable vectors **14/14 passing** (2026-10-28). No engine code
-has been changed by this document.
+**Status**: contract **complete**; executable vectors **14/14 passing** (2026-10-28). The engine call
+sites are wired as of 2026-10-29 (modified engine files delivered through the tracked target patch);
+the tolerant-mode visible error material is not drawn yet. See `evidence/implementation.md` §12.
 
 **Goal**: no draw may ever run with an unresolved shader program, and every failure must name the
 material, the stage, the program, and the reason.
@@ -226,6 +227,13 @@ be pinned by the engine test in T-024.
 mid-frame. The default is `strict` until classic parity is measured; the release default is
 revisited with evidence, not assumed.
 
+**Implementation note (2026-10-29).** In the current tree every authored program is `stub`
+(`owned=0`), so a `strict` default would refuse every program in the shipping manifest. The engine
+therefore ships with `r_shaderMode off` as the default until the first program is `owned`; `off` is the
+debugging escape hatch above and is never evidence. Evidence builds set `+set r_shaderMode strict`
+(or `tolerant`) explicitly, and every `shader_status` line names the mode. Restoring `strict` as the
+default is part of promoting the first program to `owned`.
+
 The error material is a generated magenta/black checkerboard with the program key in the material
 name shown by `shader_status`. It is deliberately ugly: a black surface is a bug report nobody
 files.
@@ -306,6 +314,12 @@ would reproduce the bug the resolver exists to remove.
 
 Items 1–5 are the resolver core; 6 is the ordering defect; 7 keeps the two lists honest; 8 is
 operator ergonomics.
+
+Delivery (2026-10-29): items 1–8 are implemented in the engine copy and exported as modified-file
+hunks in `targets/win11-amd64/patches/all-changes.patch`; the pristine submodule is untouched. The
+classic GL backend still loads ARB text from data, so phase 2 binds that text; the authored HLSL is
+not consumed by this backend. Tolerant mode currently skips the broken stage instead of drawing the
+error material, so I-5 is only partly met.
 
 ---
 

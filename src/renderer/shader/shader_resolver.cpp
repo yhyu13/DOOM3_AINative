@@ -551,9 +551,11 @@ void Resolver::RecordResolution(const Record& record) {
     }
 
     ++nonOkCount_;
-    if (record.decision == Decision::RejectMaterial) {
+    // Stationary table requests carry no material. Counting "" as a rejected material makes
+    // shader_status claim a material failure that no material produced.
+    if (!record.material.empty() && record.decision == Decision::RejectMaterial) {
         rejectedMaterials_.insert(record.material);
-    } else if (record.decision == Decision::ErrorMaterial) {
+    } else if (!record.material.empty() && record.decision == Decision::ErrorMaterial) {
         errorMaterials_.insert(record.material);
     }
 

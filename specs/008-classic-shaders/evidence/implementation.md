@@ -195,10 +195,9 @@ before and after.
 
 ### 7.1 Deliberate scope limit
 
-`tests/shader` tests the **core**, not the renderer. `R_LoadARBProgram`, `R_FindARBProgram`,
-`Material.cpp`'s parse and the console-command registration are engine files; `plan.md` §5 keeps them
-out of this workstream. That is why T-021/T-022/T-024/T-029 are `PARTIAL` in `tasks.md` even though
-their logic exists and is tested.
+`tests/shader` tests the **core**. The renderer call sites were added on 2026-10-29 (§12) as modified
+engine files delivered through `targets/win11-amd64/patches/all-changes.patch`; the core tests still do
+not prove the engine wiring, which is why §12 has its own in-engine test and map run.
 
 ---
 
@@ -239,14 +238,15 @@ choice rather than re-deriving it.
 
 | Item | State | Why |
 |---|---|---|
-| Engine wiring of the resolver (draw gate, material parse, init order) | not done | engine files; `plan.md` §5 assigns them to a separate renderer issue |
-| `shader_status` / `shader_reload` as console commands | core only | registration is an engine file; the counters and status line exist and are tested |
+| Engine wiring of the resolver (call sites, draw gate, material parse, init order) | done 2026-10-29 | delivered as tracked modified-file hunks in `targets/win11-amd64/patches/all-changes.patch`; evidence §12 |
+| `shader_status` / `shader_reload` as console commands | done 2026-10-29 | registered in `R_InitCommands`; observed in `qconsole.log` (§12.2, §12.5) |
+| Tolerant-mode visible error material | not done | the draw gate skips the stage in both modes and counts the decision, but the magenta substitution required by I-5 is not drawn; T-021 stays PARTIAL |
 | WGSL validation | done in §11 | pinned Tint translates every SPIR-V stage and re-parses the emitted WGSL |
 | `owned` status for any program | none | WGSL is validated, but `ownership.md` §5 criterion 5 needs a rendered comparison (T-027); `stub` is the honest status |
 | Parity capture (T-027) | blocked | needs authorized retail data and a classic backend |
 | Runtime census (T-031) | blocked | no `*.pk4`; data is EULA-bound |
 | Tier B shipping variants | none | populated only from the census, which is blocked |
-| Shadow / glasswarp / interaction behaviour in a running engine | unverified | no engine wiring and no data; this file makes no such claim |
+| Shadow / glasswarp / interaction behaviour in a running engine | unverified | the resolver gates those binds and the demo map runs, but the authored HLSL is not bound by the GL backend and no parity capture exists |
 
 ---
 
@@ -386,3 +386,201 @@ silently produced the wrong module would still have been "green".
   `emcc`.
 - **SPIR-V constants are not compared.** No SPIR-V disassembler is pinned, so `reflect.ps1` still reads
   the DXIL side only.
+---
+
+## 12. Engine wiring (T-021, T-022, T-024, T-029), 2026-10-29
+
+**Delivery.** The engine is a read-only submodule. The call sites are modified engine files exported
+as one tracked patch, `targets/win11-amd64/patches/all-changes.patch` (72 modified files, 0 added,
+0 deleted), and reconstructed by `scripts/apply-target-patches.ps1`. The WIP commit `d3b3dd4` from the
+stalled `feat/29-resolver-wiring` branch was cherry-picked first; the facade and the patch were then
+completed in this branch. The old worktree and branch were not edited or reused.
+
+What changed in the engine:
+
+| File | Change |
+|---|---|
+| `neo/renderer/draw_arb2.cpp` | `R_LoadARBProgram` returns a Code and publishes an id only after a successful compile; `R_FindARBProgram` is replaced by `R_FindProgramSlot` + phase-1 handles; `R_InitShaderResolver`, `R_CheckProgramTableCoverage`, `R_LoadAllProgramBlobs`, `R_LoadNewProgramBlobs`, `shader_status`, `shader_reload`, `shader_selftest`; interaction/test/shadow binds gate on `MayDraw` and use `ProgramId` |
+| `neo/renderer/Material.h` | `newShaderStage_t` stores two `shaderProgramHandle_t` values (key, code, target, requested, blocked) instead of raw ints; `ProgramsDrawable()` gates the pair |
+| `neo/renderer/Material.cpp` | `program` resolves as an atomic pair; `vertexProgram`/`fragmentProgram`/`megaTexture` resolve through phase 1; a failed request still allocates a blocked stage so the draw cannot silently fall back; diagnostics carry the material name and stage index |
+| `neo/renderer/draw_common.cpp` | new-style and texgen stages gate on both phases; glasswarp/environment/bumpyenvironment binds use resolver keys |
+| `neo/renderer/RenderSystem_init.cpp` | `r_shaderMode`; manifest loaded in `R_InitShaderResolver` before `R_InitMaterials`; commands registered in `R_InitCommands`; resolver shut down with the renderer |
+| `neo/renderer/RenderSystem.cpp` | `R_LoadNewProgramBlobs()` at `BeginFrame` binds phase 2 for materials parsed after the context exists |
+| `neo/renderer/tr_local.h` | declarations for the resolver entry points; `R_FindARBProgram` removed |
+
+**Default mode.** `r_shaderMode` defaults to `off` while `owned=0`. The contract's evidence default stays
+`strict` (set explicitly with `+set r_shaderMode strict`); `off` is the documented escape hatch and is
+never evidence. This is a deliberate deviation from `plan.md` D-011 for this tree: making `strict` the
+default now would refuse every program in the shipping manifest, because all six authored programs are
+`stub` until T-027 lands. The mode is recorded in every `shader_status` line.
+
+### 12.1 Build
+
+```powershell
+cmake --build --preset win11-amd64-release -- -m
+```
+
+```text
+BUILD_EXIT=0
+  doom3_engine.vcxproj -> build/targets/win11-amd64/doom3_engine.dir/Release/doom3_engine.lib
+  DOOM3.vcxproj -> build/bin/Release/DOOM3.exe
+  DOOM3XP.vcxproj -> build/bin/Release/DOOM3XP.exe
+```
+
+The only new compiler diagnostics are the pre-existing C5208 in `neo/sys/win32/win_local.h`
+(not caused by this change). A first build failed at `shader_engine.cpp` on unqualified
+`Target`/`Decision` names in the self-test; the fix qualified them and the next build exited 0.
+
+### 12.2 In-engine contract test (T-024)
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File tests/shader/run-engine-selftest.ps1 `
+  -Exe build/bin/Release/DOOM3.exe -DataDir <demo data root> -OutDir build/run-engine-selftest
+```
+
+```text
+ENGINE SELFTEST OK: 8/8 markers
+  shader_status: manifest=14 owned=0 stub=6 unsupported=1 absent=7 requests=18 ok=0
+  unresolved=0 stage_missing=0 ambiguous=0 materials_rejected=0 materials_error=0 mode=off
+EXIT=0
+```
+
+The engine log contains the five behaviours, each run against a local resolver instance so the
+shipping resolver is untouched:
+
+```text
+SHADER MANIFEST COVERAGE: 18/18 engine table keys covered
+SHADER SELFTEST: PASS missing -> UNRESOLVED, material rejected, no draw
+SHADER SELFTEST: PASS one-sided -> both stages blocked (STAGE_MISSING/STAGE_MISSING)
+SHADER SELFTEST: PASS compile-failed -> phase 2 blocks the draw
+SHADER SELFTEST: PASS tolerant -> error material, no draw
+SHADER SELFTEST: PASS reload -> before/after report
+SHADER SELFTEST: PASS 5/5
+```
+
+The one-sided case is the atomic `program` rule: `ResolveProgramPair` returned false and **both** legs
+were non-OK, so neither stage was installable. The compile-failed case resolves an `owned` entry, then
+reports `COMPILE_FAILED` as the phase-2 blob and `MayDraw` returns false.
+
+### 12.3 Core tests still green
+
+```powershell
+cmake -S tests/shader -B build-shader -G "Visual Studio 17 2022" -A x64
+cmake --build build-shader --config Release
+ctest --test-dir build-shader -C Release
+```
+
+```text
+100% tests passed, 0 tests failed out of 6
+CTEST_EXIT=0
+```
+
+One core change accompanied the wiring: `RecordResolution` no longer inserts the empty material name
+used by stationary-table requests into `materials_rejected`/`materials_error`. Before the fix, a
+strict-mode boot with no material failures reported `materials_rejected=1`; the ctest row that asserts
+`materials_rejected` uses a named material and still passes.
+
+### 12.4 Off mode reproduces the legacy render
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run-win11-amd64.ps1 `
+  -Exe build/bin/Release/DOOM3.exe -DataDir <demo run dir> `
+  -OutDir build/run-render-off -Map game/demo_mars_city1 -WaitSec 60
+```
+
+```text
+CAPTURE title='DOOM 3' 640x480 distinctColours=877 file=build/run-render-off/screenshot.png
+RUN map='game/demo_mars_city1' spawned=True alive=True colours=877
+EXIT=0
+```
+
+With `r_shaderMode off` the engine boots, spawns and renders the demo map. The log shows
+`requests=33 unresolved=15` after material parsing: the demo references program names outside the
+manifest, which is the data-forced `UNRESOLVED` class, and `off` reproduces the legacy draw anyway.
+
+### 12.5 Strict mode refuses the broken programs
+
+```powershell
+DOOM3.exe +set fs_basepath <demo run dir> +set r_shaderMode strict `
+  +devmap game/demo_mars_city1 +wait 90 +shader_status +quit
+```
+
+```text
+EXIT=0
+SPAWNED=True
+SHADER_ERROR_LINES=10
+shader_status: manifest=14 owned=0 stub=6 unsupported=1 absent=7 requests=33 ok=0
+  unresolved=15 stage_missing=0 ambiguous=0 materials_rejected=6 materials_error=0 mode=strict
+SHADER ERROR: material="textures/glass/glass1" stage=0 keyword=program target=ps
+SHADER ERROR: material="textures/glass/glass2" stage=0 keyword=program target=ps
+```
+
+Six unique materials were rejected, each record names material, stage, keyword, target, program, key,
+code and mode, and the process still spawned and exited cleanly: the failure is loud, not a crash and
+not a silent unlit draw. The demo materials use the atomic `program` keyword, so the pair path is
+exercised by real data.
+
+### 12.6 Patch delivery is reproducible
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/export-target-patches.ps1 -Name win11-amd64
+```
+
+```text
+Modified 72, Added 0, Removed 0
+EXPORT_EXIT=0
+```
+
+A fresh copy was created from the pristine submodule, the exported patch applied to it, and every
+modified row's SHA-256 checked:
+
+```text
+Applied patch: 72 files verified, 0 mismatches
+APPLY_EXIT=0
+```
+
+### 12.7 Spec gates re-run on this branch
+
+| Command | Exit | Last line |
+|---|---:|---|
+| `specs/.../census.ps1 -Verify` | 0 | `CENSUS OK: 18 entries, 13 files, 8 live-default entries, draw_exp compiled=False` |
+| `specs/.../resolver-conformance.ps1` | 0 | `RESOLVER VECTORS: 14/14 passed (manifest validated: 12 entries)` |
+| `specs/.../verify-docs.ps1` | 0 | `DOCS OK: 125 anchors, 70 content assertions, 40 links` |
+| `specs/.../provenance-check.ps1` | 0 | `PROVENANCE OK: 402 tracked files, no shader source, no ARB program bodies` |
+| `specs/.../integration-check.ps1` | 0 | `INTEGRATION OK: 18 requests (10 OK, 8 ABSENT), 14 plan keys, 6 authored, 9 provenance ids; megaTexture=UNSUPPORTED` |
+| `specs/.../fuzz-resolver.ps1` | 0 | `FUZZ OK: 10162 distinct requests (24000 calls) over 6000 names, 0 failures` |
+| `shaders/tools/manifest-check.ps1` | 0 | `MANIFEST OK: keys=14 owned=0 stub=6 unsupported=1 absent=7` |
+| `shaders/tools/provenance-record.ps1` | 0 | `PROVENANCE RECORD OK: 9 records, 10 hashes match` |
+
+### 12.8 Shader authoring gates re-run (T-025, T-026, T-030, T-028)
+
+The pinned toolchain was fetched in this worktree and the unchanged programs re-checked:
+
+```powershell
+powershell -NoProfile -File shaders/tools/get-toolchain.ps1
+powershell -NoProfile -File shaders/tools/compile.ps1 -All
+powershell -NoProfile -File shaders/tools/reflect.ps1
+powershell -NoProfile -File shaders/tools/verify-golden.ps1
+powershell -NoProfile -File shaders/tools/compile.ps1 -ProveBound
+```
+
+```text
+TOOLCHAIN OK: dxc 1.9.2609.5 ... asset sha256 verified
+TOOLCHAIN OK: tint 106704a9ac3f ... asset sha256 verified
+COMPILE OK: 6 programs, 0 Tier B variants, 11 stage compiles (DXIL + SPIR-V + WGSL)
+REFLECT OK: 11 stages, 5 declared cbuffers, 26 declared resources, 7 declared semantics, 0 violations
+GOLDEN OK: 11 stage hashes (DXIL, SPIR-V, WGSL) deterministic ... (dxc 1.9.2609.5, tint 106704a9ac3f)
+BOUND PROOF OK: 42 variants x 2 stages = 84 compiles (DXIL + SPIR-V + WGSL), 0 failures
+```
+
+Exit codes: all 0. This re-confirms the authoring artifacts; it does **not** make any program `owned`
+(ownership criterion 5, the rendered comparison, is T-027).
+
+### 12.9 Not run here, and why
+
+- No rendered parity capture exists; T-027 is still `BLOCKED` on authorized data and a classic backend.
+- The GL backend binds retail ARB text from data. The authored HLSL programs are compiled and gated but
+  cannot be bound by this backend, so no claim is made that the port's shader code draws.
+- Tolerant mode does not yet draw the magenta error material (I-5); it logs the `ErrorMaterial`
+  decision, counts it and skips the stage. T-021 therefore stays `PARTIAL`.
+

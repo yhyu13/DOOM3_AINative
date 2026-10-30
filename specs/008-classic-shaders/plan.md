@@ -1,6 +1,8 @@
 # Implementation plan: classic shaders
 
-**Status**: plan **complete for review**; Phase C and part of Phase D are implemented (2026-10-29). The engine-integration half of Phase C is still open — see `tasks.md` section B.
+**Status**: plan **complete for review**; Phase C and part of Phase D are implemented (2026-10-29),
+including the engine wiring delivered as a tracked target patch. The remaining open items are the
+visible tolerant-mode error material, the Emscripten pin, and Phase D parity — see `tasks.md` section B.
 **Companion**: [`spec.md`](spec.md) (requirements), [`tasks.md`](tasks.md) (execution).
 
 This plan converts the S2 workstream — program census, provenance, fail-loud resolver, HLSL library
@@ -144,8 +146,11 @@ decision (this is the Q3/Q4 gate, not this spec's exit).
 | Q2/Q3 (classic path) | engine fork renderer | the resolver + programs |
 | WebGPU profile | shader build graph | WGSL route and validation requirement |
 
-File ownership: this spec writes only `specs/008-classic-shaders/**`. The engine work in Phase C
-happens in the engine fork / renderer tree under its own issue, not here.
+File ownership: this spec documents `specs/008-classic-shaders/**`; the implementation lives under
+`src/renderer/shader/**`, `shaders/**` and `tests/shader/**`. Engine call sites are modified engine
+files delivered as hunks in the tracked `targets/win11-amd64/patches/all-changes.patch` (the target's
+established delivery path for modified files), not as edits to the pristine submodule and not as
+added/deleted engine files.
 
 ---
 
