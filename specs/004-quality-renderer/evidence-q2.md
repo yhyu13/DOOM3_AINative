@@ -29,12 +29,14 @@ frame was drawn and no GL-vs-D3D12 image comparison exists.** Every image row be
 | Build tool | CMake 3.31.6-msvc6 (VS-bundled), generator `Visual Studio 17 2022 -A x64` |
 | Runtime library | `/MT` Release and `/MTd` Debug (directory-level `CMAKE_MSVC_RUNTIME_LIBRARY`) |
 | D3D12 backend | Present and exercised by the Q1b ctest fixtures on this host; adapter uses no device |
-| MFC / ATL | **MFC not installed.** `atlmfc/include` holds ATL headers only; no `afxwin.h` exists anywhere under `Program Files\Microsoft Visual Studio` |
-| Target copy | Created with `scripts/new-target.ps1 -Name win11-amd64` (git-ignored). No engine source was edited |
+| MFC / ATL | **MFC is not installed.** `atlmfc/include` holds ATL headers only; no `afxwin.h` exists anywhere under `Program Files\Microsoft Visual Studio`. The delivered tree does not need it: the tracked target patch gates the `tools/comafx/StdAfx.h` include behind `!defined(ID_NO_TOOLS)`, and `ID_NO_TOOLS` is defined for every engine translation unit |
+| Target copy | Created with `scripts/new-target.ps1 -Name win11-amd64`, then **patch-applied** with `scripts/apply-target-patches.ps1 -Name win11-amd64` (`Applied patch: 72 files verified, 0 mismatches`, exit 0), then built. This is the delivered tree; no engine source was edited by hand |
 
-The missing MFC component is a host gap, not a property of this change: `neo/idlib/precompiled.h:56,61`
-includes `tools/comafx/StdAfx.h`, which includes `<afxwin.h>` at line 38, so every engine translation
-unit needs MFC.
+**Correction to an earlier revision of this file.** A first run built an *unpatched* `new-target`
+copy and reported 353 × `C1083 afxwin.h`. That run describes the pristine copy, **not** the delivered
+tree, and its conclusion ("every engine translation unit needs MFC") was wrong: the patch removes the
+MFC include under `ID_NO_TOOLS`, and the delivered tree links both executables (§4.3). The pristine
+run is kept below only as a labelled control.
 
 ### 2.1 Q1 residual (disclosure, not a pass)
 
@@ -93,11 +95,14 @@ and `build/`; the paths below are the retained references.
 | 9 | `cmake --build build-q2 --config Debug -- -m` then `ctest -C Debug` | 0, **26/26** | `build-q2/ctest-Debug.log` |
 | 10 | sensitivity: swap the bump/diffuse canonical order, rebuild, run T037 | **1** (`ASSERTION FAILED: bump is first`) | `build-q2/sens-classic.log` |
 | 11 | restore, rebuild, run T037 | 0 | `build-q2/restore-classic.log` |
-| 12 | `cmake --preset win11-amd64` | 0 | `build-configure.log` |
-| 13 | `cmake --build --preset win11-amd64-release -- -m` | **1** | `build/_build.log` |
-| 14 | guard: rename the adapter, configure | **1**, `Portable RHI source is missing` | `build-guard.log` |
-| 15 | `py -3 -I scripts/validate-rhi-contract.py` | 0 | header scan over 11 headers, 26 public test files |
-| 16 | `py -3 -I scripts/validate-webgpu-mapping.py` | **1**, 62 problems | `build-q2/webgpu-mapping.log` (pre-existing, #36/T089) |
+| 12 | `scripts/apply-target-patches.ps1 -Name win11-amd64` | 0, `72 files verified, 0 mismatches` | delivered tree setup |
+| 13 | `cmake --preset win11-amd64` | 0 | `build-configure.log` |
+| 14 | `cmake --build --preset win11-amd64-release -- -m` | **0** | `build/_build.log`; both executables produced (§4.3) |
+| 15 | `dumpbin /headers` + `/dependents` on both executables | 0 | §4.3 |
+| 16 | guard: rename the adapter, configure | **1**, `Portable RHI source is missing` | `build-guard.log` |
+| 17 | control: build the unpatched `new-target` copy | **1**, 353 × `C1083 afxwin.h` | `build/_build.log` retained only as the §4.4 control |
+| 18 | `py -3 -I scripts/validate-rhi-contract.py` | 0 | header scan over 11 headers, 26 public test files |
+| 19 | `py -3 -I scripts/validate-webgpu-mapping.py` | **1**, 62 problems | `build-q2/webgpu-mapping.log` (pre-existing, #36/T089) |
 
 ### 4.1 Red evidence (recorded before the implementation)
 
@@ -128,16 +133,40 @@ CONTROL overlay-before-scene is rejected
 WORLD GUI stays in the 3D view
 ```
 
-### 4.3 Engine build
+### 4.3 Engine build (delivered tree)
 
-`cmake --preset win11-amd64` exits 0 with the new wiring and the fail-closed guard. The Release
-build produces `build/targets/win11-amd64/Release/doom3_rhi.lib` (1,217,792 bytes) with
-`engine_scene_adapter.cpp`, `materials.cpp` and `lighting.cpp` compiled under the engine's `/MT`
-settings, then fails with **353 × `error C1083: cannot open include file: afxwin.h`** in
-`doom3_engine.vcxproj` / `doom3_game_base.vcxproj` (untouched engine sources reaching MFC through
-`neo/idlib/precompiled.h`). Consequence: `DOOM3.exe` / `DOOM3XP.exe` were **not** produced, and the
-`dumpbin` machine/dependents rows are **NOT RUN**. Nothing in the failure touches a file this PR
-changes.
+Sequence, all from the worktree root:
+
+| Command | Exit | Result |
+|---|---|---|
+| `scripts/apply-target-patches.ps1 -Name win11-amd64` | 0 | `Applied patch: 72 files verified, 0 mismatches` |
+| `cmake --preset win11-amd64` | 0 | configures `build/` |
+| `cmake --build --preset win11-amd64-release -- -m` | **0** | builds `doom3_rhi.lib`, `doom3_engine.lib`, `DOOM3.exe`, `DOOM3XP.exe` |
+
+Artefacts (worktree-local, git-ignored):
+
+| Artefact | Size | `dumpbin /headers` | `dumpbin /dependents` |
+|---|---|---|---|
+| `build/bin/Release/DOOM3.exe` | 17,304,576 B | `8664 machine (x64)`, subsystem `Windows GUI` | no `MSVCP140.dll`, no `VCRUNTIME140.dll` (static `/MT`) |
+| `build/bin/Release/DOOM3XP.exe` | 17,488,384 B | `8664 machine (x64)`, subsystem `Windows GUI` | no `MSVCP140.dll`, no `VCRUNTIME140.dll` (static `/MT`) |
+| `build/targets/win11-amd64/Release/doom3_rhi.lib` | 1,217,792 B | — | — |
+
+**`d3d12.dll` and `dxgi.dll` do not appear in the dependents list, and that is reported rather than
+hidden.** `doom3_rhi` is on both link lines through `DOOM3_LINK_LIBS`, but no engine code calls into
+it yet (the T036 call site does not exist), so the linker pulls no object from the static library and
+its imports never reach the executable. The issue's dependents row is therefore **PARTIAL**: static
+CRT and x64 hold, the D3D12 imports do not, and they will only appear when an engine call site
+references the adapter. Forcing a dummy reference to satisfy the checklist would be link-line
+theatre, not a delivered path.
+
+### 4.4 Control: unpatched `new-target` copy
+
+An earlier run built a copy created only by `scripts/new-target.ps1` (no `apply-target-patches`) and
+failed with **353 × `error C1083: cannot open include file: afxwin.h`** in `doom3_engine.vcxproj` /
+`doom3_game_base.vcxproj`. That is the **pristine copy**, not the delivered tree: without the patch,
+`neo/idlib/precompiled.h:56,61` reaches `tools/comafx/StdAfx.h:38` → `<afxwin.h>`, and MFC is not
+installed here. The patch gates that include behind `!defined(ID_NO_TOOLS)`. Recording this run as a
+delivered-tree limitation was a defect in the previous revision of this file; it is corrected in §2.
 
 ## 5. Negative controls
 
@@ -202,7 +231,7 @@ the frozen Q0 ceilings, and T-05/T-06/T-08/T-09 remain unmeasured.
 | B1 | No legal demo data on this host (no `.pk4` in the worktree) | Every image row is `NOT RUN`; stop condition S13 | Data provisioning |
 | B2 | The shipping manifest has **0 `owned`** programs (6 `stub`, 1 `unsupported`, 7 `absent`) | The draw gate refuses every classic material by design; a classic frame cannot be drawn even with data (stop condition S1 remains open) | Spec 008 / T-027 |
 | B3 | The portable seam accepts no vertex/index geometry | T080 world draw submission is extraction-only; `drawSubmissionUnavailable` is set | New Q1b-extension task |
-| B4 | MFC component missing on the host | Engine executables do not link; `dumpbin` and any engine run are `NOT RUN` | Host toolchain |
+| B4 | No engine call site yet (T036), so the linker pulls nothing from `doom3_rhi` | Both executables link, but `d3d12.dll`/`dxgi.dll` are absent from `dumpbin /dependents`; that acceptance row is PARTIAL, not PASS | Q2 fork work (B5) |
 | B5 | T036 (`r_renderApi`, `R_RenderSystemRunning()`, `RC_*` dispatch) is not implemented and needs a fork PR plus a submodule bump | No engine call site, no selector, no fallback; T083 cannot start | Q2 fork work |
 | B6 | `validate-webgpu-mapping.py` exits 1 with 62 problems on current `main` | Pre-Q2 header gate is red (S3); unchanged by this PR | #36 / T089 |
 | B7 | `targets/win11-amd64/CMakeLists.txt` is a build-system change | Needs owner sign-off in addition to independent review before merge | Owner |
@@ -213,8 +242,9 @@ fork change, no second writer on `engine_scene_adapter.cpp`), **S10** not trigge
 
 ## 8. T083 forced failure
 
-**NOT RUN.** There is no engine executable and no `r_renderApi` selector to force. No typed error, no
-unchanged-cvar observation and no `r_renderApi 0` GL launch are claimed.
+**NOT RUN.** Both executables link (§4.3), but there is no `r_renderApi` selector to force, because
+T036 is not implemented. No typed error, no unchanged-cvar observation and no `r_renderApi 0` GL launch
+are claimed. No engine run of any kind was attempted: there is no legal game data to boot with.
 
 ## 9. Independent review
 
@@ -223,8 +253,8 @@ verbatim in `review-q2.md`. Nothing in this file is a review.
 
 ## 10. What would make this claim stronger
 
-1. Install the MFC component and link both executables; record `dumpbin /headers` (`0x8664`),
-   `dumpbin /dependents` (no `MSVCP140.dll`/`VCRUNTIME140.dll`) and both link lines.
+1. ~~Link both executables and record the `dumpbin` rows.~~ **Done** in §4.3; the remaining gap is the
+   `d3d12.dll`/`dxgi.dll` dependents row, which needs an engine call site (B4/B5), not a build change.
 2. Extend the seam with vertex/index submission so a draw packet can actually be submitted, then
    re-run CP-01…CP-30 structurally against an engine-produced stream.
 3. Provision the Q0 demo data and measure T-05/T-06/T-08/T-09 with a GL-vs-GL control **before** any
