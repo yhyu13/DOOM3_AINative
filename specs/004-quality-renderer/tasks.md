@@ -142,12 +142,17 @@ in `frame_resources.h`; issue #58 stays open for its owner. See
 
 **Independent test**: Review the legal hero set and four moving/reference categories against a recorded rubric, while measuring resources and frame behavior on named hardware.
 
-**Q4 status (2026-10-30, issue #65)**: T049–T055 are checked on the portable slices, and the T086
-off-path branch executed; the Q4 suites report 41/54/32/37/35 checks with 0 failures in Debug and
-Release, and the full renderer suite is 32/32. This is **not** Q4 acceptance: T056 is **BLOCKED** (one of
-seven content cells is authored and no Q4 renderer frame exists), T057 is **NOT RUN** because there are
-no captures to review, and the T086 provider branch is **NOT RUN** (no authorized provider). Every
-budget row remains `blocked`; no numeric budget was invented. See
+**Q4 status (2026-10-30, issue #65; updated for the capture harness, issue #70)**: T049–T055 are
+checked on the portable slices, and the T086 off-path branch executed; the Q4 suites report
+41/54/32/37/35 checks with 0 failures in Debug and Release, and the full renderer suite is 32/32.
+This is **not** Q4 acceptance: T056 is **BLOCKED on completeness, not absence**. The capture harness
+produced a real static frame and a partial moving capture for the one authored cell in its run
+(`opaque_dielectric`) on Intel(R) Graphics and WARP; the run predates the six-cell content merge at
+`127ab39`, and the other six cells plus the alpha/emissive, skinned-character and
+transmissive/large-environment categories are **NOT RUN**. T057 is **NOT RUN** because the captures
+cover one cell and two partial categories, not because no captures exist. The T086 provider branch is
+**NOT RUN** (no authorized provider). Every budget row remains `blocked`; no numeric budget was
+invented. See
 [quality-rubric.md](./quality-rubric.md), [evidence-q4.md](./evidence-q4.md) and
 `tests/renderer/q4-fixtures.md`.
 
@@ -158,8 +163,8 @@ budget row remains `blocked`; no numeric budget was invented. See
 - [x] T053 [US5] Add indirect-light/reflection and atmosphere artifact cases in `tests/renderer/indirect_atmosphere_test.cpp`, then implement the checked paths in `src/renderer/d3d12/indirect_lighting.cpp`. **Done** on the CPU fixture (32 checks).
 - [x] T054 [US5] Add budget, mip/quality selection, throttled upload and in-flight eviction tests in `tests/renderer/residency_test.cpp`, then implement a fence-safe policy in `src/renderer/rhi/residency.cpp`. **Done** on the CPU fixture (37 checks): release is deferred until the caller's completion epoch covers the last use.
 - [x] T055 [US5] Implement and test a complete non-proprietary reconstruction/off path in `src/renderer/rhi/reconstruction.cpp` and `tests/renderer/reconstruction_test.cpp`. **Done** on the CPU fixture (35 checks); identity is byte-exact and no provider is required.
-- [ ] T056 [US5] Capture the local legal hero set and four scene categories, recording accepted/rejected art examples, provenance, memory, frame behavior and named hardware in `specs/004-quality-renderer/evidence-q4.md`; after that measurement, set the numeric budgets in `quality-rubric.md` or record why they remain unset. **BLOCKED**: only `opaque_dielectric` of the seven content cells is authored, and no Q4 renderer frame exists (`capture-q4.ps1` exits 3 with `BLOCKED: spec 004 has not reached Q4`). No capture, frame time or VRAM figure exists; every budget row stays `blocked`.
-- [ ] T057 [US5] Independently review T056 and T086's independent reconstruction/off-path ordering for materials, lighting, darkness/readability, identity, motion and HUD in `specs/004-quality-renderer/review-q4.md`; do not substitute parity for modern-look acceptance. The optional provider-specific T086 check may remain NOT RUN without blocking this review. **NOT RUN**: the review needs T056 captures, and none exist; the implementer cannot author the independent verdict.
+- [ ] T056 [US5] Capture the local legal hero set and four scene categories, recording accepted/rejected art examples, provenance, memory, frame behavior and named hardware in `specs/004-quality-renderer/evidence-q4.md`; after that measurement, set the numeric budgets in `quality-rubric.md` or record why they remain unset. **BLOCKED on completeness, not absence**: the capture harness produced a real static frame and a partial moving capture for the one authored cell in its run (`opaque_dielectric`) on Intel(R) Graphics and WARP. The run predates the six-cell content merge at `127ab39`; the other six cells and the alpha/emissive, skinned-character and transmissive/large-environment categories are `NOT RUN`. Frame times for the captured frames are logged (3.12 ms Intel, 66.78 ms WARP) but are not a budget; no VRAM figure was measured, and every budget row stays `blocked`.
+- [ ] T057 [US5] Independently review T056 and T086's independent reconstruction/off-path ordering for materials, lighting, darkness/readability, identity, motion and HUD in `specs/004-quality-renderer/review-q4.md`; do not substitute parity for modern-look acceptance. The optional provider-specific T086 check may remain NOT RUN without blocking this review. **NOT RUN**: T056 captures now exist for one cell and two partial categories (static and moving on Intel(R) Graphics and WARP), but they are not the seven-cell/four-category set the review needs; the implementer cannot author the independent verdict.
 - [x] T086 [US5] After T047/T055, exercise overlay/reconstruction ordering with the independent real-scene reconstruction/off path and record that result. Separately, only if T060 permits an authorized provider and T062 actually exercises it, confirm its display-stage position; otherwise record this provider-specific check NOT RUN with reason. Record each check in the corresponding evidence file; an unavailable provider is never a pass and does not block the independent Q4/off-path review. **Off-path branch executed** (scene → world GUI → display overlay; HUD excluded from reconstruction) and recorded in `evidence-q4.md`; the provider branch is **NOT RUN** because T060/T062 are not met.
 
 ## Phase 8 — US6: Optional neural provider (P3; Q5)

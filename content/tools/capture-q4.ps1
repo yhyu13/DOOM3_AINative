@@ -109,7 +109,10 @@ if ($exitCode -ne 0) {
 }
 
 # Identity: the build must name the backend and adapter the caller claims. A classic GL build cannot.
-$identityPattern = 'RHI backend:\s*(?<backend>[^\r\n(]+?)\s*\((?<adapter>[^\r\n)]+)\)'
+# The adapter name may itself contain parentheses (for example
+# "Intel(R) Graphics"), so the adapter group is greedy to the last ')' on the
+# line rather than stopping at the first one.
+$identityPattern = 'RHI backend:\s*(?<backend>[^\r\n(]+?)\s*\((?<adapter>[^\r\n]+)\)'
 if ($log -notmatch $identityPattern) {
     Write-Host 'IDENTITY FAILED: the build did not print "RHI backend: <backend> (<adapter>)"' -ForegroundColor Red
     Write-Host "  log: $logPath"
