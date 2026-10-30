@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="data:," />
+    <title>Q7b WebGPU browser profile host slice</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0b0d12;
+        --panel: #121722;
+        --line: #263043;
+        --text: #d8deea;
+        --muted: #8d99ad;
+        --pass: #57d38c;
+        --fail: #ff6b6b;
+        --notrun: #f3b33d;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 18px;
+        background: var(--bg);
+        color: var(--text);
+        font: 13px/1.45 "Segoe UI", system-ui, sans-serif;
+      }
+      h1 { font-size: 17px; margin: 0 0 4px; font-weight: 600; }
+      .sub { color: var(--muted); margin: 0 0 14px; }
+      .layout { display: grid; grid-template-columns: 480px 1fr; gap: 14px; align-items: start; }
+      canvas {
+        width: 480px;
+        height: 270px;
+        display: block;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #05070b;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 10px 12px;
+        margin-top: 12px;
+      }
+      .card h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0 0 8px; }
+      #summary { margin-top: 10px; font-weight: 600; }
+      table { width: 100%; border-collapse: collapse; font-size: 12px; }
+      th, td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+      td:nth-child(2) { white-space: nowrap; }
+      th { color: var(--muted); font-weight: 500; }
+      .PASS { color: var(--pass); }
+      .FAIL { color: var(--fail); }
+      .NOTRUN { color: var(--notrun); }
+      code { color: #b9c8e5; }
+      .reason { color: var(--muted); }
+      .scroll { max-height: 420px; overflow: auto; }
+    </style>
+  </head>
+  <body>
+    <h1>Q7b WebGPU browser profile host slice</h1>
+    <p class="sub">
+      Procedural test scene only. No legal DOOM 3 game data is present, so real-scene acceptance is
+      NOT RUN and this page never claims browser support.
+    </p>
+    <div class="layout">
+      <div>
+        <canvas id="view" width="480" height="270" aria-label="procedural WebGPU test scene"></canvas>
+        <div id="summary">initialising...</div>
+        <div class="card">
+          <h2>Capability table</h2>
+          <div id="capability" class="scroll reason">waiting for adapter</div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <h2>Checks</h2>
+          <div id="checks" class="scroll reason">waiting for the profile</div>
+        </div>
+        <div class="card">
+          <h2>Errors</h2>
+          <div id="errors" class="reason">none</div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      import { createWebProfile } from "./profile.mjs";
+
+      const nonce = new URLSearchParams(location.search).get("run") || "missing";
+      const canvas = document.getElementById("view");
+      const profile = createWebProfile({ canvas, page: window });
+
+      function cell(row, className) {
+        const td = document.createElement("td");
+        td.className = className || "";
+        td.textContent = String(row);
+        return td;
+      }
+
+      function renderChecks(result) {
+        const container = document.getElementById("checks");
+        container.textContent = "";
+        const table = document.createElement("table");
+        const head = document.createElement("tr");
+        head.append(cell("ID"), cell("Result"), cell("Detail"));
+        table.append(head);
+        for (const check of result.checks) {
+          const tr = document.createElement("tr");
+          tr.append(
+            cell(check.id),
+            cell(check.status, check.status.replace(/\s+/g, "")),
+            cell(check.detail, "reason"),
+          );
+          table.append(tr);
+        }
+        container.append(table);
+      }
+
+      function renderCapability(result) {
+        const container = document.getElementById("capability");
+        container.textContent = "";
+        if (!result.capability) {
+          container.textContent = "no capability table: adapter/device was not created";
+          return;
+        }
+        const capability = result.capability;
+        const intro = document.createElement("div");
+        intro.className = "reason";
+        intro.textContent =
+          `target ${capability.targetId} · status ${capability.status} · adapter ` +
+          `${capability.adapter.description || capability.adapter.vendor || "unnamed"}`;
+        container.append(intro);
+        const table = document.createElement("table");
+        const head = document.createElement("tr");
+        head.append(cell("Row"), cell("Advertised"), cell("Result"));
+        table.append(head);
+        for (const row of capability.rows) {
+          const tr = document.createElement("tr");
+          const advertised = row.kind === "limit" ? `${row.advertised} / ${row.requirement}` : String(row.advertised);
+          tr.append(
+            cell(row.id),
+            cell(advertised),
+            cell(row.status === "FALLBACK" ? `fallback: ${row.fallback}` : row.status, row.status === "UNSUPPORTED" ? "FAIL" : ""),
+          );
+          table.append(tr);
+        }
+        container.append(table);
+      }
+
+      function renderResult(result) {
+        const summary = result.summary;
+        document.getElementById("summary").textContent =
+          `${summary.pass} PASS / ${summary.fail} FAIL / ${summary.notRun} NOT RUN — scene: ${result.scene.kind}`;
+        renderChecks(result);
+        renderCapability(result);
+        const errors = document.getElementById("errors");
+        errors.textContent = result.errors.length ? result.errors.join("\n") : "none";
+        document.title = `Q7b profile · ${nonce} · ${result.scene.kind}`;
+      }
+
+      try {
+        const init = await profile.init();
+        if (init.status !== "UNSUPPORTED" && init.status !== "FAIL") profile.start();
+        await new Promise((resolve) => setTimeout(resolve, 650));
+        const inputTest = profile.selfTestInput();
+        const capture = await profile.requestCapture(5000);
+        const result = profile.getResult({ runNonce: nonce, capture, inputTest, mode: "procedural" });
+        renderResult(result);
+        window.__profileResult = result;
+      } catch (error) {
+        const detail = `page setup threw: ${String(error?.message ?? error)}`;
+        const result = {
+          schema: "q7-webgpu-profile/1",
+          stage: "Q7b WebGPU browser profile host slice",
+          targetId: "webgpu-browser",
+          scene: { id: "q7-procedural-field/1", kind: "procedural", realScene: false },
+          realScene: { status: "NOT RUN", reason: "no legal DOOM 3 game data is present in this repository" },
+          env: { runNonce: nonce, userAgent: navigator.userAgent, page: location.href },
+          capability: null,
+          checks: [{ id: "P1-device", status: "FAIL", detail, observed: null }],
+          summary: { pass: 0, fail: 1, notRun: 0, total: 1 },
+          errors: [detail],
+          loop: null,
+          input: null,
+        };
+        renderResult(result);
+        window.__profileResult = result;
+      }
+    </script>
+  </body>
+</html>
