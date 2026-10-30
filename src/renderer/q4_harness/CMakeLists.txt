@@ -34,6 +34,7 @@ add_executable(q4_harness
     content.cpp
     dds.cpp
     image_io.cpp
+    vram_probe.cpp
     "${DOOM3_RENDERER}/d3d12/rhi_d3d12.cpp"
     "${DOOM3_RENDERER}/d3d12/rhi_pipeline.cpp"
     "${DOOM3_RENDERER}/d3d12/rhi_compute.cpp"

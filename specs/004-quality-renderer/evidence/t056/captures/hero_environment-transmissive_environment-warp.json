@@ -21,5 +21,7 @@
                   ],
     "started_utc":  "2026-10-30T16:15:31.3402575Z",
     "log":  "capture.log",
-    "package_sha256":  "c5abb8318c54675f2679dda7385d82c66aba4651fc0d84a2f2652b99f13a98d0"
+    "package_sha256":  "61d8a7000e4a6da434969f9dd3d5369ca769445f68096e766b339b30737d9620",
+    "package_sha256_previous":  "c5abb8318c54675f2679dda7385d82c66aba4651fc0d84a2f2652b99f13a98d0",
+    "package_sha256_note":  "Rebuilt 2026-10-31 after a metadata-only sidecar residency correction; texture SHA-256 unchanged, frame byte-identical, not recaptured. Previous package SHA-256: c5abb8318c54675f2679dda7385d82c66aba4651fc0d84a2f2652b99f13a98d0"
 }

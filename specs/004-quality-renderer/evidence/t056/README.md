@@ -9,6 +9,14 @@ Everything here was produced on 2026-10-30 from base `4229bd5` (after the B1/B2 
 `50efd1a`, harness `6a2d50bb…0748`) is reachable in git history; these frames supersede it because the
 data-map encoding was corrected (see below).
 
+**VRAM peak (2026-10-31).** [`vram.json`](./vram.json) is produced by
+[`tools/vram_measure.py`](./tools/vram_measure.py) from harness
+`994c91267db131710d962b50cd01a90ab25584351009d22de421379301c3d7a9` with `-VramProbe`; the compact
+record is the `vram` block of [`measurements.json`](./measurements.json). The eleven PNGs below remain
+from the 2026-10-30 harness and were **not** recaptured. `hero_environment` was rebuilt on 2026-10-31
+after a metadata-only residency correction: its texture hashes and frames `05`/`07` are unchanged, and
+the old package hash is kept with a note in the capture record.
+
 ## Frames
 
 | File | Scene | Backend / adapter | SHA-256 |

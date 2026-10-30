@@ -1,17 +1,19 @@
 # Q4 hybrid-quality evidence (T049–T055, T056, T057, T086)
 
 Status: author evidence for issue [#65](https://github.com/yhyu13/DOOM3_AINative/issues/65), written
-2026-10-30. This is **not** Q4 acceptance, not an engine frame and not an independent review. It records
-what the portable slices do on this host and what could not run.
+2026-10-30 and updated 2026-10-31 with the measured VRAM peak. This is **not** Q4 acceptance, not an
+engine frame and not an independent review. It records what the portable slices do on this host and
+what could not run.
 
 **Headline: T049–T055 and the T086 off-path branch are implemented as CPU-testable, backend-neutral
 slices and their tests are green in Debug and Release (32/32 CTest, 0 failures). A device frame now
 exists for all seven content cells: the standalone D3D12 harness captured the four scene categories on
 Intel(R) Graphics and WARP, including a real skinned character, a display-resolution HUD, emissive
 radiance above 1.0 read back from the scene target, and a thin-slab screen-space refraction for the
-glass. T056 remains PARTIAL only because no device VRAM peak was measured. T057 ran once and its
-point-in-time verdict is BLOCKED; it must be re-run against the new frames before any dimension is
-accepted or Q4 is called green. The T086 provider branch is NOT RUN (no authorized provider).
+glass. T056 is now **complete**: the process VRAM peak is measured at 107,110,400 bytes with DXGI
+`QueryVideoMemoryInfo` (§5.9) and B4 is set. T057 round 2 (PR #84) is BLOCKED only on that missing
+measurement; a re-run or addendum (r3) decides Q4, so Q4 is **not green**. The T086 provider branch is
+NOT RUN (no authorized provider).
 
 ## Identity and scope
 
@@ -53,8 +55,8 @@ accepted or Q4 is called green. The T086 provider branch is NOT RUN (no authoriz
 | T054 | `src/renderer/rhi/residency.*`, `tests/renderer/residency_test.cpp` | Mip/quality selection against remaining budget, per-frame upload throttle, completion-epoch release (deferred while in flight), no eviction to satisfy an upload. |
 | T055 | `src/renderer/rhi/reconstruction.*`, `tests/renderer/reconstruction_test.cpp` | Identity off path and bilinear spatial upscale; identity is byte-exact; provider never required. |
 | T086 | `tests/renderer/reconstruction_test.cpp` | Real `PlanPostReconstruction` ordering around the reconstruction plan: scene → world GUI → display overlay, overlay excluded from reconstruction, one-to-one HUD texels, refused render-extent HUD, identical order on the off path. |
-| T056 | `content/tools/{get-encoder,build-material,capture-q4}.ps1`, `content/tools/pins.json`, `src/renderer/q4_harness/`, `specs/004-quality-renderer/evidence/t056/` | **PARTIAL** (§5): 7/7 packages built; four category frames plus WARP parity; skinned draw, display HUD, HDR emissive and glass refraction captured in this session; no VRAM peak |
-| T057 | — | **ran once, BLOCKED**; re-run required against the new frames (§5.8). |
+| T056 | `content/tools/{get-encoder,build-material,capture-q4}.ps1`, `content/tools/pins.json`, `src/renderer/q4_harness/`, `specs/004-quality-renderer/evidence/t056/` | **Complete** (§5): 7/7 packages built; four category frames plus WARP parity; skinned draw, display HUD, HDR emissive and glass refraction; process VRAM peak measured at 107,110,400 bytes (§5.9) |
+| T057 | — | **ran twice**; round 2 (PR #84) is BLOCKED only on the (now measured) VRAM peak, so r3 decides (§5.9). |
 
 Design boundaries worth stating:
 
@@ -109,14 +111,15 @@ The provider branch is not a pass and does not block the off-path check.
 
 | Task | State | Exact reason |
 |---|---|---|
-| T056 | **PARTIAL** | All seven cells build a package and all four category frames exist on `Intel(R) Graphics`, with WARP parity for static and transmissive. The B3–B6 session added a real skinned draw (805 vertices, 12 bones, 2-node linear blend), a display-resolution HUD with an in-world GUI, an HDR-emissive scene-target probe (peak 15.21 at the authored 16× scale) and a thin-slab screen-space glass refraction with a no-glass reference. The only remaining gap is the **device VRAM peak**. Committed texture bytes and frame envelopes are in §5.3; the numeric budgets are in `quality-rubric.md` §5. |
-| T057 | **ran once, BLOCKED** | The point-in-time review at `50efd1a` is in `review-q4.md`. B-1/B-2 were closed in that session; this session closes B-3/B-4/B-5/B-6 with artifacts (§5.8). A closed blocker is not an acceptance verdict: the review must be re-run against the new frames and hashes before any dimension moves from reject to accept or Q4 is called green. |
+| T056 | **complete** | All seven cells build a package and all four category frames exist on `Intel(R) Graphics`, with WARP parity for static and transmissive. The B3–B6 session added a real skinned draw (805 vertices, 12 bones, 2-bone linear blend), a display-resolution HUD with an in-world GUI, an HDR-emissive scene-target probe (peak 15.21 at the authored 16× scale) and a thin-slab screen-space glass refraction with a no-glass reference. The 2026-10-31 session measured the process VRAM peak (107,110,400 bytes LOCAL `CurrentUsage`) and sets B4 (§5.9). Committed texture bytes and frame envelopes are in §5.3; the numeric budgets are in `quality-rubric.md` §5. |
+| T057 | **ran twice, r3 pending** | The first point-in-time review at `50efd1a` is in `review-q4.md`. B-1/B-2 were closed in that session; the B3–B6 session closes B-3/B-4/B-5/B-6 with artifacts (§5.8). Round 2 (PR #84, `review-q4-r2.md`) closes all six and accepts 4.1–4.7 with limits, but is BLOCKED for Q4 on the unmeasured VRAM peak only. §5.9 measures that peak; **T057 r3/addendum** must record the final Q4 verdict. |
 
 ### 5.1 What was built and run
 
 This record was **re-taken at `4229bd5` for the B3–B6 coverage session** (§5.8). Recapturing exposed a
 data-map encoding defect, so the packages were rebuilt and every frame below was produced from one
-binary afterwards. The previous B1/B2-session record is at `50efd1a` in git history.
+binary afterwards. The previous B1/B2-session record is at `50efd1a` in git history. The VRAM peak was
+added on 2026-10-31 from harness `994c9126…d7a9` (§5.9); it did not recapture the frames.
 
 ```text
 powershell -NoProfile -File content/tools/get-encoder.ps1                              -> 0
@@ -213,8 +216,13 @@ the payload sizes did not:
 | `emissive` | `hero_emissive_sign` | 5 | 1,398,208 | `42aa309c…` |
 | `skinned_character` | `hero_character_skin` | 3 | 873,880 | `fca5d611…` |
 | `transmissive_glass` | `hero_glass` | 3 | 873,880 | `750c4664…` |
-| `large_environment` | `hero_environment` | 4 | 33,554,512 | `c5abb831…` |
+| `large_environment` | `hero_environment` | 4 | 33,554,512 | `61d8a700…` |
 | **total** | | **26** | **39,671,672** | |
+
+`hero_environment`'s package hash moved from `c5abb831…` to `61d8a700…` on 2026-10-31 because its
+sidecar's stale residency record was corrected. The package was rebuilt from the same four DDS files
+(texture SHA-256 identical before and after), so frame 07 is byte-identical and was not recaptured; the
+capture record keeps the previous hash with a note.
 
 Residency, logged once per process: `budget=268435456 uploadPerFrame=67108864
 resident=33554512 uploaded=33554512 deferred=0`. `deferred` is the tick's deferred **upload** count, not a
@@ -224,10 +232,15 @@ builds the hooks once and the last material loaded overwrites the accounting
 budget with a 64 MiB per-frame upload throttle. It is not a claim that the policy owns the D3D12
 allocation, and it is not a VRAM peak.
 
-**No device VRAM peak exists.** The harness allocates committed resources from the device and never
-queries `IDXGIAdapter3::QueryVideoMemoryInfo` or a process GPU-memory counter, and no external counter
-run was recorded. The reported 134,217,728 bytes is the adapter's *reported dedicated memory*, not a
-measurement of use.
+**Device VRAM peak (2026-10-31).** The harness now samples
+`IDXGIAdapter3::QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL)` for the calling process after
+initialization, after the material upload, at scene start and after every rendered frame (`-VramProbe`,
+`src/renderer/q4_harness/vram_probe.*`). Across four scenes × three 30-frame runs, every run reports the
+same LOCAL `CurrentUsage` peak, **107,110,400 bytes** (102.15 MiB), at `materials_loaded`; the harness
+uploads all seven cells in every process, so the peak is scene-independent, and the per-frame samples
+after upload are lower (106,971,136 bytes). NON_LOCAL usage is 0. The reported 134,217,728 bytes is the
+adapter's *reported dedicated memory* (identity only) and is not the use figure. Full record: §5.9,
+`evidence/t056/vram.json`.
 
 Motion: eight frames of `moving`, cube rotation `20° + 25° × frameIndex` and the character pose
 advancing with the same index. Adjacent frames differ over 4.79–7.09 % of pixels (mean over-pixel
@@ -246,10 +259,11 @@ and 06, which this session replaced. The rejected frames remain reachable at `50
 
 | Dimension | Artifact | Observation | Candidate |
 |---|---|---|---|
-| 4.1 materials | `01-static-opaque-dielectric-metal.png` | The dielectric plane/cube/sphere reads as a painted panel with a broad, coherent highlight and a subtle orange-peel bump; the metal sphere is darker, tinted, and carries a tight bright specular lobe. The two are distinguishable without moving the camera. The metal cannot show reflected scene structure because the reflection source is the analytic sky gradient, not a scene probe. | accept (distinctness); the reflection-source limit is 4.3, not a metalness failure |
-| 4.1 / 4.2 alpha cutout | `02-alpha-tested-emissive.png` | Light passes through the grating holes: sky above the horizon and the ground below it are visible through them; the hole edges are clean at this extent. | accept (cutout) |
-| 4.2 shadows | `crops/grating-shadow-cutout.png` | The grating's cast shadow now carries the caster's hole pattern instead of its silhouette. The holes are soft rather than crisp: see 5.7 for the measurement and the reason. | accept (shape matches the caster); softness recorded as a residual |
-| 4.2 / 4.1 transmission | `05-transmissive-environment.png` vs `09-transmission-reference.png` | The pane transmits the scene behind it: luminance correlation 0.9336, variance ratio 0.3929, 58.5 % of pane pixels within 20/255 of the no-glass reference. Fitting the background displacement gives a best shift of −9 px (13.5 % SAD improvement over zero shift), so the pane is refracting, not copying. The Fresnel reflection lifts the sky region, and the model's limits (single slab, no dispersion/caustics) are recorded. | accept (bounded transmission); engine-side transmission remains a separate limit |
+| 4.1 materials | `01-static-opaque-dielectric-metal.png` | The dielectric plane/cube/sphere reads as a painted panel with a broad, coherent highlight and a subtle orange-peel bump; the metal sphere is darker, tinted, and carries a tight bright specular lobe. The two are distinguishable without moving the camera. The metal cannot show reflected scene structure because the reflection source is the analytic environment gradient, not a scene probe. | accept (distinctness); the reflection-source limit is 4.3, not a metalness failure |
+| 4.1 / 4.2 alpha cutout | `02-alpha-tested-emissive.png` | Light passes through the grating holes: the clear-colour background `(0.012, 0.014, 0.020)` above the horizon and the ground below it are visible through them; the hole edges are clean at this extent. No sky is drawn. | accept (cutout) |
+| 4.2 shadows | `crops/grating-shadow-cutout.png` | The grating's cast shadow now carries the caster's hole pattern instead of its silhouette. The holes are soft rather than crisp: §5.7 records the **B1/B2-session** measurement and the reason; `measurements.json b1.current` is the recomputation on the committed frame, and the visible evidence is this crop plus the projected 8×8 hole grid in the round-2 review (PR #84). | accept (shape matches the caster); softness recorded as a residual |
+| 4.2 / 4.1 transmission | `05-transmissive-environment.png` vs `09-transmission-reference.png` | The pane transmits the scene behind it: luminance correlation 0.9336, variance ratio 0.3929, 58.5 % of pane pixels within 20/255 of the no-glass reference. Fitting the background displacement gives a best shift of −9 px (13.5 % SAD improvement over zero shift), so the pane is refracting, not copying. The Fresnel reflection lifts the background (the clear colour, not a drawn
+sky), and the model's limits (single slab, no dispersion/caustics) are recorded. | accept (bounded transmission); engine-side transmission remains a separate limit |
 | 4.4 darkness / readability | `02-alpha-tested-emissive.png`, `11-emissive-hdr-rolloff.png` | The scene-target probe reads peak 15.2109 at the authored 16× scale (5,541 px > 8.0) while the scale-1 control peaks at 1.0059 (0 px > 8.0); the tonemap therefore receives radiance above 1.0. At 16× the 8-bit display saturates by design; the scale-2 diagnostic shows ACES rolling off with **0 saturated pixels** and a non-zero spread, so detail is compressed, not hard-clipped. | accept (readability + HDR exercised) |
 | 4.5 identity under skinning | `03-moving-frame-1.png`, `04-moving-frame-8.png`, `crops/skinned-pose-2x.png` | The skinned character keeps the woven suit material and its silhouette while the right arm and elbow change pose between frames. No weight-smear or material swim is visible in the 2× crop; the rig is procedural (805 vertices, 12 bones) and is labelled as such rather than presented as a retail asset. | accept (identity stable on a procedural rig) |
 | 4.6 motion | the eight-frame `moving` series; `coverage.skinned_motion` | 4.79–7.09 % of pixels change per adjacent pair; 5,758 px (10.6 %) change inside the character box between frames 1 and 8. No ghost or smear exists on this path (no history), and no material swim was observed. | accept (rigid + skinned motion) |
@@ -268,12 +282,14 @@ and 06, which this session replaced. The rejected frames remain reachable at `50
   after sRGB decode into the HDR scene target; the texture container remains the C-10 decision.
 - **Engine integration**: the harness is standalone. These frames are not engine frames, not classic
   parity, and not the fork's call sites.
-- **VRAM peak**: not measured (5.3).
+- **VRAM peak**: measured at 107,110,400 bytes LOCAL `CurrentUsage` per harness process (§5.9); it is
+  not the adapter's 134,217,728-byte capacity and not a device-wide figure.
 
 ### 5.6 Measured basis for the budgets
 
 `quality-rubric.md` §5 carries the per-cell committed texture bytes and the per-scene frame envelope
-from the tables above. VRAM peak stays unset with the reason recorded. All seven rows in
+from the tables above. B4 is set to the measured 107,110,400-byte LOCAL `CurrentUsage` peak (§5.9). All
+seven rows in
 `content/manifest/budget-rows.json` are now `recorded`, including `skinned_character`, whose artifact
 is this file's `measurements.json`.
 
@@ -299,17 +315,22 @@ the caster's alpha texture was never consulted. Fix, in three parts:
   `baseColor` alpha decides the cutout.
 
 Measurement (`tools/defect_metrics.py --only b1`, footprint taken from the rejected frame's solid
-shadow and eroded by 2 px, 2,385 px):
+shadow and eroded by 2 px, 2,385 px). The `fixed` column is the B1/B2-session frame; the `committed`
+column is the current `02` and is also `measurements.json b1.current`:
 
-| | rejected `50efd1a` | fixed |
-|---|---|---|
-| dark pieces inside the footprint (`dark_components`) | **1** (one 2,385 px block) | **4** (1,779 + 86 + 32 + 3) |
-| spread of median-filtered luminance inside it (`sd`) | 1.53 | 6.90 |
-| range | 145-156 | 138-173 |
-| share of footprint back at unshadowed level | 0.0 % | 0.46 % |
+| | rejected `50efd1a` | fixed at `50efd1a` (B1/B2 session) | committed `02` (current) |
+|---|---|---|---|
+| dark pieces inside the footprint (`dark_components`) | **1** (one 2,385 px block) | **4** (1,779 + 86 + 32 + 3) | **1** (1,895 px) |
+| spread of median-filtered luminance inside it (`sd`) | 1.53 | 6.90 | 15.39 |
+| range | 145-156 | 138-173 | 105-178 |
+| share of footprint back at unshadowed level | 0.0 % | 0.46 % | 5.95 % |
 
 The same region is shown at 2× in `crops/grating-shadow-solid.png` (rejected) and
-`crops/grating-shadow-cutout.png` (fixed).
+`crops/grating-shadow-cutout.png` (committed). The committed `dark_components` stays 1 because the
+soft, foreshortened holes do not all separate at the 160 luminance threshold; it is **not** the
+closure evidence. The closure evidence is the visible perforated lattice in the committed crop and the
+projected 8×8 hole grid recorded by the round-2 review (PR #84), together with the rise in `sd`
+(6.90 → 15.39) and `lit_share` (0.46 % → 5.95 %).
 
 **Residual, stated rather than hidden:** the holes are soft, not crisp. The shadow map is 2048² over a
 16-unit light extent, i.e. 7.8 mm per texel, and the grating's bars are only 2-3 texels wide there, so
@@ -333,18 +354,20 @@ worn panel". Regenerated images, before → after: normal tilt mean 58.08° → 
 neighbour-to-neighbour delta 73.18° → **1.42°**, albedo high-pass `sd` 7.81 → **0.18**, roughness
 range 0.43-0.81 → 0.50-0.71.
 
-Frame measurement (`tools/defect_metrics.py --only b2`), `highpass_sd` then `isolated_spikes`:
+Frame measurement (`tools/defect_metrics.py --only b2`), `highpass_sd` then `isolated_spikes`. The
+`fixed` column is the B1/B2-session frame; the `committed` column is the current `01` and is also
+`measurements.json b2.current`:
 
-| Region | rejected | fixed |
-|---|---|---|
-| dielectric sphere | 16.21 / 550 | **2.39 / 2** |
-| dielectric cube face | 13.31 / 425 | **2.85 / 0** |
-| ground, near | 11.13 / 0 | **0.76 / 0** |
-| ground, mid-distance | 5.71 / 0 | **0.66 / 0** |
+| Region | rejected (B1/B2) | fixed at `50efd1a` (B1/B2 session) | committed `01` (current) |
+|---|---|---|---|
+| dielectric sphere | 16.21 / 550 | **2.39 / 2** | **0.947 / 0** |
+| dielectric cube face | 13.31 / 425 | **2.85 / 0** | **3.354 / 0** |
+| ground, near | 11.13 / 0 | **0.76 / 0** | **0.402 / 0** |
+| ground, mid-distance | 5.71 / 0 | **0.66 / 0** | **1.151 / 0** |
 
-The two remaining spikes on the sphere are isolated single pixels in the Fresnel band at its lower-left
-limb; at 6× they are part of a smooth sheen, not a dot field, and the sphere now reads as a painted
-surface rather than sand. They are recorded because they exist, not because they were chased away.
+In the B1/B2-session `fixed` frame, two isolated spikes remained on the sphere's Fresnel band. The
+committed `01` recomputes to **0 spikes on all four ROIs**; the committed frame is the current record,
+and the B1/B2 `fixed` row is retained only as history.
 
 **Filtering was tested and rejected.** The review also named the sampler (`MaxAnisotropy = 1`). Setting
 it to anisotropic 8× was implemented and captured: it does not touch per-texel noise, and it raised
@@ -381,18 +404,67 @@ also changes the lighting of frames 01–04, which is why the previous hashes ca
 session.
 
 **Not done / not claimed.** No engine or fork integration; no retail rig; no packaged HDR texture; no
-dispersion/caustics; no VRAM peak. T057 re-run is required, and the PR is not merged.
+dispersion/caustics. The VRAM peak is measured in §5.9. T057 r3/addendum is required, and this PR is
+not merged.
+
+### 5.9 VRAM peak (2026-10-31)
+
+The T057 round-2 review's only remaining Q4 blocker was that no DXGI budget or process GPU-memory
+counter had been sampled. This section records that measurement.
+
+**Method.** `src/renderer/q4_harness/vram_probe.*` resolves the DXGI adapter that owns the RHI-selected
+D3D12 device by `GetAdapterLuid()` + `IDXGIFactory4::EnumAdapterByLuid`, queries `IDXGIAdapter3`, and
+calls `QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL)` and
+`(0, DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL)` for the calling process. The harness samples after
+initialization, after the material upload, at scene start and after every rendered frame; `main.cpp`
+prints the identity, every sample and both peaks as one `VRAM_JSON` line when `-VramProbe` is set.
+`vram_measure.py` runs each scene three times at 30 frames, parses that line, records the maximum
+`CurrentUsage`, and merges the compact record into `measurements.json`.
+
+**Commands and exits** (this worktree, hardware adapter index 0):
+
+```text
+powershell -NoProfile -ExecutionPolicy Bypass -File content/tools/validate.ps1            -> 0 (VALIDATE OK: 29 hero files, 7 sidecars, 7 Q4 materials)
+powershell ... -File content/tools/build-material.ps1 -Material <m> -OutDir out/content/<m> -Force
+    (7 materials: dielectric, metal, grating, emissive_sign, character_skin, glass, environment) -> 0 each
+cmake -S src/renderer/q4_harness -B build-q4-harness -G "Visual Studio 17 2022" -A x64     -> 0
+cmake --build build-q4-harness --config Release -- -m                                    -> 0
+py -3 specs/004-quality-renderer/evidence/t056/tools/vram_measure.py --runs 3 --frames 30 -> 0 (12/12 runs)
+```
+
+**Recorded values.** Adapter `Intel(R) Graphics` (LUID `0x00000000:0001725F`), driver 32.0.101.8331,
+harness `994c9126…d7a9`, render/display 1280×720.
+
+| Quantity | Value |
+|---|---|
+| process LOCAL `CurrentUsage` peak | **107,110,400 bytes** (102.15 MiB) |
+| where the peak occurs | `materials_loaded` (all seven cells uploaded; the peak is scene-independent) |
+| per-frame `CurrentUsage` after upload | 106,971,136 bytes (flat across the 30-frame window) |
+| process NON_LOCAL `CurrentUsage` peak | 0 bytes |
+| LOCAL budget reported by DXGI (UMA host) | 37,979,832,729 bytes (a budget, not a use figure) |
+| adapter dedicated memory reported by DXGI | 134,217,728 bytes (identity only, **not** the use figure) |
+| runs | 4 scenes × 3 runs × 30 frames; all 12 runs report 107,110,400 bytes |
+
+**Artifacts.** `evidence/t056/vram.json` holds identity, every raw sample and each run's peak;
+`measurements.json` `vram` holds the compact per-scene table and the peak. B4 in
+`quality-rubric.md` §5.2 is set from this measurement.
+
+**Scope and limits.** This is the harness process's LOCAL usage on this host, including driver
+overhead; it is not a device-wide total, not a cross-vendor claim, and not a guarantee about another
+process or another adapter. Sampling is at the listed points (after each completed frame), not at
+sub-frame granularity. On this UMA host the LOCAL budget is shared system memory, so "over budget" is
+not a meaningful test; the recorded use figure is. A driver, content or harness-allocation change that
+raises the peak requires a new T056 measurement before B4 moves.
 
 ## 6. What is not claimed
 
-- Q4 is **not complete** and not green. T056 is PARTIAL only on the **VRAM peak**; all four categories
-  and the four B3–B6 artifacts exist. T057 ran once and its point-in-time verdict is **BLOCKED**; B-1 to
-  B-6 now have artifacts (B-1/B-2 in §5.7, B-3/B-4/B-5/B-6 in §5.8), but the review must be re-run
-  against the new frames before any dimension moves from reject to accept. The provider branch of T086
-  is NOT RUN.
-- No modern-look acceptance, no classic parity, no DXR, no DLSS. There is a measured frame envelope on
-  one adapter and there is still **no VRAM figure**; the frame numbers are a regression ceiling for this
-  host, not a performance claim for any other device.
+- Q4 is **not green**. T056 is complete: all four categories and the four B3–B6 artifacts exist, and
+  the VRAM peak is measured (§5.9). T057 round 2 (PR #84) accepts 4.1–4.7 with limits but is blocked
+  only on that measurement; **T057 r3/addendum** must record the final Q4 verdict before any dimension
+  moves from accept-with-limits to a green claim. The provider branch of T086 is NOT RUN.
+- No modern-look acceptance, no classic parity, no DXR, no DLSS. There is a measured frame envelope and
+  a process VRAM peak on one adapter; both are regression ceilings for this host, not a performance or
+  memory claim for any other device.
 - No capture from spec 006 is cited or reused; no `-HdTextures` switch is involved.
 - The portable slices do not prove the engine/fork wiring. That needs its own fork PR, submodule bump
   and independent review.
