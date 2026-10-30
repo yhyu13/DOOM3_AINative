@@ -85,7 +85,9 @@ Do not rewrite the global credential helper; never put a token in a tracked file
 10. **Review** by an independent non-author in its own session/worktree; it records `APPROVED` with
     the reviewed SHA. Then the author or coordinator may squash-merge only when the head still equals
     that SHA, the merge base still equals current `origin/main`, and the gates in `AGENTS.md` §11
-    hold. Submodule bumps and build-system changes also need human owner sign-off.
+    hold. Submodule bumps also need human owner sign-off. Build-system changes may self-merge after
+    independent review if the reviewer reran the build/tests and recorded the evidence; if not
+    verifiable, the PR stays blocked.
 11. **Clean up** from the parent checkout: `.\scripts\remove-worktree.ps1 -Path .kilo\worktrees\<slug>`
     then `git worktree prune`.
 
@@ -108,8 +110,9 @@ untracked, the evidence block is text.
 - Merge only when verification is green, an independent review is approved with the reviewed SHA,
   the head still equals that SHA, the merge base still equals current `origin/main`, GitHub reports
   `MERGEABLE` / `CLEAN`, no out-of-scope path was touched, and no uncommitted submodule dirt remains.
-- Submodule bumps and build-system changes additionally need human owner sign-off recorded verbatim;
-  see `AGENTS.md` §11.
+- Submodule bumps additionally need human owner sign-off recorded verbatim. Build-system changes may
+  self-merge after independent review when the build and required tests were rerun and recorded; if
+  they cannot be verified, the PR stays blocked. See `AGENTS.md` §11.
 
 ## Engine and port rules
 

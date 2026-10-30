@@ -242,7 +242,7 @@ the frozen Q0 ceilings, and T-05/T-06/T-08/T-09 remain unmeasured.
 | B4 | No engine call site yet (T036), so the linker pulls nothing from `doom3_rhi` | Both executables link, but `d3d12.dll`/`dxgi.dll` are absent from `dumpbin /dependents`; that acceptance row is PARTIAL, not PASS | Q2 fork work (B5) |
 | B5 | T036 (`r_renderApi`, `R_RenderSystemRunning()`, `RC_*` dispatch) is not implemented and needs a fork PR plus a submodule bump | No engine call site, no selector, no fallback; T083 cannot start | Q2 fork work |
 | B6 | `validate-webgpu-mapping.py` exits 1 with 62 problems on current `main` | Pre-Q2 header gate is red (S3); unchanged by this PR | #36 / T089 |
-| B7 | `targets/win11-amd64/CMakeLists.txt` is a build-system change | Needs owner sign-off in addition to independent review before merge | Owner |
+| B7 | Build-system change (`targets/win11-amd64/CMakeLists.txt`, resolved 2026-10-30) | Reviewer reran the build and tests and recorded the evidence (§4.3); no owner sign-off under `AGENTS.md` §11 | Reviewer |
 
 Stop conditions triggered or relevant: **S13** (no legal data → SKIPPED), **S3** (mapping gate red,
 recorded; no capture attempted), **S1** still open (no `owned` program), **S8/S12** not triggered (no

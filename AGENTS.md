@@ -92,10 +92,15 @@ own licences (see `THIRD_PARTY_NOTICES.md`). Game data is not covered and must n
     - The PR head at merge equals the reviewed SHA, and the merge base of the reviewed SHA and current
       `origin/main` is still the current `origin/main`. Any new commit, rebase, force-push, or advance
       of `origin/main` after the review voids the approval and requires a new review.
-    - Submodule bumps (`doom3_orig/doom3`) and build-system changes are excluded from self-merge:
-      they require **owner sign-off** in addition to independent review. Here "owner" means the human
-      repository owner (the user), not a coordinator, reviewer or worker agent; the sign-off is a PR
-      comment from the owner or an `owner-sign-off:` line in the PR body quoting it verbatim.
+    - Submodule bumps (`doom3_orig/doom3`) are excluded from self-merge and require **owner sign-off**
+      in addition to independent review. Here "owner" means the human repository owner (the user), not
+      a coordinator, reviewer or worker agent; the sign-off is a PR comment from the owner or an
+      `owner-sign-off:` line in the PR body quoting it verbatim.
+    - Build-system changes (root/target `CMakeLists.txt`, `CMakePresets.json`, generated build wiring)
+      may self-merge after independent review, provided the reviewer reran the build and the tests
+      required by `CONTRIBUTING.md`'s definition of done, and recorded the commands and results in the
+      APPROVED comment. If the build cannot be verified on the reviewer's host, the PR says so and
+      remains blocked rather than merging on inspection alone.
     - The merge gates in non-negotiable 8 (above) hold: `git fetch origin`, `MERGEABLE` / `CLEAN`
       against current `origin/main`, the documented verification command or required checks pass, the
       main worktree is clean and current, `git merge-tree` shows no conflict, no out-of-scope paths,

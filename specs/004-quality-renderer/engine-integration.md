@@ -86,8 +86,10 @@ FR-019, SC-003.
 2. Make and test the engine change on that fork branch; open a fork PR.
 3. In this repository, `git add doom3_orig/doom3` and commit `chore(doom3): bump to <sha>`.
 4. The bump PR body carries the fork PR URL and the old/new SHA.
-5. A submodule bump or build-system change needs one **independent** reviewer who reruns the
-   verification command (`docs/GIT_WORKFLOW.md:160-165,191-192`; `AGENTS.md` non-negotiable 1).
+5. A submodule bump needs one **independent** reviewer who reruns the verification command **plus
+   human owner sign-off**. A build-system change needs an independent reviewer who reruns the build
+   and required tests and records the evidence in the APPROVED comment; it may then self-merge
+   (`docs/GIT_WORKFLOW.md:160-165,191-192`; `AGENTS.md` §11).
 
 A change that exists only in a target copy is not delivered, even if it builds and renders locally.
 The fork PR cannot be merged standalone if it depends on a superproject header that is not yet
