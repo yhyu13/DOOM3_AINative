@@ -61,7 +61,7 @@ git check-ignore -q .kilo/worktrees; if (-not $?) { Add-Content .git\info\exclud
 | Role | Owns | Never does |
 |---|---|---|
 | Coordinator | issue breakdown, spec-kit flow, file-ownership map, integration, submodule bump | implement a worker ticket in the same worktree |
-| Worker | exactly one worktree and one issue: implement + prove + PR; may merge after independent review per `AGENTS.md` §11, except submodule/build-system changes | touch another worker's paths, review own work, merge without independent approval |
+| Worker | exactly one worktree and one issue: implement + prove + PR; may merge after independent review per `AGENTS.md` §11, except submodule bumps | touch another worker's paths, review own work, merge without independent approval |
 | Reviewer | independent adversarial review of the PR diff; records `APPROVED` or blocking findings with the reviewed SHA | be the author, share the author's worktree/session, or be prompted to produce a predetermined verdict |
 
 Handoffs are files/artifacts, not chat:
@@ -175,7 +175,9 @@ $env:D3_BUILD = Join-Path $env:WORKTREE_PATH 'build'
   `git add doom3_orig/doom3` in the superproject, commit message
   `chore(doom3): bump to <sha>`, PR body carries the fork PR URL and the old/new SHA. Never commit
   submodule changes ad hoc, and never let fork work exist only inside a target copy.
-- A submodule bump PR requires one independent reviewer (build-system changes do too).
+- A submodule bump PR requires one independent reviewer plus human owner sign-off. A build-system
+  change requires an independent reviewer who reruns the build/tests and records the evidence; it may
+  then self-merge.
 - Game assets (`.pk4`/`.pk3`/`.pak`), binaries, object files, and `build/` stay out of git.
   The source release ships no data; do not add it.
 - `git submodule update --init` inside each worktree creates a **per-worktree** submodule
@@ -209,10 +211,14 @@ $env:D3_BUILD = Join-Path $env:WORKTREE_PATH 'build'
 - The PR head at merge must equal the reviewed SHA, and the merge base of the reviewed SHA and
   current `origin/main` must still be the current `origin/main`. Any commit, rebase, force-push or
   advance of `origin/main` after review voids the approval and requires a new review.
-- `doom3_orig/doom3/` submodule bumps and build-system changes are **not self-mergeable**: they
-  require **owner sign-off** (the human repository owner, not a coordinator/reviewer/worker agent)
-  in addition to independent review. Record it as a PR comment from the owner or an
-  `owner-sign-off:` line quoting that comment verbatim.
+- `doom3_orig/doom3/` submodule bumps are **not self-mergeable**: they require **owner sign-off**
+  (the human repository owner, not a coordinator/reviewer/worker agent) in addition to independent
+  review. Record it as a PR comment from the owner or an `owner-sign-off:` line quoting that comment
+  verbatim.
+- Build-system changes (root/target `CMakeLists.txt`, `CMakePresets.json`, generated build wiring)
+  may self-merge after independent review, provided the reviewer reran the build and required tests
+  and recorded commands/results. If the build cannot be verified on the reviewer's host, the PR says
+  so and remains blocked.
 - Reviewer runs the `code-review` skill pinned at `origin/main...HEAD`; comments cite file:line.
 - Merge only when: CI/verification green, independent review approved with the reviewed SHA, the
   head still equal to it, the merge base still equal to current `origin/main`, `MERGEABLE` / `CLEAN`
@@ -282,5 +288,5 @@ Finish (before merge):
 - [ ] `git fetch origin` + rebase done; `git status` clean; no submodule dirt. A late rebase invalidates the prior review; obtain a new one.
 - [ ] PR has `Refs #N` (no closing keyword unless approved), evidence, risk/rollback; independent reviewer approved at the reviewed SHA, and the head still equals that SHA.
 - [ ] `gh pr view <N> --json mergeable,mergeStateStatus` reports `MERGEABLE` / `CLEAN`; the merge base of the reviewed SHA and `origin/main` is still current `origin/main`.
-- [ ] Submodule bump or build-system change: `owner-sign-off:` recorded verbatim, or N/A.
+- [ ] Submodule bump: `owner-sign-off:` recorded verbatim, or N/A. Build-system change: reviewer reran build/tests and recorded evidence.
 - [ ] After merge: `remove-worktree.ps1`, then `git worktree prune`; branch deleted only if merged.
