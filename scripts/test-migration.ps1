@@ -231,7 +231,43 @@ try {
         Write-Gate 'restored status clean' $false 'restore produced no repository'
     }
 
-    # ---- 6. explicit skills gate in the restored tree ------------------------
+    # ---- 6. detached HEAD provenance (B-1 regression) ------------------------
+    # A detached checkout must be recorded as branch=null + SHA, and restored detached at that SHA.
+    $detachedWt = Join-Path $root 'detached-wt'
+    $detachedSnap = Join-Path $root 'snap-detached'
+    $detachedDest = Join-Path $root 'restore-detached'
+    $wtAdded = $false
+    try {
+        $w = Invoke-Git -Repository $repo -GitArgs @('worktree', 'add', '--detach', $detachedWt, 'HEAD')
+        if ($w.Code -eq 0) {
+            $wtAdded = $true
+            $subInit = Invoke-Git -Repository $detachedWt -GitArgs @('submodule', 'update', '--init', '--recursive')
+            $detachedSha = (Invoke-Git -Repository $detachedWt -GitArgs @('rev-parse', 'HEAD')).Text.Trim()
+            $r = Invoke-Script -Path (Join-Path $detachedWt 'scripts\migrate-repo.ps1') -WorkingDirectory $detachedWt -ScriptArgs @('-Profile', 'portable', '-OutDir', $detachedSnap)
+            $detachedFacts = $null
+            $factsFile = Join-Path $detachedSnap 'machine-facts.json'
+            if (Test-Path -LiteralPath $factsFile) { $detachedFacts = Get-Content -LiteralPath $factsFile -Raw | ConvertFrom-Json }
+            $branchIsNull = $detachedFacts -and ($null -eq $detachedFacts.repository.branch)
+            $headMatches = $detachedFacts -and ($detachedFacts.repository.head -eq $detachedSha)
+            Write-Gate 'detached migrate' ($r.Code -eq 0 -and $subInit.Code -eq 0 -and $branchIsNull -and $headMatches) "exit $($r.Code), branch=null=$branchIsNull, head matches=$headMatches"
+
+            if ($r.Code -eq 0) {
+                $d = Invoke-Script -Path (Join-Path $detachedSnap 'deploy-repo.ps1') -WorkingDirectory $detachedWt -ScriptArgs @('-Bundle', $detachedSnap, '-Dest', $detachedDest, '-NoNetwork', '-SkipTargets')
+                $srcDetached = (Invoke-Git -Repository $detachedWt -GitArgs @('rev-parse', 'HEAD^{tree}')).Text.Trim()
+                $dstDetached = (Invoke-Git -Repository $detachedDest -GitArgs @('rev-parse', 'HEAD^{tree}')).Text.Trim()
+                Write-Gate 'detached restore tree' ($d.Code -eq 0 -and $srcDetached -eq $dstDetached) "exit $($d.Code), $srcDetached / $dstDetached"
+            }
+        } else {
+            Write-Gate 'detached migrate' $false "git worktree add exit $($w.Code)"
+        }
+    } finally {
+        if ($wtAdded) {
+            Invoke-Git -Repository $repo -GitArgs @('worktree', 'remove', '--force', $detachedWt) | Out-Null
+            Invoke-Git -Repository $repo -GitArgs @('worktree', 'prune') | Out-Null
+        }
+    }
+
+    # ---- 7. explicit skills gate in the restored tree ------------------------
     $verifySkills = Join-Path $restoreDir 'scripts\verify-skills.ps1'
     if (Test-Path -LiteralPath $verifySkills) {
         $r = Invoke-Script -Path $verifySkills -WorkingDirectory $restoreDir

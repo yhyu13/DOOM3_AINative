@@ -221,14 +221,18 @@ if ($subExists) {
 }
 
 $headSha = (& git -C $repo rev-parse HEAD).Trim()
-$headBranch = (& git -C $repo rev-parse --abbrev-ref HEAD).Trim()
+# `rev-parse --abbrev-ref HEAD` returns the literal "HEAD" when detached; resolve the ref instead
+# so a detached checkout is recorded as branch=null plus its commit SHA (B-1 regression).
+$headBranchRef = (& git -C $repo symbolic-ref --quiet --short HEAD 2>$null)
+$headBranch = if ($headBranchRef) { ([string]$headBranchRef).Trim() } else { $null }
+$branchLabel = if ($headBranch) { $headBranch } else { '(detached)' }
 $originUrl = (& git -C $repo remote get-url origin 2>$null)
 $subSha = if ($subExists) { (& git -C $sub rev-parse HEAD).Trim() } else { $null }
 $subOrigin = if ($subExists) { (& git -C $sub remote get-url origin 2>$null) } else { $null }
 
 Write-Host "repo         : $repo"
 Write-Host "profile      : $Profile"
-Write-Host "HEAD         : $headBranch @ $($headSha.Substring(0, 12))"
+Write-Host "HEAD         : $branchLabel @ $($headSha.Substring(0, 12))"
 Write-Host "submodule    : $(if ($subSha) { $subSha.Substring(0, 12) } else { 'NOT INITIALISED' })"
 Write-Host "output       : $OutDir"
 
@@ -258,7 +262,7 @@ Step 'Recording local-only refs'
 
 $refLines = @()
 $refLines += "Repository: $originUrl"
-$refLines += "HEAD: $headBranch $headSha"
+$refLines += "HEAD: $branchLabel $headSha"
 $refLines += ''
 $branchRows = @()
 foreach ($line in (& git -C $repo for-each-ref '--format=%(refname:short)|%(upstream:short)|%(objectname)' refs/heads)) {
@@ -506,6 +510,7 @@ $facts = [ordered]@{
         remote         = $(if ($originUrl) { $originUrl } else { $null })
         head           = $headSha
         branch         = $headBranch
+        detached       = (-not $headBranch)
         trackedFiles   = [int]((& git -C $repo ls-files | Measure-Object -Line).Lines)
         looseObjects   = (Get-GitOutput @('-C', $repo, 'count-objects', '-v')).Lines
         gitDirBytes    = $gitBytes
@@ -642,7 +647,7 @@ Write-Host 'Snapshot ready' -ForegroundColor Green
 Write-Host ("  path      : {0}" -f $OutDir)
 Write-Host ("  size      : {0:N1} MB in {1} files" -f ($size / 1MB), ($rows.Count + 1))
 Write-Host ("  profile   : {0}" -f $Profile)
-Write-Host ("  HEAD      : {0} @ {1}" -f $headBranch, $headSha.Substring(0, 12))
+Write-Host ("  HEAD      : {0} @ {1}" -f $branchLabel, $headSha.Substring(0, 12))
 Write-Host ("  submodule : {0}" -f $(if ($subSha) { $subSha.Substring(0, 12) } else { 'not bundled' }))
 Write-Host ("  dangling  : {0} ({1})" -f $dangling.Count, $(if ($danglingBundled) { 'bundled' } else { 'listed only' }))
 Write-Host ("  archive   : {0} trees, {1:N1} MB" -f $archived.Count, (($archived | Measure-Object -Property Bytes -Sum).Sum / 1MB))

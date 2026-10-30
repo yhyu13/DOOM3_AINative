@@ -281,17 +281,33 @@ if ($LASTEXITCODE -ne 0) { Fail "Fetching repo-all.bundle into $Dest failed" 2 }
 $branches = @(& git -C $Dest for-each-ref '--format=%(refname:short)' refs/heads)
 if ($branches.Count -eq 0) { Fail 'The bundle contained no branches' 2 }
 
-$default = 'main'
-if ($facts -and $facts.repository.branch -and ($branches -contains $facts.repository.branch)) {
-    $default = $facts.repository.branch
-} elseif ($branches -notcontains $default) {
-    $default = $branches[0]
+# A snapshot can be taken from a detached checkout (CI, review worktree). Then the facts carry
+# branch=null plus the commit SHA, and the restore must detach at that SHA instead of guessing main (B-1).
+$recordedBranch = if ($facts) { $facts.repository.branch } else { $null }
+$recordedHead = if ($facts) { $facts.repository.head } else { $null }
+$default = $null
+$checkoutMode = $null
+if ($recordedBranch -and ($branches -contains $recordedBranch)) {
+    $default = $recordedBranch
+    & git -C $Dest symbolic-ref HEAD "refs/heads/$default"
+    & git -C $Dest checkout --quiet $default
+    if ($LASTEXITCODE -ne 0) { Fail "git checkout $default failed" 2 }
+    $checkoutMode = "branch $default"
+} elseif ($recordedHead) {
+    & git -C $Dest cat-file -e "$recordedHead^{commit}" 2>$null
+    if ($LASTEXITCODE -ne 0) { Fail "recorded head $recordedHead is not present in the bundle" 2 }
+    & git -C $Dest checkout --quiet --detach $recordedHead
+    if ($LASTEXITCODE -ne 0) { Fail "git checkout --detach $recordedHead failed" 2 }
+    $checkoutMode = "detached $($recordedHead.Substring(0, 12))"
+} else {
+    $default = if ($branches -contains 'main') { 'main' } else { $branches[0] }
+    & git -C $Dest symbolic-ref HEAD "refs/heads/$default"
+    & git -C $Dest checkout --quiet $default
+    if ($LASTEXITCODE -ne 0) { Fail "git checkout $default failed" 2 }
+    $checkoutMode = "branch $default"
 }
-& git -C $Dest symbolic-ref HEAD "refs/heads/$default"
-& git -C $Dest checkout --quiet $default
-if ($LASTEXITCODE -ne 0) { Fail "git checkout $default failed" 2 }
 Write-Host ("  branches restored: {0}" -f $branches.Count)
-Write-Host ("  HEAD             : {0} @ {1}" -f $default, (& git -C $Dest rev-parse --short HEAD))
+Write-Host ("  HEAD             : {0} @ {1}" -f $checkoutMode, (& git -C $Dest rev-parse --short HEAD))
 
 # ---------------------------------------------------------------- origin + upstreams
 Step 'Remote and branch upstreams'
@@ -595,10 +611,14 @@ $headNow = (& git -C $Dest rev-parse HEAD).Trim()
 $branchNow = (& git -C $Dest rev-parse --abbrev-ref HEAD).Trim()
 $statusText = if ($status.Count -eq 0) { 'clean' } else { "clean except $($status.Count) restored untracked file(s) from the source" }
 Write-Host ("  git status  : {0}" -f $statusText)
-Write-Host ("  HEAD        : {0} @ {1}" -f $branchNow, $headNow.Substring(0, 12))
-if ($facts) { Write-Host ("  source HEAD : {0} @ {1}" -f $facts.repository.branch, $facts.repository.head.Substring(0, 12)) }
-if ($facts -and $facts.repository.head -ne $headNow -and $branchNow -eq $default) {
-    Write-Host '  [NOTE] HEAD differs from the pack-time HEAD; origin/main moved or another branch was packed last' -ForegroundColor Yellow
+$headLabel = if ($branchNow -eq 'HEAD') { "detached $($headNow.Substring(0, 12))" } else { $branchNow }
+Write-Host ("  HEAD        : {0} @ {1}" -f $headLabel, $headNow.Substring(0, 12))
+if ($facts) {
+    $sourceLabel = if ($facts.repository.branch) { $facts.repository.branch } else { '(detached)' }
+    Write-Host ("  source HEAD : {0} @ {1}" -f $sourceLabel, $facts.repository.head.Substring(0, 12))
+    if ($facts.repository.head -ne $headNow) {
+        Write-Host '  [NOTE] HEAD differs from the snapshot HEAD; the bundle was packed at another commit' -ForegroundColor Yellow
+    }
 }
 
 $report = @()
@@ -606,7 +626,7 @@ $report += "DOOM3_AINative deploy report"
 $report += "generated : $((Get-Date).ToString('o'))"
 $report += "bundle    : $Bundle"
 $report += "dest      : $Dest"
-$report += "branch    : $branchNow @ $headNow"
+$report += "branch    : $headLabel @ $headNow"
 $report += "submodule : $(if (Test-Path -LiteralPath (Join-Path $Dest 'doom3_orig\doom3\.git')) { (& git -C (Join-Path $Dest 'doom3_orig\doom3') rev-parse HEAD).Trim() } else { 'absent' })"
 $report += "targets   : $(if ($targetResults.Count -gt 0) { $targetResults -join '; ' } else { 'skipped' })"
 $report += "build     : $buildResult"
