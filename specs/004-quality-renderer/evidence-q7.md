@@ -38,6 +38,7 @@ real-scene run is `NOT RUN` because no legal game data is present. T075's indepe
 |---|---|
 | Host | Windows 11 x64, Node v24.19.0 |
 | Browser | Google Chrome `156.0.8078.76`, protocol 1.3, headless (`--headless=new --enable-unsafe-webgpu`) |
+| Browser selection | `$env:WGPU_BROWSER` or `--browser`; the report records only `executableName=chrome.exe`, not a host path |
 | Browser pin | `tests/webgpu/browser-pin.json`, major `156`, Q7a evidence version `156.0.8078.73`; pin satisfied at major level, exact patch recorded |
 | Adapter | `intel` / `xe-lpg`, `isFallbackAdapter=false`; vendorId/deviceID report `0` → `reportedFacts=0x0`; no software adapter requested |
 | Device features | `core-features-and-limits` only |
@@ -55,7 +56,7 @@ real-scene run is `NOT RUN` because no legal game data is present. T075's indepe
 | Command | Exit | Observation |
 |---|---|---|
 | `node --test tests/webgpu/profile.test.mjs tests/webgpu/profile-source-guard.test.mjs` | 0 | 21 tests, 21 pass, 0 fail |
-| `node tests/webgpu/run-profile.mjs --browser "C:\Program Files\Google\Chrome\Application\chrome.exe" --repeat 2 --out build/webgpu-profile --evidence specs/004-quality-renderer/evidence` | 0 | 11 PASS / 0 FAIL / 4 NOT RUN twice; repeatable; pinned major 156 true; artifact `evidence/q7-profile.json` |
+| `node tests/webgpu/run-profile.mjs --browser "$env:WGPU_BROWSER" --repeat 2 --out build/webgpu-profile --evidence specs/004-quality-renderer/evidence` | 0 | 11 PASS / 0 FAIL / 4 NOT RUN twice; repeatable; pinned major 156 true; artifact `evidence/q7-profile.json` |
 | `git grep --no-index -n -E "dxr|dlss|raytracing|ray query|acceleration structure" -- web/profile tests/webgpu/profile.test.mjs` | 1 (expected: no match) | zero hits; grep exits 1 when nothing matches |
 | `git status --short doom3_orig/doom3` | 0 | no output; submodule clean at `a9c49da5` |
 
