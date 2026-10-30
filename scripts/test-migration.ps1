@@ -66,10 +66,13 @@ function Invoke-Script {
         [string[]]$ScriptArgs = @()
     )
     Push-Location -LiteralPath $WorkingDirectory
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'   # native stderr under EAP=Stop throws NativeCommandError in PS 5.1
     try {
         $out = @(& powershell -NoProfile -ExecutionPolicy Bypass -File $Path @ScriptArgs 2>&1)
         $code = $LASTEXITCODE
     } finally {
+        $ErrorActionPreference = $previous
         Pop-Location
     }
     return [pscustomobject]@{ Lines = $out; Code = $code; Text = ($out -join "`n") }
@@ -77,8 +80,15 @@ function Invoke-Script {
 
 function Invoke-Git {
     param([Parameter(Mandatory = $true)][string]$Repository, [Parameter(Mandatory = $true)][string[]]$GitArgs)
-    $out = @(& git -C $Repository @GitArgs 2>&1)
-    return [pscustomobject]@{ Lines = $out; Code = $LASTEXITCODE; Text = ($out -join "`n") }
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $out = @(& git -C $Repository @GitArgs 2>&1)
+        $code = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previous
+    }
+    return [pscustomobject]@{ Lines = $out; Code = $code; Text = ($out -join "`n") }
 }
 
 function Remove-TreeRobust {
