@@ -29,14 +29,21 @@ frame was drawn and no GL-vs-D3D12 image comparison exists.** Every image row be
 | Build tool | CMake 3.31.6-msvc6 (VS-bundled), generator `Visual Studio 17 2022 -A x64` |
 | Runtime library | `/MT` Release and `/MTd` Debug (directory-level `CMAKE_MSVC_RUNTIME_LIBRARY`) |
 | D3D12 backend | Present and exercised by the Q1b ctest fixtures on this host; adapter uses no device |
-| MFC / ATL | **MFC is not installed.** `atlmfc/include` holds ATL headers only; no `afxwin.h` exists anywhere under `Program Files\Microsoft Visual Studio`. The delivered tree does not need it: the tracked target patch gates the `tools/comafx/StdAfx.h` include behind `!defined(ID_NO_TOOLS)`, and `ID_NO_TOOLS` is defined for every engine translation unit |
+| MFC / ATL | **MFC is not installed.** `atlmfc/include` holds ATL headers only; no `afxwin.h` exists anywhere under `Program Files\Microsoft Visual Studio`. The delivered tree does not reach it: the tracked target patch deletes the `tools/comafx/StdAfx.h` include from `neo/idlib/precompiled.h` (the active `#else` branch of the `#if 0` at line 47) and replaces `#include <afxwin.h>` with `<windows.h>` in `neo/sys/win32/win_taskkeyhook.cpp` |
 | Target copy | Created with `scripts/new-target.ps1 -Name win11-amd64`, then **patch-applied** with `scripts/apply-target-patches.ps1 -Name win11-amd64` (`Applied patch: 72 files verified, 0 mismatches`, exit 0), then built. This is the delivered tree; no engine source was edited by hand |
 
 **Correction to an earlier revision of this file.** A first run built an *unpatched* `new-target`
 copy and reported 353 × `C1083 afxwin.h`. That run describes the pristine copy, **not** the delivered
-tree, and its conclusion ("every engine translation unit needs MFC") was wrong: the patch removes the
-MFC include under `ID_NO_TOOLS`, and the delivered tree links both executables (§4.3). The pristine
-run is kept below only as a labelled control.
+tree, and its conclusion ("every engine translation unit needs MFC") was wrong. The pristine tree
+reaches MFC through the active `#else` branch at `neo/idlib/precompiled.h:59-61`; the patch deletes
+that include, so the delivered tree links both executables (§4.3). The pristine run is kept below
+only as a labelled control.
+
+The patch also adds `&& !defined( ID_NO_TOOLS )` to the `ID_ALLOW_TOOLS` condition in
+`neo/framework/BuildDefines.h:95`. `ID_NO_TOOLS` **is** defined today, at
+`targets/win11-amd64/CMakeLists.txt:82`, so that guard is active: it removes the tools/editor code
+path. It is **not** what removes the MFC include — the two deletions named above are — and it would be
+wrong to call the guard inert.
 
 ### 2.1 Q1 residual (disclosure, not a pass)
 
@@ -163,9 +170,10 @@ theatre, not a delivered path.
 
 An earlier run built a copy created only by `scripts/new-target.ps1` (no `apply-target-patches`) and
 failed with **353 × `error C1083: cannot open include file: afxwin.h`** in `doom3_engine.vcxproj` /
-`doom3_game_base.vcxproj`. That is the **pristine copy**, not the delivered tree: without the patch,
-`neo/idlib/precompiled.h:56,61` reaches `tools/comafx/StdAfx.h:38` → `<afxwin.h>`, and MFC is not
-installed here. The patch gates that include behind `!defined(ID_NO_TOOLS)`. Recording this run as a
+`doom3_game_base.vcxproj`. That is the **pristine copy**, not the delivered tree: without the patch the
+active `#else` branch at `neo/idlib/precompiled.h:59-61` includes `tools/comafx/StdAfx.h`, which
+includes `<afxwin.h>` at line 38, and MFC is not installed here. The patch deletes that include (and
+the one in `win_taskkeyhook.cpp`), which is what removes the dependency. Recording this run as a
 delivered-tree limitation was a defect in the previous revision of this file; it is corrected in §2.
 
 ## 5. Negative controls
