@@ -106,13 +106,13 @@ The provider branch is not a pass and does not block the off-path check.
 
 | Task | State | Exact reason |
 |---|---|---|
-| T056 | **BLOCKED** | Two independent facts. (1) Authored content covers 1 of 7 matrix cells: only `opaque_dielectric` has a source, provenance, sidecar and package; `opaque_metal`, `alpha_tested`, `emissive`, `skinned_character`, `transmissive_glass` and `large_environment` are `NOT STARTED` in `specs/009-rhi-hd-content/tasks.md`. (2) No Q4 renderer frame can be produced: the hybrid passes are portable arithmetic with no engine call site, and `content/tools/capture-q4.ps1` still exits 3 with `BLOCKED: spec 004 has not reached Q4`. Captures, frame times, VRAM and accepted/rejected art examples therefore do not exist and were not fabricated. All seven budget rows remain `blocked` in `content/manifest/budget-rows.json`; numeric budgets are unset. |
-| T057 | **NOT RUN** | The independent art review needs T056's captures as input, and none exist. No reviewer has recorded a verdict on `quality-rubric.md`. This file is authored by the implementer and cannot substitute for that review. |
+| T056 | **BLOCKED** on completeness, not absence. The Q4 D3D12 capture harness produced a real static frame and a partial moving capture for the one authored cell in its run (`opaque_dielectric`) on Intel(R) Graphics and WARP; see `evidence-q4-harness.md`. The run predates the six-cell content merge at `127ab39`, so `opaque_metal`, `alpha_tested`, `emissive`, `skinned_character`, `transmissive_glass` and `large_environment`, and the alpha/emissive, skinned-character and transmissive/large-environment categories, are `NOT RUN` for this capture set. The full seven-cell/four-category set, VRAM and accepted/rejected art examples do not exist; frame times for the captured frames are logged but are not a budget. All seven budget rows remain `blocked` in `content/manifest/budget-rows.json`; numeric budgets are unset. |
+| T057 | **NOT RUN** | T056 captures exist for one cell and two partial categories (static and partial moving on Intel(R) Graphics and WARP), but they are not the seven-cell/four-category set the independent art review needs. No reviewer has recorded a verdict on `quality-rubric.md`; this file is authored by the implementer and cannot substitute for that review. |
 
 ## 6. What is not claimed
 
 - Q4 is **not complete**. T056 and T057 are open; the provider branch of T086 is NOT RUN.
-- No modern-look acceptance, no classic parity, no DXR, no DLSS, no frame time and no VRAM figure.
+- No modern-look acceptance, no classic parity, no DXR, no DLSS, no frame-time budget and no VRAM figure.
 - No capture from spec 006 is cited or reused; no `-HdTextures` switch is involved.
 - The portable slices do not prove the engine/fork wiring. That needs its own fork PR, submodule bump
   and independent review.

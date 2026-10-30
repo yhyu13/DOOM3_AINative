@@ -15,10 +15,10 @@ atmosphere look deliberate, and whether the HUD and authored content stay identi
 
 | Input | Identity today | State |
 |---|---|---|
-| Renderer path | `src/renderer/rhi/hybrid_opaque.*`, `src/renderer/d3d12/{hybrid_opaque,lighting,indirect_lighting}.cpp`, `src/renderer/rhi/{residency,reconstruction}.cpp` | Portable CPU slices implemented and tested; **no device frame and no capture** |
+| Renderer path | `src/renderer/rhi/hybrid_opaque.*`, `src/renderer/d3d12/{hybrid_opaque,lighting,indirect_lighting}.cpp`, `src/renderer/rhi/{residency,reconstruction}.cpp` | Portable CPU slices implemented and tested; the engine/fork call sites remain outside this evidence. The standalone Q4 capture harness adds a device frame (`evidence-q4-harness.md`) |
 | Authored hero set | `content/hero/{dielectric,metal,grating,emissive_sign,character_skin,glass,environment}/`, `content/materials/hero_*.{mtr,mat.json}` | 7/7 cells have an authored source; CC0; 512×512 except the environment's four 2048×2048 baseColor tiles plus 2048 maps |
-| Content matrix | `content/manifest/q4-materials.json`, `budget-rows.json` | 7/7 sidecars authored; every budget row `blocked`; every capture `BLOCKED` |
-| Capture pipeline | `content/tools/capture-q4.ps1` | Refuses with `BLOCKED: spec 004 has not reached Q4` (exit 3); no capture exists |
+| Content matrix | `content/manifest/q4-materials.json`, `budget-rows.json` | 7/7 sidecars authored; every budget row `blocked`; one cell (`opaque_dielectric`) is captured (static plus partial moving), the other six cells are `NOT RUN` for capture |
+| Capture pipeline | `content/tools/capture-q4.ps1` | Q4 harness captures exist for one cell (`opaque_dielectric`) on Intel(R) Graphics and WARP; exit 3 is the missing-input `BLOCKED` path (no `-Exe`, or no `-Backend`/`-Adapter`), not evidence that no capture exists |
 | Legal game data | none in the worktree | Captures that need retail data are out of scope |
 
 A review row may only cite an artifact that exists in the repository. A missing artifact is `BLOCKED`
@@ -180,13 +180,17 @@ Rules:
 
 ## 6. What is not claimed
 
-- No capture exists. T056 is `BLOCKED` on one remaining fact: no Q4 renderer frame can be produced (the
-  hybrid passes are portable CPU slices; the engine call sites and the submodule bump are not part of
-  issue #65). All seven content cells now have an authored source, a CC0 licence, provenance, a sidecar
-  and a buildable package; that removes the content-side blocker but is not a measurement and is not a
-  visual pass.
+- T056 is `BLOCKED` on completeness, not absence. A real static frame and a partial moving capture
+  exist for the one authored cell in the run (`opaque_dielectric`) on Intel(R) Graphics and WARP; the
+  run predates the six-cell content merge at `127ab39`, and the other six cells plus the
+  alpha/emissive, skinned-character and transmissive/large-environment categories are `NOT RUN`.
+  All seven content cells now have an authored source, a CC0 licence, provenance, a sidecar and a
+  buildable package, but the full seven-cell/four-category capture set and measurement do not exist;
+  this is not a visual pass.
 - T057 is `NOT RUN`: an independent reviewer has not recorded a verdict on this rubric or on T056's
-  captures, because there are no captures to review.
+  captures. Captures now exist for one cell and two partial categories, but they are not the
+  seven-cell/four-category set the review needs; the absence of that full set, not the absence of any
+  capture, is the reason.
 - The T086 provider-specific display-stage position is `NOT RUN`: no authorized provider exists (T060),
   and the check requires T062 execution.
 - Numeric budgets remain unset. That is the recorded state, not an omission.

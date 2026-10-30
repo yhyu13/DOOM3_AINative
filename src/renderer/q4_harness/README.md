@@ -56,7 +56,7 @@ RHI backend: d3d12 (<adapter>)
 | Argument | Meaning |
 |---|---|
 | `-Scene <id>` | `static_opaque`, `alpha_emissive`, `moving`, `transmissive_environment`, or `all`. |
-| `-Capture <png>` | Output path. Parent directories are created. Required. |
+| `-Capture <png>` | Base output path. Parent directories are created. Required. For every scene other than `static_opaque`, the harness appends `-<scene>` to the stem (for example `moving.png` -> `moving-moving.png`). |
 | `-Material <name>` | Material identity for the hook log (default `hero_dielectric`). |
 | `-Warp` | Select the software (WARP) adapter. |
 | `-AdapterIndex <n>` | Index within the selected adapter class. |

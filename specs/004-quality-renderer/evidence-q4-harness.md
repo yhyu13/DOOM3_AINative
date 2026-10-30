@@ -2,9 +2,11 @@
 
 Status: a real Q4 capture was produced on 2026-10-30. This is evidence that a
 Q4-capable D3D12 build renders an authored PBR cell, not Q4 acceptance and not
-an art verdict (T057 stays independent).
+an art verdict (T057 stays independent). The run predates the six-cell content
+merge at `127ab39` and therefore covers only `opaque_dielectric`.
 
-Issue: #70. Base: `f203805` (Q4 portable slices, #65 / #66).
+Issue: #70. Base: `127ab39` (PR #72 content merge); the capture run predates
+this rebase and used the one-cell content set.
 Host: Windows 11 22631, Visual Studio 2022 17.14.35228, Windows SDK 10.0.26100,
 Intel(R) Graphics driver 32.0.101.8331, WARP available.
 
@@ -101,8 +103,12 @@ SHA-256 `817635e38478a06e5723c217ed65d2e1a2a9c2cdb2129cd9c33cf2a9c1dfc20f`.
 ```
 
 The rigid prop uses the authored `opaque_dielectric` cell and rotates between
-frames. The skinned-character cell is not authored, so the category is reported
-`PARTIAL`, not claimed as complete. Committed image:
+frames. The run predates the six-cell content merge, so the skinned-character
+cell was not in the run's content set; the category is reported `PARTIAL`, not
+claimed as complete. `-Capture` is the base path: the harness appends
+`-<scene>` for every scene other than `static_opaque`, so this run wrote
+`moving-moving.png`. `-Scene all` writes the base path for `static_opaque` and a
+`-<scene>` sibling for each other runnable scene. Committed image:
 `evidence/q4-harness-moving.png`,
 SHA-256 `5d5dd3c9118b5651ef81ea66ba9a8e63214994a924fc3d5e8dd2658a78adfbb4`.
 
@@ -139,15 +145,17 @@ process (scene colour, shadow map and display target go
 
 ## Scene status
 
-| Category | Status | Authored cells | NOT RUN cells |
+| Category | Status | Cells used by the run | NOT RUN cells |
 |---|---|---|---|
-| `static_opaque` | PARTIAL | `opaque_dielectric` | `opaque_metal` (not in the Q4 material set) |
-| `alpha_emissive` | NOT RUN | none | `alpha_tested`, `emissive` |
-| `moving` | PARTIAL | `opaque_dielectric` (rigid prop) | `skinned_character` |
-| `transmissive_environment` | NOT RUN | none | `transmissive_glass`, `large_environment` |
+| `static_opaque` | PARTIAL | `opaque_dielectric` | `opaque_metal` (not in the run's content set) |
+| `alpha_emissive` | NOT RUN | none | `alpha_tested`, `emissive` (not in the run's content set) |
+| `moving` | PARTIAL | `opaque_dielectric` (rigid prop) | `skinned_character` (not in the run's content set) |
+| `transmissive_environment` | NOT RUN | none | `transmissive_glass`, `large_environment` (not in the run's content set) |
 
-`content/manifest/q4-materials.json` lists only `hero_dielectric`. The missing
-cells are never replaced by a stand-in material or a fabricated frame.
+The run's content set predates the six-cell merge at `127ab39`, so only
+`hero_dielectric` was available to it. The cells authored by PR #72 exist in the
+repository now but were not captured; they are never replaced by a stand-in
+material or a fabricated frame.
 
 ## Hooks logged
 
@@ -178,9 +186,11 @@ accounting, not an image-parity claim.
 
 ## Limitations / blockers
 
-- Only `opaque_dielectric` is authored. The metal, alpha-tested, emissive,
-  skinned-character, transmissive-glass and large-environment cells are
-  `NOT STARTED`; the corresponding categories are `NOT RUN` or `PARTIAL`.
+- The capture run used the one-cell content set (`opaque_dielectric`) and
+  predates the six-cell content merge at `127ab39`. The metal, alpha-tested,
+  emissive, skinned-character, transmissive-glass and large-environment cells
+  were not in that run; the corresponding categories are `NOT RUN` or `PARTIAL`.
+  They are now authored in the repository but are not captured here.
 - No DLSS, DXR, Q6 or Q7 path is added.
 - The harness is a standalone evidence target; root/target/test CMake files are
   unchanged.
