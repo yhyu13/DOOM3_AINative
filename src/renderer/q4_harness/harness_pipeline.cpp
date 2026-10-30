@@ -89,6 +89,11 @@ bool D3D12Harness::Impl::CreateRootSignatures(std::string* error) {
     samplers[0].AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
     samplers[0].AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
     samplers[0].MipLODBias = 0.0f;
+    // MaxAnisotropy = 1 (trilinear). Tried 8x during the B2 investigation and
+    // reverted: it raises high-frequency energy 3-4x in the environment cell's
+    // far field because that content's mip chain does not filter its grid, so
+    // it turns over-blur into shimmer. B2 was an authoring defect, not this
+    // setting; see specs/004-quality-renderer/evidence-q4.md 5.7.
     samplers[0].MaxAnisotropy = 1;
     samplers[0].ComparisonFunc = D3D12_COMPARISON_FUNC_ALWAYS;
     samplers[0].BorderColor = D3D12_STATIC_BORDER_COLOR_TRANSPARENT_BLACK;
@@ -145,11 +150,24 @@ bool D3D12Harness::Impl::CreateRootSignatures(std::string* error) {
     shadowParam.Descriptor.ShaderRegister = 0;
     shadowParam.Descriptor.RegisterSpace = 0;
     shadowParam.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+    // The shadow pixel shader samples baseColor.alpha for the cutout test, so
+    // the shadow root signature carries the same material table and the same
+    // linear sampler the visible pass uses.
+    D3D12_ROOT_PARAMETER shadowParams[2]{};
+    shadowParams[0] = shadowParam;
+    shadowParams[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+    shadowParams[1].DescriptorTable.NumDescriptorRanges = 1;
+    shadowParams[1].DescriptorTable.pDescriptorRanges = &materialRange;
+    shadowParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+    D3D12_STATIC_SAMPLER_DESC shadowSampler = samplers[0];
+
     D3D12_ROOT_SIGNATURE_DESC shadowDesc{};
-    shadowDesc.NumParameters = 1;
-    shadowDesc.pParameters = &shadowParam;
-    shadowDesc.NumStaticSamplers = 0;
-    shadowDesc.pStaticSamplers = nullptr;
+    shadowDesc.NumParameters = 2;
+    shadowDesc.pParameters = shadowParams;
+    shadowDesc.NumStaticSamplers = 1;
+    shadowDesc.pStaticSamplers = &shadowSampler;
     shadowDesc.Flags =
         D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
     blob.Reset();
@@ -248,12 +266,15 @@ bool D3D12Harness::Impl::CreatePipelines(std::string* error) {
     ComPtr<ID3DBlob> vs;
     ComPtr<ID3DBlob> ps;
     ComPtr<ID3DBlob> shadowVs;
+    ComPtr<ID3DBlob> shadowPs;
     ComPtr<ID3DBlob> tonemapVs;
     ComPtr<ID3DBlob> tonemapPs;
     if (!CompileShader(hybridPath, "VSMain", "vs_5_1", &vs, error) ||
         !CompileShader(hybridPath, options.debugShaderEntry.c_str(), "ps_5_1",
                        &ps, error) ||
         !CompileShader(hybridPath, "VSShadow", "vs_5_1", &shadowVs, error) ||
+        !CompileShader(hybridPath, "PSShadowAlpha", "ps_5_1", &shadowPs,
+                       error) ||
         !CompileShader(tonemapPath, "VSMain", "vs_5_1", &tonemapVs, error) ||
         !CompileShader(tonemapPath, "PSMain", "ps_5_1", &tonemapPs, error)) {
         return false;
@@ -329,6 +350,9 @@ bool D3D12Harness::Impl::CreatePipelines(std::string* error) {
     D3D12_GRAPHICS_PIPELINE_STATE_DESC shadowDesc{};
     shadowDesc.pRootSignature = shadowRoot.Get();
     shadowDesc.VS = {shadowVs->GetBufferPointer(), shadowVs->GetBufferSize()};
+    // Alpha-tested depth: the caster's cutout drives the pixel shader's clip(),
+    // so a perforated surface no longer casts its solid silhouette.
+    shadowDesc.PS = {shadowPs->GetBufferPointer(), shadowPs->GetBufferSize()};
     shadowDesc.BlendState = blend;
     shadowDesc.SampleMask = UINT_MAX;
     shadowDesc.RasterizerState = rasterizer;

@@ -10,16 +10,16 @@
     "image_height":  720,
     "image_distinct":  2245,
     "executable":  "build-q4-harness\\bin\\Release\\q4_harness.exe",
-    "executable_sha256":  "562a20d68b739c201da261da4f5988e1fd6168a429a4f7f211bb20a41289eb69",
+    "executable_sha256":  "6a2d50bb2e23670e3334b43cace3962dfa1a2bca86819bcd429030a5d9690748",
     "arguments":  [
                       "-Scene",
                       "transmissive_environment",
-                      "-Capture",
-                      "out\\content\\hero_environment\\c.png",
                       "-AdapterIndex",
-                      "0"
+                      "0",
+                      "-Capture",
+                      "out\\reca\\hero_environment.png"
                   ],
-    "started_utc":  "2026-10-30T14:02:49.0192740Z",
+    "started_utc":  "2026-10-30T15:25:29.0636811Z",
     "log":  "capture.log",
     "package_sha256":  "5eb7222f11d6edf941073e8633528b4218be15d77d787fc5065b2e58a6374808"
 }

@@ -1,0 +1,27 @@
+{
+    "schema":  "doom3-q4-capture/1",
+    "material":  "hero_dielectric",
+    "backend":  "d3d12",
+    "adapter":  "Intel(R) Graphics",
+    "identity_line":  "RHI backend: d3d12 (Intel(R) Graphics)",
+    "image":  "capture.png",
+    "image_sha256":  "746aba633335a2e75b388818e9ab44a2dbbc069893007743a10419227a30a9ef",
+    "image_width":  1280,
+    "image_height":  720,
+    "image_distinct":  3708,
+    "executable":  "build-q4-harness\\bin\\Release\\q4_harness.exe",
+    "executable_sha256":  "6a2d50bb2e23670e3334b43cace3962dfa1a2bca86819bcd429030a5d9690748",
+    "arguments":  [
+                      "-Scene",
+                      "moving",
+                      "-Frames",
+                      "1",
+                      "-AdapterIndex",
+                      "0",
+                      "-Capture",
+                      "out\\reca\\hero_dielectric-moving-f1.png"
+                  ],
+    "started_utc":  "2026-10-30T15:25:29.6991560Z",
+    "log":  "capture.log",
+    "package_sha256":  "65281cb4a2e3029de53b344858c2da8093fa74ea2ca28b6221d9cf6751abaee3"
+}

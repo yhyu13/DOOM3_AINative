@@ -12,6 +12,15 @@ merge at `127ab39` and therefore covers only `opaque_dielectric`.
 > frames under [`evidence/t056/`](./evidence/t056/). Where the two disagree, the
 > later run is current: the static frame now includes the metal sphere, and the
 > scene-status table below is superseded.
+>
+> **Superseded again by the B1/B2 fix at `50efd1a`.** The shadow pipeline state
+> described below (depth-only, no pixel shader) is now history: the shadow pass
+> has an alpha-tested pixel shader (`PSShadowAlpha`) and each caster binds its
+> material table, so a cutout casts a perforated shadow. The material sampler
+> stayed trilinear after an anisotropic 8× experiment was measured and reverted.
+> Current binary SHA-256
+> `6a2d50bb2e23670e3334b43cace3962dfa1a2bca86819bcd429030a5d9690748`; what
+> changed and what was measured is in [`evidence-q4.md`](./evidence-q4.md) §5.7.
 
 Issue: #70. Base: `127ab39` (PR #72 content merge); the capture run predates
 this rebase and used the one-cell content set.
@@ -191,6 +200,12 @@ accounting, not an image-parity claim.
    name containing parentheses (`Intel(R) Graphics`) by taking the adapter
    group to the last `)` on the line. The previous regex stopped at the first
    `)` and could not verify this host's adapter.
+3. `content/tools/generators/dielectric.py`: replaced a private, degenerate copy
+   of the tileable-noise helper with the shared `hero_common` one
+   (`evidence-q4.md` §5.7, B-2). One implementation instead of two.
+4. Shadow pass (`harness_pipeline.cpp`, `harness_render.cpp`,
+   `shaders/q4_hybrid.hlsl`): alpha-tested depth for casters that declare an
+   alpha test (`evidence-q4.md` §5.7, B-1). No root/target/test CMake change.
 
 ## Limitations / blockers
 

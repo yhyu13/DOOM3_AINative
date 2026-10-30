@@ -5,7 +5,7 @@
     {
       "id": "HD-DIEL-01",
       "path": "baseColor.png",
-      "sha256": "aa8be1c31ecd9c87edebe306d56daaa8aae44abea85da3263c70d1aa9c976e12",
+      "sha256": "cc3047f1f33a00194f8d75185afb25dc02ac49a290d9e4a129b71042fd875bcc",
       "author": "this workstream, procedural: content/tools/generators/dielectric.py --size 512",
       "licence": "CC0-1.0",
       "retail_text_consulted": "no",
@@ -16,7 +16,7 @@
     {
       "id": "HD-DIEL-02",
       "path": "normal.png",
-      "sha256": "35e08217a4ad5dc12aa4599c85e6390d50f15bdb3a7f1b5a0c8be4f60d8bb1e7",
+      "sha256": "1d4f74f01cc1e11599269b07771759240ba056ad10e23dcae4205b1c5660f644",
       "author": "this workstream, procedural: content/tools/generators/dielectric.py --size 512",
       "licence": "CC0-1.0",
       "retail_text_consulted": "no",
@@ -27,7 +27,7 @@
     {
       "id": "HD-DIEL-03",
       "path": "roughness.png",
-      "sha256": "0622dac8b1b065f8e250aff183bd9bc17372e8f7181678a124d686f888c77189",
+      "sha256": "940b7ad1da1f861ffaeab67cefd338a010859ee46f9eb7665e1788e78e81d5b5",
       "author": "this workstream, procedural: content/tools/generators/dielectric.py --size 512",
       "licence": "CC0-1.0",
       "retail_text_consulted": "no",
