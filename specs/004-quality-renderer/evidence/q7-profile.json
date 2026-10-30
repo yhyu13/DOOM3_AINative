@@ -1,0 +1,496 @@
+{
+  "schema": "q7-webgpu-profile-run/1",
+  "browser": {
+    "name": "Chrome/156.0.8078.76",
+    "protocol": "1.3",
+    "major": 156,
+    "pinnedMajor": 156,
+    "evidenceVersion": "156.0.8078.73",
+    "pinSatisfied": true,
+    "executableName": "chrome.exe",
+    "headless": true
+  },
+  "page": {
+    "runNonce": "q7b-1793365724525-1",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+    "page": "http://127.0.0.1:56234/web/profile/index.html?run=q7b-1793365724525-1"
+  },
+  "scene": {
+    "id": "q7-procedural-field/1",
+    "kind": "procedural",
+    "realScene": false,
+    "mode": "procedural"
+  },
+  "realScene": {
+    "status": "NOT RUN",
+    "reason": "no legal DOOM 3 game data is present in this repository; retail pk4/pk3 assets are EULA-bound and were not supplied for this slice"
+  },
+  "repetitions": 2,
+  "repeatable": true,
+  "requiredChecks": [
+    "P1-device",
+    "P2-capability-table",
+    "P3-swapchain",
+    "P4-procedural-frame",
+    "P4b-canvas-readback",
+    "P5-vfs",
+    "P6-main-loop",
+    "P7-input",
+    "P8-audio-gate",
+    "P9-capability-fallback",
+    "E-uncaptured"
+  ],
+  "expectedNotRun": {
+    "P7b-pointer-lock": "headless capture has no trusted user gesture, so pointer lock is not requested; the request path is covered by the input unit tests",
+    "P8b-browser-audio": "headless capture has no trusted user gesture, so AudioContext.resume() is not asserted; the unlock path is covered by the fake-AudioContext unit tests",
+    "R1-real-scene": "no legal DOOM 3 game data is present in this repository; retail pk4/pk3 assets are EULA-bound and were not supplied for this slice"
+  },
+  "attempts": [
+    {
+      "summary": {
+        "pass": 11,
+        "fail": 0,
+        "notRun": 4,
+        "total": 15
+      },
+      "capabilityStatus": "DEGRADED",
+      "checks": [
+        {
+          "id": "P1-device",
+          "status": "PASS",
+          "detail": "adapter and device created",
+          "observed": {
+            "adapter": {
+              "description": "",
+              "vendor": "intel",
+              "architecture": "xe-lpg",
+              "device": "",
+              "fallbackAdapter": false,
+              "vendorId": 0,
+              "deviceID": 0
+            },
+            "features": [
+              "core-features-and-limits"
+            ],
+            "limits": {
+              "maxBindGroups": 4,
+              "maxTextureDimension2D": 8192
+            }
+          }
+        },
+        {
+          "id": "P2-capability-table",
+          "status": "PASS",
+          "detail": "capability status DEGRADED; 0 unsupported row(s)",
+          "observed": {
+            "status": "DEGRADED",
+            "unsupported": [],
+            "fallbacks": [
+              {
+                "id": "cpu-frame-timing",
+                "feature": "timestamp-query",
+                "impact": "info",
+                "reason": "GPU timestamps unavailable; use CPU frame timing and make no GPU performance claim"
+              },
+              {
+                "id": "bc-transcode-required",
+                "feature": "texture-compression-bc",
+                "impact": "quality",
+                "reason": "BC textures must be transcoded before upload; no BC asset is exercised in this slice"
+              },
+              {
+                "id": "no-clip-plane",
+                "feature": "depth-clip-control",
+                "impact": "info",
+                "reason": "DOOM 3 does not require clip planes; alphaNotch is already shader-side"
+              },
+              {
+                "id": "nearest-or-half-float",
+                "feature": "float32-filterable",
+                "impact": "info",
+                "reason": "use nearest filtering or a half-float format for float textures"
+              }
+            ]
+          }
+        },
+        {
+          "id": "P3-swapchain",
+          "status": "PASS",
+          "detail": "canvas configured and a frame texture acquired",
+          "observed": {
+            "config": {
+              "format": "bgra8unorm",
+              "alphaMode": "opaque",
+              "usage": 17
+            },
+            "size": {
+              "width": 478,
+              "height": 268,
+              "dpr": 1,
+              "clamped": false,
+              "reason": "none"
+            },
+            "stats": {
+              "configured": true,
+              "acquisitions": 1,
+              "size": {
+                "width": 478,
+                "height": 268,
+                "dpr": 1,
+                "clamped": false,
+                "reason": "none"
+              }
+            }
+          }
+        },
+        {
+          "id": "P4-procedural-frame",
+          "status": "PASS",
+          "detail": "procedural field rendered 1 draw(s)",
+          "observed": {
+            "scene": "q7-procedural-field/1",
+            "draws": 1
+          }
+        },
+        {
+          "id": "P4b-canvas-readback",
+          "status": "PASS",
+          "detail": "canvas readback found 128104 non-black pixel(s)",
+          "observed": {
+            "status": "OK",
+            "width": 478,
+            "height": 268,
+            "nonBlack": 128104,
+            "pixels": 128104
+          }
+        },
+        {
+          "id": "P5-vfs",
+          "status": "PASS",
+          "detail": "synthetic read, typed miss and traversal refusal passed; game data is NOT RUN and pak parsing is UNSUPPORTED",
+          "observed": {
+            "text": "q7 synthetic vfs\n",
+            "missingCode": "ERR_NOT_FOUND",
+            "traversalCode": "ERR_PATH_TRAVERSAL",
+            "game": {
+              "status": "NOT RUN",
+              "reason": "no legal DOOM 3 game data is present in this repository; retail pk4/pk3 assets are EULA-bound and were not supplied for this slice"
+            },
+            "pak": {
+              "status": "UNSUPPORTED",
+              "reason": "pak/zip directory parsing is not implemented in the Q7b host slice; legal user data must be mounted by a future worker-side reader"
+            }
+          }
+        },
+        {
+          "id": "P6-main-loop",
+          "status": "PASS",
+          "detail": "loop ran 41 fixed tick(s) over 32 host frame(s)",
+          "observed": {
+            "lastTimestampMs": 1020.9,
+            "accumulatorMs": 0.6666666666666146,
+            "ticks": 41,
+            "frames": 32,
+            "droppedMs": 0,
+            "paused": false
+          }
+        },
+        {
+          "id": "P7-input",
+          "status": "PASS",
+          "detail": "synthetic keydown/keyup exercised the input bridge",
+          "observed": {
+            "down": true,
+            "up": true
+          }
+        },
+        {
+          "id": "P8-audio-gate",
+          "status": "PASS",
+          "detail": "audio refused to play before a user gesture",
+          "observed": {
+            "status": "NOT RUN",
+            "reason": "Web Audio requires a user gesture; no gesture was supplied, so audio stays locked"
+          }
+        },
+        {
+          "id": "P9-capability-fallback",
+          "status": "PASS",
+          "detail": "ready, quality fallback, short-limit unsupported and wrong-target unsupported all classified",
+          "observed": {
+            "ready": "READY",
+            "degraded": "DEGRADED",
+            "degradedFallbacks": [
+              {
+                "id": "bc-transcode-required",
+                "feature": "texture-compression-bc",
+                "impact": "quality",
+                "reason": "BC textures must be transcoded before upload; no BC asset is exercised in this slice"
+              }
+            ],
+            "unsupported": "UNSUPPORTED",
+            "wrongTarget": "UNSUPPORTED"
+          }
+        },
+        {
+          "id": "E-uncaptured",
+          "status": "PASS",
+          "detail": "0 uncaptured WebGPU error(s)",
+          "observed": {
+            "errors": []
+          }
+        },
+        {
+          "id": "P7b-pointer-lock",
+          "status": "NOT RUN",
+          "detail": "headless capture has no trusted user gesture, so pointer lock is not requested; the request path is covered by the input unit tests",
+          "observed": null
+        },
+        {
+          "id": "P8b-browser-audio",
+          "status": "NOT RUN",
+          "detail": "headless capture has no trusted user gesture, so AudioContext.resume() is not asserted; the unlock path is covered by the fake-AudioContext unit tests",
+          "observed": null
+        },
+        {
+          "id": "E-device-loss",
+          "status": "NOT RUN",
+          "detail": "no device loss was induced in this harness run; Q7a covers the loss path",
+          "observed": null
+        },
+        {
+          "id": "R1-real-scene",
+          "status": "NOT RUN",
+          "detail": "no legal DOOM 3 game data is present in this repository; retail pk4/pk3 assets are EULA-bound and were not supplied for this slice",
+          "observed": null
+        }
+      ]
+    },
+    {
+      "summary": {
+        "pass": 11,
+        "fail": 0,
+        "notRun": 4,
+        "total": 15
+      },
+      "capabilityStatus": "DEGRADED",
+      "checks": [
+        {
+          "id": "P1-device",
+          "status": "PASS",
+          "detail": "adapter and device created",
+          "observed": {
+            "adapter": {
+              "description": "",
+              "vendor": "intel",
+              "architecture": "xe-lpg",
+              "device": "",
+              "fallbackAdapter": false,
+              "vendorId": 0,
+              "deviceID": 0
+            },
+            "features": [
+              "core-features-and-limits"
+            ],
+            "limits": {
+              "maxBindGroups": 4,
+              "maxTextureDimension2D": 8192
+            }
+          }
+        },
+        {
+          "id": "P2-capability-table",
+          "status": "PASS",
+          "detail": "capability status DEGRADED; 0 unsupported row(s)",
+          "observed": {
+            "status": "DEGRADED",
+            "unsupported": [],
+            "fallbacks": [
+              {
+                "id": "cpu-frame-timing",
+                "feature": "timestamp-query",
+                "impact": "info",
+                "reason": "GPU timestamps unavailable; use CPU frame timing and make no GPU performance claim"
+              },
+              {
+                "id": "bc-transcode-required",
+                "feature": "texture-compression-bc",
+                "impact": "quality",
+                "reason": "BC textures must be transcoded before upload; no BC asset is exercised in this slice"
+              },
+              {
+                "id": "no-clip-plane",
+                "feature": "depth-clip-control",
+                "impact": "info",
+                "reason": "DOOM 3 does not require clip planes; alphaNotch is already shader-side"
+              },
+              {
+                "id": "nearest-or-half-float",
+                "feature": "float32-filterable",
+                "impact": "info",
+                "reason": "use nearest filtering or a half-float format for float textures"
+              }
+            ]
+          }
+        },
+        {
+          "id": "P3-swapchain",
+          "status": "PASS",
+          "detail": "canvas configured and a frame texture acquired",
+          "observed": {
+            "config": {
+              "format": "bgra8unorm",
+              "alphaMode": "opaque",
+              "usage": 17
+            },
+            "size": {
+              "width": 478,
+              "height": 268,
+              "dpr": 1,
+              "clamped": false,
+              "reason": "none"
+            },
+            "stats": {
+              "configured": true,
+              "acquisitions": 1,
+              "size": {
+                "width": 478,
+                "height": 268,
+                "dpr": 1,
+                "clamped": false,
+                "reason": "none"
+              }
+            }
+          }
+        },
+        {
+          "id": "P4-procedural-frame",
+          "status": "PASS",
+          "detail": "procedural field rendered 1 draw(s)",
+          "observed": {
+            "scene": "q7-procedural-field/1",
+            "draws": 1
+          }
+        },
+        {
+          "id": "P4b-canvas-readback",
+          "status": "PASS",
+          "detail": "canvas readback found 128104 non-black pixel(s)",
+          "observed": {
+            "status": "OK",
+            "width": 478,
+            "height": 268,
+            "nonBlack": 128104,
+            "pixels": 128104
+          }
+        },
+        {
+          "id": "P5-vfs",
+          "status": "PASS",
+          "detail": "synthetic read, typed miss and traversal refusal passed; game data is NOT RUN and pak parsing is UNSUPPORTED",
+          "observed": {
+            "text": "q7 synthetic vfs\n",
+            "missingCode": "ERR_NOT_FOUND",
+            "traversalCode": "ERR_PATH_TRAVERSAL",
+            "game": {
+              "status": "NOT RUN",
+              "reason": "no legal DOOM 3 game data is present in this repository; retail pk4/pk3 assets are EULA-bound and were not supplied for this slice"
+            },
+            "pak": {
+              "status": "UNSUPPORTED",
+              "reason": "pak/zip directory parsing is not implemented in the Q7b host slice; legal user data must be mounted by a future worker-side reader"
+            }
+          }
+        },
+        {
+          "id": "P6-main-loop",
+          "status": "PASS",
+          "detail": "loop ran 39 fixed tick(s) over 40 host frame(s)",
+          "observed": {
+            "lastTimestampMs": 1018.7,
+            "accumulatorMs": 0.5000000000000107,
+            "ticks": 39,
+            "frames": 40,
+            "droppedMs": 0,
+            "paused": false
+          }
+        },
+        {
+          "id": "P7-input",
+          "status": "PASS",
+          "detail": "synthetic keydown/keyup exercised the input bridge",
+          "observed": {
+            "down": true,
+            "up": true
+          }
+        },
+        {
+          "id": "P8-audio-gate",
+          "status": "PASS",
+          "detail": "audio refused to play before a user gesture",
+          "observed": {
+            "status": "NOT RUN",
+            "reason": "Web Audio requires a user gesture; no gesture was supplied, so audio stays locked"
+          }
+        },
+        {
+          "id": "P9-capability-fallback",
+          "status": "PASS",
+          "detail": "ready, quality fallback, short-limit unsupported and wrong-target unsupported all classified",
+          "observed": {
+            "ready": "READY",
+            "degraded": "DEGRADED",
+            "degradedFallbacks": [
+              {
+                "id": "bc-transcode-required",
+                "feature": "texture-compression-bc",
+                "impact": "quality",
+                "reason": "BC textures must be transcoded before upload; no BC asset is exercised in this slice"
+              }
+            ],
+            "unsupported": "UNSUPPORTED",
+            "wrongTarget": "UNSUPPORTED"
+          }
+        },
+        {
+          "id": "E-uncaptured",
+          "status": "PASS",
+          "detail": "0 uncaptured WebGPU error(s)",
+          "observed": {
+            "errors": []
+          }
+        },
+        {
+          "id": "P7b-pointer-lock",
+          "status": "NOT RUN",
+          "detail": "headless capture has no trusted user gesture, so pointer lock is not requested; the request path is covered by the input unit tests",
+          "observed": null
+        },
+        {
+          "id": "P8b-browser-audio",
+          "status": "NOT RUN",
+          "detail": "headless capture has no trusted user gesture, so AudioContext.resume() is not asserted; the unlock path is covered by the fake-AudioContext unit tests",
+          "observed": null
+        },
+        {
+          "id": "E-device-loss",
+          "status": "NOT RUN",
+          "detail": "no device loss was induced in this harness run; Q7a covers the loss path",
+          "observed": null
+        },
+        {
+          "id": "R1-real-scene",
+          "status": "NOT RUN",
+          "detail": "no legal DOOM 3 game data is present in this repository; retail pk4/pk3 assets are EULA-bound and were not supplied for this slice",
+          "observed": null
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "pass": 11,
+    "fail": 0,
+    "notRun": 4,
+    "total": 15
+  }
+}

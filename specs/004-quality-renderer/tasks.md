@@ -195,11 +195,21 @@ budget row remains `blocked`; no numeric budget was invented. See
 
 **Independent test**: For each claimed target, publish its own capabilities/fallbacks and run the target's shader, build and real-scene tests.
 
-- [ ] T071 [P] [US8] Define per-target capability, explicit fallback and unsupported-result requirements in `specs/004-quality-renderer/portable-profile-contract.md`, without cancelling the existing browser roadmap.
+- [x] T071 [P] [US8] Define per-target capability, explicit fallback and unsupported-result requirements in `specs/004-quality-renderer/portable-profile-contract.md`, without cancelling the existing browser roadmap. **Done (2026-10-30, issue #67)**: contract published with the executable capability table under `web/profile/capability.mjs`.
 - [ ] T072 [US8] Add portable RHI capability/fallback contract fixtures in `tests/renderer/portable_profile_test.cpp` and implement profile-neutral selection in `src/renderer/rhi/capability_profile.cpp`.
 - [ ] T073 [US8] For each separately scoped target actually chosen, implement its adapter and target-specific build/shader tests in `src/renderer/profiles/profile_backend.cpp` and `tests/renderer/profile_target_test.cpp`; do not infer the target from a Windows pass.
 - [ ] T074 [US8] Run a real scene in each claimed target and record target version, capability/fallback table and evidence in `specs/004-quality-renderer/evidence-q7.md`; a desktop compile or shader translation is not a web-port pass.
 - [ ] T075 [US8] Independently review each claimed profile and all unsupported cases in `specs/004-quality-renderer/review-q7.md`.
+
+**Q7b host slice (2026-10-30, issue #67)**: T071 is done and a `webgpu-browser` host slice is
+implemented under `web/profile/**` with its own harness under `tests/webgpu/**`: capability table,
+VFS/file abstraction, cooperative main loop, canvas/swapchain, input/audio bridges and a procedural
+test scene. The pinned-browser harness passes 11 required checks twice and reports 4 NOT RUN rows;
+21 unit tests pass. T072/T073's C++ profile selection/backend and `tests/renderer` paths were frozen
+for this slice and remain open. T074 is **NOT RUN** because no legal game data is present (retail
+assets are EULA-bound and were not supplied); a procedural scene is not a real-scene pass. T075 is
+**NOT RUN** until an independent reviewer records a verdict. No browser support claim is made. See
+`evidence-q7.md`.
 
 ## Phase 11 — Cross-cutting completion
 

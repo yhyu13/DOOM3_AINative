@@ -1,0 +1,20 @@
+{
+  "schema": "q7-pinned-browser/1",
+  "name": "Google Chrome",
+  "major": 156,
+  "evidenceVersion": "156.0.8078.73",
+  "acquisition": "pre-installed on the host; the harness records the executable name and browser version but never downloads, vendors or redistributes the browser",
+  "flags": [
+    "--headless=new",
+    "--enable-unsafe-webgpu",
+    "--no-first-run",
+    "--no-default-browser-check",
+    "--disable-extensions",
+    "--hide-scrollbars"
+  ],
+  "notes": [
+    "The pinned major is the Q7a browser major; the harness records the exact patch version and refuses to call a different major a pinned-browser pass.",
+    "Playwright's chromium-headless-shell is not used because it is not a reliable WebGPU runner.",
+    "Software adapters (SwiftShader) are not requested; a software adapter result would not be a hardware pass."
+  ]
+}
