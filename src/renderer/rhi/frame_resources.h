@@ -26,7 +26,10 @@ struct Float2 {
     float y = 0.0f;
 };
 
-struct MotionSample {
+// Per-pixel history sample. Deliberately not named `MotionSample`:
+// motion_history.h owns that name for the reprojection result, and both public
+// headers must be includable in one translation unit (issue #58).
+struct PerPixelMotionSample {
     float x = 0.0f;
     float y = 0.0f;
     // False means "no usable projection"; x and y must not be consumed.
@@ -43,10 +46,10 @@ struct Camera {
 // Projects one world point at a given view depth in the previous and current
 // camera and returns the previous-minus-current pixel displacement. Both
 // projections must land inside the frame; otherwise the sample is invalid.
-inline MotionSample ProjectMotion(const Camera& previous, const Camera& current,
+inline PerPixelMotionSample ProjectMotion(const Camera& previous, const Camera& current,
                                   const Float2& world, float depth, uint32_t width,
                                   uint32_t height) {
-    MotionSample sample;
+    PerPixelMotionSample sample;
     if (!(depth > 0.0f) || width == 0 || height == 0) {
         return sample;
     }
@@ -81,16 +84,16 @@ public:
     void Resize(uint32_t width, uint32_t height) {
         width_ = width;
         height_ = height;
-        samples_.assign(static_cast<size_t>(width) * height, MotionSample{});
+        samples_.assign(static_cast<size_t>(width) * height, PerPixelMotionSample{});
         ++generation_;
     }
 
     void Reset() {
-        samples_.assign(samples_.size(), MotionSample{});
+        samples_.assign(samples_.size(), PerPixelMotionSample{});
         ++generation_;
     }
 
-    bool Store(uint32_t x, uint32_t y, const MotionSample& sample) {
+    bool Store(uint32_t x, uint32_t y, const PerPixelMotionSample& sample) {
         if (x >= width_ || y >= height_) {
             return false;
         }
@@ -98,9 +101,9 @@ public:
         return true;
     }
 
-    MotionSample At(uint32_t x, uint32_t y) const {
+    PerPixelMotionSample At(uint32_t x, uint32_t y) const {
         if (x >= width_ || y >= height_) {
-            return MotionSample{};
+            return PerPixelMotionSample{};
         }
         return samples_[static_cast<size_t>(y) * width_ + x];
     }
@@ -114,7 +117,7 @@ private:
     uint32_t width_ = 0;
     uint32_t height_ = 0;
     uint64_t generation_ = 0;
-    std::vector<MotionSample> samples_;
+    std::vector<PerPixelMotionSample> samples_;
 };
 
 enum class LayerKind {

@@ -4,10 +4,8 @@
 //  1. The Q1b composition planner (src/renderer/rhi/frame_resources.h) already
 //     classifies scene, world GUI and display overlay. Those checks exercise
 //     merged production code and pass today.
-//  2. The T047 production slice (src/renderer/rhi/overlay_composition.cpp) is
-//     absent from this branch, so the post-reconstruction assertions are RED
-//     by design. The seam comes from tests/renderer/q3_overlay_seam.h plus a
-//     build-only stub.
+//  2. The T047 production slice in src/renderer/rhi/overlay_composition.cpp
+//     supplies the post-reconstruction plan and texel mapping.
 //
 // The T047 contract this test pins:
 //  * display order is scene, world GUI, display overlay;
@@ -19,7 +17,7 @@
 //  * a layer declared at the wrong extent, a missing or duplicate scene layer
 //    and a zero extent are refused with an actionable message.
 
-#include "q3_overlay_seam.h"
+#include "rhi/overlay_composition.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -30,12 +28,11 @@ namespace {
 
 namespace rhi = doom3::rhi;
 
-// Local runner instead of tests/renderer/motion_test_support.h: the merged
-// public headers src/renderer/rhi/frame_resources.h (Q1b) and
-// src/renderer/rhi/motion_history.h (Q3) both define doom3::rhi::MotionSample,
-// so the two cannot be included in one translation unit. The collision is
-// recorded in evidence-q3-tests.md as a blocker for the T047 production slice;
-// this test needs only the composition types, so it avoids the motion header.
+// Local runner instead of tests/renderer/motion_test_support.h: this test
+// needs only the composition types. The former MotionSample collision between
+// frame_resources.h and motion_history.h is fixed in issue #58; keeping the
+// local runner here means the overlay fixture stays independent of the motion
+// seam.
 class Runner {
 public:
     void Check(bool condition, const std::string& label,

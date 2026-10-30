@@ -1,31 +1,18 @@
 #pragma once
 
-// PROPOSED portable seam for Q3 T043/T045 - stable rendered-view history.
+// Stable rendered-view history for Q3 (tasks T043 and T045).
 //
-// STATUS: proposal, not production. This header is test-owned on purpose: the
-// branch that adds these tests owns tests/renderer/** only, and T043/T045 name
-// src/renderer/rhi/view_history.cpp as the production location. When that
-// slice lands it must:
-//   1. move this header to src/renderer/rhi/view_history.h with the same shape;
-//   2. implement it in src/renderer/rhi/view_history.cpp;
-//   3. delete tests/renderer/q3_unimplemented_seam_stub.cpp and point
-//      tests/renderer/CMakeLists.txt at the production source.
-// Until then the red tests in tests/renderer/view_history_test.cpp and
-// tests/renderer/history_reset_test.cpp fail at runtime against the stub; that
-// red state is recorded in specs/004-quality-renderer/evidence-q3-tests.md.
+// History is the last state that was ACTUALLY RENDERED for one view identity.
+// A simulation tick that was not rendered must not commit, and a mirror, camera
+// or shadow view has its own slot. The lookup key is (ViewKind, instanceId);
+// world identity, extent, topology, entity generation, provider generation and
+// view generation are compared against the stored record and only ever produce
+// an explicit reason, never a silent reuse.
 //
-// Contract:
-//  * History is the last state that was ACTUALLY RENDERED for one view
-//    identity. A simulation tick that was not rendered must not commit, and a
-//    mirror, camera or shadow view has its own slot.
-//  * The lookup key is (ViewKind, instanceId). World identity, extent,
-//    topology, entity generation, provider generation and view generation are
-//    compared against the stored record and only ever produce an explicit
-//    reason, never a silent reuse.
-//  * A rejected lookup never yields a stored state: the caller's output is
-//    left untouched, so stale history cannot be consumed as a valid zero.
-//  * A rejected lookup never yields a usable vector: it returns a reason, and
-//    the caller must not consume the previous state.
+// A rejected lookup never yields a stored state: the caller's output is left
+// untouched, so stale history cannot be consumed as a valid zero. A rejected
+// lookup also never yields a usable vector: it returns a reason, and the caller
+// must not consume the previous state.
 //
 // This header names no backend type, handle or synchronization value.
 
@@ -33,6 +20,7 @@
 #include "rhi/skinned_history.h"
 
 #include <cstdint>
+#include <map>
 #include <vector>
 
 namespace doom3 {
@@ -58,9 +46,9 @@ struct ViewIdentity {
     uint32_t height = 720;
 };
 
-// One rendered state of one view: the camera used for the draw plus the
-// points that were rendered in that view. A point without a rendered record
-// is a point the view did not draw.
+// One rendered state of one view: the camera used for the draw plus the points
+// that were rendered in that view. A point without a rendered record is a point
+// the view did not draw.
 struct RenderedViewState {
     CameraState camera;
     std::vector<RenderRecord> records;
@@ -69,16 +57,16 @@ struct RenderedViewState {
 class RenderedViewHistory {
 public:
     // Commits the state of a view that was actually drawn. Call exactly once
-    // per rendered frame of that view, after the frame used the previous
-    // state. Never call it for a simulation tick that was not rendered.
-    // An empty record list is rejected and commits nothing.
+    // per rendered frame of that view, after the frame used the previous state.
+    // Never call it for a simulation tick that was not rendered. An empty
+    // record list is rejected and commits nothing.
     bool CommitRendered(ViewKind kind, const ViewIdentity& identity,
                         const RenderedViewState& state);
 
     // Copies the last rendered state of the same view to `previous`.
     //
-    // Reasons, in precedence order (highest first). The first failing check
-    // is the reported reason:
+    // Reasons, in precedence order (highest first). The first failing check is
+    // the reported reason:
     //   1. ProviderSwitch  provider generation differs from the stored record
     //   2. Reset           an explicit reset is pending (cut, teleport) or the
     //                      world identity differs (level load)
@@ -94,8 +82,9 @@ public:
                             RenderedViewState* previous) const;
 
     // Drops the stored state for this view. `reason` must be Reset, Resize,
-    // Topology, EntityReuse or ProviderSwitch; any other value is a no-op.
-    // The reason is reported by Previous until the next commit.
+    // Topology, EntityReuse or ProviderSwitch; any other value is a no-op, as
+    // is a view that was never committed. The reason is reported by Previous
+    // until the next commit.
     void Invalidate(ViewKind kind, const ViewIdentity& identity,
                     MotionValidity reason);
 
@@ -104,6 +93,29 @@ public:
     void InvalidateAll(MotionValidity reason);
 
     void Clear();
+
+private:
+    struct Key {
+        ViewKind kind = ViewKind::Main;
+        uint32_t instanceId = 0;
+
+        bool operator<(const Key& other) const {
+            if (kind != other.kind) {
+                return static_cast<uint32_t>(kind) <
+                       static_cast<uint32_t>(other.kind);
+            }
+            return instanceId < other.instanceId;
+        }
+    };
+
+    struct Entry {
+        ViewIdentity identity;
+        RenderedViewState state;
+        bool hasPendingReason = false;
+        MotionValidity pendingReason = MotionValidity::NoHistory;
+    };
+
+    std::map<Key, Entry> entries_;
 };
 
 }  // namespace rhi

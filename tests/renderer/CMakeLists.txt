@@ -56,30 +56,24 @@ function(add_q3_test target source)
     endif()
 endfunction()
 
-# PROPOSED Q3 seams for T043/T045 (rendered-view history) and T047
-# (post-reconstruction overlay composition). The headers are test-owned
-# proposals and the implementation is a build-only stub, so the red tests fail
-# at runtime instead of failing to link: a link failure is not red evidence.
-#
-# The production slice named by those tasks must promote
-# tests/renderer/q3_view_history_seam.h -> src/renderer/rhi/view_history.h,
-# tests/renderer/q3_overlay_seam.h -> src/renderer/rhi/overlay_composition.h,
-# implement src/renderer/rhi/view_history.cpp and
-# src/renderer/rhi/overlay_composition.cpp, then replace the stub source below
-# with those two files and drop WILL_FAIL from the three red tests.
-add_library(q3_proposed_seam STATIC "q3_view_history_stub.cpp"
-    "q3_overlay_stub.cpp")
-target_include_directories(q3_proposed_seam PUBLIC "${Q1A_HEADER_ROOT}"
+# Q3 production slices for T043/T045 (rendered-view history) and T047
+# (post-reconstruction overlay composition). These are the real sources named
+# by those tasks; the test-owned seam headers and the build-only stub were
+# promoted into src/renderer/rhi/ by issue #62.
+add_library(q3_production STATIC
+    "${Q1A_SOURCE_ROOT}/src/renderer/rhi/view_history.cpp"
+    "${Q1A_SOURCE_ROOT}/src/renderer/rhi/overlay_composition.cpp")
+target_include_directories(q3_production PUBLIC "${Q1A_HEADER_ROOT}"
     "${CMAKE_CURRENT_SOURCE_DIR}")
-target_link_libraries(q3_proposed_seam PUBLIC q3_motion)
-target_compile_features(q3_proposed_seam PUBLIC cxx_std_17)
+target_link_libraries(q3_production PUBLIC q3_motion)
+target_compile_features(q3_production PUBLIC cxx_std_17)
 if(MSVC)
-    target_compile_options(q3_proposed_seam PRIVATE /W4 /permissive- /EHsc)
+    target_compile_options(q3_production PRIVATE /W4 /permissive- /EHsc)
 endif()
 
 function(add_q3_seam_test target source)
     add_executable(${target} "${source}")
-    target_link_libraries(${target} PRIVATE q3_proposed_seam)
+    target_link_libraries(${target} PRIVATE q3_production)
     target_compile_features(${target} PRIVATE cxx_std_17)
     target_include_directories(${target} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     if(MSVC)
@@ -114,11 +108,10 @@ add_q3_test(q3_motion_reprojection_test motion_reprojection_test.cpp)
 add_q3_test(q3_skinned_history_test skinned_history_test.cpp)
 add_q3_test(q3_motion_validity_test motion_validity_test.cpp)
 
-# T043/T045/T047. These assert the production behavior the seam proposals
-# describe; until the production slice lands they fail against the stub and are
-# registered as expected-red. Raw executable exits are recorded in
-# specs/004-quality-renderer/evidence-q3-tests.md; the WILL_FAIL inversion is
-# not a green result for T043/T045/T047.
+# T043/T045/T047. These assert the production behavior and link the real
+# src/renderer/rhi slices. The former expected-red inversion was removed when
+# the production slice landed; a regression is now a failing CTest, not a
+# passing inverted one.
 add_q3_seam_test(q3_view_history_test view_history_test.cpp)
 add_q3_seam_test(q3_history_reset_test history_reset_test.cpp)
 add_q3_seam_test(q3_overlay_composition_test overlay_composition_test.cpp)
@@ -163,6 +156,31 @@ add_q2_test(q2_classic_gui_test classic_gui_test.cpp)
 target_link_libraries(q2_classic_compatibility_test PRIVATE q2_shader_resolver)
 target_compile_definitions(q2_classic_compatibility_test PRIVATE
     Q2_MANIFEST_PATH="${Q1A_SOURCE_ROOT}/shaders/manifest/classic-programs.json")
+
+# Q3 frame integration (T085 superproject slice). It consumes the Q2 ordered
+# stream and writes the Q3 history, private pose and per-pixel motion seams. The
+# engine-fork call sites are not part of this target; see evidence-q3.md.
+add_library(q3_integration STATIC
+    "${Q1A_SOURCE_ROOT}/src/renderer/rhi/frame_integration.cpp")
+target_include_directories(q3_integration PUBLIC "${Q1A_HEADER_ROOT}"
+    "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(q3_integration PUBLIC q2_classic q3_production q3_motion)
+target_compile_features(q3_integration PUBLIC cxx_std_17)
+if(MSVC)
+    target_compile_options(q3_integration PRIVATE /W4 /permissive- /EHsc)
+endif()
+
+function(add_q3_integration_test target source)
+    add_executable(${target} "${source}")
+    target_link_libraries(${target} PRIVATE q3_integration)
+    target_compile_features(${target} PRIVATE cxx_std_17)
+    target_include_directories(${target} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    if(MSVC)
+        target_compile_options(${target} PRIVATE /W4 /permissive- /EHsc)
+    endif()
+endfunction()
+
+add_q3_integration_test(q3_frame_integration_test q3_integration_test.cpp)
 
 enable_testing()
 
@@ -221,21 +239,19 @@ set_tests_properties(
         TIMEOUT 120
 )
 
-# Expected-red for T043/T045/T047: WILL_FAIL makes CTest report "Passed" while
-# the executable exits 1. Read the raw exits, not the CTest verdict. When the
-# production slice makes these pass, CTest reports a failure until WILL_FAIL is
-# removed, which is the intended forcing function.
-add_test(NAME rhi.q3.red.view_history COMMAND q3_view_history_test)
-add_test(NAME rhi.q3.red.history_reset COMMAND q3_history_reset_test)
-add_test(NAME rhi.q3.red.overlay_composition COMMAND q3_overlay_composition_test)
+# T043/T045/T047 production tests. No WILL_FAIL: the exit code is the verdict.
+add_test(NAME rhi.q3.view_history COMMAND q3_view_history_test)
+add_test(NAME rhi.q3.history_reset COMMAND q3_history_reset_test)
+add_test(NAME rhi.q3.overlay_composition COMMAND q3_overlay_composition_test)
+add_test(NAME rhi.q3.frame_integration COMMAND q3_frame_integration_test)
 set_tests_properties(
-    rhi.q3.red.view_history
-    rhi.q3.red.history_reset
-    rhi.q3.red.overlay_composition
+    rhi.q3.view_history
+    rhi.q3.history_reset
+    rhi.q3.overlay_composition
+    rhi.q3.frame_integration
     PROPERTIES
-        WILL_FAIL TRUE
-        LABELS "q3-expected-red"
         TIMEOUT 120
+        LABELS "q3"
 )
 
 # Q2 classic-path fixtures. These are structural/classification checks: no legal demo data
