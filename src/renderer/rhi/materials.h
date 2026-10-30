@@ -93,5 +93,84 @@ struct MaterialPlan {
 Status PlanMaterial(const MaterialInput& input, const ProgramGate& gate, MaterialPlan* plan,
                     std::string* error);
 
+// ---------------------------------------------------------------------------
+// Q4 modern material contract (T050/T051)
+// ---------------------------------------------------------------------------
+//
+// A hybrid deferred/forward renderer needs declared linear-HDR inputs. The
+// classic stage keywords do not describe them: a legacy specular map is not a
+// roughness map, and an RGB (RXGB) normal map is not a linear tangent-space
+// normal. This section classifies what a material actually declared so the
+// opaque path can refuse an unspecified channel instead of synthesising one.
+//
+// The states mirror spec 009 C-05 (authored / derived / unavailable). `Absent`
+// is the classic material that never had the channel at all.
+
+enum class ChannelState {
+    Authored = 0,
+    Derived,
+    Unavailable,
+    Absent,
+};
+
+const char* ToString(ChannelState value);
+
+enum class MaterialRoute {
+    // Linear-HDR opaque inputs are declared and the material may enter the
+    // hybrid opaque pass.
+    HybridOpaque = 0,
+    // The classic forward/compatibility route stays available for special and
+    // transparent materials, and for materials whose PBR channels are not
+    // declared. This is a route, not a refusal of the material.
+    ForwardCompatibility,
+};
+
+const char* ToString(MaterialRoute value);
+
+struct ModernMaterialInput {
+    const char* name = nullptr;
+    ChannelState baseColor = ChannelState::Absent;
+    ChannelState normal = ChannelState::Absent;
+    ChannelState roughness = ChannelState::Absent;
+    ChannelState metalness = ChannelState::Absent;
+    ChannelState ao = ChannelState::Absent;
+    ChannelState emissive = ChannelState::Absent;
+
+    // Base colour was authored in the sRGB encoding and must be decoded.
+    bool baseColorSrgb = true;
+    // The authored emissive channel is HDR (values above 1.0 are meaningful).
+    bool emissiveHdr = false;
+    // The normal map's handedness and Z reconstruction were declared (spec 009
+    // FR-008). An RGB/RXGB normal without that declaration is not consumed.
+    bool normalHandednessDeclared = false;
+    // The classic material carries a specular map. It is evidence of legacy
+    // shading, never ground-truth roughness or metalness.
+    bool legacySpecularMap = false;
+    // The material declares itself dielectric, so metalness 0 is a declared
+    // fact rather than a synthesised default.
+    bool declaredDielectric = false;
+    // Glasswarp, skybox, decal, post-process and similar special stages.
+    bool specialStage = false;
+    CoverageClass coverage = CoverageClass::Opaque;
+};
+
+struct ModernMaterialPlan {
+    MaterialRoute route = MaterialRoute::ForwardCompatibility;
+    bool linearHdrOpaque = false;
+    bool srgbBaseColor = false;
+    bool hdrEmissive = false;
+    bool metalnessDeclared = false;
+    // Stable literal naming why the material stays on the forward route. Null
+    // exactly when `route == HybridOpaque`.
+    const char* forwardReason = nullptr;
+};
+
+// Classifies one material. A forward route is Status::Ok with a non-null
+// `forwardReason`; a malformed input is InvalidArgument. No channel is invented:
+// a missing roughness, an undeclared normal handedness or a legacy-only
+// specular map routes the material to the forward path with the reason stated.
+Status PlanModernMaterial(const ModernMaterialInput& input, ModernMaterialPlan* plan,
+                          std::string* error);
+
 }  // namespace rhi
 }  // namespace doom3

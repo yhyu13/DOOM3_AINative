@@ -176,5 +176,112 @@ Status PlanMaterial(const MaterialInput& input, const ProgramGate& gate, Materia
     return Status::Ok;
 }
 
+const char* ToString(ChannelState value) {
+    switch (value) {
+        case ChannelState::Authored: return "Authored";
+        case ChannelState::Derived: return "Derived";
+        case ChannelState::Unavailable: return "Unavailable";
+        case ChannelState::Absent: return "Absent";
+    }
+    return "Unknown";
+}
+
+const char* ToString(MaterialRoute value) {
+    switch (value) {
+        case MaterialRoute::HybridOpaque: return "HybridOpaque";
+        case MaterialRoute::ForwardCompatibility: return "ForwardCompatibility";
+    }
+    return "Unknown";
+}
+
+namespace {
+
+bool IsDeclared(ChannelState state) {
+    return state == ChannelState::Authored || state == ChannelState::Derived;
+}
+
+// A forward route is not a failure: the material stays drawable through the
+// classic/forward path, and the reason is recorded so a reviewer can see which
+// channel was missing instead of discovering a silent default.
+Status Forward(ModernMaterialPlan* plan, std::string* error, const char* reason) {
+    plan->route = MaterialRoute::ForwardCompatibility;
+    plan->linearHdrOpaque = false;
+    plan->forwardReason = reason;
+    if (error != nullptr) {
+        error->clear();
+    }
+    return Status::Ok;
+}
+
+}  // namespace
+
+Status PlanModernMaterial(const ModernMaterialInput& input, ModernMaterialPlan* plan,
+                          std::string* error) {
+    if (plan == nullptr) {
+        if (error != nullptr) {
+            *error = "PlanModernMaterial needs an output plan";
+        }
+        return Status::InvalidArgument;
+    }
+    *plan = ModernMaterialPlan();
+
+    if (input.name == nullptr || input.name[0] == '\0') {
+        if (error != nullptr) {
+            *error = "modern material has no name; the route cannot be reported";
+        }
+        return Status::InvalidArgument;
+    }
+
+    // T051: special and transparent materials keep the forward/compatibility
+    // route. Alpha-tested geometry is an opaque pass and stays eligible.
+    if (input.specialStage || input.coverage == CoverageClass::Translucent) {
+        return Forward(plan, error,
+                       "special or transparent material uses the forward/compatibility route");
+    }
+
+    if (!IsDeclared(input.baseColor)) {
+        return Forward(plan, error,
+                       "no authored base colour; a missing channel is not synthesised");
+    }
+
+    if (!IsDeclared(input.roughness)) {
+        // T050: a legacy specular map is not roughness. The classic path is
+        // still available; the modern path must not reinterpret it.
+        if (input.legacySpecularMap) {
+            return Forward(plan, error,
+                           "legacy specular map is not ground-truth PBR roughness");
+        }
+        return Forward(plan, error,
+                       "no authored roughness; a missing channel is not synthesised");
+    }
+
+    if (IsDeclared(input.normal) && !input.normalHandednessDeclared) {
+        return Forward(plan, error,
+                       "normal map handedness is not declared; convert the RGB/RXGB map first");
+    }
+
+    const bool metalnessDeclared = IsDeclared(input.metalness);
+    if (!metalnessDeclared && !input.declaredDielectric) {
+        return Forward(plan, error,
+                       "metalness is neither authored nor declared dielectric; it is not assumed");
+    }
+
+    if (input.emissiveHdr && !IsDeclared(input.emissive)) {
+        return Forward(plan, error,
+                       "HDR emissive declared without an authored emissive channel");
+    }
+
+    plan->route = MaterialRoute::HybridOpaque;
+    plan->linearHdrOpaque = true;
+    plan->srgbBaseColor = input.baseColorSrgb;
+    plan->hdrEmissive = input.emissiveHdr && IsDeclared(input.emissive);
+    plan->metalnessDeclared = metalnessDeclared || input.declaredDielectric;
+    plan->forwardReason = nullptr;
+    if (error != nullptr) {
+        error->clear();
+    }
+    return Status::Ok;
+}
+
 }  // namespace rhi
 }  // namespace doom3
