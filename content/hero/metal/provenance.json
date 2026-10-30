@@ -4,7 +4,7 @@
   "generator": {
     "name": "content/tools/generators/metal.py",
     "version": "1.0.0",
-    "sha256": "84e96bffbe488a69b13479cde3b2c6c15286c450bbd6f74e22264cfb8b892edb",
+    "sha256": "b45f2dd38c9fe732ad9c8bb614b87cfc334e8ebc8bcf3fc30e174ada3af4b589",
     "runtime": "Python 3.14.4",
     "helper": {
       "name": "content/tools/generators/hero_common.py",
@@ -27,7 +27,7 @@
       "tool": {
         "name": "content/tools/generators/metal.py",
         "version": "1.0.0",
-        "sha256": "84e96bffbe488a69b13479cde3b2c6c15286c450bbd6f74e22264cfb8b892edb",
+        "sha256": "b45f2dd38c9fe732ad9c8bb614b87cfc334e8ebc8bcf3fc30e174ada3af4b589",
         "runtime": "Python 3.14.4",
         "helper": {
           "name": "content/tools/generators/hero_common.py",
@@ -50,7 +50,7 @@
       "tool": {
         "name": "content/tools/generators/metal.py",
         "version": "1.0.0",
-        "sha256": "84e96bffbe488a69b13479cde3b2c6c15286c450bbd6f74e22264cfb8b892edb",
+        "sha256": "b45f2dd38c9fe732ad9c8bb614b87cfc334e8ebc8bcf3fc30e174ada3af4b589",
         "runtime": "Python 3.14.4",
         "helper": {
           "name": "content/tools/generators/hero_common.py",
@@ -73,7 +73,7 @@
       "tool": {
         "name": "content/tools/generators/metal.py",
         "version": "1.0.0",
-        "sha256": "84e96bffbe488a69b13479cde3b2c6c15286c450bbd6f74e22264cfb8b892edb",
+        "sha256": "b45f2dd38c9fe732ad9c8bb614b87cfc334e8ebc8bcf3fc30e174ada3af4b589",
         "runtime": "Python 3.14.4",
         "helper": {
           "name": "content/tools/generators/hero_common.py",
@@ -96,7 +96,7 @@
       "tool": {
         "name": "content/tools/generators/metal.py",
         "version": "1.0.0",
-        "sha256": "84e96bffbe488a69b13479cde3b2c6c15286c450bbd6f74e22264cfb8b892edb",
+        "sha256": "b45f2dd38c9fe732ad9c8bb614b87cfc334e8ebc8bcf3fc30e174ada3af4b589",
         "runtime": "Python 3.14.4",
         "helper": {
           "name": "content/tools/generators/hero_common.py",
