@@ -1,13 +1,14 @@
 # Feature specification: classic shader census, provenance and fail-loud resolution
 
 **Feature**: `008-classic-shaders`
-**Status**: specification **complete and reviewed three times**; implementation **partly done**
-(2026-10-29). Six authored programs compile for DXIL and SPIR-V, the resolver core is implemented and
-tested standalone, the shader toolchain is pinned, and the resolver is wired into the renderer through
-the tracked target patch (call sites, atomic material parse, draw gate, `shader_status`/`shader_reload`,
-in-engine self-test). No program is `owned`, tolerant mode does not yet draw the visible error material,
-and no parity capture or runtime census exists — see `tasks.md` section B and
-`evidence/implementation.md` §12.
+**Status**: specification **complete and reviewed three times**; implementation **6 of 11 tasks done,
+5 blocked** (2026-11-01). Six authored programs compile for DXIL, SPIR-V and validated WGSL; the resolver
+core is implemented and tested standalone; all three toolchain identities are pinned (DXC, Tint,
+Emscripten); and the resolver is wired into the renderer through the tracked target patch (call sites,
+atomic material parse, draw gate, `shader_status`/`shader_reload`, in-engine self-test). Five tasks are
+`BLOCKED` on one input — authorized game data plus a running classic backend — so no program is
+`owned`, tolerant mode does not yet draw the visible error material, and no parity capture or runtime
+census exists. See `tasks.md` section B and `evidence/implementation.md` §12–§14.
 **Input**: the S2 workstream of the renderer plan: program census, provenance, fail-loud resolver,
 HLSL library ownership.
 

@@ -86,6 +86,15 @@ if ($tasksText -match '\| Implementation \(I\) \| (\d+) \| (\d+) \|') { $implDon
 if ($tasksText -match '\| Gates \(G\) \| (\d+) \| (\d+) \|') { $gateDone = [int]$Matches[1]; $gateTotal = [int]$Matches[2] }
 if ($tasksText -match '\| \*\*All\*\* \| \*\*(\d+)\*\* \| \*\*(\d+)\*\*') { $allDone = [int]$Matches[1]; $allTotal = [int]$Matches[2] }
 
+# Blocked task ids are read from the task table, not typed here. A hardcoded sentence in this file
+# said "Engine resolver, ABI header, shaders: not started" long after they existed, which is exactly
+# the stale-review-artifact failure this report is supposed to prevent.
+$blockedIds = @()
+foreach ($taskLine in ($tasksText -split "`r?`n")) {
+    if ($taskLine -match '^\|\s*(T-\d+)\s*\|.*\|\s*BLOCKED\s*\|') { $blockedIds += $Matches[1] }
+}
+$blockedText = if ($blockedIds.Count -gt 0) { $blockedIds -join ', ' } else { 'none' }
+
 $contentAssertions = '?'
 $docsOut = ($results | Where-Object { $_.id -eq 'docs' }).output
 if ($docsOut -match '(\d+) content assertions') { $contentAssertions = $Matches[1] }
@@ -162,7 +171,8 @@ foreach ($row in $census.table) {
 [void]$sb.AppendLine('<h2>Known gaps</h2><ul class="gaps">')
 [void]$sb.AppendLine('<li>Runtime census on retail data: <b>SKIPPED</b>; no authorized pk4 in the worktree.</li>')
 [void]$sb.AppendLine('<li>Legal review of the derivative-work position: <b>BLOCKED</b>; conservative rules only.</li>')
-[void]$sb.AppendLine('<li>Engine resolver, ABI header, shaders: <b>not started</b> (T-020..T-030).</li>')
+[void]$sb.AppendLine("<li>Implementation: <b>$implDone/$implTotal</b> tasks done. Blocked tasks: <b>$(HtmlEncode $blockedText)</b>; each row in tasks.md names the exact missing input.</li>")
+[void]$sb.AppendLine('<li>No program is <code>owned</code>: <code>ownership.md</code> section 5 criterion 5 needs a rendered comparison (T-027), which needs authorized data and a running classic backend.</li>')
 [void]$sb.AppendLine('<li>The five-file authoring set is a lower bound; material-declared programs are unknown until the runtime census.</li>')
 [void]$sb.AppendLine('</ul>')
 

@@ -1,8 +1,9 @@
 # Implementation plan: classic shaders
 
 **Status**: plan **complete for review**; Phase C and part of Phase D are implemented (2026-10-29),
-including the engine wiring delivered as a tracked target patch. The remaining open items are the
-visible tolerant-mode error material, the Emscripten pin, and Phase D parity — see `tasks.md` section B.
+including the engine wiring delivered as a tracked target patch, and all three toolchain identities are
+pinned (2026-11-01). The remaining open items are the visible tolerant-mode error material and Phase D
+parity — both need authorized game data and a running classic backend — see `tasks.md` section B.
 **Companion**: [`spec.md`](spec.md) (requirements), [`tasks.md`](tasks.md) (execution).
 
 This plan converts the S2 workstream — program census, provenance, fail-loud resolver, HLSL library

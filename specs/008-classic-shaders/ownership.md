@@ -123,7 +123,8 @@ existing tooling.
 
 Non-negotiables:
 
-- Pin DXC, Tint and Emscripten/Dawn versions in `shaders/tools/compile.ps1` and the build preset.
+- Pin DXC, Tint and Emscripten/Dawn versions in `shaders/tools/pins.json`, which `compile.ps1` and
+  `get-toolchain.ps1` read, and verify them (`verify-emscripten-pin.ps1` for the emsdk identity).
   An unpinned shader toolchain makes "it compiled yesterday" meaningless.
 - Validate every generated WGSL module (Tint parse + validation), not just the DXIL.
 - Compile every program for both targets in CI; a D3D12-only pass is not a shader pass.

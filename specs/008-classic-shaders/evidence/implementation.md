@@ -240,7 +240,7 @@ choice rather than re-deriving it.
 |---|---|---|
 | Engine wiring of the resolver (call sites, draw gate, material parse, init order) | done 2026-10-29 | delivered as tracked modified-file hunks in `targets/win11-amd64/patches/all-changes.patch`; evidence §12 |
 | `shader_status` / `shader_reload` as console commands | done 2026-10-29 | registered in `R_InitCommands`; observed in `qconsole.log` (§12.2, §12.5) |
-| Tolerant-mode visible error material | not done | the draw gate skips the stage in both modes and counts the decision, but the magenta substitution required by I-5 is not drawn; T-021 stays PARTIAL |
+| Tolerant-mode visible error material | not done | the draw gate skips the stage in both modes and counts the decision, but the magenta substitution required by I-5 is not drawn; T-021 is therefore `BLOCKED` on a frame it cannot get here (§13.3) |
 | WGSL validation | done in §11 | pinned Tint translates every SPIR-V stage and re-parses the emitted WGSL |
 | `owned` status for any program | none | WGSL is validated, but `ownership.md` §5 criterion 5 needs a rendered comparison (T-027); `stub` is the honest status |
 | Parity capture (T-027) | blocked | needs authorized retail data and a classic backend |
@@ -382,8 +382,9 @@ silently produced the wrong module would still have been "green".
   on authorized data and a running classic backend. The manifest still says `stub`, `owned=0`.
 - **No behavioural evidence.** Nothing here says a program draws correctly; it says the same source
   compiles to three targets and the WGSL parses.
-- **Emscripten is not pinned by this file.** The web target owns that pin; this library never invokes
-  `emcc`.
+- **Emscripten is pinned but not exercised by this file.** The identity is recorded in `pins.json` and
+  checked by `verify-emscripten-pin.ps1` (§13); the wasm build itself is the web target's, so this
+  library never invokes `emcc`.
 - **SPIR-V constants are not compared.** No SPIR-V disassembler is pinned, so `reflect.ps1` still reads
   the DXIL side only.
 ---
@@ -581,6 +582,160 @@ Exit codes: all 0. This re-confirms the authoring artifacts; it does **not** mak
 - No rendered parity capture exists; T-027 is still `BLOCKED` on authorized data and a classic backend.
 - The GL backend binds retail ARB text from data. The authored HLSL programs are compiled and gated but
   cannot be bound by this backend, so no claim is made that the port's shader code draws.
-- Tolerant mode does not yet draw the magenta error material (I-5); it logs the `ErrorMaterial`
-  decision, counts it and skips the stage. T-021 therefore stays `PARTIAL`.
+- Tolerant mode still does not draw the magenta error material (I-5); it logs the `ErrorMaterial`
+  decision, counts it and skips the stage. T-021 is therefore `BLOCKED`, and §13.3 shows why the
+  remaining half cannot be produced on a host without game data.
+
+---
+
+## 13. Emscripten pin and the data blocker (T-023, T-021/T-025/T-027/T-028/T-030), 2026-11-01
+
+### 13.1 The pin
+
+`shaders/tools/pins.json` gained an `emscripten` block: version `6.0.13`, commit
+`e13ee988ce3d87a738dd8f3661d02223308c412a`, the `emdawnwebgpu` port at Dawn `v20260423.175430`. The
+identity is not invented here — it is the accepted run recorded in `tests/webgpu/emscripten/README.md`
+(2026-10-29), which came from that host's `emcc --version`. What is new is that the identity is now
+machine-checked instead of prose.
+
+```powershell
+powershell -NoProfile -File shaders/tools/verify-emscripten-pin.ps1
+```
+
+```text
+EMSCRIPTEN PIN SKIP: no emcc found (checked -EmccPath, PATH, EMSDK, %USERPROFILE%\emsdk)
+  pinned identity: emcc 6.0.13 (e13ee988ce3d87a738dd8f3661d02223308c412a)
+  SKIP is not a pass: the web target owns the emsdk install; nothing was verified here.
+EXIT=2
+```
+
+Exit 2 is this host's truth: there is no emsdk on it. The script fails closed — a host whose `emcc`
+reports a different version or commit gets exit 1, and only the pinned tool gets exit 0 — so a machine
+that builds the wasm leg cannot silently use a different compiler.
+
+### 13.2 Mutation controls
+
+The comparison logic was exercised without installing an emsdk, using three `cmd` shims and three
+mutated pin files written under the git-ignored `build/_mut/`. Nothing here is tracked; the shims only
+print an `emcc --version` line.
+
+```powershell
+# B: pinned tool, unmodified pins
+powershell -NoProfile -File shaders/tools/verify-emscripten-pin.ps1 -EmccPath build/_mut/fake-emcc-right.cmd
+# C: tool reports 6.0.12
+powershell -NoProfile -File shaders/tools/verify-emscripten-pin.ps1 -EmccPath build/_mut/fake-emcc-wrong.cmd
+# D: tool reports 6.0.13 with a foreign commit
+powershell -NoProfile -File shaders/tools/verify-emscripten-pin.ps1 -EmccPath build/_mut/fake-emcc-wrongcommit.cmd
+# E: pinned tool, pin version mutated to 6.0.14
+powershell -NoProfile -File shaders/tools/verify-emscripten-pin.ps1 -EmccPath build/_mut/fake-emcc-right.cmd -PinsPath build/_mut/pins-version.json
+# F: pinned tool, pin commit mutated
+powershell -NoProfile -File shaders/tools/verify-emscripten-pin.ps1 -EmccPath build/_mut/fake-emcc-right.cmd -PinsPath build/_mut/pins-commit.json
+# G: pin says 6.0.130; the tool's 6.0.13 must not satisfy it
+powershell -NoProfile -File shaders/tools/verify-emscripten-pin.ps1 -EmccPath build/_mut/fake-emcc-right.cmd -PinsPath build/_mut/pins-boundary.json
+```
+
+| Control | Mutation | Exit | Decisive output |
+|---|---|---:|---|
+| B | none (pinned tool) | 0 | `EMSCRIPTEN PIN OK: emcc 6.0.13 (e13ee988ce3d)` |
+| C | tool version 6.0.12 | 1 | `version matched: False; commit matched: False` |
+| D | tool commit foreign | 1 | `version matched: True; commit matched: False` |
+| E | pin version 6.0.14 | 1 | `expected version 6.0.14` … `version matched: False` |
+| F | pin commit mutated | 1 | `version matched: True; commit matched: False` |
+| G | pin version 6.0.130 | 1 | `version matched: False` (the token boundary holds) |
+| A | no emcc on this host | 2 | `EMSCRIPTEN PIN SKIP` |
+
+E and F are the controls that matter: they prove the check reads the pin file rather than comparing a
+hardcoded string with itself. G proves `6.0.13` cannot be satisfied by a `6.0.130` build. A is the
+honest limit — the real `emcc` was never present, so the pin's *identity* rests on the recorded
+accepted run, and this file does not claim a wasm build.
+
+### 13.3 Why the remaining implementation half is blocked
+
+Every remaining implementation item needs a frame: the tolerant substitution (T-021), the shadow and
+interaction comparisons (T-025, T-030), Tier B shipping variants (T-028) and the parity capture
+(T-027). This host has no game data, so no frame is possible. The probe below used an existing Release
+build of this target at the same commit (not a build produced by this branch) with `fs_basepath`
+pointed at the target copy, which contains only `base/default.cfg`:
+
+```powershell
+DOOM3.exe +set logFile 2 +set r_fullscreen 0 `
+  +set fs_basepath <target copy> +set fs_savepath <temp> `
+  +set r_shaderMode off +shader_selftest +shader_status +quit
+```
+
+```text
+SHADER MANIFEST COVERAGE: 18/18 engine table keys covered
+shader_status: manifest=14 owned=0 stub=6 unsupported=1 absent=7 requests=18 ok=0 unresolved=0
+  stage_missing=0 ambiguous=0 materials_rejected=0 materials_error=0 mode=off
+Stack trace at fatal error: ... -> idRenderSystemLocal::Init+0x127 (RenderSystem_init.cpp:2168)
+EXIT=0xC0000005
+```
+
+The resolver itself is fine: coverage and `shader_status` both answer before the abort. The engine dies
+later, inside renderer init, because there is no game data to build materials from. A search for
+`demo00.pk4` in the repository, the agent temp root, the Kilo worktree pool and the usual
+download/install directories found nothing, so this is a missing-input blocker, not a code defect. **Exact input needed:** an official demo
+`base/demo00.pk4` (prepared with `scripts/prepare-demo-data.ps1`) or a retail install, plus a
+GL-capable desktop that can present. No build was attempted in this worktree: this branch changes no
+C++, CMake or target patch file, so there is nothing for a build to prove that §12.1 does not already
+cover.
+
+---
+
+## 14. Gate reruns and the stale report (2026-11-01)
+
+### 14.1 Every gate on the staged tree
+
+Each command was run from the repository root and its exit code captured immediately after the
+process; the last non-empty output line is recorded below. Nothing in this pass edits the checks
+themselves except `report.ps1` (§14.2).
+
+| Command | Exit | Last line |
+|---|---:|---|
+| `specs/008-classic-shaders/tools/census.ps1 -Verify` | 0 | `CENSUS OK: 18 entries, 13 files, 8 live-default entries, draw_exp compiled=False` |
+| `specs/008-classic-shaders/tools/resolver-conformance.ps1` | 0 | `RESOLVER VECTORS: 14/14 passed (manifest validated: 12 entries)` |
+| `specs/008-classic-shaders/tools/verify-docs.ps1` | 0 | `DOCS OK: 125 anchors, 70 content assertions, 40 links` |
+| `specs/008-classic-shaders/tools/provenance-check.ps1` | 0 | `PROVENANCE OK: 602 tracked files, no shader source, no ARB program bodies` |
+| `specs/008-classic-shaders/tools/integration-check.ps1` | 0 | `INTEGRATION OK: 18 requests (10 OK, 8 ABSENT), 14 plan keys, 6 authored, 9 provenance ids; megaTexture=UNSUPPORTED` |
+| `specs/008-classic-shaders/tools/fuzz-resolver.ps1` | 0 | `FUZZ OK: 10162 distinct requests (24000 calls) over 6000 names (seed 20261028), 0 failures` |
+| `shaders/tools/manifest-check.ps1` | 0 | `MANIFEST OK: keys=14 owned=0 stub=6 unsupported=1 absent=7` |
+| `shaders/tools/provenance-record.ps1` | 0 | `PROVENANCE RECORD OK: 9 records, 10 hashes match, every sourced program has exactly one record` |
+| `shaders/tools/verify-emscripten-pin.ps1` | 2 | `EMSCRIPTEN PIN SKIP: no emcc found` (§13.1 — a skip, not a pass) |
+
+`verify-docs` still reports 125 anchors / 70 content assertions / 40 links: this pass added prose and
+one script, not anchors or relative links. `provenance` moved from 402 to 602 tracked files because the
+package, the shader tools and the tests landed after that run; its subject (no shader source, no ARB
+bodies) is unchanged.
+
+### 14.2 The committed report contradicted the task list
+
+The `evidence/report.html` committed on 2026-10-29 still said "Engine resolver, ABI header, shaders:
+**not started** (T-020..T-030)" and showed `22/32` tasks, while `tasks.md` said the wiring had landed.
+That is the same class of defect as gate G-10 in `review.md` §3.1.2: a review artifact that reads as a
+current pass (or, here, a current state) while the tree says otherwise.
+
+The gap line is now derived from the task table — `report.ps1` collects every row whose status cell is
+`BLOCKED` and prints the ids — so it cannot drift by being typed twice. Regenerated on 2026-11-01:
+
+```text
+gates: 6/6 passing
+  census       exit=0
+  resolver     exit=0
+  integration  exit=0
+  fuzz         exit=0
+  docs         exit=0
+  provenance   exit=0
+```
+
+Browser assertions on the regenerated page (Playwright, 1440 × 1100, full page):
+
+```json
+{ "passBadges": 6, "failBadges": 0, "hasSkipped": true, "hasBlocked": true, "staleClaim": false }
+```
+
+with `staleClaim` testing for the literal string "not started", which must not reappear. The KPI strip
+now reads `6/6`, `25/32`, `18`, `5`, `70`, and the gaps list reads
+`Implementation: 6/11 tasks done. Blocked tasks: T-021, T-025, T-027, T-028, T-030, T-031, T-032`.
+`evidence/report.png` was recaptured from the regenerated page (1440 × 2672). What these artifacts
+still do **not** prove is any shader behaviour.
 
