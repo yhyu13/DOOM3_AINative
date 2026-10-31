@@ -92,11 +92,30 @@ function Write-TextFile {
     [IO.File]::WriteAllText($Path, $Text, (New-Object Text.UTF8Encoding($false)))
 }
 
+function Invoke-Native {
+    param(
+        [Parameter(Mandatory = $true)][string]$FilePath,
+        [string[]]$Arguments = @()
+    )
+    # PowerShell 5.1 promotes every stderr line of a native tool into a NativeCommandError; under
+    # the script-wide EAP=Stop a benign git or child-powershell warning would abort the restore.
+    # Capture stderr as data and decide from the exit code.
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $lines = @(& $FilePath @Arguments 2>&1)
+        $code = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previous
+    }
+    return [pscustomobject]@{ Lines = $lines; Code = $code; Text = ($lines -join "`n") }
+}
+
 function Get-ToolVersion {
     param([Parameter(Mandatory = $true)][string]$Command)
     $c = Get-Command $Command -ErrorAction SilentlyContinue
     if ($null -eq $c) { return $null }
-    $v = @(& $Command --version 2>&1 | Select-Object -First 1)
+    $v = @((Invoke-Native -FilePath $Command -Arguments @('--version')).Lines | Select-Object -First 1)
     if ($v.Count -eq 0) { return $null }
     return ([string]$v[0]).Trim()
 }
@@ -104,7 +123,7 @@ function Get-ToolVersion {
 function Get-VisualStudio {
     $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
     if (-not (Test-Path -LiteralPath $vswhere)) { return $null }
-    $path = @(& $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath 2>$null)
+    $path = @((Invoke-Native -FilePath $vswhere -Arguments @('-latest', '-products', '*', '-requires', 'Microsoft.VisualStudio.Component.VC.Tools.x86.x64', '-property', 'installationPath')).Lines | Where-Object { $_ })
     if ($path.Count -eq 0) { return $null }
     $cmake = Join-Path ([string]$path[0]) 'Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe'
     return [ordered]@{
@@ -139,12 +158,11 @@ function Invoke-Script {
     )
     Push-Location -LiteralPath $WorkingDirectory
     try {
-        $out = @(& powershell -NoProfile -ExecutionPolicy Bypass -File $Path @ScriptArgs 2>&1)
-        $code = $LASTEXITCODE
+        $r = Invoke-Native -FilePath 'powershell' -Arguments (@('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $Path) + $ScriptArgs)
     } finally {
         Pop-Location
     }
-    return [pscustomobject]@{ Lines = $out; Code = $code }
+    return [pscustomobject]@{ Lines = $r.Lines; Code = $r.Code }
 }
 
 function Show-Tail {
@@ -294,8 +312,8 @@ if ($recordedBranch -and ($branches -contains $recordedBranch)) {
     if ($LASTEXITCODE -ne 0) { Fail "git checkout $default failed" 2 }
     $checkoutMode = "branch $default"
 } elseif ($recordedHead) {
-    & git -C $Dest cat-file -e "$recordedHead^{commit}" 2>$null
-    if ($LASTEXITCODE -ne 0) { Fail "recorded head $recordedHead is not present in the bundle" 2 }
+    $headRef = Invoke-Native -FilePath 'git' -Arguments @('-C', $Dest, 'cat-file', '-e', "$recordedHead^{commit}")
+    if ($headRef.Code -ne 0) { Fail "recorded head $recordedHead is not present in the bundle" 2 }
     & git -C $Dest checkout --quiet --detach $recordedHead
     if ($LASTEXITCODE -ne 0) { Fail "git checkout --detach $recordedHead failed" 2 }
     $checkoutMode = "detached $($recordedHead.Substring(0, 12))"
@@ -384,7 +402,7 @@ if ($gitlinkLine.Count -eq 0) {
     $subDest = Join-Path $Dest ($subRel -replace '/', '\')
     if ($subUrl) {
         # The offline init cloned from the bundle file; point the submodule's own origin back at Git.
-        & git -C $subDest remote set-url origin $subUrl 2>$null
+        Invoke-Native -FilePath 'git' -Arguments @('-C', $subDest, 'remote', 'set-url', 'origin', $subUrl) | Out-Null
     }
     $actual = (& git -C $subDest rev-parse HEAD).Trim()
     if ($actual -ne $pinned) {
