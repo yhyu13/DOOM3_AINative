@@ -1,55 +1,133 @@
-# Traceability: Quality-first rendering
+# Traceability: Quality-first rendering (literal matrix)
 
-**Status**: Planning matrix maintained by T087. A row maps a requirement to its primary tasks and the artifact that will hold evidence. Draft contract/template artifacts are not stage execution or review evidence; coverage remains planned or partial until the named checks run. Q1a T012–T021 are complete and merged in `8638db8` (PR #18); `evidence-q1a.md` and `review-q1a.md` record the execution and independent agent review. Q1b T022–T031 and all later stages remain planned or partial. Q7a T088 is complete (issue #35): the lexical and structural mapping gates, the browser spike and the Emscripten encoder leg all executed, and T089 completed the header reconciliation.
+**Owner**: T087. This file maps each requirement to its tasks, artifact and evidence file, and states
+one status per row. It is an index, not evidence: a row is only as good as the evidence file it
+names, and a task id is a plan reference that becomes coverage only when its own command output
+exists.
 
-Evidence files: `evidence-rhi-contract.md`, `evidence-q0.md`, `evidence-q1a.md`, `evidence-q1.md`, `evidence-q2.md`, `evidence-q3.md`, `evidence-q3-tests.md`, `evidence-q4.md`, `evidence-q5.md`, `evidence-q6.md`, `evidence-q7.md`, `evidence-q7a.md`, `evidence/q7a-emscripten.json`, `evidence-t089.md`. Review records: `review-rhi-contract.md`, `review-q1a.md`, `review-q1.md`, `review-q2.md`, `review-q3.md`, `review-q4.md`, `review-q6.md`, `review-q7.md`, `review-q7a.md`, `review-spec-consistency.md`, `review-t089.md`, `review-t088-encoder.md`, `review-programme.md`.
+**Last reconciled**: 2026-10-31, against `origin/main` `f9e84c8`, by the documentation cluster for
+issue #91.
+
+## Status labels
+
+| Label | Meaning |
+|---|---|
+| `PASS` | Every check the requirement names has executed on a recorded host, its output is retained in the named evidence file, and no part of the requirement is unexecuted. A PASS is per recorded host and data set, never universal. |
+| `PARTIAL` | At least one named check executed and is recorded, and at least one named check has not executed or has executed only in a non-production form (CPU fixture, standalone harness, software adapter). The evidence file must say which half ran. |
+| `NOT RUN` | No check that the requirement names has executed. Artifacts may exist (rubrics, contracts, tests, design notes); they are not coverage. |
+| `UNPROVEN` | An artifact or claim exists whose truth no named check can settle, and no executed result is claimed. |
+
+`UNPROVEN` currently holds **0 rows**: every row below either has an executed result or has nothing
+executed. It is kept in the legend so that a future row cannot quietly become "assumed".
+
+## Counts
+
+| Group | PASS | PARTIAL | NOT RUN | UNPROVEN | Total |
+|---|---|---|---|---|---|
+| Functional requirements (FR-001…FR-019) | 2 | 15 | 2 | 0 | 19 |
+| Success criteria (SC-001…SC-008) | 1 | 3 | 4 | 0 | 8 |
 
 ## Functional requirements
 
-| Requirement | Primary tasks | Evidence / artifact | Coverage note |
-|---|---|---|---|
-| FR-001 | T006, T009, T010, T011 | `baseline-procedure.md`, `evidence-q0.md` | **Established (2026-10-29)** — all four categories captured twice; see `evidence-q0.md` §8 for the T011 review |
-| FR-002 | T007, T010 | `reference-scenes.md`, `evidence-q0.md` | **Established (2026-10-29)** — scene identities and tolerances recorded; no case SKIPPED on this host |
-| FR-003 | T004, T012, T014, T035 | `contracts/rhi-foundation.md`, `engine-integration.md` | T004 signed off 2026-10-28 on 11ea64a (agent reviewer; human caveat); Q1a T012–T021 complete and merged in `8638db8`; Q2's Q7a/T088 gate is complete (both legs, T089 reconciled the header); Q1a is not portability evidence |
-| FR-004 | T004, T012, T022–T029 | `contracts/rhi-foundation.md`, `data-model.md`, `evidence-q1.md` | **Partial** — Q1a complete and merged; Q1b T022–T029 implemented and tested on Intel and WARP; T030/T031 open; native extensions are optional |
-| FR-005 | T013–T019, T024–T028, T030 | `evidence-q1a.md`, `evidence-q1.md` | **Partial** — Q1a complete and merged (`evidence-q1a.md`, `review-q1a.md`); Q1b fixtures and fault-injected removal pass (`evidence-q1.md`); debug layer and GPU-based validation SKIPPED (`0x887A002D`), so T030/T031 and full Q1 remain blocked |
-| FR-006 | T036, T037, T039, T080–T083 | `classic-parity.md`, `evidence-q2.md` | Planned; T080–T082 production, T083 integration check |
-| FR-007 | T034, T037, T038, T080–T082 | `classic-parity.md`, `evidence-q2.md` | Planned; T037 tests, T080–T082 production |
-| FR-008 | T041–T046 | `motion-fixtures.md`, `evidence-q3.md`, `evidence-q3-tests.md` | **Partial (2026-10-29)** — T042/T046 merged (`f703fae`) and re-run green; T043/T045 have red tests and proposed seams only; T048 open |
-| FR-009 | T043–T045, T085 | `evidence-q3.md`, `evidence-q3-tests.md` | **Partial (2026-10-29)** — T044 seam and its 43-check retention test pass; the `Model_md5.cpp` snapshot, T043 view isolation and T085 wiring are open |
-| FR-010 | T041, T046 | `motion-fixtures.md`, `evidence-q3.md`, `evidence-q3-tests.md` | **Partial (2026-10-29)** — T046 merged and 77 checks green; real-scene motion/validity is T048 |
-| FR-011 | T038, T047, T055, T086 | `evidence-q3.md`, `evidence-q3-tests.md`, `evidence-q4.md`, `evidence-q5.md` | **Partial (2026-10-29)** — T047 has a red test and a proposed seam only; the merged Q1b `PlanComposition` is ordering metadata, not the display-resolution post-reconstruction stage. T086 off-path ordering follows T047/T055; its provider branch is conditional and may be NOT RUN |
-| FR-012 | T050–T053 | `evidence-q4.md` | Planned |
-| FR-013 | T049, T054, T056 | `quality-rubric.md`, `evidence-q4.md` | Planned; budgets follow T056 measurements |
-| FR-014 | T055, T058–T061 | `provider-clearance.md`, `evidence-q5.md` | Planned; **partial** — T055 supplies the independent off path; T059 separately observes clean configure/build and run, and inspects dependencies/artifacts |
-| FR-015 | T060–T062 | `provider-clearance.md`, `evidence-q5.md` | Planned; NOT RUN until access and clearance exist |
-| FR-016 | T063–T070 | `path-tracing-rubric.md`, `evidence-q6.md` | Planned |
-| FR-017 | T004, T088, T089, T071–T075 | `contracts/rhi-foundation.md`, `portable-profile-contract.md`, `evidence-q7a.md`, `evidence-q7.md` | Planned; T004 signed off 2026-10-28 on 11ea64a (agent reviewer; human caveat); three-tier contract is design only; T088 is a pre-Q2 header/mapping and WebGPU conformance spike, not target support — **complete (2026-10-29)**: lexical and structural gates, a pinned-browser spike and the Emscripten encoder leg all executed; no WebGPU `doom3::rhi::Device` implementation and no software adapter exist (`evidence-q7a.md`); T089 completed the header reconciliation (`evidence-t089.md`); per-target implementation and real-scene validation remain required |
-| FR-018 | T005, T056, T060, T069, T074 | `evidence-template.md` and each evidence file | Template and validator signed off 2026-10-28 on 11ea64a (agent reviewer; human caveat); stage evidence remains open |
-| FR-019 | T001–T003, T033, T040, T084 | `review-q2.md`, repository history | Planned; no exception to the constitution |
+| ID | Task ids | Artifact path | Evidence file | Status |
+|---|---|---|---|---|
+| FR-001 | T006, T009, T010, T011 | `specs/004-quality-renderer/baseline-procedure.md`, `specs/004-quality-renderer/reference-scenes.md` | `specs/004-quality-renderer/evidence-q0.md` | `PASS` — fresh build identity, source/submodule revision, data identity, hardware, commands and outcomes; T011 review in §8. Limit: one host, one GL renderer, one demo data set |
+| FR-002 | T007, T010 | `specs/004-quality-renderer/reference-scenes.md` | `specs/004-quality-renderer/evidence-q0.md` | `PASS` — four categories captured twice with scene ids and frozen ceilings; no case SKIPPED on that host. Limit: demo data, not retail scenes |
+| FR-003 | T004, T012, T014, T035 | `specs/004-quality-renderer/contracts/rhi-foundation.md`, `specs/004-quality-renderer/engine-integration.md` | `specs/004-quality-renderer/evidence-rhi-contract.md`, `specs/004-quality-renderer/review-rhi-contract.md`, `specs/004-quality-renderer/evidence-q1a.md` | `PARTIAL` — contract signed off 2026-10-28 on `11ea64a`; Q1a/Q1b run through the portable seam; **the header gate is red on `main`** (26 violations, all `src/renderer/q4_harness/*.h`, see §Red gates); no engine scene adapter (T035) |
+| FR-004 | T004, T012, T022–T029, T085 | `specs/004-quality-renderer/contracts/rhi-foundation.md`, `specs/004-quality-renderer/data-model.md` | `specs/004-quality-renderer/evidence-q1a.md`, `specs/004-quality-renderer/evidence-q1.md`, `specs/004-quality-renderer/evidence-doc-cluster.md` | `PARTIAL` — draw, compute, MRT, readable depth, velocity/validity, history, present and separate overlay run as fixtures (32/32 CTest); T085's engine call sites absent |
+| FR-005 | T013–T019, T024–T028, T030 | `src/renderer/rhi/`, `src/renderer/d3d12/`, `tests/renderer/` | `specs/004-quality-renderer/evidence-q1a.md`, `specs/004-quality-renderer/evidence-q1.md`, `specs/004-quality-renderer/evidence-doc-cluster.md` | `PARTIAL` — clear/copy transitions, fence retirement, resize/shutdown and fault-injected removal pass; on 2026-10-31 the debug layer and GPU-based validation actually executed here (`errors=0`, 4 unwaived warnings per case) but T030/T031 remain open and that run has no independent review |
+| FR-006 | T036, T037, T039, T080–T083 | `specs/004-quality-renderer/classic-parity.md` | `specs/004-quality-renderer/evidence-q2.md` | `NOT RUN` — no selector, no failed-initialization test, no engine path; `evidence-q2.md` records no classic frame |
+| FR-007 | T034, T037, T038, T080–T082 | `specs/004-quality-renderer/classic-parity.md` | `specs/004-quality-renderer/evidence-q2.md` | `PARTIAL` — CPU fixtures for stage order, alpha coverage, lights, shadow exclusions, fog/blend, subviews and the GUI split pass (`renderer.q2.*`); the production slices T080–T082 and every engine-side case are absent |
+| FR-008 | T041–T046 | `tests/renderer/motion-fixtures.md`, `src/renderer/rhi/motion_history.cpp`, `src/renderer/rhi/view_history.cpp` | `specs/004-quality-renderer/evidence-q3-tests.md`, `specs/004-quality-renderer/evidence-q3.md` | `PARTIAL` — reprojection, rendered-frame identity, generation and every invalidation trigger pass as fixtures; real-scene motion is T048 (`NOT RUN`) |
+| FR-009 | T043–T045, T085 | `src/renderer/rhi/view_history.cpp`, `src/renderer/rhi/skinned_history.cpp`, `src/renderer/rhi/frame_integration.cpp` | `specs/004-quality-renderer/evidence-q3.md` | `PARTIAL` — view isolation and a 43-check private-pose retention test pass; the `engine-fork:neo/renderer/Model_md5.cpp` snapshot needs a fork PR and submodule bump, and T085's engine call sites are absent |
+| FR-010 | T041, T046 | `src/renderer/rhi/motion_history.cpp`, `tests/renderer/motion_validity_test.cpp` | `specs/004-quality-renderer/evidence-q3-tests.md` | `PARTIAL` — explicit correspondence/rejection policies for viewmodels, particles, transparency, reflections, deformation and newly visible pixels pass (77 checks); no scene-level confirmation |
+| FR-011 | T038, T047, T055, T086 | `src/renderer/rhi/overlay_composition.cpp`, `specs/004-quality-renderer/data-model.md` | `specs/004-quality-renderer/evidence-q3.md`, `specs/004-quality-renderer/evidence-q4.md` | `PARTIAL` — post-reconstruction overlay ordering passes as a fixture (33 checks); the Q4 harness captured a real 960×540 render composed to a 1280×720 display with a 2-px HUD border; the engine-side world-GUI path (T038) is absent |
+| FR-012 | T050–T053 | `specs/004-quality-renderer/quality-rubric.md`, `src/renderer/rhi/materials.cpp`, `src/renderer/d3d12/` | `specs/004-quality-renderer/evidence-q4.md`, `specs/004-quality-renderer/evidence/t056/` | `PARTIAL` — material, direct-light/shadow and indirect/atmosphere slices pass as CPU fixtures (41 + 54 + 32 = 127 checks) and the standalone D3D12 harness renders all seven content cells; not a playable engine path |
+| FR-013 | T049, T054, T056 | `specs/004-quality-renderer/quality-rubric.md`, `src/renderer/rhi/residency.cpp` | `specs/004-quality-renderer/evidence-q4.md`, `specs/004-quality-renderer/evidence/t056/measurements.json`, `specs/004-quality-renderer/evidence/t056/vram.json` | `PARTIAL` — provenance recorded, fence-safe eviction tested (37 checks), seven budget rows `recorded`, VRAM peak 107,110,400 B over 12/12 runs; no engine residency path and no quality-tier activation on a real frame |
+| FR-014 | T055, T058–T061 | `specs/004-quality-renderer/provider-contract.md`, `src/renderer/rhi/reconstruction.cpp` | `specs/004-quality-renderer/evidence-q4.md` (T055/T086 rows), `specs/004-quality-renderer/evidence-doc-cluster.md` | `PARTIAL` — the non-proprietary off path is byte-exact identity and passes 35 checks; T059's observed clean default configure/build/**run** for attempted NVIDIA downloads has not been performed, and no `specs/004-quality-renderer/evidence-q5.md` exists |
+| FR-015 | T058, T060–T062 | `specs/004-quality-renderer/provider-contract.md` | none | `NOT RUN` — no authorization, no hardware claim, no create/evaluate. `specs/004-quality-renderer/provider-clearance.md` does not exist. No DLSS 5 support or legal compatibility is claimed |
+| FR-016 | T063–T070 | `specs/004-quality-renderer/path-tracing-rubric.md`, `src/renderer/d3d12/pathtrace*.cpp` | `specs/004-quality-renderer/evidence-q6.md` | `PARTIAL` — CPU integrator, dynamic-update, material and denoiser cases pass (5/5 CTest, 233 checks) and the fallback is explicit; no DXR device, no converged capture, T069 PARTIAL, T070 NOT RUN |
+| FR-017 | T004, T088, T089, T071–T075 | `specs/004-quality-renderer/portable-profile-contract.md`, `specs/004-quality-renderer/webgpu-mapping.md`, `web/profile/capability.mjs` | `specs/004-quality-renderer/evidence-q7a.md`, `specs/004-quality-renderer/evidence-t089.md`, `specs/004-quality-renderer/evidence-q7.md` | `PARTIAL` — three-tier contract, capability/fallback table and a procedural browser host slice exist; no WebGPU `doom3::rhi::Device` implementation, no real scene (T074 NOT RUN), no profile review (T075 NOT RUN); **the mapping gate is red on `main`** (62 problems, see §Red gates) |
+| FR-018 | T005, T056, T060, T069, T074 | `specs/004-quality-renderer/evidence-template.md` | `specs/004-quality-renderer/evidence-q0.md` … `evidence-q4.md`, `specs/004-quality-renderer/evidence-doc-cluster.md` | `PARTIAL` — template and validator signed off; Q0/Q1a/Q1b/Q3/Q4 records carry identity, commands, exits and thresholds. Q5/Q6/Q7 have no stage record with executed results, so the requirement is not uniformly met |
+| FR-019 | T001–T003, T033, T040, T084 | `specs/004-quality-renderer/engine-integration.md`, `AGENTS.md`, `docs/GIT_WORKFLOW.md` | `git submodule status` / `git -C doom3_orig/doom3 status --porcelain` recorded in `specs/004-quality-renderer/evidence-q0.md` and re-run in `specs/004-quality-renderer/evidence-doc-cluster.md` | `PARTIAL` — submodule clean at `a9c49da` and unchanged on 2026-10-31 (0 porcelain lines, no engine edit in this cluster); review coverage is partial (several review records named by earlier revisions of this file do not exist, §Missing records) and no human sign-off is recorded |
 
 ## Success criteria
 
-| Criterion | Primary tasks | Evidence / artifact | Coverage note |
-|---|---|---|---|
-| SC-001 | T009–T011 | `evidence-q0.md` | **Met on this host (2026-10-29)** — two captures per category inside the frozen ceilings; a different host or data set still needs its own run |
-| SC-002 | T013–T031 | `evidence-q1a.md`, `evidence-q1.md` | **Partial** — Q1a complete and merged; Q1b draw/compute/MRT/depth/frame-slot/motion/surface fixtures pass 17/17 in Debug and Release on Intel and WARP; full SC-002 still needs executed debug layer plus GPU-based validation and T031 |
-| SC-003 | T032, T037, T038, T039, T040 | `classic-parity.md`, `evidence-q2.md` | Planned; T080–T082 required for production behavior, T083 for integration |
-| SC-004 | T041–T048, T085 | `motion-fixtures.md`, `evidence-q3.md`, `evidence-q3-tests.md` | Planned; T041–T047 and T085 precede T048 execution/review. As of 2026-10-29 only T042/T046 are checked; T044 is partial; T043/T045/T047 are red tests against absent production slices. Synthetic vectors alone cannot satisfy T048 |
-| SC-005 | T049–T057, T086 | `quality-rubric.md`, `evidence-q4.md` | Planned; budgets set after measurement; T086 independent ordering precedes Q4 review, optional provider branch does not block it |
-| SC-006 | T055, T058–T062 | `provider-clearance.md`, `evidence-q5.md` | Planned; T059 observes clean default configure/build/run for attempted NVIDIA downloads and inspects dependencies/artifacts, separately from the off-path test; incomplete observation is NOT RUN; optional provider claim requires actual authorization and evidence |
-| SC-007 | T063–T070 | `evidence-q6.md` | Planned |
-| SC-008 | T071–T075 | `evidence-q7.md` | Planned; per claimed target only. T088 is a pre-Q2 conformance spike, not target-support evidence, so it is not an SC-008 task. |
+| ID | Task ids | Artifact path | Evidence file | Status |
+|---|---|---|---|---|
+| SC-001 | T009–T011 | `specs/004-quality-renderer/reference-scenes.md` | `specs/004-quality-renderer/evidence-q0.md` | `PASS` — all four categories captured twice inside the pre-frozen ceilings (meanAbs 0.183/0.226/0.108/0.055; diff 0.208%/0.210%/0.098%/0.032%). Limit: that host and data set; a different host needs its own run |
+| SC-002 | T013–T031 | `specs/004-quality-renderer/contracts/rhi-foundation.md`, `tests/renderer/` | `specs/004-quality-renderer/evidence-q1a.md`, `specs/004-quality-renderer/evidence-q1.md`, `specs/004-quality-renderer/evidence-doc-cluster.md` | `PARTIAL` — 32/32 CTest in Debug and Release (exit 0) covering draw, compute, MRT, depth, motion/validity, overlay separation and fence-safe retirement including an outstanding-release attempt and row-pitch correction; on 2026-10-31 validation executed with `errors=0` and 4 unwaived warnings per enabled case; T030/T031 stay open and that observation is unreviewed |
+| SC-003 | T032, T037–T040, T080–T083 | `specs/004-quality-renderer/classic-parity.md` | `specs/004-quality-renderer/evidence-q2.md` | `NOT RUN` — no playable classic-data scene on the new path and no GL-vs-new comparison exists |
+| SC-004 | T041–T048, T085 | `tests/renderer/motion-fixtures.md` | `specs/004-quality-renderer/evidence-q3.md`, `specs/004-quality-renderer/evidence-q3-tests.md` | `PARTIAL` — analytic camera/rigid/skinned/deformation vectors, invalidation, subview isolation and overlay ordering pass; no real-scene run (T048 NOT RUN), so the criterion's separate real-scene half is unexecuted |
+| SC-005 | T049–T057, T086 | `specs/004-quality-renderer/quality-rubric.md` | `specs/004-quality-renderer/evidence-q4.md`, `specs/004-quality-renderer/review-q4.md`, `specs/004-quality-renderer/review-q4-r2.md`, `specs/004-quality-renderer/review-q4-r3.md` | `PARTIAL` — T057 r3 accepts with limits (4.1–4.7 `accept`, 4.3/4.5/4.6 limited) on Intel Graphics 32.0.101.8331 plus WARP, with B4 set at 107,110,400 B; the review says plainly it is "not an unrestricted Q4-green claim", Q4 is not green, and no engine frame exists |
+| SC-006 | T055, T058–T062 | `specs/004-quality-renderer/provider-contract.md` | `specs/004-quality-renderer/evidence-q4.md` (off-path rows only) | `NOT RUN` — the off path works, but the required clean default configure/build/**run** observation for attempted NVIDIA downloads has not been made, and no authorized provider exists. The off-path pass does not satisfy this criterion |
+| SC-007 | T063–T070 | `specs/004-quality-renderer/path-tracing-rubric.md` | `specs/004-quality-renderer/evidence-q6.md` | `NOT RUN` — no converged static record and no moving/skinned capture; every visual row is NOT RUN with a reason |
+| SC-008 | T071–T075 | `specs/004-quality-renderer/portable-profile-contract.md`, `web/profile/capability.mjs` | `specs/004-quality-renderer/evidence-q7.md` | `NOT RUN` — no claimed target has a target-specific real-scene test; T074/T075 are NOT RUN. The Q7a spike is a conformance gate, not target support |
+
+## Red gates on `main` at `f9e84c8`
+
+Two documented gate commands fail today. Both are recorded with command and exit code in
+[`evidence-doc-cluster.md`](./evidence-doc-cluster.md); neither is a documentation defect, so neither
+was fixed in a docs-only change.
+
+1. `python -I scripts/validate-rhi-contract.py --self-test` → **exit 1**, 26 failures, every one of
+   the form `prohibited D3D12 vocabulary in engine-facing header src\renderer\q4_harness\*.h`
+   (`harness.h`, `harness_impl.h`, `vram_probe.h`, `dds.h`, `content.h`). The
+   [contract](./contracts/rhi-foundation.md) excludes only `src/renderer/d3d12/` and
+   `src/renderer/ext/` from the scan, so Q4's harness headers sit outside the allowed tier. The
+   header gate — and therefore FR-003's "no Windows-native handle in scene/material interfaces" and
+   FR-017's lexical half — is failing on the current tree. Resolving it means either moving those
+   headers under `src/renderer/d3d12/`, placing them under `src/renderer/ext/`, or amending the scan
+   roots by a reviewed contract change. That is a `src/renderer/**` owner's decision, not a docs one.
+2. `python -I scripts/validate-webgpu-mapping.py` → **exit 1**,
+   `INVALID: 62 problem(s); 57/119 declarations mapped` (62 `declaration not mapped` lines, e.g.
+   `DrawFrameDesc.passes`, `DrawPassDesc.colorClears`, `SurfaceDesc.width`). T089 reconciled five
+   declarations; later Q1b/Q2/Q3 declarations were added without mappings. FR-017's mapping half is
+   not currently satisfied on `main`.
+
+## Missing records named elsewhere
+
+Earlier revisions of this file and of `traceability.md`'s evidence/review lists named paths that do
+not exist in the tree at `f9e84c8`. A missing record is not coverage:
+
+| Named path | State |
+|---|---|
+| `specs/004-quality-renderer/evidence-q5.md` | does not exist (Q5 has no stage evidence) |
+| `specs/004-quality-renderer/provider-clearance.md` | does not exist (T060 NOT RUN) |
+| `specs/004-quality-renderer/review-q2.md` | does not exist (Q2 has no independent review) |
+| `specs/004-quality-renderer/review-q3.md` | does not exist (Q3 has no independent review) |
+| `specs/004-quality-renderer/review-q6.md` | does not exist (T070 NOT RUN) |
+| `specs/004-quality-renderer/review-q7.md` | does not exist (T075 NOT RUN) |
+| `specs/004-quality-renderer/review-programme.md` | does not exist (T078 NOT RUN) |
 
 ## Known coverage limits
 
-- T055 (non-proprietary reconstruction/off path) is a Q4/US5 task, not a Q5 task. T086's independent ordering branch follows T047/T055 and is reviewed with Q4; its provider branch follows T062 only if authorized and executed. An unavailable provider is NOT RUN and does not gate Q4 or the independently testable off path. SC-006 additionally requires the observed clean default configure/build/run without attempted NVIDIA downloads; an off-path pass or artifact inspection alone cannot satisfy it.
-- T048's Q3 execution and review follow T041–T047 and T085; fixture design T041 may be prepared earlier. T013's canonical expected-row hash integrity, independent ±1 byte acceptance and diagnostic actual hashes are implemented and recorded in `evidence-q1a.md`; an independent agent review accepted the policy and implementation at `369c47b` (human sign-off remains a caveat).
-- Q1a T012–T021 are recorded as complete in `tasks.md` and `evidence-q1a.md`. Debug layer and GPU-based validation were attempted and SKIPPED with `hr=0x887A002D`; this blocks full Q1 (T030/T031), not the Q1a slice. The Q1a review is agent-authored; no human sign-off is recorded.
-- T004 and T005 were signed off on 2026-10-28 on `11ea64a` by a non-author agent reviewer, after an earlier attempt was withdrawn and the gate bypasses were fixed. A human/owner sign-off is not recorded and remains a caveat. T005's validator checks structure rather than the truth of results or permissions; stage evidence remains open.
-- Q1b T022–T029 ran 17 CTest cases in Debug and Release on both adapters; `evidence-q1.md` records the red/mutation controls, the fixture validator and the surface captures. T030 stays open because the debug layer and GPU-based validation are SKIPPED (`0x887A002D`), and T031's independent review was performed (`review-q1.md`) but remains open because T030's gate is unmet; the author self-review is `review-q1-self.md`. The four-slot bound is asserted by the private gated test; the public test no longer uses a timing-sensitive fifth-frame probe. Q1b shader modules cross the seam as opaque bytes, but the C++ fixtures embed a native program language; the Q7a gate still owns the portable format.
-- Q1b now sits on the T089 header (`9f103e6`). T089's 57/57 mapping was measured before the Q1b declarations; `validate-webgpu-mapping.py` now exits 1 for the new shader/pipeline/draw/compute/surface declarations. This is a mapping follow-up, not a Q1b functional failure and not a WebGPU claim.
-- Only T033 and T040 of T033–T040 concern FR-019 (delivery/ownership). The rest of that range concerns Q2 behavior.
-- The "38 raw findings" mentioned in earlier planning is a process observation, not a repository fact; it is not traceable here.
-- A task ID in these tables is a plan reference. It becomes evidence only when its own command output exists and is recorded.
-- The Q3 test slice (`evidence-q3-tests.md`) registers T043/T045/T047 as expected-red with `WILL_FAIL`; CTest reporting "passed" there is an inverted verdict, not a green result. Their production files (`src/renderer/rhi/view_history.cpp`, `src/renderer/rhi/overlay_composition.cpp`) do not exist. A pre-existing public-header collision — `frame_resources.h` and `motion_history.h` both define `doom3::rhi::MotionSample` — prevents a translation unit from including both and must be resolved by the `src/renderer/rhi/**` owner before T047/T085/T048 integration.
+- **Q1a is not Q1.** Q1a proves offscreen clear/readback through the portable seam on one hardware and
+  one software adapter. It is not portability evidence, not a renderer and not Q1. Q1b adds
+  programmable draw/compute/MRT/depth/temporal/surface fixtures. Full Q1 still requires T030's gate
+  and T031's independent review.
+- **The recorded `0x887A002D` skip is host-specific.** Every earlier record says
+  `D3D12GetDebugInterface` returned `0x887A002D` and validation was SKIPPED. On the 2026-10-31 host
+  the diagnostics fixture reports `debug=RUN`, `gpu_validation=RUN` and `validation_executed=true`
+  for 6 of 8 cases with `errors=0` and 4 unwaived `ClearRenderTargetView` warnings per case. This
+  contradicts the recorded reason for T030 being open; it does not close T030, because the gate must
+  be re-run in its own stage worktree and independently reviewed, and the 4 warnings are unwaived.
+- **Fixtures are not scenes.** A green CPU or standalone-harness suite demonstrates arithmetic,
+  ordering or policy. It does not demonstrate an engine frame, parity, art acceptance or performance.
+- **Q4 is accepted with limits, not green.** `review-q4-r3.md` states "Q4: ACCEPTED WITH LIMITS" and
+  "not an unrestricted Q4-green claim"; its §6 limits are not upgraded to passes. No engine frame
+  exists.
+- **Q6 and Q7 are partial.** Q6 has CPU reference slices only, with T069 PARTIAL and T070 NOT RUN.
+  Q7 has a contract, a capability table and a procedural browser host slice, with T072/T073 partly
+  open, T074/T075 NOT RUN. No DXR, DLSS or web-support claim follows from either.
+- **T055 is a Q4/US5 task, not Q5.** T086's provider branch follows T062 only if authorized and
+  executed; it is NOT RUN and does not gate Q4 or the off path. SC-006 additionally requires the
+  observed clean default configure/build/run, which a passing off-path test cannot substitute for.
+- **T048's review follows T041–T047 and T085.** T043/T045/T047 now pass as portable slices, but
+  T044/T085's engine-fork halves are missing, so T048 is NOT RUN on that and on the absence of legal
+  data. Synthetic vectors alone cannot satisfy it.
+- **T004/T005 sign-off is agent-authored** on `11ea64a` with a human sign-off caveat; the validator
+  checks structure, not the truth of results or permissions.
+- **Only T033 and T040 of T033–T040 concern FR-019**; the rest of that range concerns Q2 behaviour.
+- **A task id in these tables is a plan reference**, not coverage. The "38 raw findings" figure from
+  earlier planning is a process observation, not a repository fact, and is not traceable here.

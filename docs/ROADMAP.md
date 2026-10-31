@@ -1,6 +1,8 @@
 # DOOM 3 AI-Native Port — Roadmap
 
-Evidence captured 2026-10-26 from this working tree. Facts are in §1–§2; milestone plans, automation design, decisions, and next actions are `[suggestion]`.
+Evidence captured 2026-10-26 from this working tree, re-checked 2026-10-31 for the rows marked
+"(re-checked 2026-10-31)"; the spec 004 stage status is in §7. Facts are in §1–§2; milestone plans,
+automation design, decisions, and next actions are `[suggestion]`.
 
 ## 1. Evidence: what is actually in the checkout
 
@@ -20,8 +22,8 @@ Evidence captured 2026-10-26 from this working tree. Facts are in §1–§2; mil
 | Windows solution | `neo/doom.sln` has only `Win32` configurations; `doomdll.vcxproj` uses `ToolsVersion="4.0"` (VS2010), has no `PlatformToolset` element, and hardcodes the DirectX SDK June 2010 include path | `doom.sln`; `doomdll.vcxproj` |
 | SCons | `neo/SConstruct` + `SConscript.core/curl/game/gl/idlib`; Python 2 syntax (`print '...'`, imports `commands`, `popen2`, `StringIO`) | `SConstruct:6`, `SConstruct:197` |
 | Xcode | `neo/sys/osx/` contains `Doom3`, `game`, `d3xp`, `idlib`, `oggVorbis`, and `SubProjects/curl` Xcode projects | `README.txt:52`; listing |
-| Existing web code | 0 `emscripten`/`EMSCRIPTEN`, 0 `webgl`, 0 `wasm` references under `neo/`; no `web/`, `src/`, `port/`, `tests/` top-level directories | search; listing |
-| Toolchain (environment, not repo) | git 2.25.0, node 24.19.0, uv 0.12.13, bare python 2.7.16 (`py` launcher 3.14.4); `emcc`/`em++` now provided by emsdk 6.0.13 (per-shell activation; see `tests/webgpu/emscripten/README.md`), `scons` and standalone `cmake` missing; `gh` present; VS2022 Professional and MSBuild present; VS2010 and DirectX SDK June 2010 not found at the checked/default locations | `Get-Command`; `vswhere` |
+| Existing web code | 0 `emscripten`/`EMSCRIPTEN`, 0 `webgl`, 0 `wasm` references under `neo/` (still 0 on 2026-10-31). **Corrected 2026-10-31:** `web/`, `src/` and `tests/` now exist — 9 tracked files under `web/`, 74 under `src/`, 77 under `tests/` (42 of them under `tests/renderer/`). They are the spec 004 renderer and Q7 host slice, not a web port of the engine | search; `git ls-files web src tests` |
+| Toolchain (environment, not repo) | git 2.25.0, node 24.19.0, uv 0.12.13, bare python 2.7.16 (`py` launcher 3.14.4); `emcc`/`em++` now provided by emsdk 6.0.13 (per-shell activation; see `tests/webgpu/emscripten/README.md`), `scons` and standalone `cmake` missing; `gh` present; VS2022 Professional and MSBuild present; VS2010 and DirectX SDK June 2010 not found at the checked/default locations. **(re-checked 2026-10-31 on a different host, so the two lists are host-specific:** node v22.16.0, standalone `cmake` 4.1.2 and `ctest` 4.1.2 on `PATH`, `python` 3.13.12 but **no `py` launcher**, no `emcc` and no `EMSDK`, no `msbuild` on `PATH`, VS 2022 Community present without a bundled CMake, Windows SDK 10.0.26100.0 present, Chrome 151.0.7922.76 present) | `Get-Command`; `vswhere` |
 | Root repo state | scaffold committed on `main`; pristine submodule recorded at `doom3_orig/doom3`; per-target copies live under `targets/` and are git-ignored | `git log --oneline`; `git submodule status` |
 | CI | `.github/` absent; no workflow files; `gh` installed but no workflow to list | listing |
 | Spec-kit / skills | 25 skills in `.claude/skills/` (tracked: 14 project skills, `win64-port-playbook`, 10 generated `speckit-*`), mirrored into the git-ignored `.kilo/skills/`; 10 `/speckit.*` commands in `.kilo/command/` (`generic`) and the same flow as `/speckit-*` skills (`claude`); `.specify/memory/constitution.md` is filled | `docs/SKILLS.md`; `scripts/verify-skills.ps1`; `specify integration status` |
@@ -181,3 +183,39 @@ Paths below point at the pristine submodule (`doom3_orig/doom3`) because that is
 1. **Coordinator:** record M0 evidence and land the scaffold — run `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-skills.ps1`, `git submodule status`, and `git -C doom3_orig/doom3 status --porcelain`; commit the reviewed tree, then add the CI workflow and the prerequisite check.
 2. **Worker:** run the M1 native-build probe exactly as written, archive the failure text, and decide via `/speckit.plan` between restoring VS2010 + DirectX SDK June 2010 and adding a modern CMake build.
 3. **Worker:** activate emsdk and run `emcc --version` (installed 2026-10-29), then `/speckit.specify` the M2 dedicated-WASM slice with a synthetic asset fixture and the no-GL/no-audio import check.
+
+## 7. Spec 004 quality-renderer stage status (re-checked 2026-10-31)
+
+This is the renderer programme in [`specs/004-quality-renderer/`](../specs/004-quality-renderer/spec.md),
+not the M0–M7 web milestones above. It is restated here because the renderer work is the largest
+thing in the checkout and its stage names (Q0–Q7) do not appear in §3. Every status below is copied
+from an executed result; a stage with design documents and no run is `NOT RUN`, never implied.
+Per-requirement receipts are in
+[`specs/004-quality-renderer/traceability.md`](../specs/004-quality-renderer/traceability.md).
+
+| Stage | Status | What actually executed | What did not execute | Evidence |
+|---|---|---|---|---|
+| Q0 baseline | `PASS` on one host/data set | Fresh native build identity and all four reference categories captured twice inside pre-frozen ceilings (meanAbs 0.183/0.226/0.108/0.055; diff 0.208%/0.210%/0.098%/0.032%) | Retail scenes, other hosts, performance | `specs/004-quality-renderer/evidence-q0.md` |
+| Q1a slice | `PASS` as a slice only | Offscreen clear/readback through the portable seam, fence retirement, outstanding-release assertion, row-pitch correction, on one hardware and one software adapter | Anything that would make it a renderer or Q1 | `specs/004-quality-renderer/evidence-q1a.md`, `review-q1a.md` |
+| Q1 (full) | `INCOMPLETE` | Q1b draw, compute, MRT, depth, temporal, frame resources, surface, fault-injected device removal; 32/32 CTest in Debug and Release on 2026-10-31; diagnostics executed with `errors=0` and 4 unwaived warnings per enabled case | T030's gate as a reviewed run, T031's independent review; the recorded `0x887A002D` reason for the open state did not reproduce on the 2026-10-31 host | `specs/004-quality-renderer/evidence-q1.md`, `evidence-doc-cluster.md` |
+| Q2 classic path | `NOT RUN` | Ordered scene stream, material plan and light plan as CPU fixtures | Engine selector, engine frame, GL-vs-D3D12 comparison, fallback check | `specs/004-quality-renderer/evidence-q2.md` |
+| Q3 motion/history/HUD | `PARTIAL` | Reprojection, rendered-frame identity, invalidation, view isolation, private-pose retention, overlay ordering as portable slices | Engine-fork halves (T044/T085), real-scene run (T048), independent review | `specs/004-quality-renderer/evidence-q3.md`, `evidence-q3-tests.md` |
+| Q4 hybrid quality | `PARTIAL` | Five portable suites green; standalone D3D12 harness rendered seven content cells across four categories on Intel Graphics 32.0.101.8331 plus WARP; budgets set from measurement, VRAM peak 107,110,400 B in 12/12 runs; T057 r3 `ACCEPTED WITH LIMITS` | A playable engine path; the review's own §6 limits are not passes; "Q4 is not green" as written by its reviewer | `specs/004-quality-renderer/evidence-q4.md`, `review-q4-r3.md` |
+| Q5 neural provider | `NOT RUN` | The non-proprietary off path exists and is byte-exact identity (35 checks) | Authorization, SDK access, create/evaluate, masks, reset, on/off captures, distribution review, and the observed clean default configure/build/run without attempted NVIDIA downloads | `specs/004-quality-renderer/provider-contract.md`, `evidence-q4.md` |
+| Q6 path-traced reference | `PARTIAL` | CPU reference integrator, dynamic acceleration-structure updates, material transport, denoiser; 5/5 CTest, 233 checks | A DXR device, any capture, convergence record, frame time, latency, independent review | `specs/004-quality-renderer/evidence-q6.md` |
+| Q7 portable profiles | `PARTIAL` | Capability/fallback contract and a `webgpu-browser` host slice with a procedural scene; 11 required checks twice and 21 unit tests on the author's run | A WebGPU `doom3::rhi::Device`, a real-scene run (T074), any profile review (T075), any other target | `specs/004-quality-renderer/evidence-q7.md`, `portable-profile-contract.md` |
+
+**Claim boundary.** Nothing above supports a claim of game parity, DXR, DLSS (any version), WebGPU or
+browser support, a playable modern renderer, or engine integration. Q1a is a slice, Q4 is accepted
+with limits, Q6 and Q7 are partial, and Q1 is incomplete.
+
+**Two documented gates are red on `main` at `f9e84c8`** (commands and exits in
+`specs/004-quality-renderer/evidence-doc-cluster.md`):
+
+- the RHI header gate fails with 26 `prohibited D3D12 vocabulary in engine-facing header
+  src\renderer\q4_harness\*.h` findings, so a header-tier decision is owed by the
+  `src/renderer/**` owner;
+- the WebGPU mapping gate fails with `INVALID: 62 problem(s); 57/119 declarations mapped`, so the
+  declarations added after T089 need mappings or explicit unmappable rows.
+
+Neither is a web-port regression and neither authorises a port claim.
