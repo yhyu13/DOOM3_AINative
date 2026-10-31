@@ -72,8 +72,9 @@
   .\scripts\migrate-repo.ps1 -OutDir D:\backup\doom3-snapshot -EmsdkPath C:\emsdk
 
 .NOTES
-  Exit 0 = snapshot written and verified; 1 = preflight rejected (dirty tree, non-empty target);
-  2 = environment error (not a repo, git missing, bundle/copy failed).
+  Exit 0 = snapshot written and verified; 1 = preflight rejected (dirty tree or submodule);
+  2 = environment error (not a repo, git missing, non-empty -OutDir without -Force, bundle/copy
+  failed).
 #>
 [CmdletBinding()]
 param(
@@ -213,7 +214,7 @@ if (-not $OutDir) {
     $OutDir = Join-Path (Split-Path -Parent $repo) ('doom3-snapshot-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
 }
 if ((Test-Path -LiteralPath $OutDir) -and @(Get-ChildItem -LiteralPath $OutDir -Force).Count -gt 0 -and -not $Force) {
-    Fail "Output directory is not empty: $OutDir (use -Force to overwrite files in it)" 1
+    Fail "Output directory is not empty: $OutDir (use -Force to overwrite files in it)" 2
 }
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 $stateDir = Join-Path $OutDir 'local-state'
