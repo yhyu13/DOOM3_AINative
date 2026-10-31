@@ -149,7 +149,7 @@ by inference from a public sample on another API, a vendor blog, or a dynamic-lo
 
 | Gate | Record required | Current state |
 |---|---|---|
-| T059 | Off/missing-provider behavioural test; clean default configure, build and run observed for attempted NVIDIA downloads (including failed/blocked attempts and child processes); dependency and artifact inspection as a separate check | NOT RUN — no `src/renderer/ext/provider.cpp`, no `specs/004-quality-renderer/evidence-q5.md` |
+| T059 | Off/missing-provider behavioural test; clean default configure, build and run observed for attempted NVIDIA downloads (including failed/blocked attempts and child processes); dependency and artifact inspection as a separate check | **PARTIAL** — `src/renderer/ext/provider.cpp` and an 84-check off/missing-provider test pass (exit 0), and the separate artifact/dependency inspection passes. Clean default configure and build exit 0. The three-phase no-download observation is **NOT RUN** (no complete process trace or packet capture without elevation) and the default engine run is **NOT RUN** (no legal game data); see `specs/004-quality-renderer/evidence-q5.md` |
 | T060 | Actual SDK access, backend, version, device/driver, authorization and distribution review | NOT RUN — `specs/004-quality-renderer/provider-clearance.md` does not exist (referenced by `traceability.md` before this revision) |
 | T061 | Authorized adapter outside the default dependency path plus create/evaluate/reset test | NOT RUN |
 | T062 | Selected-backend inputs, masks, reset, on/off evidence and independent distribution decision | NOT RUN |
