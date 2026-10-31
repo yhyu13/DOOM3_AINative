@@ -739,3 +739,9 @@ now reads `6/6`, `25/32`, `18`, `5`, `70`, and the gaps list reads
 `evidence/report.png` was recaptured from the regenerated page (1440 × 2672). What these artifacts
 still do **not** prove is any shader behaviour.
 
+Mutation control for the derived line: with `tasks.md` temporarily marking T-020 `BLOCKED` (the change
+was not committed), `report.ps1 -Out <temp>` printed
+`Blocked tasks: T-020, T-021, T-025, T-027, T-028, T-030, T-031, T-032` — eight ids, so the line
+follows the table rather than a typed sentence. The file was restored afterwards and
+`git status --porcelain` was empty; the committed report still lists the seven real ids.
+
