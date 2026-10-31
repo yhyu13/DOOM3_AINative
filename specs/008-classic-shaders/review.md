@@ -212,7 +212,7 @@ for a tree where a gate was failing.
 |---|---|---|
 | Runtime census blocked | completeness unproven | T-031 when authorized data exists |
 | No legal review | the clean-room position is conservative but not adjudicated | T-032 |
-| Emscripten never pinned here (DXC and Tint are) | no web-target build through this pin file; the WGSL side is validated, the wasm side is not | the web target owns its Emscripten pin (AGENTS.md records 6.0.13) |
+| Emscripten pinned but not exercised by this library (DXC and Tint are) | the identity is checked when an emsdk is present, but no wasm build runs here, so the real-emcc verification is SKIPPED on hosts without one | the web target owns the emsdk install; `shaders/tools/verify-emscripten-pin.ps1` fails closed when one is present |
 | No rendered comparison for any program | `owned` is unreachable: `ownership.md` §5 criterion 5 needs a frame, and T-027 needs authorized data and a running classic backend | T-027, then promote |
 | Owner is a role, not a person | the first implementation PR needs an independent reviewer | `ownership.md` §10 Q4 |
 | ABI is source-derived, not observed | the headers compile and reflect cleanly, but no retail program has been compared | T-027 parity, on authorized data |

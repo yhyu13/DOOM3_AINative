@@ -215,7 +215,10 @@ review used to expose weak checks before they were fixed.
 ### 3.2 Package report
 
 `report.ps1` → `evidence/report.html`; Playwright at 1440 × 1100, full page; `evidence/report.png`
-(1425 × 2647). The browser assertions returned:
+(1440 × 2672). Regenerated on 2026-11-01: the previous artifact was generated on 2026-10-29 and still
+said "Engine resolver, ABI header, shaders: **not started**", which was false after the wiring landed
+and is exactly the stale-artifact failure the report exists to prevent. The gap line is now derived
+from the task table instead of typed. The browser assertions returned:
 
 ```json
 {
@@ -224,15 +227,18 @@ review used to expose weak checks before they were fixed.
   "failBadges": 0,
   "hasCensus": true,
   "hasSkipped": true,
-  "hasTasks": true
+  "hasBlocked": true,
+  "staleClaim": false,
+  "kpis": ["6/6gates passing", "25/32tasks (spec 19/19)", "18program entries", "5files to author", "70content assertions"]
 }
 ```
 
-The screenshot was read back: six PASS cards, the KPI strip (`6/6`, `19/32`, `18`, `5`, `70`), the
-18-row census, the known gaps, and the artifact table.
+The screenshot was read back: six PASS cards, the KPI strip (`6/6`, `25/32`, `18`, `5`, `70`), the
+18-row census, the known gaps — including `Implementation: 6/11 tasks done. Blocked tasks: T-021,
+T-025, T-027, T-028, T-030, T-031, T-032` — and the artifact table.
 
 **What they prove**: the artifacts render and their numbers match the extraction.
-**What they do not prove**: any shader behaviour. No shader exists.
+**What they do not prove**: any shader behaviour. No program is `owned` and no frame was captured.
 
 ---
 
