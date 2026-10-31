@@ -109,17 +109,36 @@ function Write-TextFile {
     [IO.File]::WriteAllText($Path, $Text, (New-Object Text.UTF8Encoding($false)))
 }
 
+function Invoke-Native {
+    param(
+        [Parameter(Mandatory = $true)][string]$FilePath,
+        [string[]]$Arguments = @()
+    )
+    # PowerShell 5.1 promotes every line a native tool writes to stderr into a NativeCommandError.
+    # Under the script-wide EAP=Stop that aborts a snapshot on a benign warning (verified: git
+    # count-objects -v exits 0 but warns "garbage found" about a stale .git/worktrees entry).
+    # Capture stderr as data and let the caller decide from the exit code.
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $lines = @(& $FilePath @Arguments 2>&1)
+        $code = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previous
+    }
+    return [pscustomobject]@{ Lines = $lines; Code = $code; Text = ($lines -join "`n") }
+}
+
 function Get-GitOutput {
     param([Parameter(Mandatory = $true)][string[]]$GitArgs)
-    $lines = @(& git @GitArgs 2>&1)
-    return [pscustomobject]@{ Lines = $lines; Code = $LASTEXITCODE }
+    return Invoke-Native -FilePath 'git' -Arguments $GitArgs
 }
 
 function Get-ToolVersion {
     param([Parameter(Mandatory = $true)][string]$Command)
     $c = Get-Command $Command -ErrorAction SilentlyContinue
     if ($null -eq $c) { return $null }
-    $v = @(& $Command --version 2>&1 | Select-Object -First 1)
+    $v = @((Invoke-Native -FilePath $Command -Arguments @('--version')).Lines | Select-Object -First 1)
     if ($v.Count -eq 0) { return $null }
     return ([string]$v[0]).Trim()
 }
@@ -136,9 +155,9 @@ function Get-TreeSize {
 function Get-VisualStudio {
     $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
     if (-not (Test-Path -LiteralPath $vswhere)) { return $null }
-    $path = @(& $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath 2>$null)
+    $path = @((Invoke-Native -FilePath $vswhere -Arguments @('-latest', '-products', '*', '-requires', 'Microsoft.VisualStudio.Component.VC.Tools.x86.x64', '-property', 'installationPath')).Lines | Where-Object { $_ })
     if ($path.Count -eq 0) { return $null }
-    $display = @(& $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property displayName 2>$null)
+    $display = @((Invoke-Native -FilePath $vswhere -Arguments @('-latest', '-products', '*', '-requires', 'Microsoft.VisualStudio.Component.VC.Tools.x86.x64', '-property', 'displayName')).Lines | Where-Object { $_ })
     $toolsets = @()
     $msvc = Join-Path ([string]$path[0]) 'VC\Tools\MSVC'
     if (Test-Path -LiteralPath $msvc) { $toolsets = @(Get-ChildItem -LiteralPath $msvc -Directory | Select-Object -ExpandProperty Name) }
@@ -223,12 +242,18 @@ if ($subExists) {
 $headSha = (& git -C $repo rev-parse HEAD).Trim()
 # `rev-parse --abbrev-ref HEAD` returns the literal "HEAD" when detached; resolve the ref instead
 # so a detached checkout is recorded as branch=null plus its commit SHA (B-1 regression).
-$headBranchRef = (& git -C $repo symbolic-ref --quiet --short HEAD 2>$null)
-$headBranch = if ($headBranchRef) { ([string]$headBranchRef).Trim() } else { $null }
+$headBranchRef = Invoke-Native -FilePath 'git' -Arguments @('-C', $repo, 'symbolic-ref', '--quiet', '--short', 'HEAD')
+$headBranch = if ($headBranchRef.Code -eq 0) { $headBranchRef.Text.Trim() } else { $null }
+if (-not $headBranch) { $headBranch = $null }
 $branchLabel = if ($headBranch) { $headBranch } else { '(detached)' }
-$originUrl = (& git -C $repo remote get-url origin 2>$null)
+$originRef = Invoke-Native -FilePath 'git' -Arguments @('-C', $repo, 'remote', 'get-url', 'origin')
+$originUrl = if ($originRef.Code -eq 0) { $originRef.Text.Trim() } else { $null }
 $subSha = if ($subExists) { (& git -C $sub rev-parse HEAD).Trim() } else { $null }
-$subOrigin = if ($subExists) { (& git -C $sub remote get-url origin 2>$null) } else { $null }
+$subOrigin = $null
+if ($subExists) {
+    $subOriginRef = Invoke-Native -FilePath 'git' -Arguments @('-C', $sub, 'remote', 'get-url', 'origin')
+    if ($subOriginRef.Code -eq 0) { $subOrigin = $subOriginRef.Text.Trim() }
+}
 
 Write-Host "repo         : $repo"
 Write-Host "profile      : $Profile"
@@ -298,8 +323,8 @@ $fsck = Get-GitOutput @('-C', $repo, 'fsck', '--unreachable', '--no-reflogs')
 $dangling = @($fsck.Lines | Select-String 'unreachable commit' | ForEach-Object { ($_ -split ' ')[2] })
 $danglingLines = @("Unreachable commits in $repo at $((Get-Date).ToString('o'))", "Count: $($dangling.Count)", '')
 foreach ($d in $dangling) {
-    $subject = (& git -C $repo log -1 --format='%h %ad %s' --date=short $d 2>$null)
-    if ($subject) { $danglingLines += "$d  $subject" }
+    $subjectRef = Invoke-Native -FilePath 'git' -Arguments @('-C', $repo, 'log', '-1', '--format=%h %ad %s', '--date=short', $d)
+    if ($subjectRef.Code -eq 0 -and $subjectRef.Text.Trim()) { $danglingLines += "$d  $($subjectRef.Text.Trim())" }
 }
 Write-TextFile (Join-Path $OutDir 'unreachable-commits.txt') (($danglingLines -join "`r`n") + "`r`n")
 Write-Host "unreachable commits: $($dangling.Count)"
@@ -328,7 +353,7 @@ if (-not $NoDanglingBundle -and $dangling.Count -gt 0) {
             }
         }
     } finally {
-        foreach ($r in $tempRefs) { & git -C $repo update-ref -d $r 2>$null }
+        foreach ($r in $tempRefs) { Invoke-Native -FilePath 'git' -Arguments @('-C', $repo, 'update-ref', '-d', $r) | Out-Null }
     }
 }
 
