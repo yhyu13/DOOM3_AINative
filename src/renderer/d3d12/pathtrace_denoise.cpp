@@ -279,9 +279,13 @@ bool DenoiseBilateral(const float* rgb, const float* depth, const DenoiseDesc& d
                                                   static_cast<uint32_t>(x)]
                                           : 0.0f;
             double weightSum = 0.0;
-            double sumR = 0.0;
-            double sumG = 0.0;
-            double sumB = 0.0;
+            // One accumulator per channel, indexed by the channel loop below.
+            // Keep the three sums in an array and touch them through an index:
+            // MSVC 19.38 at /O2 /fp:precise miscompiled three separately named
+            // accumulators here into a single blue-channel reduction, dropping
+            // the red and green loads and stores. See
+            // specs/004-quality-renderer/evidence-q6.md "Denoiser codegen".
+            double sumRgb[3] = {0.0, 0.0, 0.0};
             for (int offsetY = -desc.radius; offsetY <= desc.radius; ++offsetY) {
                 const int sampleY = y + offsetY;
                 if (sampleY < 0 || sampleY >= static_cast<int>(desc.height)) {
@@ -315,9 +319,10 @@ bool DenoiseBilateral(const float* rgb, const float* depth, const DenoiseDesc& d
                     const double weight = static_cast<double>(spatial * colorWeight *
                                                               depthWeight);
                     weightSum += weight;
-                    sumR += weight * static_cast<double>(rgb[neighbour + 0]);
-                    sumG += weight * static_cast<double>(rgb[neighbour + 1]);
-                    sumB += weight * static_cast<double>(rgb[neighbour + 2]);
+                    for (int channel = 0; channel < 3; ++channel) {
+                        sumRgb[channel] +=
+                            weight * static_cast<double>(rgb[neighbour + channel]);
+                    }
                 }
             }
             if (weightSum <= 0.0) {
@@ -327,9 +332,9 @@ bool DenoiseBilateral(const float* rgb, const float* depth, const DenoiseDesc& d
                 continue;
             }
             const double inverse = 1.0 / weightSum;
-            output[center + 0] = static_cast<float>(sumR * inverse);
-            output[center + 1] = static_cast<float>(sumG * inverse);
-            output[center + 2] = static_cast<float>(sumB * inverse);
+            for (int channel = 0; channel < 3; ++channel) {
+                output[center + channel] = static_cast<float>(sumRgb[channel] * inverse);
+            }
         }
     }
     if (error != nullptr) {
