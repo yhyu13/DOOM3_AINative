@@ -6,20 +6,25 @@
   Writes targets/<Name>/patches/all-changes.patch (git diff --no-index per changed file, a/ b/ paths
   relative to neo/..) and all-changes.manifest.txt (status, path, SHA-256). Reviewable form of FR-007.
   -OutDir writes both files elsewhere, so a verifier can avoid overwriting the tracked copies.
-  The patch reproduces modified files only; added and deleted files are manifest rows, warned about
-  here and refused by apply-target-patches.ps1 unless the caller accepts an incomplete copy.
-  Exit 0 = exported, 2 = environment error.
+  -SourceDir overrides the pristine tree; it exists so the negative controls can run against a
+  synthetic tree without touching doom3_orig/doom3.
+  The patch reproduces modified files only. Added ('A') and deleted ('D') files are manifest rows
+  without content, so such an export is NOT a reconstruction and must not report success: this
+  script writes the files for inspection, warns, and exits 1. Deliver added/deleted engine files
+  through the reviewed fork/submodule path (specs/004-quality-renderer/engine-integration.md §3).
+  Exit 0 = complete modified-only export; 1 = printed but incomplete (A/D rows present);
+  2 = environment error.
 .EXAMPLE
   .\scripts\export-target-patches.ps1 -Name win11-amd64
 .EXAMPLE
   .\scripts\export-target-patches.ps1 -Name win11-amd64 -OutDir $env:TEMP\d3patches
 #>
 [CmdletBinding()]
-param([Parameter(Mandatory = $true)][string]$Name, [string]$OutDir)
+param([Parameter(Mandatory = $true)][string]$Name, [string]$OutDir, [string]$SourceDir)
 $ErrorActionPreference = 'Stop'
 trap { Write-Host "ERROR $($_.Exception.Message)" -ForegroundColor Red; exit 2 }
 $repo = Split-Path -Parent $PSScriptRoot
-$src = Join-Path $repo 'doom3_orig\doom3'
+$src = if ($SourceDir) { $SourceDir } else { Join-Path $repo 'doom3_orig\doom3' }
 $dst = Join-Path $repo "targets\$Name\doom3"
 $out = if ($OutDir) { $OutDir } else { Join-Path $repo "targets\$Name\patches" }
 if (-not (Test-Path -LiteralPath (Join-Path $src 'neo'))) { Write-Host 'ERROR: pristine missing' -ForegroundColor Red; exit 2 }
@@ -80,8 +85,9 @@ foreach ($f in $removed) { $manifest.Add("D`t$f`t") }
 [System.IO.File]::WriteAllBytes((Join-Path $out 'all-changes.patch'), $patchStream.ToArray())
 [System.IO.File]::WriteAllLines((Join-Path $out 'all-changes.manifest.txt'), $manifest, (New-Object System.Text.UTF8Encoding($false)))
 Write-Host ("Modified {0}, Added {1}, Removed {2}" -f @($changed).Count, @($added).Count, @($removed).Count)
-if (@($added).Count -gt 0 -or @($removed).Count -gt 0) {
-    Write-Warning ("The patch reproduces modified files only; {0} added and {1} removed file(s) are manifest rows. Deliver those through the engine fork/submodule path, or treat this export as incomplete." -f @($added).Count, @($removed).Count)
-}
 Write-Host "Wrote $out\all-changes.patch ($((Get-Item (Join-Path $out 'all-changes.patch')).Length) bytes) and manifest"
+if (@($added).Count -gt 0 -or @($removed).Count -gt 0) {
+    Write-Warning ("INCOMPLETE: the patch reproduces modified files only; {0} added and {1} removed file(s) are manifest rows. Deliver those through the engine fork/submodule path. This export is not a reconstruction." -f @($added).Count, @($removed).Count)
+    exit 1
+}
 exit 0
