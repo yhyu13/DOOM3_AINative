@@ -53,6 +53,7 @@ committed.
   - Critical finding: the demo ships `dds/` precompressed textures and sets `image_downSize 1`. With defaults the pack is mounted but the engine loads demo DDS and clamps diffuse maps to 256; earlier "HD" evidence was invalid. `-HdTextures` sets `image_usePrecompressedTextures 0` and disables all image downsampling before map load.
 - [x] **T016** Run `scripts/verify-hd-run.ps1`; require every required check PASS.
   - Evidence: SC-001, SC-002a, SC-002b, SC-003, SC-004a, SC-004b, SC-005, SC-006, SC-008 all PASS; `SUMMARY fails=0`; exit 0.
+  - Interpreter note (2026-11-01, issue #112): on a host without `py.exe` the verifier now resolves the comparison interpreter itself (`py -3` when it works, then `python`) and requires Python 3 plus Pillow. Re-run against an 800x600 `out-hd`/`out-base` pair: `SC-005 PASS DIFF_PERCENT=65.7977 >= 1%`, interpreter `python 3.13.12, Pillow 12.2.0`, `SUMMARY fails=0`, exit 0. That pair is a different capture from T017's recorded pair (`PIXELS=307200` here versus `PIXELS=480000`), so it verifies the gate mechanics, not a new pack-effect measurement.
   - SC-008 result: **121 textures uploaded larger**; example `textures/base_door/delelev1_s 256x256 -> 1024x1024`.
   - SC-007 (clean-checkout reproducibility) is procedural and is not asserted by the verifier; this record does not claim it passed.
 - [x] **T017** Compare baseline and HD screenshots with `scripts/compare-screenshots.py`; record DIFF_PERCENT.
