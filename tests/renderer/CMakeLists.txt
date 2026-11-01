@@ -320,3 +320,51 @@ set_tests_properties(
         TIMEOUT 120
         LABELS "q4"
 )
+
+# Q7 portable profile contract (T072). CPU-only and backend-neutral: it
+# evaluates declared capability facts, so it links no device, window, shader
+# compiler or native library. T073's target backend and T074's real-scene run
+# are deliberately absent here.
+add_library(q7_profile STATIC
+    "${Q1A_SOURCE_ROOT}/src/renderer/rhi/capability_profile.cpp")
+target_include_directories(q7_profile PUBLIC "${Q1A_HEADER_ROOT}")
+target_compile_features(q7_profile PUBLIC cxx_std_17)
+if(MSVC)
+    target_compile_options(q7_profile PRIVATE /W4 /permissive- /EHsc)
+endif()
+
+function(add_q7_test target source)
+    add_executable(${target} "${source}")
+    target_link_libraries(${target} PRIVATE q7_profile)
+    target_compile_features(${target} PRIVATE cxx_std_17)
+    target_include_directories(${target} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    if(MSVC)
+        target_compile_options(${target} PRIVATE /W4 /permissive- /EHsc)
+    endif()
+endfunction()
+
+add_q7_test(q7_portable_profile_test portable_profile_test.cpp)
+
+add_test(NAME renderer.q7.portable_profile.contract_tables
+    COMMAND q7_portable_profile_test contract_tables)
+add_test(NAME renderer.q7.portable_profile.required_limits
+    COMMAND q7_portable_profile_test required_limits)
+add_test(NAME renderer.q7.portable_profile.optional_fallbacks
+    COMMAND q7_portable_profile_test optional_fallbacks)
+add_test(NAME renderer.q7.portable_profile.excluded_classes
+    COMMAND q7_portable_profile_test excluded_classes)
+add_test(NAME renderer.q7.portable_profile.identity_and_vocabulary
+    COMMAND q7_portable_profile_test identity_and_vocabulary)
+add_test(NAME renderer.q7.portable_profile.negative_controls
+    COMMAND q7_portable_profile_test negative_controls)
+set_tests_properties(
+    renderer.q7.portable_profile.contract_tables
+    renderer.q7.portable_profile.required_limits
+    renderer.q7.portable_profile.optional_fallbacks
+    renderer.q7.portable_profile.excluded_classes
+    renderer.q7.portable_profile.identity_and_vocabulary
+    renderer.q7.portable_profile.negative_controls
+    PROPERTIES
+        TIMEOUT 120
+        LABELS "q7"
+)
