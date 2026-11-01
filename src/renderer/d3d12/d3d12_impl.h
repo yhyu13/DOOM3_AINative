@@ -35,7 +35,7 @@ namespace rhi {
 namespace d3d12 {
 namespace detail {
 constexpr DWORD kShutdownTimeoutMilliseconds = 30000;
-constexpr size_t kMaxCapturedMessages = 8;
+constexpr size_t kMaxCapturedMessages = 64;
 constexpr uint64_t kRemovedSentinel = std::numeric_limits<uint64_t>::max();
 
 // Process-lifetime, non-recycling IDs prevent aliases across devices and
@@ -493,6 +493,8 @@ struct Device::Impl : public d3d12::detail::Q1bHost {
             messageCount > 0xFFFFFFFFull ? 0xFFFFFFFFu : static_cast<uint32_t>(messageCount);
         diagnostics.errorCount = 0;
         diagnostics.warningCount = 0;
+        diagnostics.messageIds.clear();
+        diagnostics.messageSeverities.clear();
         diagnostics.messages.clear();
         for (UINT64 index = 0; index < messageCount; ++index) {
             SIZE_T byteLength = 0;
@@ -513,6 +515,10 @@ struct Device::Impl : public d3d12::detail::Q1bHost {
                     ++diagnostics.warningCount;
                 }
                 if (diagnostics.messages.size() < kMaxCapturedMessages) {
+                    diagnostics.messageIds.push_back(
+                        static_cast<uint32_t>(message->ID));
+                    diagnostics.messageSeverities.push_back(
+                        static_cast<uint32_t>(message->Severity));
                     diagnostics.messages.push_back(
                         std::string(SeverityName(message->Severity)) + ": " +
                         (message->pDescription != nullptr ? message->pDescription : ""));
@@ -658,6 +664,18 @@ struct Device::Impl : public d3d12::detail::Q1bHost {
             reinterpret_cast<void**>(completion.GetAddressOf()));
         if (FAILED(hr)) {
             return Fail(Status::Error, error, ErrorWith("CreateFence", hr));
+        }
+        if (diagnostics.debugLayer == d3d12::CheckState::Run) {
+            // Record and gate messages instead of relying on the default
+            // debugger breaks for errors and warnings. A corruption can still
+            // fail-fast inside a driver call; those are fixed at their source
+            // rather than continued past.
+            ComPtr<ID3D12InfoQueue> infoQueue;
+            if (SUCCEEDED(device.As(&infoQueue)) && infoQueue) {
+                infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, FALSE);
+                infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, FALSE);
+                infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, FALSE);
+            }
         }
         return Status::Ok;
     }
@@ -808,15 +826,12 @@ struct Device::Impl : public d3d12::detail::Q1bHost {
         defaultHeap.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
         defaultHeap.CreationNodeMask = 1;
         defaultHeap.VisibleNodeMask = 1;
-        D3D12_CLEAR_VALUE clearValue{};
-        clearValue.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-        clearValue.Color[0] = 0.0f;
-        clearValue.Color[1] = 0.0f;
-        clearValue.Color[2] = 0.0f;
-        clearValue.Color[3] = 0.0f;
+        // No optimized clear value: this submission clears a different colour
+        // per row, so a single creation-time value would be a false hint and
+        // the debug layer reports every mismatching ClearRenderTargetView.
         hr = device->CreateCommittedResource(
             &defaultHeap, D3D12_HEAP_FLAG_NONE, &textureDescription,
-            kTextureInitialState, &clearValue, __uuidof(ID3D12Resource),
+            kTextureInitialState, nullptr, __uuidof(ID3D12Resource),
             reinterpret_cast<void**>(record.texture.GetAddressOf()));
         if (FAILED(hr)) {
             return Fail(Status::Error, error,
@@ -1331,10 +1346,12 @@ struct Q1bState {
     Status CompileShader(const ShaderModuleDesc& desc, ShaderRecord* record,
                          std::string* error);
     Status CreateColorAttachment(uint32_t width, uint32_t height,
+                                 const ClearRow* optimizedClear,
                                  ComPtr<ID3D12Resource>* texture, uint32_t* tightStride,
                                  uint32_t* rowPitch, ComPtr<ID3D12Resource>* readback,
                                  std::string* error);
     Status CreateDepthAttachment(uint32_t width, uint32_t height,
+                                 float optimizedDepth,
                                  ComPtr<ID3D12Resource>* texture, std::string* error);
     Status RecordDrawPasses(ID3D12GraphicsCommandList* list, FrameSlot& slot,
                             const DrawFrameDesc& desc,
@@ -1347,6 +1364,10 @@ struct Q1bState {
     Status AcquireSlot(FrameSlot** slot, uint64_t* completedAtAcquire, std::string* error);
     void FinishSlot(FrameSlot& slot, uint64_t serial);
     bool WaitForSerial(uint64_t serial, DWORD timeoutMilliseconds);
+    // Signals the queue with a fresh value and waits for it. This drains all
+    // previously submitted queue work even when every slot has already been
+    // released, which LastSerial() alone cannot prove.
+    bool DrainQueue(DWORD timeoutMilliseconds, std::string* error);
 
     Q1bHost* host = nullptr;
     uint32_t nextPipelineId = 1;

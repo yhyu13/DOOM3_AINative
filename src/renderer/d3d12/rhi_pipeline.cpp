@@ -560,17 +560,37 @@ Status d3d12::detail::Q1bState::SubmitDrawFrame(const DrawFrameDesc& desc,
     record.colorReadbacks.resize(desc.attachmentCount);
     record.colorPitches.resize(desc.attachmentCount);
     record.colorStrides.resize(desc.attachmentCount);
+    // The first pass that names an attachment performs its only clear. Hand
+    // that value to creation so the debug layer sees a matching optimized clear
+    // value instead of reporting a mismatching-clear warning on a correct run.
+    std::vector<ClearRow> firstClears(desc.attachmentCount);
+    std::vector<bool> firstClearKnown(desc.attachmentCount, false);
+    for (uint32_t passIndex = 0; passIndex < desc.passCount; ++passIndex) {
+        const DrawPassDesc& pass = desc.passes[passIndex];
+        if (pass.colorClears == nullptr) {
+            continue;
+        }
+        for (uint32_t i = 0; i < pass.colorCount; ++i) {
+            const uint32_t index = pass.colorIndices[i];
+            if (!firstClearKnown[index]) {
+                firstClears[index] = pass.colorClears[i];
+                firstClearKnown[index] = true;
+            }
+        }
+    }
     for (uint32_t i = 0; i < desc.attachmentCount; ++i) {
         const Status created = CreateColorAttachment(
-            desc.width, desc.height, &record.colors[i], &record.colorStrides[i],
-            &record.colorPitches[i], &record.colorReadbacks[i], error);
+            desc.width, desc.height, firstClearKnown[i] ? &firstClears[i] : nullptr,
+            &record.colors[i], &record.colorStrides[i], &record.colorPitches[i],
+            &record.colorReadbacks[i], error);
         if (created != Status::Ok) {
             return created;
         }
     }
     if (desc.depthEnabled) {
-        const Status created =
-            CreateDepthAttachment(desc.width, desc.height, &record.depth, error);
+        const Status created = CreateDepthAttachment(desc.width, desc.height,
+                                                     desc.depthClear, &record.depth,
+                                                     error);
         if (created != Status::Ok) {
             return created;
         }

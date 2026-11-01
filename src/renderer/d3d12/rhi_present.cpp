@@ -60,6 +60,33 @@ void PumpMessages() {
 
 }  // namespace
 
+bool d3d12::detail::Q1bState::DrainQueue(DWORD timeoutMilliseconds, std::string* error) {
+    if (!host->Queue() || !host->Completion()) {
+        Fail(Status::Error, error, "device is not initialized");
+        return false;
+    }
+    const uint64_t serial = host->NextSerial();
+    if (serial == 0) {
+        Fail(Status::Error, error, "completion value space exhausted");
+        return false;
+    }
+    // A released submission no longer contributes to LastSerial(), so a fresh
+    // queue signal is the only way to prove that every previously submitted
+    // operation, including the last Present's queue work, has completed.
+    const HRESULT signalled = host->Queue()->Signal(host->Completion(), serial);
+    if (FAILED(signalled)) {
+        Fail(Status::Error, error,
+             "CommandQueue::Signal(surface drain) " + d3d12::detail::HrString(signalled));
+        return false;
+    }
+    if (!host->WaitSerial(serial, timeoutMilliseconds)) {
+        Fail(Status::NotReady, error,
+             "surface drain did not complete within the timeout");
+        return false;
+    }
+    return true;
+}
+
 Status d3d12::detail::Q1bState::CreateSurface(const SurfaceDesc& desc, Surface* surface,
                                              std::string* error) {
     if (desc.width == 0 || desc.height == 0) {
@@ -358,10 +385,36 @@ Status d3d12::detail::Q1bState::ResizeSurface(const Surface& surface, uint32_t w
         return Fail(Status::NotReady, error,
                     "surface is minimized; restore it before resizing");
     }
-    const uint64_t lastSerial = host->LastSerial();
-    if (lastSerial > 0 && !WaitForSerial(lastSerial, 10000)) {
-        return Fail(Status::NotReady, error,
-                    "surface resize could not prove completed work within 10 s");
+    if (!DrainQueue(10000, error)) {
+        return Status::Error;
+    }
+    // A closed command list still holds a reference to every resource it
+    // recorded. ResizeBuffers rejects the call while any such reference is
+    // outstanding, so discard each list's recorded references by resetting it
+    // against a freshly reset allocator and closing it again. DrainQueue above
+    // proves the GPU is done with all of it.
+    for (FrameSlot& slot : slots) {
+        if (!slot.allocator || !slot.list) {
+            continue;
+        }
+        const HRESULT allocatorReset = slot.allocator->Reset();
+        if (FAILED(allocatorReset)) {
+            return Fail(Status::Error, error,
+                        "CommandAllocator::Reset(surface resize) " +
+                            d3d12::detail::HrString(allocatorReset));
+        }
+        const HRESULT listReset = slot.list->Reset(slot.allocator.Get(), nullptr);
+        if (FAILED(listReset)) {
+            return Fail(Status::Error, error,
+                        "GraphicsCommandList::Reset(surface resize) " +
+                            d3d12::detail::HrString(listReset));
+        }
+        const HRESULT listClose = slot.list->Close();
+        if (FAILED(listClose)) {
+            return Fail(Status::Error, error,
+                        "GraphicsCommandList::Close(surface resize) " +
+                            d3d12::detail::HrString(listClose));
+        }
     }
     for (ComPtr<ID3D12Resource>& buffer : target.backBuffers) {
         buffer.Reset();
@@ -410,10 +463,8 @@ Status d3d12::detail::Q1bState::DestroySurface(const Surface& surface,
         return Fail(Status::InvalidArgument, error, "unknown or destroyed surface");
     }
     // A frame that is still in flight may reference the chain buffers.
-    const uint64_t lastSerial = host->LastSerial();
-    if (lastSerial > 0 && !WaitForSerial(lastSerial, 10000)) {
-        return Fail(Status::NotReady, error,
-                    "surface destroy could not prove completed work within 10 s");
+    if (!DrainQueue(10000, error)) {
+        return Status::Error;
     }
     const std::wstring className = entry->second.className;
     HWND window = entry->second.window;

@@ -9,6 +9,7 @@
 #include <windows.h>
 
 #include "q1b_test_support.h"
+#include "d3d12/private_test_support.h"
 
 #include <atomic>
 #include <string>
@@ -220,6 +221,72 @@ int RunPrivateSurface(Device& device) {
 }  // namespace
 
 int main() {
-    return q1b_test::ForEachAdapter(
-        [](Device& device) { return RunPrivateSurface(device); });
+    // The surface fixture runs under the debug layer and GPU-based validation
+    // so the Q1b window path is covered by the same unwaived-message gate as the
+    // clear/readback and draw fixtures.
+    using doom3::rhi::AdapterClass;
+    using doom3::rhi::Device;
+    using doom3::rhi::DeviceOptions;
+    using doom3::rhi::Status;
+    using doom3::rhi::d3d12::DiagnosticRequest;
+
+    DiagnosticRequest request;
+    request.enableDebugLayer = true;
+    request.enableGpuBasedValidation = true;
+
+    int passes = 0;
+    int failures = 0;
+    int skips = 0;
+    for (AdapterClass adapterClass : {AdapterClass::Hardware, AdapterClass::Software}) {
+        Device device;
+        DeviceOptions options;
+        options.adapterClass = adapterClass;
+        std::string error;
+        const Status status = doom3::rhi::d3d12::InitializeWithDiagnostics(
+            device, options, request, &error);
+        if (status == Status::Unsupported) {
+            q1a_test::Log("PRIVATE_ADAPTER %s SKIPPED reason=%s",
+                          doom3::rhi::ToString(adapterClass), error.c_str());
+            ++skips;
+            continue;
+        }
+        if (status != Status::Ok) {
+            q1a_test::Log("PRIVATE_ADAPTER %s FAILED status=%s reason=%s",
+                          doom3::rhi::ToString(adapterClass),
+                          doom3::rhi::ToString(status), error.c_str());
+            ++failures;
+            continue;
+        }
+        q1a_test::PrintAdapter(device.adapter());
+        bool ok = true;
+        const auto before = doom3::rhi::d3d12::ReadDiagnostics(device);
+        q1a_private::LogDiagnosticMessages("surface-before", before);
+        ok &= q1a_private::RequireNoUnwaivedMessages("surface-before", before);
+        const int result = RunPrivateSurface(device);
+        const auto after = doom3::rhi::d3d12::ReadDiagnostics(device);
+        q1a_private::LogDiagnosticMessages("surface-after", after);
+        ok &= q1a_test::Require(after.errorCount == 0,
+                                "surface debug layer reported errors");
+        ok &= q1a_private::RequireNoUnwaivedMessages("surface-after", after);
+        const Status shutdown = device.Shutdown();
+        ok &= q1a_test::Require(shutdown == Status::Ok,
+                                "surface device did not shut down cleanly");
+        if (result == 0 && ok) {
+            ++passes;
+            q1a_test::Log("PRIVATE_ADAPTER %s RESULT PASS",
+                          doom3::rhi::ToString(adapterClass));
+        } else {
+            ++failures;
+            q1a_test::Log("PRIVATE_ADAPTER %s RESULT FAIL",
+                          doom3::rhi::ToString(adapterClass));
+        }
+    }
+    q1a_test::Log("PRIVATE_SUMMARY pass=%d fail=%d skip=%d", passes, failures, skips);
+    if (failures > 0) {
+        return 1;
+    }
+    if (passes > 0) {
+        return 0;
+    }
+    return q1a_test::kSkipExitCode;
 }

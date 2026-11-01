@@ -1,13 +1,22 @@
 #include "d3d12/private_test_support.h"
+#include "q1b_test_support.h"
 
 #include <string>
 
 using doom3::rhi::AdapterClass;
 using doom3::rhi::ClearReadbackDesc;
+using doom3::rhi::ClearRow;
 using doom3::rhi::Device;
 using doom3::rhi::DeviceOptions;
+using doom3::rhi::DrawFrameDesc;
+using doom3::rhi::DrawPassDesc;
+using doom3::rhi::GraphicsPipelineDesc;
+using doom3::rhi::Pipeline;
 using doom3::rhi::ReadbackResult;
 using doom3::rhi::ReleaseStatus;
+using doom3::rhi::ShaderModule;
+using doom3::rhi::ShaderModuleDesc;
+using doom3::rhi::ShaderStage;
 using doom3::rhi::Status;
 using doom3::rhi::Submission;
 using doom3::rhi::d3d12::CheckState;
@@ -16,19 +25,95 @@ using doom3::rhi::d3d12::DiagnosticRequest;
 
 namespace {
 
+// Message waivers and the unwaived-message gate live in
+// d3d12/private_test_support.h so the surface fixture applies the same policy.
+
+// Exercises the Q1b graphics path on the same device as the Q1a clear: colour
+// attachment creation + clear, depth attachment creation + non-default clear,
+// a pipeline, a draw and a readback. This is what makes the validation gate
+// cover the Q1b attachment code, not only the Q1a render target.
+Status SubmitValidationDraw(Device& device, std::string* error) {
+    ShaderModule vertex;
+    ShaderModuleDesc vertexDesc;
+    vertexDesc.stage = ShaderStage::Vertex;
+    vertexDesc.source = q1b_test::kFullscreenVertex;
+    vertexDesc.entryPoint = "VSMain";
+    Status status = device.CreateShaderModule(vertexDesc, &vertex, error);
+    if (status != Status::Ok) {
+        return status;
+    }
+    ShaderModule pixel;
+    ShaderModuleDesc pixelDesc;
+    pixelDesc.stage = ShaderStage::Pixel;
+    pixelDesc.source = q1b_test::kPatternPixel;
+    pixelDesc.entryPoint = "PSMain";
+    status = device.CreateShaderModule(pixelDesc, &pixel, error);
+    if (status != Status::Ok) {
+        return status;
+    }
+    GraphicsPipelineDesc pipelineDesc;
+    pipelineDesc.vertexShader = vertex;
+    pipelineDesc.pixelShader = pixel;
+    pipelineDesc.colorAttachmentCount = 1;
+    pipelineDesc.depthTest = true;
+    pipelineDesc.depthWrite = true;
+    Pipeline pipeline;
+    status = device.CreateGraphicsPipeline(pipelineDesc, &pipeline, error);
+    if (status != Status::Ok) {
+        return status;
+    }
+
+    uint32_t indices[1] = {0};
+    ClearRow clears[1];
+    clears[0].red = 0;
+    clears[0].green = 0;
+    clears[0].blue = 0;
+    clears[0].alpha = 255;
+    DrawPassDesc pass;
+    pass.pipeline = pipeline;
+    pass.colorIndices = indices;
+    pass.colorCount = 1;
+    pass.colorClears = clears;
+    DrawFrameDesc frame;
+    frame.width = q1b_test::kWidth;
+    frame.height = q1b_test::kHeight;
+    frame.attachmentCount = 1;
+    frame.depthEnabled = true;
+    // Deliberately not 1.0f: creation must follow the frame's clear value.
+    frame.depthClear = 0.5f;
+    frame.passCount = 1;
+    frame.passes = &pass;
+
+    Submission submission;
+    status = device.SubmitDrawFrame(frame, &submission, error);
+    if (status != Status::Ok) {
+        return status;
+    }
+    if (!q1a_test::WaitComplete(device, submission)) {
+        if (error != nullptr) {
+            *error = "validation draw did not complete";
+        }
+        return Status::Error;
+    }
+    ReadbackResult readback;
+    status = device.ReadbackAttachment(submission, 0, &readback, error);
+    const ReleaseStatus released = device.TryRelease(submission, error);
+    if (status != Status::Ok) {
+        return status;
+    }
+    if (released != ReleaseStatus::Released) {
+        if (error != nullptr) {
+            *error = "validation draw submission was not released";
+        }
+        return Status::Error;
+    }
+    return Status::Ok;
+}
+
 // Counts cases where a requested validation capability actually executed. A
 // case can PASS while this stays zero: the pass is for correct opt-in
 // reporting, not for validation execution.
 int gValidationExecuted = 0;
-
-void LogMessages(const char* label, const DiagnosticReport& report) {
-    q1a_test::Log("DIAGNOSTICS %s captured=%zu message_count=%u", label,
-                  report.messages.size(), report.messageCount);
-    for (size_t index = 0; index < report.messages.size(); ++index) {
-        q1a_test::Log("DIAGNOSTICS %s message[%zu]=%s", label, index,
-                      report.messages[index].c_str());
-    }
-}
 
 int RunCase(AdapterClass adapterClass, bool requestDebug, bool requestGpuValidation,
             const char* combo) {
@@ -73,7 +158,8 @@ int RunCase(AdapterClass adapterClass, bool requestDebug, bool requestGpuValidat
     }
     q1a_test::Log("DIAGNOSTICS validation_executed=%s",
                   validationExecuted ? "true" : "false");
-    LogMessages("requested", requested);
+    q1a_private::LogDiagnosticMessages("requested", requested);
+    ok &= q1a_private::RequireNoUnwaivedMessages("requested", requested);
 
     if (requestDebug) {
         ok &= q1a_test::Require(
@@ -128,14 +214,24 @@ int RunCase(AdapterClass adapterClass, bool requestDebug, bool requestGpuValidat
             "diagnostic submission was not released");
     }
 
-    if (requested.debugLayer == CheckState::Run) {
-        const DiagnosticReport after = doom3::rhi::d3d12::ReadDiagnostics(device);
-        q1a_test::Log("DIAGNOSTICS after messages=%u errors=%u warnings=%u",
-                      after.messageCount, after.errorCount, after.warningCount);
-        LogMessages("after", after);
-        ok &= q1a_test::Require(after.errorCount == 0,
-                                "debug layer reported errors during the Q1a work");
-    } else if (requestDebug || requestGpuValidation) {
+    std::string drawError;
+    const Status drawStatus = SubmitValidationDraw(device, &drawError);
+    q1a_test::Log("DIAGNOSTICS q1b_draw=%s reason=%s",
+                  doom3::rhi::ToString(drawStatus), drawError.c_str());
+    ok &= q1a_test::Require(drawStatus == Status::Ok,
+                            "Q1b validation draw failed on the diagnostic device");
+
+    // Always read the queue: the debug layer is process-global, so a case that
+    // requested nothing can still be running under a layer enabled by an
+    // earlier case. Gating unconditionally closes that blind spot.
+    const DiagnosticReport after = doom3::rhi::d3d12::ReadDiagnostics(device);
+    q1a_test::Log("DIAGNOSTICS after messages=%u errors=%u warnings=%u",
+                  after.messageCount, after.errorCount, after.warningCount);
+    q1a_private::LogDiagnosticMessages("after", after);
+    ok &= q1a_test::Require(after.errorCount == 0,
+                            "debug layer reported errors during the diagnostic work");
+    ok &= q1a_private::RequireNoUnwaivedMessages("after", after);
+    if (!validationExecuted) {
         q1a_test::Log("DIAGNOSTICS validation=SKIPPED debug=%s gpu_validation=%s",
                       doom3::rhi::d3d12::ToString(requested.debugLayer),
                       doom3::rhi::d3d12::ToString(requested.gpuBasedValidation));

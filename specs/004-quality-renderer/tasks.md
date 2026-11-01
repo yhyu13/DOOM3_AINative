@@ -70,27 +70,28 @@ review are recorded in
 - [x] T028 [US2] Add window presentation, repeated resize/minimize, restart and history-reset tests in `tests/renderer/rhi_present_test.cpp`, then implement the required backend behavior in `src/renderer/d3d12/rhi_present.cpp` without unsafe retirement.
 - [x] T029 [US2] Implement declared resource accesses and pass ordering, without speculative aliasing or multi-queue execution, in `src/renderer/rhi/frame_graph.cpp`; exercise ordering and invalid uses through `tests/renderer/frame_graph_test.cpp`.
 - [ ] T030 [US2] Run all Q1 fixtures, genuine debug-layer and GPU-based validation, plus a fault-injected device-removal safe-failure test (bounded wait, cleanup and actionable reporting) and device-removal diagnostics where available; record unwaived messages, actual versus skipped checks and adapter class in `specs/004-quality-renderer/evidence-q1.md`.
-  - **Premise note (2026-11-01; status unchanged)**: the recorded `0x887A002D` skip did not reproduce on the `evidence-doc-cluster` host at `f9e84c8` (debug layer and GPU-based validation `RUN`, `errors=0`, 4 unwaived warnings per enabled case), so the reason this row is open is host-specific. It stays open: it needs a reviewed run with zero unwaived messages recorded in `evidence-q1.md`. See [evidence-doc-cluster.md](./evidence-doc-cluster.md) §3.3.
+  - **Premise note (2026-11-01; still open)**: the recorded `0x887A002D` skip did not reproduce on the `spec-004-t030-q1` host. The debug layer and GPU-based validation executed (`debug=RUN`, `gpu_validation=RUN`, `errors=0`, unwaived messages 0) in Debug and Release, re-run on the rebased `origin/main` at `b244458` (T072). Four ID-820 performance-advisory warnings per case that ran under the layer and one ID-1016 startup notice are documented waivers awaiting **technical acceptance by the independent T031 reviewer** (owner authorization is not a substitute), so the row stays open. The gate also found and the change fixes a Q1b optimized-clear mismatch and an in-flight back-buffer release in surface resize/destroy (layer `id=921 CORRUPTION`). See [evidence-q1.md](./evidence-q1.md).
 - [ ] T031 [US2] Independently review and rerun Q1 in `specs/004-quality-renderer/review-q1.md`; full Q1 is BLOCKED until debug layer and GBV actually execute with zero unwaived errors.
 
-**Q1b status (2026-10-29)**: T022–T029 pass with recorded red/green/mutation
-evidence, and the fault-injected device-removal part of T030 passes (bounded
-teardown, actionable DeviceLost, restart). T030 remains open because the debug
-layer and GPU-based validation are SKIPPED (`0x887A002D`). T031's independent
-review was performed and is recorded in
-[review-q1.md](./review-q1.md); it remains open because T030's gate is unmet.
-The author self-review is retained in
-[review-q1-self.md](./review-q1-self.md). The branch was rebased onto current main (`582b3ff`, after T089) and T030 was re-run: the debug layer and GPU-based validation are
-still SKIPPED (`0x887A002D`), so T031 remains unsatisfied. See
-[evidence-q1.md](./evidence-q1.md).
-On 2026-10-29 the gate was re-run on the merged `main` (`f1e4feb`) in
-`build-q1-accept-20261029`: the Release suite is 17/17 and the diagnostics test
-still reports `0x887A002D` with `validation_executed=0` on both the hardware and
-the software adapter. The owner accepted this residual on the same date; T030
-and T031 stay unchecked because that acceptance records a known gap, not a
-passing gate. `validate-webgpu-mapping.py` also still exits 1 on `main`
-(`INVALID: 62 problem(s); 57/119 declarations mapped`); open issue #36 (T089)
-owns that reconciliation.
+**Q1b status (2026-11-01)**: T022–T029 pass with recorded red/green/mutation
+evidence, and the fault-injected device-removal part of T030 passes. On
+2026-11-01 the debug layer and GPU-based validation executed on a Graphics Tools
+host: `debug=RUN`, `gpu_validation=RUN`, `errors=0`, unwaived messages 0 in both
+Debug and Release (`38/38` suite on the rebased `origin/main` at `b244458`:
+32 Q1–Q4 fixtures plus 6 T072 portable-profile tests). The gate found and this
+change fixes a Q1b optimized-clear mismatch and an in-flight back-buffer release
+in `ResizeSurface`/`DestroySurface` (layer `id=921 CORRUPTION`). T030 stays
+unchecked because two documented waivers (ID 820 performance advisory, ID 1016
+startup notice) need technical acceptance by the independent T031 reviewer;
+owner authorization is not a substitute. T031 stays unchecked because
+`review-q1.md` covers `35ce54e` and this change needs a fresh independent
+review. See [evidence-q1.md](./evidence-q1.md).
+
+**Historical note (2026-10-29)**: the earlier host could not enable the layer
+(`0x887A002D`), so T030/T031 were left unchecked; the owner accepted that
+residual as a known gap. That record is unchanged. The
+`validate-webgpu-mapping.py` failure (`INVALID: 62 problem(s); 57/119
+declarations mapped`) is still owned by open issue #36 (T089).
 ## Phase 5 — US3: Classic-compatible engine path (P1; Q2)
 
 **Goal**: Make the new path selectable and playable while preserving the GL reference and engine command semantics.
