@@ -1,6 +1,6 @@
 # Evidence: T077 tracked-path and provenance audit
 
-**Status**: audit executed 2026-11-01 (T077, issue #99). This file records a scan, not a review or a
+**Status**: audit executed 2026-11-01 (T077, issue #99); F1 repaired forward after the PR #100 review. This file records a scan, not a review or a
 "repository is clean" claim. Findings that the scan cannot clear are listed with their owner.
 
 ## Identity and scope
@@ -106,13 +106,15 @@ git ls-tree -r --name-only b3d9b8a81bebae846acc30e48a3423474aff913c | ForEach-Ob
 
 Both blocks exited 0 and printed no `BINARY` line.
 
+The machine-specific-path scan was re-run on this branch after the F1 redaction: the same block above, reading the working-tree bytes of the same tracked path list, reports `ABSOLUTE_PATH_CANDIDATES=8` with 0 real hits (see F1 repair). Path counts and every other scan result are unchanged at the base revision.
+
 ## Path class 鈫?count 鈫?verdict
 
 Counts are for the 610 tracked paths at the base revision; the class counts sum to 610.
 
 | Class | Count | Verdict | Basis |
 |---|---:|---|---|
-| spec documents | 129 | **FAIL** | F1: three absolute paths in review records |
+| spec documents | 129 | PASS | F1 fixed 2026-11-01; no machine-specific absolute path remains in this class |
 | generated content assets | 81 | PASS | `content/hero/**` is CC0-1.0 with `LICENSE` + `provenance.json` |
 | superproject source | 76 | PASS | C++/headers; no secrets |
 | tests | 68 | PASS | Tests and scripts; no game data |
@@ -143,7 +145,7 @@ Counts are for the 610 tracked paths at the base revision; the class counts sum 
 | Vendored SDKs (`sdk/`, `third_party/`, `vendor/`, `external/`) | 0 | PASS | Path scan; tools are host-provided, not tracked |
 | Secret filenames (`.env`, `.pem`, `.pfx`, `.key`, `id_rsa`, 鈥? | 0 | PASS | Filename scan |
 | Secret content (private key, AWS/GitHub/Slack/OpenAI/Google tokens, password assignment) | 0 | PASS | Case-sensitive scan; all seven patterns 0 |
-| Machine-specific absolute paths | 3 | **FAIL** | F1 below |
+| Machine-specific absolute paths | 0 real (8 candidates) | PASS | F1 fixed below; the 8 remaining candidates are help text, historical quotes and one synthetic fixture |
 
 The two case-insensitive hits in `showcase/index.html` (`AkIA鈥, `aIza鈥) are substrings of base64
 audio inside one data URI; a case-sensitive rerun is 0. They are not keys.
@@ -152,11 +154,29 @@ audio inside one data URI; a case-sensitive rerun is 0. They are not keys.
 
 | Id | Severity | Location | Finding | Verdict / owner |
 |---|---|---|---|---|
-| F1 | MAJOR | `specs/004-quality-renderer/review-t088-encoder.md:6`, `review-t089.md:11,172` | Three author-specific absolute paths (`D:\git-repo-ai\鈥, `C:\Users\1\AppData\Local\Temp\鈥) in tracked records, contrary to the template. | **FAIL.** Not rewritten here: review records are independent evidence and the T077 auditor is not their author. Redact to `<worktree>` in a follow-up; owner: spec-004 reviewer. |
+| F1 | MAJOR (fixed) | `specs/004-quality-renderer/review-t088-encoder.md:6`, `review-t089.md:11,172` | Three author-specific absolute paths (one worktree path, two host temp paths) in tracked records, contrary to the template. | **FIXED (2026-11-01)**: redacted to repo-relative / `%TEMP%` form; the re-run scan reports 0 real hits. Owner: spec-004 reviewer. |
 | F2 | MAJOR | `docs/media/01-鈥pg` 鈥?`06-underground-pipes.jpg` (6 files) | Engine-rendered DOOM 3 frames are tracked, but no tracked record states the data set, its rights or the capture command. The README only says "rendered by the x64 engine". | **FAIL.** Add a rights/provenance sidecar or replace with synthetic captures; owner: docs/media author. |
 | F3 | INFO | `showcase/assets/hero-redacted.png`, `showcase/assets/aigc/page2-modern.jpg` | Derived third-party media with rights retained by id/Bethesda and licensing pending. | Recorded in `showcase/README.md`; accepted risk by the owner. Not a hidden violation, but not a clearance either. |
 | F4 | INFO | `targets/*/patches/*` | Two tracked patch sets (72 and 66 rows) are M-only; no A/D rows, no game data. | PASS. They are source diffs, not derived data packs. |
 
+## F1 repair (2026-11-01)
+
+The PR #100 review showed this file scoring `spec documents` and `machine-specific absolute paths` FAIL while `tasks.md` ticked T077. The three author-specific paths were redacted to repo-relative / `%TEMP%` form and the scan re-run; `tasks.md` now splits the row into T077a (audit executed) and T077b (named criteria cleared, still open on F2).
+
+| File:line | Before (author-specific) | After (repo-relative) |
+|---|---|---|
+| `specs/004-quality-renderer/review-t088-encoder.md:6` | `<drive>:\...\worktrees\feat-43-emscripten-leg` | `.kilo/worktrees/feat-43-emscripten-leg` |
+| `specs/004-quality-renderer/review-t089.md:11` | `<user-temp>\kilo\t089-scratch` | `%TEMP%\kilo\t089-scratch` |
+| `specs/004-quality-renderer/review-t089.md:172` | `<user-temp>\kilo\t089-scratch2` | `%TEMP%\kilo\t089-scratch2` |
+
+Command: the Procedure block above, run unchanged from the repository root on this branch; output saved to the git-ignored `build/_t077_scan_after.log`.
+
+| Run | `ABSOLUTE_PATH_CANDIDATES` | Real machine-specific hits | Exit |
+|---|---:|---:|---:|
+| PR #100 run (base `b3d9b8a`) | 11 | 3 | 0 |
+| This branch, after redaction | 8 | **0** | 0 |
+
+The 8 remaining candidates are not machine state: 2 help-text examples (`scripts/deploy-repo.ps1:54`, `scripts/migrate-repo.ps1:72`), 3 historical quotes (`specs/001-win11-amd64-native-build/review.md:54,210,240`), 2 examples (`specs/010-migration-snapshot/plan.md:138,140`), and 1 synthetic fixture (`tests/content/run-gates.ps1:251`). `spec documents` therefore moves to PASS; `engine-rendered screenshots` (F2) stays FAIL, which is why T077b remains open.
 ## Per-check results
 
 | Check / target | Execution | Outcome | Reason or observed result | Artifact / log reference |
@@ -166,7 +186,7 @@ audio inside one data URI; a case-sensitive rerun is 0. They are not keys.
 | T077-P3 opaque non-image binaries | RUN | PASS | no NUL-containing non-image file | second block |
 | T077-P4 submodule pointer | RUN | PASS | 1 gitlink `a9c49da鈥, porcelain 0 lines | command output |
 | T077-P5 secret content and filenames | RUN | PASS | all patterns 0; 2 base64 false positives | command output |
-| T077-P6 machine-specific absolute paths | RUN | FAIL | 11 candidates: 3 real hits in 2 review records (F1); 2 help-text examples, 3 historical quotes in `specs/001`, 2 examples in `specs/010`, and 1 synthetic fixture in `tests/content/run-gates.ps1:251` are not machine state | command output |
+| T077-P6 machine-specific absolute paths | RUN | PASS | 8 candidates, 0 real hits: the three author paths from F1 are redacted; 2 help-text examples, 3 historical quotes in `specs/001`, 2 examples in `specs/010` and 1 synthetic fixture in `tests/content/run-gates.ps1:251` are not machine state | command output (F1 repair below) |
 | T077-P7 project-owned image provenance | RUN | PASS | CC0 licences, `provenance.json`, deterministic generator, synthetic-capture notes | `content/hero/**/LICENSE`, `tests/content/fixtures/make-golden.py` |
 | T077-P8 `docs/media` rights/provenance | RUN | FAIL | six tracked captures have no data/rights record (F2) | `README.md:75`, no sidecar |
 | T077-P9 showcase derivative media | RUN | PASS (recorded) | rights holder and pending status recorded | `showcase/README.md` 搂Licensing |

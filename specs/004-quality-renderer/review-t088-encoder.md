@@ -3,7 +3,7 @@
 ## Reviewer independence
 
 Independent agent reviewer, not an author of this branch. Review ran only in
-`D:\git-repo-ai\DOOM3_AINative\.kilo\worktrees\feat-43-emscripten-leg`, on branch
+`.kilo/worktrees/feat-43-emscripten-leg` (worktree path relative to the repository root), on branch
 `test/35-emscripten-leg` at `cf9764b` (identical to `main`); all change-set files were staged, not
 committed. `doom3_orig/doom3` was not touched and is clean at `a9c49da5`. Nothing was committed,
 pushed or downloaded; the only tracked file created is this review. The falsification below

@@ -16,7 +16,10 @@
     * an export containing an added file exits 1 (not a PASS) and records the 'A' row;
     * an export containing a deleted file exits 1 (not a PASS) and records the 'D' row;
     * the verifier refuses a manifest with an added or deleted row;
-    * the verifier refuses a partial M-row match (1 of 2 rows verified);
+    * the verifier refuses a partial M-row match (1 of 2 rows verified), including when both rows are
+      files the patch touches;
+    * the verifier refuses a truncated manifest that omits a patched file (1 of 2 patch files listed);
+    * the verifier refuses a manifest row the patch never touches (the file exists and hashes match);
     * the verifier fails closed when the patch disagrees with the manifest, and when it is absent.
   Every control asserts the exit code and, where relevant, the reported reason, so a check that
   always passes cannot satisfy it.
@@ -182,8 +185,10 @@ try {
     New-Item -ItemType Directory -Force -Path (Join-Path $srcBase 'neo'), (Join-Path $vdst 'neo'), $vctl | Out-Null
     Write-Ascii (Join-Path $srcBase 'neo\file_a.cpp') "alpha`n"
     Write-Ascii (Join-Path $srcBase 'neo\file_b.cpp') "bravo`n"
+    Write-Ascii (Join-Path $srcBase 'neo\file_c.cpp') "charlie`n"
     Write-Ascii (Join-Path $vdst 'neo\file_a.cpp') "alpha-patched`n"
     Write-Ascii (Join-Path $vdst 'neo\file_b.cpp') "bravo`n"
+    Write-Ascii (Join-Path $vdst 'neo\file_c.cpp') "charlie`n"
     $ctlPatch = "diff --git a/a/neo/file_a.cpp b/b/neo/file_a.cpp`n--- a/a/neo/file_a.cpp`n+++ b/b/neo/file_a.cpp`n@@ -1 +1 @@`n-alpha`n+alpha-patched`n"
 
     # 8. Modified-only export is complete and exits 0.
@@ -243,6 +248,39 @@ try {
     Write-Ascii (Join-Path $pD 'all-changes.patch') $ctlPatch
     Assert-Exit 'verify refuses a D row in a supplied manifest' 1 (Invoke-Verify @('-PatchDir', $pD))
     Assert-Contains 'verify reports the supplied D row' $script:lastVerifyOutput 'added/deleted row'
+
+    # 14a. A truncated manifest that omits a patched file is refused (reviewer repro on PR #100:
+    # a 2-file patch with 1 manifest row reported "M rows verified 1/1" and exited 0).
+    $patch2 = $ctlPatch +
+        "diff --git a/a/neo/file_b.cpp b/b/neo/file_b.cpp`n--- a/a/neo/file_b.cpp`n+++ b/b/neo/file_b.cpp`n@@ -1 +1 @@`n-bravo`n+bravo-patched`n"
+    $p3a = Join-Path $vctl 'truncated'
+    New-Item -ItemType Directory -Force -Path $p3a | Out-Null
+    Set-Content -LiteralPath (Join-Path $p3a 'all-changes.manifest.txt') -Encoding ASCII -Value @(
+        ("M`tneo/file_a.cpp`t" + (Get-AsciiHash "alpha-patched`n")))
+    Write-Ascii (Join-Path $p3a 'all-changes.patch') $patch2
+    Assert-Exit 'verify refuses a manifest that omits a patched file' 1 (Invoke-Verify @('-PatchDir', $p3a))
+    Assert-Contains 'verify reports the omitted patch file' $script:lastVerifyOutput 'manifest misses 1 patched file'
+
+    # 14b. The other direction: a manifest row the patch never touches must not count as verified
+    # (the file exists and its hash matches, so only coverage can catch it).
+    $p3c = Join-Path $vctl 'stale'
+    New-Item -ItemType Directory -Force -Path $p3c | Out-Null
+    Set-Content -LiteralPath (Join-Path $p3c 'all-changes.manifest.txt') -Encoding ASCII -Value @(
+        ("M`tneo/file_a.cpp`t" + (Get-AsciiHash "alpha-patched`n")),
+        ("M`tneo/file_c.cpp`t" + (Get-AsciiHash "charlie`n")))
+    Write-Ascii (Join-Path $p3c 'all-changes.patch') $ctlPatch
+    Assert-Exit 'verify refuses a manifest row the patch never touches' 1 (Invoke-Verify @('-PatchDir', $p3c))
+    Assert-Contains 'verify reports the manifest row outside the patch' $script:lastVerifyOutput 'patch misses 1 manifest file'
+
+    # 14c. A partial hash match over the patch's own files: both rows are patched, one hash is wrong.
+    $p3d = Join-Path $vctl 'partial2'
+    New-Item -ItemType Directory -Force -Path $p3d | Out-Null
+    Set-Content -LiteralPath (Join-Path $p3d 'all-changes.manifest.txt') -Encoding ASCII -Value @(
+        ("M`tneo/file_a.cpp`t" + (Get-AsciiHash "alpha-patched`n")),
+        ("M`tneo/file_b.cpp`t" + (Get-AsciiHash "wrong-bravo`n")))
+    Write-Ascii (Join-Path $p3d 'all-changes.patch') $patch2
+    Assert-Exit 'verify refuses a partial hash match over patched files' 1 (Invoke-Verify @('-PatchDir', $p3d))
+    Assert-Contains 'verify reports 1/2 verified over patched files' $script:lastVerifyOutput 'M rows verified 1/2'
 
     # 14. A partial M-row match (1 of 2) is refused, not counted as verified.
     $p3 = Join-Path $vctl 'partial'
