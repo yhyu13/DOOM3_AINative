@@ -21,6 +21,66 @@ inline bool AllowedWhenRequested(CheckState state) {
     return state == CheckState::Run || state == CheckState::Skipped;
 }
 
+// Numeric values from d3d12sdklayers.h, kept as plain integers so these tests
+// need no native D3D12 type.
+constexpr uint32_t kSeverityWarning = 2;
+constexpr uint32_t kSeverityMessage = 4;
+constexpr uint32_t kClearRenderTargetNoOptimizedValue = 820;
+constexpr uint32_t kDebugLayerStartupOptions = 1016;
+
+// A message is waived only when a precise reason exists and is recorded in
+// specs/004-quality-renderer/evidence-q1.md. Waiving is not silence: every
+// message is logged with its ID before this predicate is consulted.
+inline bool IsWaivedMessage(uint32_t id, uint32_t severity) {
+    // Performance advisory, not a correctness failure: the Q1a submission
+    // clears a different colour per row, so no single optimized clear value can
+    // match every ClearRenderTargetView. The readback asserts the exact bytes.
+    if (severity == kSeverityWarning && id == kClearRenderTargetNoOptimizedValue) {
+        return true;
+    }
+    // Informational layer notice emitted at device creation whenever GPU-based
+    // validation is enabled; it says the layer is doing what was requested.
+    if (severity == kSeverityMessage && id == kDebugLayerStartupOptions) {
+        return true;
+    }
+    return false;
+}
+
+inline void LogDiagnosticMessages(const char* label, const DiagnosticReport& report) {
+    q1a_test::Log("DIAGNOSTICS %s captured=%zu message_count=%u", label,
+                  report.messages.size(), report.messageCount);
+    for (size_t index = 0; index < report.messages.size(); ++index) {
+        const uint32_t id =
+            index < report.messageIds.size() ? report.messageIds[index] : 0u;
+        const uint32_t severity = index < report.messageSeverities.size()
+                                      ? report.messageSeverities[index]
+                                      : 0u;
+        q1a_test::Log("DIAGNOSTICS %s message[%zu] id=%u severity=%u text=%s", label,
+                      index, id, severity, report.messages[index].c_str());
+    }
+}
+
+inline bool RequireNoUnwaivedMessages(const char* label,
+                                      const DiagnosticReport& report) {
+    bool ok = q1a_test::Require(
+        report.messageCount == report.messageIds.size(),
+        std::string(label) + " message capture was truncated");
+    ok &= q1a_test::Require(
+        report.messages.size() == report.messageIds.size() &&
+            report.messageIds.size() == report.messageSeverities.size(),
+        std::string(label) + " diagnostic message vectors are not parallel");
+    for (size_t index = 0; index < report.messageIds.size(); ++index) {
+        const uint32_t id = report.messageIds[index];
+        const uint32_t severity = report.messageSeverities[index];
+        if (!IsWaivedMessage(id, severity)) {
+            q1a_test::Log("UNWAIVED %s message[%zu] id=%u severity=%u text=%s", label,
+                          index, id, severity, report.messages[index].c_str());
+            ok = false;
+        }
+    }
+    return q1a_test::Require(ok, std::string(label) + " left unwaived messages");
+}
+
 inline void LogJournal(const std::vector<JournalEntry>& journal) {
     q1a_test::Log("JOURNAL size=%zu", journal.size());
     for (size_t index = 0; index < journal.size(); ++index) {

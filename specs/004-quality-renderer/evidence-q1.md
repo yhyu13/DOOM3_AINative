@@ -1,15 +1,28 @@
 # Q1b / Q1 evidence
 
-Status: Q1b implementation and fixtures T022–T029 have been executed locally, plus the fault-injected device-removal part of T030.
-**Q1 is not complete.** The debug layer and GPU-based validation cannot be
-enabled on this machine (`D3D12GetDebugInterface` returns `0x887A002D`), so both
-are recorded as SKIPPED. T031's independent review was performed and is
-recorded in `review-q1.md`; T031 remains open because T030's gate is unmet.
-The author self-review is `review-q1-self.md`. The Q1b code is merged to `main`
-(`f1e4feb`), and the gate was re-run there on 2026-10-29 with the same result;
-the owner has accepted the residual recorded below. **That acceptance does not
-turn the SKIPPED checks into a pass.** No claim is made for Q1, game parity,
-DXR, DLSS, WebGPU or a shipped renderer.
+Status: Q1b implementation and fixtures T022–T029 pass. On 2026-11-01 the
+debug-layer and GPU-based-validation gate was re-run on a host where
+`d3d12SDKLayers.dll` is installed. It executes: `debug=RUN`,
+`gpu_validation=RUN`, `errors=0`, and every remaining message is a documented
+waiver (four performance advisories per validation-enabled case and one layer
+startup notice). The gate also found and this change fixes three latent defects:
+a fixed optimized clear value that did not match the frame's clear, an
+in-flight back-buffer release in `ResizeSurface`/`DestroySurface` that the layer
+reported as `id=921 CORRUPTION`, and a diagnostics harness that could not see a
+process-global layer enabled by an earlier case. **T030 remains open**: the
+unwaived count is zero, but the two waivers need technical acceptance by the
+independent T031 reviewer (owner authorization is not a substitute), and the
+instruction is not to tick a task while a waiver is unaccepted. T031's earlier
+review of `35ce54e` does not cover this change; a fresh independent review is
+required. No claim is made for Q1 as a whole, game parity, DXR, DLSS, WebGPU or
+a shipped renderer. The 2026-10-29 record is retained below as history.
+
+The earlier 2026-10-29 status was: Q1b implementation and fixtures T022–T029
+executed locally, plus the fault-injected device-removal part of T030; the
+debug layer and GPU-based validation were SKIPPED (`0x887A002D`) on that host,
+so no zero-unwaived-error result existed then. That record and its owner
+acceptance are unchanged; the host-specific reason for the skip did not
+reproduce on this machine.
 
 Worktree: `feat/22-q1b-q1-rhi`, rebased onto `origin/main` at
 `582b3ff` (the branch base, after T089; `main` has since advanced to
@@ -19,7 +32,7 @@ One writer, one worktree, one build directory. The post-merge re-run below was
 executed in the main worktree at `f1e4feb` with the git-ignored
 `build-q1-accept-20261029`.
 
-## Environment
+## Environment (2026-10-29 host)
 
 | Item | Observed |
 |---|---|
@@ -345,21 +358,21 @@ first command.
 | T027 | PASS | Motion/validity, history reset and composition order |
 | T028 | PASS | Window surface, resize, minimize/restore, destroy, restart |
 | T029 | PASS | Declared accesses, pass order and invalid uses |
-| T030 | SKIPPED / OPEN | All fixtures and fault-injected removal pass; debug layer and GPU-based validation still report `0x887A002D` and `validation_executed=0` after the current-main rebase and again on merged `main` (`f1e4feb`, 2026-10-29); the Agility SDK attempt could not load the system layers and no OS feature was installed. Residual accepted by the owner; still not a PASS |
-| T031 | REVIEW COMPLETE / NOT SATISFIED | Independent review of `35ce54e` in `review-q1.md`; T031 stays open because the debug layer and GPU-based validation do not execute |
+| T030 | OPEN | All fixtures pass. On 2026-11-01 the debug layer and GPU-based validation executed on a Graphics Tools host: `debug=RUN`, `gpu_validation=RUN`, `errors=0`, unwaived messages 0. Four ID-820 warnings per case that ran under the layer and one ID-1016 startup notice are documented waivers awaiting technical acceptance by the independent T031 reviewer; owner authorization is not a substitute. The gate also found and the change fixes a Q1b optimized-clear mismatch and an in-flight back-buffer release in surface resize/destroy (`id=921`); see the 2026-11-01 section. Not ticked because the waivers are unaccepted |
+| T031 | REVIEW STALE / OPEN | `review-q1.md` covers `35ce54e`; the 2026-11-01 backend and fixture changes require a fresh independent review of this PR's head |
 
 ## Limitations and open items
 
-1. **Full Q1 remains blocked.** The debug layer and GPU-based validation could
-   not be enabled (`0x887A002D`). No unwaived-error claim is possible. T030 is
-   recorded as executed with those two checks SKIPPED; T031 cannot be satisfied
-   until the gate actually executes. The owner accepted this residual on
-   2026-10-29; the acceptance records a known gap, it does not convert SKIPPED
-   into PASS.
-2. **The independent review is complete but T031 is not satisfied.**
-   `review-q1.md` is the independent review of `35ce54e`; T031 stays open because
-   T030's debug-layer and GPU-based validation gate is unmet. The author
-   self-review is `review-q1-self.md`.
+1. **Validation now executes on a host with Graphics Tools, but Q1 remains
+   open.** The debug layer and GPU-based validation ran on 2026-11-01 with
+   `errors=0` and no unwaived messages; two documented waivers remain and need
+   independent acceptance, so T030 is not ticked. The 2026-10-29 host could not
+   enable them (`0x887A002D`); that history is retained above and is not
+   rewritten.
+2. **The independent review is stale for this change.** `review-q1.md` reviewed
+   `35ce54e`; the 2026-11-01 change modifies the backend and fixtures, so T031
+   needs a fresh independent review of this PR's head. The author self-review is
+   `review-q1-self.md` and does not replace it.
 3. **Shader input is backend-declared program text.** The public seam carries
    opaque bytes, but the C++ fixtures embed a program whose language is a
    D3D12-backend capability. The Q7a mapping gate still has to decide the
@@ -384,3 +397,123 @@ first command.
 10. **Bounded error-path record retention.** If `Signal` or the display call
     fails after a record is inserted, the record is retained until teardown.
     The slot is not reused, so this is a bounded leak, not memory unsafety.
+
+## T030 validation re-run on a Graphics Tools host (2026-11-01)
+
+Worktree `spec-004-t030-q1`, rebased onto `origin/main` at `b244458` (T072)
+after the first gate run; the gate below was re-run on the rebased head. One
+writer, one build directory `build-q1-t030` (git-ignored). This host has
+`d3d12SDKLayers.dll`, so the recorded `0x887A002D` skip does not reproduce.
+
+### Host and layer
+
+| Item | Observed |
+|---|---|
+| OS | Windows 10 Pro 10.0.19045 |
+| Hardware adapter | `AMD Radeon RX 9070 XT`, vendor `0x1002`, device `0x7550`, 17,095,983,104 bytes |
+| Hardware driver | `32.0.21030.31`, dated 2025-09-02 |
+| Software adapter | `Microsoft Basic Render Driver`, vendor `0x1414`, device `0x008C` |
+| Debug layer / core | `d3d12SDKLayers.dll` and `D3D12Core.dll` 10.0.19041.5794 |
+| Compiler | MSVC 19.38.33145 (Visual Studio 2022 Community) |
+| Windows SDK | 10.0.26100.0, targeting 10.0.19045 |
+| CMake | 4.1.2, generator `Visual Studio 17 2022`, `-A x64` |
+| Python (validators) | 3.13.12 |
+
+### Commands and exits
+
+All commands ran from the worktree root. Logs are retained under the
+git-ignored `build-q1-t030/`.
+
+| Command | Exit | Observed |
+|---|---|---|
+| `cmake -S tests/renderer -B build-q1-t030 -G "Visual Studio 17 2022" -A x64` | 0 | MSVC 19.38.33145, SDK 10.0.26100 |
+| `cmake --build build-q1-t030 --config Debug -- -m` | 0 | all fixtures linked |
+| `ctest --test-dir build-q1-t030 -C Debug --no-tests=error --output-on-failure` | 0 | `100% tests passed, 0 tests failed out of 38` (32 Q1–Q4 fixtures plus 6 T072 portable-profile tests) |
+| `build-q1-t030/Debug/q1a_diagnostics_test.exe` | 0 | `cases_pass=8 fail=0 skip=0 validation_executed=6` |
+| `build-q1-t030/Debug/q1b_surface_private.exe` | 0 | `PRIVATE_SUMMARY pass=2 fail=0 skip=0` |
+| `cmake --build build-q1-t030 --config Release -- -m` | 0 | all fixtures linked |
+| `ctest --test-dir build-q1-t030 -C Release --no-tests=error --output-on-failure` | 0 | `100% tests passed, 0 tests failed out of 38` (same split) |
+| `build-q1-t030/Release/q1a_diagnostics_test.exe` | 0 | `cases_pass=8 fail=0 skip=0 validation_executed=6` |
+| `build-q1-t030/Release/q1b_surface_private.exe` | 0 | `PRIVATE_SUMMARY pass=2 fail=0 skip=0` |
+| `python -I scripts/validate-q1b-fixtures.py` | 0 | `PASS q1b-fixtures.md: pattern, tints, compute, MRT, depth and controls` |
+| `python -I scripts/validate-q1b-fixtures.py --self-test` | 0 | altered values rejected |
+| `python -I scripts/validate-rhi-contract.py --self-test` | **1** | 26 pre-existing forbidden-vocabulary failures in `src/renderer/q4_harness/*.h`; unchanged by this change |
+| `git diff --check` | 0 | no whitespace error |
+
+The contract-validator failure is the gap already recorded in
+`evidence-doc-cluster.md` §3.1; this change touches no `q4_harness` file.
+
+### Messages after the fixes
+
+Debug and Release produce the same result. Every message is listed with the
+numeric ID and severity from `d3d12sdklayers.h`.
+
+| ID | Severity | Text (abridged) | Trigger | Final count | Decision |
+|---|---|---|---|---|---|
+| 820 | WARNING | `ID3D12CommandList::ClearRenderTargetView: The application did not pass any clear value to resource creation. ... typically slower ... will still clear to the desired value.` | `ClearRenderTargetView` in the Q1a row clear (`d3d12_impl.h`), once per row of the 4-row fixture | 28 (4 per case that ran under the layer, 7 cases) | Waived — W-820 |
+| 1016 | MESSAGE | `Device Debug Layer Startup Options: GPU-Based Validation is enabled (disabled by default). ...` | layer device creation when GPU-based validation is on | 6 | Waived — W-1016 |
+
+No `ERROR` or `CORRUPTION` message remains; `errors=0` in every case.
+
+### Waivers
+
+Waiving is not silence: the test logs every message with its ID and severity
+before the waiver predicate is consulted, and the gate fails on any message not
+in this table.
+
+| Waiver | Reason | Accepted by | Revisit |
+|---|---|---|---|
+| W-820 | The Q1a submission clears a different colour per row, so no single optimized clear value can match all four `ClearRenderTargetView` calls. The message is a performance advisory — the clear still writes the requested value — and the fixture asserts the exact bytes. | Independent T031 reviewer — **technical acceptance required; owner authorization is not a substitute; pending** | Remove if Q1a stops clearing per row; re-check at T031 acceptance and on any layer or driver update that changes the ID, severity or text |
+| W-1016 | Informational layer notice emitted at device creation whenever GPU-based validation is enabled; it confirms the requested mode is active. | Independent T031 reviewer — **technical acceptance required; owner authorization is not a substitute; pending** | Remove/rephrase if the layer stops emitting it or changes its severity |
+
+### Defects found and fixed by the gate
+
+1. **Mismatching optimized clear value (Q1b).** `CreateColorAttachment` and
+   `CreateDepthAttachment` declared fixed clear values while the frame chose its
+   own. `SubmitDrawFrame` now derives each attachment's first clear and
+   `DrawFrameDesc::depthClear` and passes them to creation. The Q1b draw and
+   depth paths produce no ID-820 message.
+2. **In-flight back-buffer release on resize (Q1b surface).** The debug layer
+   reported `id=921 CORRUPTION: An ID3D12Resource ... is referenced by GPU
+   operations in-flight ...`, and `ResizeBuffers` then terminated the process
+   with `0x87D`. `LastSerial()` is zero after a submission is released, so the
+   previous wait did not drain the queue. `ResizeSurface`/`DestroySurface` now
+   call `DrainQueue`, which signals a fresh fence value and waits, and the
+   resize path resets and closes each command list to drop recorded references.
+   The surface fixture now passes under debug + GPU-based validation on both
+   adapters with no ID-921 message.
+3. **Blind spot in the diagnostics harness.** Messages were read only when the
+   case explicitly requested the debug layer; the layer is process-global, so a
+   later `none` case ran under a layer enabled by an earlier case without being
+   gated. The test now reads and gates the queue for every case, captures
+   numeric IDs and severities, asserts the capture was not truncated, and fails
+   on any message outside the waiver table.
+
+### Coverage and limits of this run
+
+- `rhi.q1a.diagnostics` is the validation vehicle. It now exercises the Q1a
+  clear/readback and a Q1b draw with a depth attachment (colour clear, depth
+  clear, PSO, draw, readback) in every case, so both clear paths are validated.
+- `q1b_surface_private` exercises create, compose, minimize, restore, resize,
+  capture, destroy and restart under debug + GPU-based validation.
+- The other fixture binaries (draw, compute, MRT/depth, frame resources,
+  temporal, frame graph, public surface, device removal, lifetime) ran normally
+  in the 38/38 suite on the rebased head (the additional six are T072's
+  portable-profile tests, outside Q1); the public seam has no validation opt-in,
+  so they did not execute under the layer in this run. This is a coverage
+  boundary, not a pass claim for them.
+- The debug layer is process-global. The software `none` case inherits it from
+  the earlier hardware cases; its request report still says `NOT_REQUESTED`, and
+  its queue contains four waived ID-820 warnings plus one ID-1016 message. The
+  gate is unconditional, so this inheritance cannot hide a message.
+- Real device removal and the layer's device-removal diagnostics remain out of
+  scope for this run; the injected-removal fixture is unchanged.
+
+### Task status after this run
+
+T030 is **OPEN**. Unwaived errors: 0. Unwaived warnings: 0. Two documented
+waivers (W-820, W-1016) need technical acceptance by the independent T031
+reviewer; owner authorization is not a substitute for that verdict, and the
+instruction for this task is not to tick while a waiver is unaccepted. T031
+remains open and needs a fresh review of this PR's head; `review-q1.md` covers
+`35ce54e`, not this change.

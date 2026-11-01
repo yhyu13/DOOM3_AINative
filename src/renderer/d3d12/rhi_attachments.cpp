@@ -32,9 +32,9 @@ Status CheckDimensions(uint32_t width, uint32_t height, std::string* error) {
 }  // namespace
 
 Status d3d12::detail::Q1bState::CreateColorAttachment(
-    uint32_t width, uint32_t height, ComPtr<ID3D12Resource>* texture,
-    uint32_t* tightStride, uint32_t* rowPitch, ComPtr<ID3D12Resource>* readback,
-    std::string* error) {
+    uint32_t width, uint32_t height, const ClearRow* optimizedClear,
+    ComPtr<ID3D12Resource>* texture, uint32_t* tightStride, uint32_t* rowPitch,
+    ComPtr<ID3D12Resource>* readback, std::string* error) {
     const Status dimensions = CheckDimensions(width, height, error);
     if (dimensions != Status::Ok) {
         return dimensions;
@@ -59,11 +59,23 @@ Status d3d12::detail::Q1bState::CreateColorAttachment(
     defaultHeap.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
     defaultHeap.CreationNodeMask = 1;
     defaultHeap.VisibleNodeMask = 1;
+    // Supply the first clear this frame will perform as the optimized clear
+    // value. A single pass writes each attachment, so the first clear is the
+    // only clear RecordDrawPasses issues for it; matching it keeps the debug
+    // layer's mismatching-clear diagnostic out of a correct run.
     D3D12_CLEAR_VALUE clearValue{};
-    clearValue.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    const D3D12_CLEAR_VALUE* optimized = nullptr;
+    if (optimizedClear != nullptr) {
+        clearValue.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        clearValue.Color[0] = optimizedClear->red / 255.0f;
+        clearValue.Color[1] = optimizedClear->green / 255.0f;
+        clearValue.Color[2] = optimizedClear->blue / 255.0f;
+        clearValue.Color[3] = optimizedClear->alpha / 255.0f;
+        optimized = &clearValue;
+    }
     HRESULT hr = host->Device()->CreateCommittedResource(
         &defaultHeap, D3D12_HEAP_FLAG_NONE, &textureDescription,
-        D3D12_RESOURCE_STATE_RENDER_TARGET, &clearValue, __uuidof(ID3D12Resource),
+        D3D12_RESOURCE_STATE_RENDER_TARGET, optimized, __uuidof(ID3D12Resource),
         reinterpret_cast<void**>(texture->GetAddressOf()));
     if (FAILED(hr)) {
         return Fail(Status::Error, error,
@@ -119,6 +131,7 @@ Status d3d12::detail::Q1bState::CreateColorAttachment(
 }
 
 Status d3d12::detail::Q1bState::CreateDepthAttachment(uint32_t width, uint32_t height,
+                                                     float optimizedDepth,
                                                      ComPtr<ID3D12Resource>* texture,
                                                      std::string* error) {
     const Status dimensions = CheckDimensions(width, height, error);
@@ -143,9 +156,11 @@ Status d3d12::detail::Q1bState::CreateDepthAttachment(uint32_t width, uint32_t h
     defaultHeap.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
     defaultHeap.CreationNodeMask = 1;
     defaultHeap.VisibleNodeMask = 1;
+    // DrawFrameDesc::depthClear is the value RecordDrawPasses clears with, so
+    // declare exactly that value and the clear is an optimized match.
     D3D12_CLEAR_VALUE clearValue{};
     clearValue.Format = DXGI_FORMAT_D32_FLOAT;
-    clearValue.DepthStencil.Depth = 1.0f;
+    clearValue.DepthStencil.Depth = optimizedDepth;
     clearValue.DepthStencil.Stencil = 0;
     const HRESULT hr = host->Device()->CreateCommittedResource(
         &defaultHeap, D3D12_HEAP_FLAG_NONE, &textureDescription,

@@ -44,6 +44,11 @@ struct DiagnosticReport {
     uint32_t messageCount = 0;
     uint32_t errorCount = 0;
     uint32_t warningCount = 0;
+    // Parallel to `messages`: the numeric D3D12_MESSAGE_ID and the numeric
+    // D3D12_MESSAGE_SEVERITY. Kept as plain integers so this header stays free
+    // of native D3D12 types and existing consumers of `messages` are unchanged.
+    std::vector<uint32_t> messageIds;
+    std::vector<uint32_t> messageSeverities;
     std::vector<std::string> messages;
 };
 
