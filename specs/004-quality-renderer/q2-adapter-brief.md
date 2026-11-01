@@ -151,7 +151,7 @@ Why this order and not another:
 8. **Q1 residual**: the debug-layer/GBV skip is disclosed in `evidence-q2.md`; it is not converted to
    a pass, and it is not a Q2 acceptance claim.
 9. **Delivery gate**: `git submodule status` shows the fork SHA in the PR body, the pristine tree is
-   clean, and no change exists only in the ignored target copy. T084 stays partial: a green `SC-006b`
+   clean, and no change exists only in the ignored target copy. T084's manifest controls are complete ([evidence-t084.md](./evidence-t084.md)); a green `SC-006b`
    is self-consistency, not canonical provenance.
 10. **Fallback gate (T083)**: a failed modern init is actionable, does not poison `r_renderApi`, and
     the next `r_renderApi 0` launch renders GL. No automatic switch is claimed.

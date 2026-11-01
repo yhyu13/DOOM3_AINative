@@ -7,8 +7,8 @@
 
 **Scope owner**: T033. Implemented by T035 (ordered scene adapter + fork integration), T036
 (selectable path + both-executable linkage), T080–T082 (production slices), T083 (forced-failure
-integration check), T084 (patch-delivery controls, **partial**). Requirements: FR-003, FR-006,
-FR-019, SC-003.
+integration check), T084 (patch-delivery controls; complete for manifest `A`/`D` and partial-`M`
+handling, with the provenance caveat in §1.5). Requirements: FR-003, FR-006, FR-019, SC-003.
 
 ---
 
@@ -18,7 +18,10 @@ FR-019, SC-003.
    checked out **outside** `doom3_orig/doom3`) and a reviewed submodule bump. The target copy is
    scratch. A new engine file cannot be delivered by
    `targets/win11-amd64/patches/all-changes.patch`, because that exporter reproduces modified files
-   only.
+   only. **Decision (T084): added/deleted target-copy delivery is not implemented.** The exporter
+   exits 1 when the manifest contains an `A` or `D` row, the applier exits 1, and the verifier
+   reports `SC-006a`/`SC-006b` FAIL. Added/deleted engine files are therefore fork/submodule-only,
+   and the scripts enforce that boundary instead of leaving it advisory (§3.3).
 2. **Linkage**: a superproject-owned static `doom3_rhi` library is linked into **both** `DOOM3.exe`
    and `DOOM3XP.exe` under the existing `/MT`/`/MTd` setting; the engine adapter compiles against the
    RHI headers; game objects never link the RHI.
@@ -99,15 +102,24 @@ merged; record that dependency in both PRs.
 
 | Limitation | Anchor | Consequence |
 |---|---|---|
-| Exporter emits hunks only for modified files | `scripts/export-target-patches.ps1:66-77` | `A` and `D` are manifest rows without content |
-| `A`/`D` rows are manifest-only | `scripts/export-target-patches.ps1:78-79` | A new engine file cannot be reconstructed from the patch |
-| Apply fails closed on `A`/`D` | `scripts/apply-target-patches.ps1:31-37,49,72` | `-AllowIncomplete` is inspection-only and still exits non-zero |
-| Verifier fails `SC-006b` on a non-`M` row in its export | `scripts/verify-win11-amd64.ps1:64-69,74-79` | A green run does not cover added/deleted files |
-| Patch and expected hashes are regenerated from the same copy | `scripts/export-target-patches.ps1:22`; `scripts/verify-win11-amd64.ps1:84-97` | A pass is self-consistency, not canonical-patch provenance |
-| Patch baseline is the pinned submodule | `scripts/export-target-patches.ps1:22` | After a bump, re-export and re-verify; old hashes describe the old baseline |
+| Exporter emits hunks only for modified files | `scripts/export-target-patches.ps1:71-82` | `A` and `D` are manifest rows without content |
+| `A`/`D` rows are manifest-only | `scripts/export-target-patches.ps1:83-91` | A new engine file cannot be reconstructed from the patch |
+| Exporter fails closed on `A`/`D` | `scripts/export-target-patches.ps1:90-91` | Exit 1, not a PASS; the files are still written for inspection |
+| Apply fails closed on `A`/`D` | `scripts/apply-target-patches.ps1:33-37,49,72` | `-AllowIncomplete` is inspection-only and still exits non-zero |
+| Verifier fails `SC-006a`/`SC-006b` on an `A`/`D` manifest | `scripts/verify-win11-amd64.ps1:94-105` | A green run does not cover added/deleted files |
+| Verifier requires every `M` row | `scripts/verify-win11-amd64.ps1:121-130` | A partial match is not counted as verified |
+| Patch and expected hashes are regenerated from the same copy | `scripts/export-target-patches.ps1:27`; `scripts/verify-win11-amd64.ps1:124-126` | A pass is self-consistency, not canonical-patch provenance |
+| Patch baseline is the pinned submodule | `scripts/export-target-patches.ps1:27` | After a bump, re-export and re-verify; old hashes describe the old baseline |
 
-T084 is **partial**: apply-path controls exist, but the exporter and verifier controls remain open.
-Do not present `SC-006b` as a complete provenance proof.
+T084's manifest controls are implemented and mutation-tested in
+[`evidence-t084.md`](./evidence-t084.md): an `A`/`D` export exits 1, an `A`/`D` manifest is refused
+by the verifier independently of the exporter exit code, a partial `M` match (1/2) is refused, a
+patch/manifest hash disagreement fails, and a missing patch fails. Each control was shown red under a
+mutation that restored the pre-fix behavior and green after the restore.
+
+The provenance caveat remains: the manifest and its expected hashes are produced from the same target
+copy, so `SC-006b` proves self-consistency only. Do not present a green `SC-006b` as canonical-patch
+provenance.
 
 Therefore:
 
@@ -416,8 +428,9 @@ Neither probe is an engine-renderer integration or a Q2 result.
    adapter, driver, commands, exits, and the `r_renderApi` value.
 5. Force D3D12 initialization failure; confirm the error is actionable, no automatic switch
    occurred, `r_renderApi` is unchanged, and a subsequent `r_renderApi 0` launch renders GL.
-6. Re-export the target patch; `A`/`D` rows must be zero or the delivery is via the fork; `SC-006b`
-   is reported with its self-consistency caveat and T084's partial status.
+6. Re-export the target patch; a zero exit means an `M`-only manifest. An `A`/`D` row makes the
+   exporter exit 1 and the delivery is via the fork; `SC-006b` is reported with its self-consistency
+   caveat.
 7. Repeat on `DOOM3XP.exe` (boot/menu) with the d3xp data if available; retail content is not
    claimed.
 
@@ -452,8 +465,8 @@ One writer per file. Do not let two agents edit `RenderSystem.cpp`, `tr_local.h`
 2. Land the superproject ordered scene adapter (T035) against that header; then land the fork `RenderSystem.cpp` dispatch and open the fork PR.
 3. Bump the submodule; add the wiring and `RHI_ADAPTER_SOURCES`; build both executables.
 4. Add the selector/fallback test and the forced-failure integration check.
-5. Re-export the patch and run the verifier; record the self-consistency caveat and T084's partial
-   status.
+5. Re-export the patch and run the verifier; record the self-consistency caveat and the
+   `evidence-t084.md` control result.
 6. Update `classic-parity.md` and `evidence-q2.md` with the actual build/run identities.
 
 The fork PR cannot be merged standalone if it depends on a superproject header that is not yet
@@ -473,7 +486,7 @@ merged; record that dependency in both PRs.
 | Static initializers dropped | Backend never registers | Explicit factory; no linker magic |
 | Duplicate adapter TU | Link errors | One source owner; no duplicate in `ENGINE_SOURCES` |
 | `sources.cmake` misses the adapter | Silent no-op build | `RHI_ADAPTER_SOURCES` in the tracked CMake |
-| Patch self-consistency | False confidence | State T084 partial; fork/submodule for A/D; re-export after bump |
+| Patch self-consistency | False confidence | Manifest controls are in `evidence-t084.md`; fork/submodule for A/D; re-export after bump; a green `SC-006b` is not provenance |
 | Fork and superproject diverge | Unbuildable PR | Record the fork SHA in the bump; test in a worktree from `origin/main` |
 | `DOOM3XP` game objects differ | Link/run asymmetry | Shared engine objects; test both; no game-side RHI link |
 | Target copy edited by mistake | Lost work | Target copy is scratch; restore from submodule; never commit |

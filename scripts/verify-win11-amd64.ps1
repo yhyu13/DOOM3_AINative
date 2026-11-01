@@ -4,18 +4,34 @@
   One-command verification for spec 001 (win11-amd64). Prints PASS/FAIL/SKIPPED per criterion.
 .DESCRIPTION
   Does not build. Run the CMake build first (see targets/win11-amd64/README.md). Exit 0 only if no FAIL.
+  -Sc006Only runs only the SC-006 export/reconstruction checks, and -TargetName/-PristineDir choose
+  the trees they use. That combination is the negative-control seam used by test-target-patches.ps1;
+  it is not a stage result. -PatchDir additionally supplies a ready-made patch set for the control
+  (SC-006a then reports the supplied rows, not a fresh export) and is refused without -Sc006Only.
+  SC-006b fails closed unless every 'M' row hash matches after reconstruction and git apply exited 0.
 .EXAMPLE
   .\scripts\verify-win11-amd64.ps1 -DataDir <data-root>\run
+.EXAMPLE
+  .\scripts\verify-win11-amd64.ps1 -Sc006Only -TargetName zz-control -PristineDir <synthetic-pristine>
 #>
 [CmdletBinding()]
-param([string]$DataDir = $env:D3_DATA_DIR, [string]$Exe, [switch]$SkipSmoke)
+param([string]$DataDir = $env:D3_DATA_DIR, [string]$Exe, [switch]$SkipSmoke,
+    [string]$TargetName = 'win11-amd64', [string]$PristineDir, [switch]$Sc006Only,
+    [string]$PatchDir)
 $ErrorActionPreference = 'Continue'
 $repo = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot '_common.ps1')
-if (-not $Exe) { $Exe = Resolve-Doom3Exe -Repo $repo }
-$exe = $Exe
+if ($PatchDir -and -not $Sc006Only) {
+    Write-Host 'ERROR -PatchDir is a control-test seam and requires -Sc006Only; a stage run must export from the target copy.' -ForegroundColor Red
+    exit 2
+}
+$pristine = if ($PristineDir) { $PristineDir } else { Join-Path $repo 'doom3_orig\doom3' }
 $results = New-Object System.Collections.Generic.List[object]
 function Add-Result($id, $status, $detail) { $results.Add([pscustomobject]@{ Id = $id; Status = $status; Detail = $detail }); Write-Host ("{0,-8} {1,-8} {2}" -f $id, $status, $detail) }
+
+if (-not $Sc006Only) {
+if (-not $Exe) { $Exe = Resolve-Doom3Exe -Repo $repo }
+$exe = $Exe
 
 # SC-001/002 exe, PE machine, size
 if (Test-Path -LiteralPath $exe) {
@@ -28,7 +44,6 @@ if (Test-Path -LiteralPath $exe) {
 
 # SC-004 pristine untouched. An uninitialised submodule, a failed git command, or a git repository
 # discovered above the submodule is FAIL, never a clean tree.
-$pristine = Join-Path $repo 'doom3_orig\doom3'
 $pristineFull = [IO.Path]::GetFullPath($pristine).TrimEnd('\')
 if (-not (Test-Path -LiteralPath $pristine -PathType Container)) {
     Add-Result 'SC-004' 'FAIL' "pristine submodule missing: $pristine"
@@ -50,30 +65,53 @@ if (-not (Test-Path -LiteralPath $pristine -PathType Container)) {
         Add-Result 'SC-004' ($(if ($gitCode -eq 0 -and $dirt.Count -eq 0) { 'PASS' } else { 'FAIL' })) "pristine git status exit $gitCode, porcelain lines: $($dirt.Count)"
     }
 }
+}
 
 # SC-006 patches reproduce target. Export to a temp directory: never overwrite the tracked patches.
 $exp = Join-Path $repo 'scripts\export-target-patches.ps1'
-$expDir = Join-Path $env:TEMP ("d3exp-" + [guid]::NewGuid().ToString('N'))
-$expCode = -1
-try { & $exp -Name win11-amd64 -OutDir $expDir | Out-Null; $expCode = $LASTEXITCODE }
-catch { $expCode = -1 }
-$man = Join-Path $expDir 'all-changes.manifest.txt'
-$patch = Join-Path $expDir 'all-changes.patch'
+$expDir = $null
 $rows = @()
-if (Test-Path $man) { $rows = @(Get-Content $man | Where-Object { $_ -and $_.Trim() }) }
+$expCode = -1
+if ($PatchDir) {
+    $man = Join-Path $PatchDir 'all-changes.manifest.txt'
+    $patch = Join-Path $PatchDir 'all-changes.patch'
+    if (Test-Path -LiteralPath $man) {
+        $rows = @(Get-Content $man | Where-Object { $_ -and $_.Trim() })
+        $expCode = 0
+        Add-Result 'SC-006a' ($(if ($rows.Count -gt 0) { 'PASS' } else { 'FAIL' })) "control patch set: $($rows.Count) manifest rows from $PatchDir"
+    } else {
+        Add-Result 'SC-006a' 'FAIL' "control patch set has no manifest: $man"
+    }
+} else {
+    $expDir = Join-Path $env:TEMP ("d3exp-" + [guid]::NewGuid().ToString('N'))
+    $expArgs = @{ Name = $TargetName; OutDir = $expDir }
+    if ($PristineDir) { $expArgs.SourceDir = $PristineDir }
+    try { & $exp @expArgs | Out-Null; $expCode = $LASTEXITCODE }
+    catch { $expCode = -1 }
+    $man = Join-Path $expDir 'all-changes.manifest.txt'
+    $patch = Join-Path $expDir 'all-changes.patch'
+    if (Test-Path $man) { $rows = @(Get-Content $man | Where-Object { $_ -and $_.Trim() }) }
+    Add-Result 'SC-006a' ($(if ($expCode -eq 0 -and $rows.Count -gt 0) { 'PASS' } else { 'FAIL' })) "export exit $expCode, patch manifest entries: $($rows.Count)"
+}
 $nonM = @($rows | Where-Object { ($_ -split "`t")[0] -ne 'M' })
-Add-Result 'SC-006a' ($(if ($expCode -eq 0 -and $rows.Count -gt 0) { 'PASS' } else { 'FAIL' })) "export exit $expCode, patch manifest entries: $($rows.Count)"
-if ($expCode -ne 0) {
-    Add-Result 'SC-006b' 'FAIL' "export failed ($expCode); reconstruction not attempted"
+$mRows = @($rows | Where-Object { ($_ -split "`t")[0] -eq 'M' })
+if ($expCode -eq 1) {
+    Add-Result 'SC-006b' 'FAIL' 'export exited 1: the manifest has added/deleted rows, so the patch is incomplete; no reconstruction is claimed'
+} elseif ($expCode -ne 0) {
+    Add-Result 'SC-006b' 'FAIL' "export exited $expCode (environment error); no reconstruction is claimed"
+} elseif ($rows.Count -eq 0) {
+    Add-Result 'SC-006b' 'FAIL' 'manifest is empty; there is nothing to reconstruct'
 } elseif ($nonM.Count -gt 0) {
     Add-Result 'SC-006b' 'FAIL' "manifest contains $($nonM.Count) added/deleted row(s); the patch reproduces modified files only and cannot reconstruct them"
+} elseif ($mRows.Count -eq 0) {
+    Add-Result 'SC-006b' 'FAIL' 'manifest has no modified rows; there is nothing to reconstruct'
 } else {
     $tmp = Join-Path $env:TEMP ("d3repro-" + [guid]::NewGuid().ToString('N'))
-    $ok = $false; $applyCode = -1; $bad = -1; $reported = $false
+    $applyCode = -1; $matched = 0; $mismatch = 0; $reported = $false
     try {
-        Copy-Item (Join-Path $repo 'doom3_orig\doom3') $tmp -Recurse -Force
+        Copy-Item -LiteralPath $pristine -Destination $tmp -Recurse -Force
         Remove-Item (Join-Path $tmp '.git') -Force -ErrorAction SilentlyContinue
-        if ((Test-Path $patch) -and (Get-Item $patch).Length -gt 0) {
+        if ((Test-Path -LiteralPath $patch) -and (Get-Item $patch).Length -gt 0) {
             Push-Location $tmp
             $prev = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
             & git -c core.autocrlf=false apply --whitespace=nowarn -p2 $patch 2>$null
@@ -81,33 +119,32 @@ if ($expCode -ne 0) {
             $ErrorActionPreference = $prev
             Pop-Location
         }
-        # compare modified-file hashes against manifest
-        $bad = 0
-        foreach ($line in $rows) {
+        # Every 'M' row must match; a partial match is not a verification.
+        foreach ($line in $mRows) {
             $p = $line -split "`t"
-            if ($p[0] -eq 'M') {
-                $f = Join-Path $tmp ($p[1] -replace '/', '\')
-                if (-not (Test-Path $f) -or (Get-FileHash $f -Algorithm SHA256).Hash -ne $p[2]) { $bad++ }
-            }
+            $f = Join-Path $tmp ($p[1] -replace '/', '\')
+            if ((Test-Path -LiteralPath $f) -and (Get-FileHash -LiteralPath $f -Algorithm SHA256).Hash -eq $p[2]) { $matched++ } else { $mismatch++ }
         }
-        $ok = ($bad -eq 0) -and ($applyCode -eq 0)
+        $ok = ($applyCode -eq 0) -and ($mismatch -eq 0) -and ($matched -eq $mRows.Count)
     } catch { Add-Result 'SC-006b' 'FAIL' $_.Exception.Message; $reported = $true }
     finally { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue }
     if (-not $reported) {
-        Add-Result 'SC-006b' ($(if ($ok) { 'PASS' } else { 'FAIL' })) "git apply exit $applyCode, patched copy hash mismatches on modified files: $bad"
+        Add-Result 'SC-006b' ($(if ($ok) { 'PASS' } else { 'FAIL' })) "git apply exit $applyCode, M rows verified $matched/$($mRows.Count), mismatches $mismatch"
     }
 }
-Remove-Item $expDir -Recurse -Force -ErrorAction SilentlyContinue
+if ($expDir) { Remove-Item $expDir -Recurse -Force -ErrorAction SilentlyContinue }
 
 # SC-003 smoke
+if (-not $Sc006Only) {
 if ($SkipSmoke) { Add-Result 'SC-003' 'SKIPPED' 'smoke skipped by flag' }
 elseif (-not (Test-Path -LiteralPath $exe)) { Add-Result 'SC-003' 'FAIL' 'no exe' }
 elseif (-not $DataDir -or -not (Test-Path -LiteralPath $DataDir)) { Add-Result 'SC-003' 'SKIPPED' 'no game data dir (set -DataDir or D3_DATA_DIR)' }
 else {
-    $out = Join-Path $repo ("targets\win11-amd64\build\smoke-" + [guid]::NewGuid().ToString('N'))
+    $out = Join-Path $repo ("targets\$TargetName\build\smoke-" + [guid]::NewGuid().ToString('N'))
     & (Join-Path $repo 'scripts\smoke-win11-amd64.ps1') -DataDir $DataDir -Exe $exe -OutDir $out
     $code = $LASTEXITCODE
     Add-Result 'SC-003' ($(if ($code -eq 0) { 'PASS' } else { 'FAIL' })) "smoke exit $code, output $out"
+}
 }
 $fail = @($results | Where-Object Status -eq 'FAIL').Count
 Write-Host ("SUMMARY pass={0} fail={1} skipped={2}" -f @($results | Where-Object Status -eq 'PASS').Count, $fail, @($results | Where-Object Status -eq 'SKIPPED').Count)
