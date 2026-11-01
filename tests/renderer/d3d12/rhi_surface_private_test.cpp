@@ -259,15 +259,24 @@ int main() {
         }
         q1a_test::PrintAdapter(device.adapter());
         bool ok = true;
+        // The surface back buffer is created by DXGI, and this fixture declares
+        // no optimized clear value it could match; the observed queue contains
+        // only the ID-1016 startup notice. Any ID-820 here would be a new,
+        // unwaived message, so the allowance is explicitly zero rather than
+        // inheriting the Q1a row-clear budget.
+        q1a_private::WaiverBudget surfaceBudget;
+        surfaceBudget.clearTarget820 = 0;
         const auto before = doom3::rhi::d3d12::ReadDiagnostics(device);
         q1a_private::LogDiagnosticMessages("surface-before", before);
-        ok &= q1a_private::RequireNoUnwaivedMessages("surface-before", before);
+        ok &= q1a_private::RequireNoUnwaivedMessages("surface-before", before,
+                                                     surfaceBudget);
         const int result = RunPrivateSurface(device);
         const auto after = doom3::rhi::d3d12::ReadDiagnostics(device);
         q1a_private::LogDiagnosticMessages("surface-after", after);
         ok &= q1a_test::Require(after.errorCount == 0,
                                 "surface debug layer reported errors");
-        ok &= q1a_private::RequireNoUnwaivedMessages("surface-after", after);
+        ok &= q1a_private::RequireNoUnwaivedMessages("surface-after", after,
+                                                     surfaceBudget);
         const Status shutdown = device.Shutdown();
         ok &= q1a_test::Require(shutdown == Status::Ok,
                                 "surface device did not shut down cleanly");

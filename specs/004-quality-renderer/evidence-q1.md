@@ -463,7 +463,7 @@ in this table.
 
 | Waiver | Reason | Accepted by | Revisit |
 |---|---|---|---|
-| W-820 | The Q1a submission clears a different colour per row, so no single optimized clear value can match all four `ClearRenderTargetView` calls. The message is a performance advisory — the clear still writes the requested value — and the fixture asserts the exact bytes. | Independent T031 reviewer — **technical acceptance required; owner authorization is not a substitute; pending** | Remove if Q1a stops clearing per row; re-check at T031 acceptance and on any layer or driver update that changes the ID, severity or text |
+| W-820 | The Q1a submission clears a different colour per row, so no single optimized clear value can match all four `ClearRenderTargetView` calls. The message is a performance advisory — the clear still writes the requested value — and the fixture asserts the exact bytes. The gate is scoped to this phase and asserts the exact count (2026-11-01 follow-up). | Independent T031 reviewer — **technical acceptance required; owner authorization is not a substitute; pending** | Remove if Q1a stops clearing per row; re-check at T031 acceptance and on any layer or driver update that changes the ID, severity or text |
 | W-1016 | Informational layer notice emitted at device creation whenever GPU-based validation is enabled; it confirms the requested mode is active. | Independent T031 reviewer — **technical acceptance required; owner authorization is not a substitute; pending** | Remove/rephrase if the layer stops emitting it or changes its severity |
 
 ### Defects found and fixed by the gate
@@ -488,6 +488,84 @@ in this table.
    gated. The test now reads and gates the queue for every case, captures
    numeric IDs and severities, asserts the capture was not truncated, and fails
    on any message outside the waiver table.
+
+### Regression control for the ID-820 waiver (MAJOR-1 follow-up, 2026-11-01)
+
+PR #101's post-merge review recorded **MAJOR-1**: the ID-820 waiver was keyed
+only on ID and severity, so a Q1b colour-attachment regression would emit the
+same warning and be waived silently. The gate now attributes the warning to the
+phase that produced it and pins its count.
+
+Rule, in `tests/renderer/d3d12/private_test_support.h` and
+`tests/renderer/d3d12/rhi_diagnostics_test.cpp`:
+
+- The info queue is cumulative: `UpdateDiagnostics` reads every stored message
+  and never clears it. The gate compares two reads taken around one operation,
+  so its expectation does not depend on the process-global layer or on messages
+  inherited from an earlier case.
+- **Q1a row clear:** the ID-820 delta must equal `q1a_test::kHeight` (4) in a
+  case that runs under the layer, and `0` in the one case that runs before the
+  layer is enabled. Observed: `0` for hardware `none`, `4` for the other seven.
+- **Q1b draw:** the ID-820 delta and ID-821 delta across the draw must both be
+  `0`. The cumulative budget passed to the post-draw gate stays at the Q1a
+  count, so a Q1b 820 is unwaived even if the delta check were bypassed.
+- **Total:** `clear_820_total == kHeight * layer_active_cases`, which reproduces
+  the evidence's 28 = 7 × 4 without hard-coding either constant.
+
+Why this is the safer of the two suggested rules: an exact count alone pins the
+total but cannot attribute a warning to an attachment, and scoping the waiver by
+label alone still needs a count to notice a change in how many rows are cleared.
+The delta assertions do both: they prove the Q1b draw adds none, and they pin
+the Q1a phase to one warning per cleared row. A hand-passed phase label could be
+wrong; an exact delta cannot.
+
+Depth half: `frame.depthClear` is now the named constant
+`kQ1bDepthClear = 0.5f`, with a `static_assert` that it differs from the pre-fix
+creation value `1.0f`, and the draw asserts `821_delta == 0` with a message that
+names the value and the pre-fix default. The control is still layer-dependent by
+construction, but it is no longer incidental: the assertion states the value it
+protects, and it cannot become vacuous without the `static_assert` failing.
+
+Mutation controls, both run in worktree `spec-004-waiver-control` (build
+directory `build-waiver`, git-ignored) and reverted before commit; no mutated
+source was committed:
+
+| Mutation | Command | Exit | Key line (verbatim) |
+|---|---|---|---|
+| Colour: `CreateColorAttachment` reverted to the pre-fix zeroed clear value | `build-waiver/Debug/q1a_diagnostics_test.exe` | 1 | `ASSERTION FAILED: Q1b draw added 1 ID-820 warning(s); the waiver is scoped to the Q1a row clear, so a colour attachment created without the first pass's clear value is a failure` |
+| Depth: `CreateDepthAttachment` reverted to the fixed `1.0f` creation value | `build-waiver/Debug/q1a_diagnostics_test.exe` | 1 | `ASSERTION FAILED: Q1b draw added 1 ID-821 warning(s); the depth attachment must be created with DrawFrameDesc::depthClear = 0.500000 (the pre-fix creation value was 1.0f)` |
+
+Both red runs also logged `UNWAIVED after message[4] id=820` (colour) and
+`id=821` (depth) at severity 2 with the layer's mismatching-clear text, so the
+cumulative gate fired independently of the delta assertion. The mutated
+expressions were: colour, `const D3D12_CLEAR_VALUE* optimized = &clearValue;`
+with a zeroed `clearValue` instead of `nullptr` plus the frame's first clear;
+depth, `clearValue.DepthStencil.Depth = 1.0f;` instead of `optimizedDepth`.
+
+Restoring the source and forcing a rebuild returns both binaries to exit 0 with
+28/28. A rebuild is required: restoring a saved copy preserves its older
+timestamp, so MSBuild can keep the mutated object linked and report a false
+failure — touch the restored file or delete its object before rebuilding.
+
+Green re-run after the control, same build directory:
+
+| Command | Exit | Observed |
+|---|---|---|
+| `build-waiver/Debug/q1a_diagnostics_test.exe` | 0 | `cases_pass=8 fail=0 skip=0 validation_executed=6 layer_active_cases=7 clear_820_total=28 clear_820_expected=28` |
+| `build-waiver/Debug/q1b_surface_private.exe` | 0 | `PRIVATE_SUMMARY pass=2 fail=0 skip=0` |
+| `ctest --test-dir build-waiver -C Debug --no-tests=error --output-on-failure` | 0 | `100% tests passed, 0 tests failed out of 38` |
+| `build-waiver/Release/q1a_diagnostics_test.exe` | 0 | same summary as Debug |
+| `build-waiver/Release/q1b_surface_private.exe` | 0 | `PRIVATE_SUMMARY pass=2 fail=0 skip=0` |
+| `ctest --test-dir build-waiver -C Release --no-tests=error --output-on-failure` | 0 | `100% tests passed, 0 tests failed out of 38` |
+
+The surface fixture now passes an explicit zero ID-820 budget: its back buffer
+is created by DXGI and the observed queue contains only the ID-1016 startup
+notice, so any ID-820 there is a new unwaived message rather than an inherited
+allowance.
+
+This is a test-gate change only. No engine source, submodule, target copy or
+game data is touched. T030 stays open and this control needs its own independent
+review.
 
 ### Coverage and limits of this run
 
@@ -517,3 +595,7 @@ reviewer; owner authorization is not a substitute for that verdict, and the
 instruction for this task is not to tick while a waiver is unaccepted. T031
 remains open and needs a fresh review of this PR's head; `review-q1.md` covers
 `35ce54e`, not this change.
+
+The ID-820 waiver now has a regression control (above), which addresses the
+post-merge review's MAJOR-1 but does not by itself tick T030 or accept the
+waiver; both still need an independent verdict on the control's own PR.

@@ -28,6 +28,16 @@ namespace {
 // Message waivers and the unwaived-message gate live in
 // d3d12/private_test_support.h so the surface fixture applies the same policy.
 
+// The depth half of the Q1b clear-value fix. The attachment is created with
+// this value and the pass clears to it; the pre-fix creation declared 1.0f,
+// which the debug layer reports as ID 821 (mismatching depth clear). Keeping
+// the frame value in one named constant lets the assertion below state the
+// value it protects instead of relying on the choice staying incidental.
+constexpr float kQ1bDepthClear = 0.5f;
+static_assert(kQ1bDepthClear != 1.0f,
+              "the Q1b depth clear must differ from the pre-fix creation value 1.0f, "
+              "otherwise the ID-821 control cannot detect a regression");
+
 // Exercises the Q1b graphics path on the same device as the Q1a clear: colour
 // attachment creation + clear, depth attachment creation + non-default clear,
 // a pipeline, a draw and a readback. This is what makes the validation gate
@@ -65,6 +75,10 @@ Status SubmitValidationDraw(Device& device, std::string* error) {
 
     uint32_t indices[1] = {0};
     ClearRow clears[1];
+    // Alpha 255 is deliberately different from the zeroed pre-fix creation
+    // value (0, 0, 0, 0), so a reverted optimized clear value mismatches and
+    // surfaces as ID 820 inside the Q1b window rather than being absorbed by
+    // the Q1a row-clear budget.
     clears[0].red = 0;
     clears[0].green = 0;
     clears[0].blue = 0;
@@ -80,7 +94,7 @@ Status SubmitValidationDraw(Device& device, std::string* error) {
     frame.attachmentCount = 1;
     frame.depthEnabled = true;
     // Deliberately not 1.0f: creation must follow the frame's clear value.
-    frame.depthClear = 0.5f;
+    frame.depthClear = kQ1bDepthClear;
     frame.passCount = 1;
     frame.passes = &pass;
 
@@ -115,6 +129,18 @@ Status SubmitValidationDraw(Device& device, std::string* error) {
 // reporting, not for validation execution.
 int gValidationExecuted = 0;
 
+// The debug layer is process-global: once any case enables it, every later
+// device in this process runs under it, including a case that requested
+// nothing. `evidence-q1.md` records that inheritance for the software `none`
+// case, whose queue holds the same four ID-820 warnings. Track the process-wide
+// state rather than inferring it from the current case's request alone.
+bool gLayerEnabledOnce = false;
+
+// Totals used to reproduce the evidence's "28 = 7 cases x 4" relation without
+// hard-coding the number of cases or adapters that happen to be available.
+int gLayerActiveCases = 0;
+int gClearTarget820Total = 0;
+
 int RunCase(AdapterClass adapterClass, bool requestDebug, bool requestGpuValidation,
             const char* combo) {
     Device device;
@@ -136,6 +162,9 @@ int RunCase(AdapterClass adapterClass, bool requestDebug, bool requestGpuValidat
         device.Shutdown();
         return 1;
     }
+
+    const bool layerActive = gLayerEnabledOnce || requestDebug || requestGpuValidation;
+    gLayerEnabledOnce = layerActive;
 
     const DiagnosticReport requested = doom3::rhi::d3d12::ReadDiagnostics(device);
     q1a_test::Log("DIAGNOSTICS class=%s combo=%s debug_requested=%s "
@@ -159,6 +188,7 @@ int RunCase(AdapterClass adapterClass, bool requestDebug, bool requestGpuValidat
     q1a_test::Log("DIAGNOSTICS validation_executed=%s",
                   validationExecuted ? "true" : "false");
     q1a_private::LogDiagnosticMessages("requested", requested);
+    // No clear has run yet, so no ID-820 may exist at this point.
     ok &= q1a_private::RequireNoUnwaivedMessages("requested", requested);
 
     if (requestDebug) {
@@ -214,6 +244,34 @@ int RunCase(AdapterClass adapterClass, bool requestDebug, bool requestGpuValidat
             "diagnostic submission was not released");
     }
 
+    // Attribute ID-820 to the phase that produced it. The info queue is
+    // cumulative (`UpdateDiagnostics` never clears it), so the count here minus
+    // the count in `requested` is exactly what the Q1a row clear emitted: one
+    // warning per cleared row while the layer is active, zero otherwise.
+    const DiagnosticReport afterClear = doom3::rhi::d3d12::ReadDiagnostics(device);
+    const int clearDelta820 =
+        static_cast<int>(q1a_private::CountMessages(
+            afterClear, q1a_private::kClearRenderTargetNoOptimizedValue,
+            q1a_private::kSeverityWarning)) -
+        static_cast<int>(q1a_private::CountMessages(
+            requested, q1a_private::kClearRenderTargetNoOptimizedValue,
+            q1a_private::kSeverityWarning));
+    const uint32_t expectedClear820 = layerActive ? q1a_test::kHeight : 0u;
+    q1a_test::Log("DIAGNOSTICS q1a_clear_820 delta=%d expected=%u layer_active=%s",
+                  clearDelta820, expectedClear820, layerActive ? "true" : "false");
+    ok &= q1a_test::Require(
+        clearDelta820 == static_cast<int>(expectedClear820),
+        "Q1a row clear emitted " + std::to_string(clearDelta820) +
+            " ID-820 warning(s), expected " + std::to_string(expectedClear820) +
+            " (one per cleared row while the debug layer is active)");
+    q1a_private::WaiverBudget clearBudget;
+    clearBudget.clearTarget820 = expectedClear820;
+    ok &= q1a_private::RequireNoUnwaivedMessages("after-clear", afterClear, clearBudget);
+    if (layerActive) {
+        ++gLayerActiveCases;
+        gClearTarget820Total += clearDelta820;
+    }
+
     std::string drawError;
     const Status drawStatus = SubmitValidationDraw(device, &drawError);
     q1a_test::Log("DIAGNOSTICS q1b_draw=%s reason=%s",
@@ -228,9 +286,43 @@ int RunCase(AdapterClass adapterClass, bool requestDebug, bool requestGpuValidat
     q1a_test::Log("DIAGNOSTICS after messages=%u errors=%u warnings=%u",
                   after.messageCount, after.errorCount, after.warningCount);
     q1a_private::LogDiagnosticMessages("after", after);
+    // The Q1b draw must add no mismatching-clear diagnostic. This is the
+    // regression control an unconditional ID-820 waiver could not provide: a
+    // reverted colour clear value emits the same ID 820 as the Q1a row clear,
+    // so only the phase-aware delta distinguishes them.
+    const int drawDelta820 =
+        static_cast<int>(q1a_private::CountMessages(
+            after, q1a_private::kClearRenderTargetNoOptimizedValue,
+            q1a_private::kSeverityWarning)) -
+        static_cast<int>(q1a_private::CountMessages(
+            afterClear, q1a_private::kClearRenderTargetNoOptimizedValue,
+            q1a_private::kSeverityWarning));
+    const int drawDelta821 =
+        static_cast<int>(q1a_private::CountMessages(
+            after, q1a_private::kClearDepthStencilNoOptimizedValue,
+            q1a_private::kSeverityWarning)) -
+        static_cast<int>(q1a_private::CountMessages(
+            afterClear, q1a_private::kClearDepthStencilNoOptimizedValue,
+            q1a_private::kSeverityWarning));
+    q1a_test::Log("DIAGNOSTICS q1b_draw_clear 820_delta=%d 821_delta=%d depth_clear=%.1f",
+                  drawDelta820, drawDelta821, static_cast<double>(kQ1bDepthClear));
+    ok &= q1a_test::Require(
+        drawDelta820 == 0,
+        "Q1b draw added " + std::to_string(drawDelta820) +
+            " ID-820 warning(s); the waiver is scoped to the Q1a row clear, so a "
+            "colour attachment created without the first pass's clear value is a "
+            "failure");
+    ok &= q1a_test::Require(
+        drawDelta821 == 0,
+        "Q1b draw added " + std::to_string(drawDelta821) +
+            " ID-821 warning(s); the depth attachment must be created with "
+            "DrawFrameDesc::depthClear = " + std::to_string(kQ1bDepthClear) +
+            " (the pre-fix creation value was 1.0f)");
     ok &= q1a_test::Require(after.errorCount == 0,
                             "debug layer reported errors during the diagnostic work");
-    ok &= q1a_private::RequireNoUnwaivedMessages("after", after);
+    // Same cumulative allowance as after-clear: the Q1b phase may not add one
+    // ID-820, so a report above that budget is unwaived.
+    ok &= q1a_private::RequireNoUnwaivedMessages("after", after, clearBudget);
     if (!validationExecuted) {
         q1a_test::Log("DIAGNOSTICS validation=SKIPPED debug=%s gpu_validation=%s",
                       doom3::rhi::d3d12::ToString(requested.debugLayer),
@@ -278,11 +370,24 @@ int main() {
                                                                            : "FAIL"));
         }
     }
+    // The evidence records 28 ID-820 warnings as 7 layer-active cases x 4 rows.
+    // Reproduce the relation, not the two constants: every case that ran under
+    // the layer must have contributed exactly one warning per Q1a row, and no
+    // case may contribute any other number. The per-case assertion above already
+    // enforces this; the total catches a future case that bypasses it.
+    const int expectedTotal820 = static_cast<int>(q1a_test::kHeight) * gLayerActiveCases;
     q1a_test::Log("DIAGNOSTICS_SUMMARY cases_pass=%d fail=%d skip=%d "
-                  "validation_executed=%d (a case pass is opt-in reporting, not a "
-                  "validation run)",
-                  passes, failures, skips, gValidationExecuted);
-    if (failures > 0) {
+                  "validation_executed=%d layer_active_cases=%d "
+                  "clear_820_total=%d clear_820_expected=%d "
+                  "(a case pass is opt-in reporting, not a validation run)",
+                  passes, failures, skips, gValidationExecuted, gLayerActiveCases,
+                  gClearTarget820Total, expectedTotal820);
+    const bool totalOk = q1a_test::Require(
+        gClearTarget820Total == expectedTotal820,
+        "ID-820 total across layer-active cases was " +
+            std::to_string(gClearTarget820Total) + ", expected " +
+            std::to_string(expectedTotal820) + " (one per cleared row per case)");
+    if (failures > 0 || !totalOk) {
         return 1;
     }
     if (passes > 0) {
