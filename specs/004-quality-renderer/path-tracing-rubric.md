@@ -1,9 +1,11 @@
 # Q6 path-tracing rubric, scene identities and pre-review thresholds (T063)
 
-Status: **pre-review record**, written 2026-10-30 for issue #68. This file fixes what a Q6 review
-will look at and how it will be measured. It is **not** a measurement and not a review. No capture,
-frame time, input-latency sample, VRAM figure or hardware ray-tracing result exists at this commit;
-every row below is `NOT RUN` until the named hardware, legal content and a Q6 engine frame exist.
+Status: **pre-review record**, written 2026-10-30 for issue #68 and updated 2026-11-01. This file
+fixes what a Q6 review will look at and how it will be measured. It is **not** a measurement and not a
+review. A standalone probe (`tests/dxr-probe`) now reports a real D3D12 tier and executes a trivial
+dispatch on this host; that is a device fact, not a Q6 capture. No Q6 capture, frame time,
+input-latency sample or VRAM figure exists, and every Q6 row below is `NOT RUN` until a Q6 engine
+frame exists.
 
 The rubric is separate from Q4. A frame that looks like the hybrid renderer is not a Q6 pass: Q6 asks
 whether a path-traced reference converges to an independently computed image, whether the material
@@ -38,14 +40,16 @@ the numeric budgets are not set by this file.
 
 | Id | Scene | Content | Motion | Status |
 |---|---|---|---|---|
-| PT-S1 `static-convergence` | dielectric and metal under one direct key plus a named environment, camera still | `content/hero/dielectric/` (CC0, authored) and the `opaque_metal` cell | none | **BLOCKED**: metal cell not authored; no Q6 frame |
-| PT-S2 `alpha-emissive` | alpha-tested cutout in front of an HDR emissive sign | `alpha_tested` and `emissive` cells | none | **BLOCKED**: cells not authored |
-| PT-S3 `motion` | rigid prop and skinned character crossing a lit floor | `skinned_character` cell | rigid and skinned keys, with a cut/teleport frame | **BLOCKED**: cell not authored |
-| PT-S4 `transmission` | clear and tinted glass with an environment behind it | `transmissive_glass` cell | none, then a slow camera move | **BLOCKED**: cell not authored |
-| PT-S5 `large-environment` | the large environment surface with the residency test surface | `large_environment` cell | camera dolly | **BLOCKED**: cell not authored |
+| PT-S1 `static-convergence` | dielectric and metal under one direct key plus a named environment, camera still | `content/hero/dielectric/` and the `opaque_metal` cell (both authored, CC0) | none | **BLOCKED**: no Q6 device renderer or Q6 frame |
+| PT-S2 `alpha-emissive` | alpha-tested cutout in front of an HDR emissive sign | `alpha_tested` and `emissive` cells (authored) | none | **BLOCKED**: no Q6 frame; emissive radiance above 1.0 is not authored |
+| PT-S3 `motion` | rigid prop and skinned character crossing a lit floor | `skinned_character` surface (authored) | rigid and skinned keys, with a cut/teleport frame | **BLOCKED**: no rigged mesh/animation and no Q6 frame |
+| PT-S4 `transmission` | clear and tinted glass with an environment behind it | `transmissive_glass` cell (authored) | none, then a slow camera move | **BLOCKED**: no Q6 frame; the cell has no transmission shader |
+| PT-S5 `large-environment` | the large environment surface with the residency test surface | `large_environment` cell (authored) | camera dolly | **BLOCKED**: no Q6 frame; residency was measured on the hybrid path |
 
-The Q4 content matrix is 1 of 7 authored (`specs/009-rhi-hd-content/tasks.md`), and no Q6 engine frame
-exists. That is why all five rows are blocked, not a scheduling preference.
+The Q4 content matrix is 7/7 authored (`content/tools/matrix-report.ps1`, exit 0), not 1 of 7 as an
+earlier revision said. Captures in a fresh worktree are 0/7 until packages are built, and the six
+existing mainline captures are **hybrid**, not path-traced. No Q6 engine frame exists. That is why all
+five rows are blocked, not a scheduling preference.
 
 ### 2.1 CPU fixture identities (implemented, not a visual capture)
 
@@ -121,8 +125,10 @@ rejection is not a threshold.
 
 - The Q6 code slice (acceleration structures, ray dispatch, material/lighting integration,
   alpha/transmission, reference accumulation plus bilateral denoise and history rejection, explicit
-  fallback selection) is implemented and its CPU fixtures pass; see `evidence-q6.md`.
-- PT-S1..S5 are **BLOCKED** on authored content and on a Q6 engine frame. No capture exists.
-- No DXR device path is implemented in this slice, so no hardware tier, frame time or latency is
-  measured or claimed.
+  fallback selection) is implemented. Its CPU fixtures pass in Debug (5/5); Release passes 4/5 on this
+  host because one denoiser check is codegen-sensitive under `/O2 /fp:precise`. See `evidence-q6.md`.
+- PT-S1..S5 are **BLOCKED** on a Q6 engine frame. The content is authored (7/7), but the Q6 slice has
+  no device renderer and no capture path. No Q6 capture exists.
+- A standalone probe (`tests/dxr-probe`) queries `RaytracingTier` and dispatches a trivial ray on this
+  host. That is not a Q6 renderer, and no Q6 frame time or latency is measured or claimed.
 - Every numeric threshold above is predeclared and **unmeasured**.
