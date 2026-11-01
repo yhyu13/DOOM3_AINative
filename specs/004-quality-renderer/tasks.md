@@ -69,8 +69,8 @@ review are recorded in
 - [x] T027 [US2] Add synthetic numerical motion/validity and scene-versus-overlay tests in `tests/renderer/rhi_temporal_test.cpp`; implement only their bounded resources in `src/renderer/rhi/frame_resources.h`, keeping validity separate from a valid zero vector.
 - [x] T028 [US2] Add window presentation, repeated resize/minimize, restart and history-reset tests in `tests/renderer/rhi_present_test.cpp`, then implement the required backend behavior in `src/renderer/d3d12/rhi_present.cpp` without unsafe retirement.
 - [x] T029 [US2] Implement declared resource accesses and pass ordering, without speculative aliasing or multi-queue execution, in `src/renderer/rhi/frame_graph.cpp`; exercise ordering and invalid uses through `tests/renderer/frame_graph_test.cpp`.
-- [ ] T030 [US2] Run all Q1 fixtures, genuine debug-layer and GPU-based validation, plus a fault-injected device-removal safe-failure test (bounded wait, cleanup and actionable reporting) and device-removal diagnostics where available; record unwaived messages, actual versus skipped checks and adapter class in `specs/004-quality-renderer/evidence-q1.md`.
-  - **Premise note (2026-11-01; still open)**: the recorded `0x887A002D` skip did not reproduce on the `spec-004-t030-q1` host. The debug layer and GPU-based validation executed (`debug=RUN`, `gpu_validation=RUN`, `errors=0`, unwaived messages 0) in Debug and Release, re-run on the rebased `origin/main` at `b244458` (T072). Four ID-820 performance-advisory warnings per case that ran under the layer and one ID-1016 startup notice are documented waivers awaiting **technical acceptance by the independent T031 reviewer** (owner authorization is not a substitute), so the row stays open. The gate also found and the change fixes a Q1b optimized-clear mismatch and an in-flight back-buffer release in surface resize/destroy (layer `id=921 CORRUPTION`). See [evidence-q1.md](./evidence-q1.md).
+- [x] T030 [US2] Run all Q1 fixtures, genuine debug-layer and GPU-based validation, plus a fault-injected device-removal safe-failure test (bounded wait, cleanup and actionable reporting) and device-removal diagnostics where available; record unwaived messages, actual versus skipped checks and adapter class in `specs/004-quality-renderer/evidence-q1.md`.
+  - **Acceptance (2026-11-01)**: the recorded `0x887A002D` skip did not reproduce on the `spec-004-t030-q1` host. The debug layer and GPU-based validation executed (`debug=RUN`, `gpu_validation=RUN`, `errors=0`, unwaived messages 0) in Debug and Release. The gate also found and the change fixed a Q1b optimized-clear mismatch and an in-flight back-buffer release in surface resize/destroy (layer `id=921 CORRUPTION`). Both waivers carry a review point: W-820 (ID 820 performance advisory, scoped to the Q1a row clear and pinned to the exact 28 = 7 × 4 count) and W-1016 (ID 1016 device-creation startup notice) were technically accepted by the independent review on PR #101 (R9, session `ses_e6a3c642fffeIQbRkvuSgXssSX`, reviewed SHA `67a108d`). That verdict's MAJOR-1 (the waiver was keyed on ID and severity only) was fixed by PR #106, whose independent review (R11, session `ses_e69f1eb07ffe0qBQJTggaWlzKs`, reviewed SHA `2a09c71`, merged `04c6180`) approved the scoped control and expressly left the ledger decision to the ledger owner. This tick records R9's waiver acceptance plus R11's approval of the control; it does not claim R11 accepted the waivers. Review point: remove or re-scope a waiver if the layer stops emitting it or changes its ID, severity or text. See [evidence-q1.md](./evidence-q1.md).
 - [ ] T031 [US2] Independently review and rerun Q1 in `specs/004-quality-renderer/review-q1.md`; full Q1 is BLOCKED until debug layer and GBV actually execute with zero unwaived errors.
 
 **Q1b status (2026-11-01)**: T022–T029 pass with recorded red/green/mutation
@@ -80,12 +80,10 @@ host: `debug=RUN`, `gpu_validation=RUN`, `errors=0`, unwaived messages 0 in both
 Debug and Release (`38/38` suite on the rebased `origin/main` at `b244458`:
 32 Q1–Q4 fixtures plus 6 T072 portable-profile tests). The gate found and this
 change fixes a Q1b optimized-clear mismatch and an in-flight back-buffer release
-in `ResizeSurface`/`DestroySurface` (layer `id=921 CORRUPTION`). T030 stays
-unchecked because two documented waivers (ID 820 performance advisory, ID 1016
-startup notice) need technical acceptance by the independent T031 reviewer;
-owner authorization is not a substitute. T031 stays unchecked because
-`review-q1.md` covers `35ce54e` and this change needs a fresh independent
-review. See [evidence-q1.md](./evidence-q1.md).
+in `ResizeSurface`/`DestroySurface` (layer `id=921 CORRUPTION`). T030 is
+checked on the waiver acceptance recorded above; T031 stays unchecked because
+`review-q1.md` covers `35ce54e` and the independent review of the full Q1 head
+is still open. See [evidence-q1.md](./evidence-q1.md).
 
 **Historical note (2026-10-29)**: the earlier host could not enable the layer
 (`0x887A002D`), so T030/T031 were left unchecked; the owner accepted that

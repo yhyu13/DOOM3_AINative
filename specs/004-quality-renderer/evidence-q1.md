@@ -9,13 +9,16 @@ startup notice). The gate also found and this change fixes three latent defects:
 a fixed optimized clear value that did not match the frame's clear, an
 in-flight back-buffer release in `ResizeSurface`/`DestroySurface` that the layer
 reported as `id=921 CORRUPTION`, and a diagnostics harness that could not see a
-process-global layer enabled by an earlier case. **T030 remains open**: the
-unwaived count is zero, but the two waivers need technical acceptance by the
-independent T031 reviewer (owner authorization is not a substitute), and the
-instruction is not to tick a task while a waiver is unaccepted. T031's earlier
-review of `35ce54e` does not cover this change; a fresh independent review is
-required. No claim is made for Q1 as a whole, game parity, DXR, DLSS, WebGPU or
-a shipped renderer. The 2026-10-29 record is retained below as history.
+process-global layer enabled by an earlier case. **T030 is accepted**: the
+unwaived count is zero and both waivers are technically accepted by the
+independent review on PR #101 (R9) at `67a108d`, with that verdict's MAJOR-1
+implementation objection resolved by the scoped, exact-count control approved by
+the independent review on PR #106 (R11) at `2a09c71`. Both waivers and their
+review points are recorded below. **T031 remains open**: its earlier review
+covers `35ce54e` and does not cover this change; a fresh independent review of
+full Q1 is still required. No claim is made for Q1 as a whole, game parity, DXR,
+DLSS, WebGPU or a shipped renderer. The 2026-10-29 record is retained below as
+history.
 
 The earlier 2026-10-29 status was: Q1b implementation and fixtures T022–T029
 executed locally, plus the fault-injected device-removal part of T030; the
@@ -358,17 +361,17 @@ first command.
 | T027 | PASS | Motion/validity, history reset and composition order |
 | T028 | PASS | Window surface, resize, minimize/restore, destroy, restart |
 | T029 | PASS | Declared accesses, pass order and invalid uses |
-| T030 | OPEN | All fixtures pass. On 2026-11-01 the debug layer and GPU-based validation executed on a Graphics Tools host: `debug=RUN`, `gpu_validation=RUN`, `errors=0`, unwaived messages 0. Four ID-820 warnings per case that ran under the layer and one ID-1016 startup notice are documented waivers awaiting technical acceptance by the independent T031 reviewer; owner authorization is not a substitute. The gate also found and the change fixes a Q1b optimized-clear mismatch and an in-flight back-buffer release in surface resize/destroy (`id=921`); see the 2026-11-01 section. Not ticked because the waivers are unaccepted |
+| T030 | PASS | All fixtures pass. On 2026-11-01 the debug layer and GPU-based validation executed on a Graphics Tools host: `debug=RUN`, `gpu_validation=RUN`, `errors=0`, unwaived messages 0. W-820 and W-1016 are accepted with review points (waiver table above): the independent review on PR #101 (R9) accepted both waivers at `67a108d`, and the independent review on PR #106 (R11) approved the scoped exact-count control at `2a09c71`. The gate also found and the change fixes a Q1b optimized-clear mismatch and an in-flight back-buffer release in surface resize/destroy (`id=921`). Ticked on that acceptance |
 | T031 | REVIEW STALE / OPEN | `review-q1.md` covers `35ce54e`; the 2026-11-01 backend and fixture changes require a fresh independent review of this PR's head |
 
 ## Limitations and open items
 
-1. **Validation now executes on a host with Graphics Tools, but Q1 remains
-   open.** The debug layer and GPU-based validation ran on 2026-11-01 with
-   `errors=0` and no unwaived messages; two documented waivers remain and need
-   independent acceptance, so T030 is not ticked. The 2026-10-29 host could not
-   enable them (`0x887A002D`); that history is retained above and is not
-   rewritten.
+1. **Validation executes on a host with Graphics Tools; T030 is accepted, T031
+   is not.** The debug layer and GPU-based validation ran on 2026-11-01 with
+   `errors=0` and no unwaived messages; the two waivers are accepted with review
+   points, so T030 is ticked. Full Q1 still needs the fresh independent review of
+   T031. The 2026-10-29 host could not enable the layer (`0x887A002D`); that
+   history is retained above and is not rewritten.
 2. **The independent review is stale for this change.** `review-q1.md` reviewed
    `35ce54e`; the 2026-11-01 change modifies the backend and fixtures, so T031
    needs a fresh independent review of this PR's head. The author self-review is
@@ -463,8 +466,8 @@ in this table.
 
 | Waiver | Reason | Accepted by | Revisit |
 |---|---|---|---|
-| W-820 | The Q1a submission clears a different colour per row, so no single optimized clear value can match all four `ClearRenderTargetView` calls. The message is a performance advisory — the clear still writes the requested value — and the fixture asserts the exact bytes. The gate is scoped to this phase and asserts the exact count (2026-11-01 follow-up). | Independent T031 reviewer — **technical acceptance required; owner authorization is not a substitute; pending** | Remove if Q1a stops clearing per row; re-check at T031 acceptance and on any layer or driver update that changes the ID, severity or text |
-| W-1016 | Informational layer notice emitted at device creation whenever GPU-based validation is enabled; it confirms the requested mode is active. | Independent T031 reviewer — **technical acceptance required; owner authorization is not a substitute; pending** | Remove/rephrase if the layer stops emitting it or changes its severity |
+| W-820 | The Q1a submission clears a different colour per row, so no single optimized clear value can match all four `ClearRenderTargetView` calls. The message is a performance advisory — the clear still writes the requested value — and the fixture asserts the exact bytes. The gate is scoped to this phase and asserts the exact count (2026-11-01 follow-up). | Independent review R9 on PR #101 (session `ses_e6a3c642fffeIQbRkvuSgXssSX`) at `67a108d` accepted the waiver reason. That verdict's MAJOR-1 (the waiver was keyed on ID and severity only) was fixed by PR #106, whose independent review R11 (session `ses_e69f1eb07ffe0qBQJTggaWlzKs`) approved the scoped exact-count control at `2a09c71` (merged `04c6180`). | Remove or re-scope if Q1a stops clearing per row; the diagnostics gate pins the per-phase count on every run; re-check on any layer or driver update that changes the ID, severity or text |
+| W-1016 | Informational layer notice emitted at device creation whenever GPU-based validation is enabled; it confirms the requested mode is active. | Independent review R9 on PR #101 (session `ses_e6a3c642fffeIQbRkvuSgXssSX`) at `67a108d` accepted the notice as an informational, mode-confirming message; independent review R11 on PR #106 re-observed it at `2a09c71`. | Remove/rephrase if the layer stops emitting it or changes its severity |
 
 ### Defects found and fixed by the gate
 
@@ -563,9 +566,26 @@ is created by DXGI and the observed queue contains only the ID-1016 startup
 notice, so any ID-820 there is a new unwaived message rather than an inherited
 allowance.
 
-This is a test-gate change only. No engine source, submodule, target copy or
-game data is touched. T030 stays open and this control needs its own independent
-review.
+This was a test-gate change only. No engine source, submodule, target copy or
+game data was touched. Its independent review (R11 at `2a09c71`) approved the
+control; the waiver acceptance and the T030 tick are recorded in the ledger
+below.
+
+Open findings from that review, recorded so the accepted state is not read as
+"every gate is now ideal":
+
+- **Portability is fail-closed, not proven.** The expected count follows the
+  case's request plus the process-global layer flag, not the layer's reported
+  state. On a host where the layer cannot be enabled, a requested case would
+  fail the `expected=4` assertion instead of taking the documented skip path
+  (`AllowedWhenRequested` accepts `Skipped`). This opens no waiver hole, but it
+  is a behaviour change relative to the old gate that has only been exercised
+  on a Graphics Tools host.
+- **W-1016 is still an unbounded boolean.** `WaiverBudget::allowStartupOptions1016`
+  waives every severity-MESSAGE ID-1016 in a report. It is the same shape
+  MAJOR-1 objected to for ID 820, at far lower risk because the message is
+  emitted once per layer device creation; budgeting it the way ID 820 is now
+  budgeted remains a follow-up.
 
 ### Coverage and limits of this run
 
@@ -589,13 +609,11 @@ review.
 
 ### Task status after this run
 
-T030 is **OPEN**. Unwaived errors: 0. Unwaived warnings: 0. Two documented
-waivers (W-820, W-1016) need technical acceptance by the independent T031
-reviewer; owner authorization is not a substitute for that verdict, and the
-instruction for this task is not to tick while a waiver is unaccepted. T031
-remains open and needs a fresh review of this PR's head; `review-q1.md` covers
+T030 is **PASS**. Unwaived errors: 0. Unwaived warnings: 0. W-820 and W-1016
+are accepted with review points: the independent review on PR #101 (R9)
+accepted both waivers at `67a108d`, and the independent review on PR #106 (R11)
+approved the scoped exact-count control at `2a09c71` (merged `04c6180`) while
+expressly leaving the ledger decision to the ledger owner. This tick records
+that acceptance; it does not claim R11 accepted the waivers. T031 remains open
+and needs a fresh, independent review of full Q1; `review-q1.md` covers
 `35ce54e`, not this change.
-
-The ID-820 waiver now has a regression control (above), which addresses the
-post-merge review's MAJOR-1 but does not by itself tick T030 or accept the
-waiver; both still need an independent verdict on the control's own PR.
