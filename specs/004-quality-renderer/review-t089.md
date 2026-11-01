@@ -8,7 +8,7 @@
 - **Worktree and branch**: `.kilo/worktrees/chore-36-header-webgpu-reconcile`, branch
   `chore/36-header-webgpu-reconcile` at `29a1e37`, 10 staged files and no unstaged tracked change.
 - **Method**: every claim was treated as untrusted until reproduced. The negative-control mutation
-  was built in a scratch copy under `C:\Users\1\AppData\Local\Temp\kilo\t089-scratch`, outside the
+  was built in a scratch copy under `%TEMP%\kilo\t089-scratch` (host temp directory), outside the
   repository; build logs were written to git-ignored `build/`.
 - **Reproducibility note**: bare `cmake` and `ctest` are not on this shell's `PATH` (exit 1). I used
   the Visual Studio-bundled binaries the existing cache records at
@@ -169,7 +169,7 @@ reproduced it. No commit, push, submodule touch, download, or tracked-file edit 
 | `git diff --cached --check` | 0 | clean |
 | `node tests/webgpu/run-conformance.mjs --out build/webgpu-q7a-review2` | 0 | Chrome/156.0.8078.73: 12 pass / 0 fail / 1 not run (`A1-software-adapter`); issue #36 AC still holds |
 
-Scratch controls (`C:\Users\1\AppData\Local\Temp\kilo\t089-scratch2`, fresh copy, no tracked edits):
+Scratch controls (`%TEMP%\kilo\t089-scratch2`, fresh copy, no tracked edits):
 
 | Control | Exit | Observation |
 |---|---|---|

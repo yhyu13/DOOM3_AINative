@@ -1,14 +1,15 @@
 # Evidence: T084 patch-delivery negative controls
 
-**Status**: executed 2026-11-01 (T084, issue #99). The apply-path controls existed before this task;
+**Status**: executed 2026-11-01 (T084, issue #99); manifest/patch coverage controls added the same day after the PR #100 review found the 1-of-2 manifest case fail-open. The apply-path controls existed before this task;
 this file records the new exporter and verifier controls and the mutation evidence that each control
 can fail.
 
 ## Identity and scope
 
 - **Stage and claim**: T084 — a reconstruction that contains an added (`A`) or deleted (`D`) row must
-  not report PASS, a partial `M`-row match must not be counted as verified, and a patch set that
-  disagrees with the manifest must fail closed. Scope is the three patch-delivery scripts plus the
+  not report PASS, a partial `M`-row match must not be counted as verified, a patch set that
+  disagrees with the manifest must fail closed, and the manifest must name exactly the files the
+  patch touches (a truncated manifest that omits a patched file is a FAIL). Scope is the three patch-delivery scripts plus the
   control script; no engine, submodule, target copy or GPU run is involved.
 - **Delivery decision**: added/deleted target-copy delivery is **not** implemented. Engine files that
   do not exist in the pristine tree are delivered only through the reviewed fork plus submodule bump;
@@ -30,10 +31,10 @@ can fail.
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\test-target-patches.ps1
 ```
 
-Exit 0; summary `TEST target-patches: 33 passed, 0 failed`.
+Exit 0; summary `TEST target-patches: 39 passed, 0 failed`.
 
-The synthetic setup is: pristine `neo/file_a.cpp` = `alpha\n`, `neo/file_b.cpp` = `bravo\n`; target
-`file_a.cpp` = `alpha-patched\n`, `file_b.cpp` = `bravo\n`. The exporter is invoked with
+The synthetic setup is: pristine `neo/file_a.cpp` = `alpha\n`, `neo/file_b.cpp` = `bravo\n`, `neo/file_c.cpp` = `charlie\n`; target
+`file_a.cpp` = `alpha-patched\n`, `file_b.cpp` and `file_c.cpp` unchanged. The exporter is invoked with
 `-SourceDir <synthetic pristine>` so it never touches `doom3_orig/doom3`.
 
 ## Controls and results
@@ -49,9 +50,30 @@ The synthetic setup is: pristine `neo/file_a.cpp` = `alpha\n`, `neo/file_b.cpp` 
 | 13 | verifier with a deleted file | verify-win11-amd64 | exit 1 | exit 1 (`SC-006a`/`SC-006b` FAIL) | PASS |
 | 13b | supplied manifest with an `A` row / a `D` row (`-PatchDir`, exporter not involved) | verify-win11-amd64 | exit 1, `added/deleted row` | exit 1 both | PASS |
 | 14 | partial `M` match, 1 of 2 rows (`-PatchDir`) | verify-win11-amd64 | exit 1, `M rows verified 1/2` | exit 1, 1/2 | PASS |
+| 14a | truncated manifest: 2-file patch, 1 `M` row (`-PatchDir`) | verify-win11-amd64 | exit 1, `manifest misses 1 patched file` | exit 1, 2 patch files / 1 manifest row | PASS |
+| 14b | manifest row the patch never touches (file exists, hash matches) | verify-win11-amd64 | exit 1, `patch misses 1 manifest file` | exit 1 | PASS |
+| 14c | partial hash match over the patch files (2 patched, 1 wrong hash) | verify-win11-amd64 | exit 1, `M rows verified 1/2` | exit 1, 1/2 | PASS |
 | 15 | patch disagrees with manifest hash (`-PatchDir`) | verify-win11-amd64 | exit 1, `M rows verified 0/1` | exit 1, 0/1 | PASS |
 | 16 | manifest with no patch file (`-PatchDir`) | verify-win11-amd64 | exit 1, `git apply exit -1` | exit 1, -1 | PASS |
 
+### Pre-fix reproduction (PR #100 review, reviewer's case)
+
+Synthetic pristine (`neo/file_a.cpp` = `alpha`, `neo/file_b.cpp` = `bravo`), a two-file patch, and a
+manifest with one `M` row for `file_a.cpp` only:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-win11-amd64.ps1 `
+  -Sc006Only -TargetName zzprobe -PristineDir <synthetic-pristine> -PatchDir <ctl>
+```
+
+| Verifier state | Exit | `SC-006b` detail |
+|---|---:|---|
+| `origin/main` before this PR | **0** | `PASS git apply exit 0, M rows verified 1/1, mismatches 0` |
+| this PR, after the coverage fix | **1** | `FAIL git apply exit 0, M rows verified 1/1, mismatches 0, patch files 2, manifest misses 1 patched file(s), patch misses 0 manifest file(s)` |
+
+Both runs used the same reproduction script (kept in the git-ignored `build/`, not tracked); the logs are
+`build/_t084_repro_before.log` and `build/_t084_repro_after.log`. `scripts\test-target-patches.ps1`
+control 14a now asserts the failing case.
 ## Mutation evidence (fails before the fix, passes after)
 
 Each mutation was applied to the fixed script, the same suite was run, then the mutation was reverted
@@ -64,7 +86,7 @@ and the suite rerun. The mutation lines are recorded verbatim.
 +    exit 0 # MUTATION-T084: pre-fix behavior; restored immediately
 ```
 
-`scripts\test-target-patches.ps1` → exit 1, `29 passed, 4 failed`:
+`scripts\test-target-patches.ps1` → exit 1, `35 passed, 4 failed`:
 
 ```text
 FAIL export with added file refuses PASS: expected exit 1, got 0
@@ -73,7 +95,7 @@ FAIL verify reports added/deleted incompleteness
 FAIL verify reports deleted incompleteness
 ```
 
-Restored; final run exit 0, `33 passed, 0 failed`. The two exporter exit-code controls are the direct proof that an `A`/`D` export cannot
+Restored; final run exit 0, `39 passed, 0 failed`. The two exporter exit-code controls are the direct proof that an `A`/`D` export cannot
 report success; the two verifier reason assertions flip because the verifier then reports the manifest-row reason
 instead of the export-exit reason (it still refuses the manifest independently).
 
@@ -84,7 +106,7 @@ instead of the export-exit reason (it still refuses the manifest independently).
 +} elseif ($false -and ($nonM.Count -gt 0)) { # MUTATION-T084: nonM guard disabled; restored immediately
 ```
 
-Exit 1, `29 passed, 4 failed`:
+Exit 1, `35 passed, 4 failed`:
 
 ```text
 FAIL verify refuses an A row in a supplied manifest: expected exit 1, got 0
@@ -93,7 +115,7 @@ FAIL verify refuses a D row in a supplied manifest: expected exit 1, got 0
 FAIL verify reports the supplied D row
 ```
 
-This control uses `-PatchDir`, so it does not depend on the exporter's exit code. Restored; 33/0.
+This control uses `-PatchDir`, so it does not depend on the exporter's exit code. Restored; 39/0.
 
 ### M3 — partial `M` match counted as verified
 
@@ -102,13 +124,13 @@ This control uses `-PatchDir`, so it does not depend on the exporter's exit code
 +        $ok = ($applyCode -eq 0) -and ($matched -gt 0) # MUTATION-T084: partial match counted as verified; restored immediately
 ```
 
-Exit 1, `32 passed, 1 failed`:
+Exit 1, `38 passed, 1 failed`:
 
 ```text
 FAIL verify refuses partial M-row match: expected exit 1, got 0
 ```
 
-Restored; 33/0.
+Restored; 39/0.
 
 ### M4 — manifest hashes ignored while `git apply` succeeds
 
@@ -117,26 +139,43 @@ Restored; 33/0.
 +        $ok = ($applyCode -eq 0) # MUTATION-T084: manifest hashes ignored; restored immediately
 ```
 
-Exit 1, `31 passed, 2 failed`:
+Exit 1, `37 passed, 2 failed`:
 
 ```text
 FAIL verify refuses partial M-row match: expected exit 1, got 0
 FAIL verify fails patch/manifest disagreement: expected exit 1, got 0
 ```
 
-Restored; 33/0. Control 16 still failed the mutated verifier (`git apply exit -1`), which shows the
+Restored; 39/0. Control 16 still failed the mutated verifier (`git apply exit -1`), which shows the
 missing-patch guard does not depend on the hash loop.
 
+### M5 — manifest/patch coverage ignored (the pre-fix `$ok`)
+
+```diff
+-        $coverageOk = ($patchParse -eq 0) -and ($patchFiles.Count -gt 0) -and ($unlisted.Count -eq 0) -and ($unpatched.Count -eq 0)
++        $coverageOk = $true # MUTATION-T084: coverage ignored; restored immediately
+```
+
+Exit 1, `37 passed, 2 failed`:
+
+```text
+FAIL verify refuses a manifest that omits a patched file: expected exit 1, got 0
+FAIL verify refuses a manifest row the patch never touches: expected exit 1, got 0
+```
+
+Restored; 39/0.
 ## Per-check result
 
 | Check | Execution | Outcome | Reason or observed result | Reference |
 |---|---|---|---|---|
-| Control suite as fixed | RUN | PASS | exit 0, 33/33 | command above |
-| Control suite under M1 | RUN | FAIL (expected) | 29/33; exporter controls red | mutation log |
-| Control suite under M2 | RUN | FAIL (expected) | 29/33; verifier A/D controls red | mutation log |
-| Control suite under M3 | RUN | FAIL (expected) | 32/33; partial control red | mutation log |
-| Control suite under M4 | RUN | FAIL (expected) | 31/33; partial + disagreement controls red | mutation log |
-| Post-restore rerun | RUN | PASS | exit 0, 33/33; no `MUTATION-T084` marker remains | `Select-String` 0 hits |
+| Control suite as fixed | RUN | PASS | exit 0, 39/39 | command above |
+| Control suite under M1 | RUN | FAIL (expected) | 35/39; exporter controls red | mutation log |
+| Control suite under M2 | RUN | FAIL (expected) | 35/39; verifier A/D controls red | mutation log |
+| Control suite under M3 | RUN | FAIL (expected) | 38/39; partial-hash control red | mutation log |
+| Control suite under M4 | RUN | FAIL (expected) | 37/39; partial-hash + disagreement controls red | mutation log |
+| Control suite under M5 | RUN | FAIL (expected) | 37/39; both coverage controls red | mutation log |
+| Pre-fix reproduction (1-of-2 manifest) | RUN | FAIL before, PASS after | exit 0 with `M rows verified 1/1` before; exit 1 with `manifest misses 1 patched file(s)` after | `build/_t084_repro_before.log`, `build/_t084_repro_after.log` |
+| Post-restore rerun | RUN | PASS | exit 0, 39/39; no `MUTATION-T084` marker remains | `Select-String` 0 hits |
 
 ## Limitations
 
@@ -146,6 +185,7 @@ missing-patch guard does not depend on the hash loop.
 - `SC-006b` remains self-consistency: the manifest and the expected hashes are regenerated from the
   same target copy. These controls prove the fail-closed shape, not canonical-patch provenance
   (`engine-integration.md` §1.5 and §3.3).
+- `SC-006b` coverage comes from `git apply --numstat -p2` on the same patch the reconstruction applies, compared case-insensitively with the manifest `M` row paths. A tab-containing path or a rename row is outside the supported form; engine patches are plain modified files.
 - No control covers a target copy edited between export and apply; that is outside the manifest.
 
 ## Independent review

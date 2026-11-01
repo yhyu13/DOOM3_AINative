@@ -8,7 +8,9 @@
   the trees they use. That combination is the negative-control seam used by test-target-patches.ps1;
   it is not a stage result. -PatchDir additionally supplies a ready-made patch set for the control
   (SC-006a then reports the supplied rows, not a fresh export) and is refused without -Sc006Only.
-  SC-006b fails closed unless every 'M' row hash matches after reconstruction and git apply exited 0.
+  SC-006b fails closed unless every 'M' row hash matches after reconstruction, git apply exited 0,
+  and the manifest names exactly the files the patch touches. A truncated manifest that omits a
+  patched file is a FAIL, not "M rows verified 1/1".
 .EXAMPLE
   .\scripts\verify-win11-amd64.ps1 -DataDir <data-root>\run
 .EXAMPLE
@@ -108,6 +110,24 @@ if ($expCode -eq 1) {
 } else {
     $tmp = Join-Path $env:TEMP ("d3repro-" + [guid]::NewGuid().ToString('N'))
     $applyCode = -1; $matched = 0; $mismatch = 0; $reported = $false
+    # Coverage first: the manifest must name every file the patch touches. Counting only the
+    # listed rows lets a truncated manifest (1 of 2 patched files) report "verified 1/1".
+    # git apply --numstat -p2 parses the same path form the reconstruction applies, so the
+    # comparison cannot drift from the apply step.
+    $patchFiles = @(); $patchParse = 0
+    if ((Test-Path -LiteralPath $patch) -and (Get-Item $patch).Length -gt 0) {
+        $ns = @(& git apply --numstat -p2 $patch 2>$null)
+        $nsCode = $LASTEXITCODE
+        if ($nsCode -eq 0) { $patchFiles = @($ns | Where-Object { $_ } | ForEach-Object { (($_ -split "`t")[-1]).Trim() }) }
+        else { $patchParse = 1 }
+    }
+    $manifestPaths = @($mRows | ForEach-Object { ($_ -split "`t")[1] })
+    $patchSet = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
+    foreach ($pf in $patchFiles) { if ($pf) { [void]$patchSet.Add($pf) } }
+    $manifestSet = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
+    foreach ($mp in $manifestPaths) { if ($mp) { [void]$manifestSet.Add($mp) } }
+    $unlisted = @($patchFiles | Where-Object { $_ -and -not $manifestSet.Contains($_) })
+    $unpatched = @($manifestPaths | Where-Object { $_ -and -not $patchSet.Contains($_) })
     try {
         Copy-Item -LiteralPath $pristine -Destination $tmp -Recurse -Force
         Remove-Item (Join-Path $tmp '.git') -Force -ErrorAction SilentlyContinue
@@ -125,11 +145,14 @@ if ($expCode -eq 1) {
             $f = Join-Path $tmp ($p[1] -replace '/', '\')
             if ((Test-Path -LiteralPath $f) -and (Get-FileHash -LiteralPath $f -Algorithm SHA256).Hash -eq $p[2]) { $matched++ } else { $mismatch++ }
         }
-        $ok = ($applyCode -eq 0) -and ($mismatch -eq 0) -and ($matched -eq $mRows.Count)
+        $coverageOk = ($patchParse -eq 0) -and ($patchFiles.Count -gt 0) -and ($unlisted.Count -eq 0) -and ($unpatched.Count -eq 0)
+        $ok = ($applyCode -eq 0) -and ($mismatch -eq 0) -and ($matched -eq $mRows.Count) -and $coverageOk
     } catch { Add-Result 'SC-006b' 'FAIL' $_.Exception.Message; $reported = $true }
     finally { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue }
     if (-not $reported) {
-        Add-Result 'SC-006b' ($(if ($ok) { 'PASS' } else { 'FAIL' })) "git apply exit $applyCode, M rows verified $matched/$($mRows.Count), mismatches $mismatch"
+        $detail = "git apply exit $applyCode, M rows verified $matched/$($mRows.Count), mismatches $mismatch, patch files $($patchFiles.Count), manifest misses $($unlisted.Count) patched file(s), patch misses $($unpatched.Count) manifest file(s)"
+        if ($patchParse -ne 0) { $detail += ', patch could not be parsed' }
+        Add-Result 'SC-006b' ($(if ($ok) { 'PASS' } else { 'FAIL' })) $detail
     }
 }
 if ($expDir) { Remove-Item $expDir -Recurse -Force -ErrorAction SilentlyContinue }
