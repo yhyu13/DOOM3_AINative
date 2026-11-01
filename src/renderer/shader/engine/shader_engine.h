@@ -51,6 +51,10 @@ int ManifestStatus(const char* name);
 void SetMode(const char* mode);
 const char* ModeName();
 
+// True when the active mode is `tolerant`, i.e. a non-OK stage must draw the error material
+// (resolver.md I-5). False for off/strict/fatal.
+bool Tolerant();
+
 // Phase 1 (material parse time): no GL, no blob. Returns the Code and, on success, the key.
 int Resolve(const char* keyword, const char* name, int target, char* outKey, int outKeySize);
 

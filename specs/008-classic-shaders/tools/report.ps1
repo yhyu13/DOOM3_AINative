@@ -169,11 +169,12 @@ foreach ($row in $census.table) {
 [void]$sb.AppendLine('</tbody></table>')
 
 [void]$sb.AppendLine('<h2>Known gaps</h2><ul class="gaps">')
-[void]$sb.AppendLine('<li>Runtime census on retail data: <b>SKIPPED</b>; no authorized pk4 in the worktree.</li>')
+[void]$sb.AppendLine('<li>Runtime census: <b>RUN on the official free demo</b> (2026-11-01; four demo programs remain unresolved, recorded in <code>evidence/runtime-census.md</code>). <b>Retail: SKIPPED</b>; no retail pk4 in the worktree.</li>')
 [void]$sb.AppendLine('<li>Legal review of the derivative-work position: <b>BLOCKED</b>; conservative rules only.</li>')
 [void]$sb.AppendLine("<li>Implementation: <b>$implDone/$implTotal</b> tasks done. Blocked tasks: <b>$(HtmlEncode $blockedText)</b>; each row in tasks.md names the exact missing input.</li>")
 [void]$sb.AppendLine('<li>No program is <code>owned</code>: <code>ownership.md</code> section 5 criterion 5 needs a rendered comparison (T-027), which needs authorized data and a running classic backend.</li>')
-[void]$sb.AppendLine('<li>The five-file authoring set is a lower bound; material-declared programs are unknown until the runtime census.</li>')
+[void]$sb.AppendLine('<li>The five-file authoring set is a lower bound; the demo census observed seven material-declared keys, four of them outside the manifest. The retail set is still unknown.</li>')
+[void]$sb.AppendLine('<li>Tier B ships the 12 combinations the demo census observed (42 remains an upper bound); retail may add combinations, and the variants are compiled but not rendered in-engine.</li>')
 [void]$sb.AppendLine('</ul>')
 
 [void]$sb.AppendLine('<h2>Artifacts</h2><table><thead><tr><th>path</th></tr></thead><tbody>')

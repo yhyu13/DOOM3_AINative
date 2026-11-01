@@ -7872,7 +7872,7 @@ index 552b816..33a30b7 100644
  	idStr					fileName;
  	int						CIN_WIDTH, CIN_HEIGHT;
 diff --git a/a/neo/renderer/draw_arb2.cpp b/b/neo/renderer/draw_arb2.cpp
-index 79a960a..dd1c299 100644
+index 79a960a..772d98d 100644
 --- a/a/neo/renderer/draw_arb2.cpp
 +++ b/b/neo/renderer/draw_arb2.cpp
 @@ -31,6 +31,8 @@ If you have questions concerning this license or the applicable additional terms
@@ -7884,7 +7884,27 @@ index 79a960a..dd1c299 100644
  #include "cg_explicit.h"
  
  CGcontext cg_context;
-@@ -149,14 +151,17 @@ void RB_ARB2_CreateDrawInteractions( const drawSurf_t *surf ) {
+@@ -135,6 +137,19 @@ void	RB_ARB2_DrawInteraction( const drawInteraction_t *din ) {
+ }
+ 
+ 
++/*
++=============
++RB_ARB2_ErrorInteraction
++
++Tolerant-mode substitution for a light interaction whose program is not OK (spec 008 I-5).
++=============
++*/
++static void RB_ARB2_ErrorInteraction( const drawSurf_t *surf ) {
++	if ( surf->geo ) {
++		RB_DrawShaderErrorMaterial( surf->geo );
++	}
++}
++
+ /*
+ =============
+ RB_ARB2_CreateDrawInteractions
+@@ -149,14 +164,22 @@ void RB_ARB2_CreateDrawInteractions( const drawSurf_t *surf ) {
  	// perform setup here that will be constant for all interactions
  	GL_State( GLS_SRCBLEND_ONE | GLS_DSTBLEND_ONE | GLS_DEPTHMASK | backEnd.depthFunc );
  
@@ -7900,6 +7920,11 @@ index 79a960a..dd1c299 100644
 +	const char *interactionKey = r_testARBProgram.GetBool() ? "test" : "interaction";
 +	if ( !d3::shaderport::MayDraw( interactionKey, d3::shaderport::TARGET_VERTEX ) ||
 +		 !d3::shaderport::MayDraw( interactionKey, d3::shaderport::TARGET_FRAGMENT ) ) {
++		// Tolerant is loud: draw the visible error material on the surfaces this light would have
++		// shaded instead of leaving them unlit. `off` never reaches this branch.
++		if ( d3::shaderport::Tolerant() ) {
++			RB_RenderDrawSurfChainWithFunction( surf, RB_ARB2_ErrorInteraction );
++		}
 +		return;
  	}
 +	qglBindProgramARB( GL_VERTEX_PROGRAM_ARB,
@@ -7909,7 +7934,7 @@ index 79a960a..dd1c299 100644
  
  	qglEnable(GL_VERTEX_PROGRAM_ARB);
  	qglEnable(GL_FRAGMENT_PROGRAM_ARB);
-@@ -285,13 +290,15 @@ void RB_ARB2_DrawInteractions( void ) {
+@@ -285,13 +308,15 @@ void RB_ARB2_DrawInteractions( void ) {
  			qglStencilFunc( GL_ALWAYS, 128, 255 );
  		}
  
@@ -7928,7 +7953,7 @@ index 79a960a..dd1c299 100644
  			RB_StencilShadowPass( vLight->localShadows );
  			RB_ARB2_CreateDrawInteractions( vLight->globalInteractions );
  			qglDisable( GL_VERTEX_PROGRAM_ARB );	// if there weren't any globalInteractions, it would have stayed on
-@@ -357,19 +364,61 @@ static progDef_t	progs[MAX_GLPROGS] = {
+@@ -357,19 +382,61 @@ static progDef_t	progs[MAX_GLPROGS] = {
  	// additional programs can be dynamically specified in materials
  };
  
@@ -7992,7 +8017,7 @@ index 79a960a..dd1c299 100644
  
  	common->Printf( "%s", fullPath.c_str() );
  
-@@ -378,7 +427,9 @@ void R_LoadARBProgram( int progIndex ) {
+@@ -378,7 +445,9 @@ void R_LoadARBProgram( int progIndex ) {
  	fileSystem->ReadFile( fullPath.c_str(), (void **)&fileBuffer, NULL );
  	if ( !fileBuffer ) {
  		common->Printf( ": File not found\n" );
@@ -8003,7 +8028,7 @@ index 79a960a..dd1c299 100644
  	}
  
  	// copy to stack memory and free
-@@ -387,15 +438,8 @@ void R_LoadARBProgram( int progIndex ) {
+@@ -387,15 +456,8 @@ void R_LoadARBProgram( int progIndex ) {
  	fileSystem->FreeFile( fileBuffer );
  
  	if ( !glConfig.isInitialized ) {
@@ -8021,7 +8046,7 @@ index 79a960a..dd1c299 100644
  	}
  
  	// vertex and fragment programs can both be present in a single file, so
-@@ -404,30 +448,31 @@ void R_LoadARBProgram( int progIndex ) {
+@@ -404,30 +466,31 @@ void R_LoadARBProgram( int progIndex ) {
  	if ( progs[progIndex].target == GL_VERTEX_PROGRAM_ARB ) {
  		if ( !glConfig.ARBVertexProgramAvailable ) {
  			common->Printf( ": GL_VERTEX_PROGRAM_ARB not available\n" );
@@ -8058,7 +8083,7 @@ index 79a960a..dd1c299 100644
  	qglGetError();
  
  	qglProgramStringARB( progs[progIndex].target, GL_PROGRAM_FORMAT_ASCII_ARB,
-@@ -445,70 +490,209 @@ void R_LoadARBProgram( int progIndex ) {
+@@ -445,70 +508,209 @@ void R_LoadARBProgram( int progIndex ) {
  		} else {
  			common->Printf( "error at %i:\n%s", ofs, start + ofs );
  		}
@@ -8247,12 +8272,12 @@ index 79a960a..dd1c299 100644
 +void R_ShaderStatus_f( const idCmdArgs &args ) {
 +	common->Printf( "%s\n", d3::shaderport::StatusLine() );
 +}
-+
+ 
+-	return progs[i].ident;
 +/*
 +=================
 +R_ShaderSelfTest_f
- 
--	return progs[i].ident;
++
 +T-024 in-engine test: missing, one-sided, compile-failed, tolerant, reload.
 +=================
 +*/
@@ -8299,10 +8324,10 @@ index 79a960a..dd1c299 100644
  }
  
 diff --git a/a/neo/renderer/draw_common.cpp b/b/neo/renderer/draw_common.cpp
-index 9bcf4bf..dc6e3ad 100644
+index 9bcf4bf..dc4e5bf 100644
 --- a/a/neo/renderer/draw_common.cpp
 +++ b/b/neo/renderer/draw_common.cpp
-@@ -30,6 +30,33 @@ If you have questions concerning this license or the applicable additional terms
+@@ -30,6 +30,76 @@ If you have questions concerning this license or the applicable additional terms
  
  #include "tr_local.h"
  
@@ -8317,6 +8342,49 @@ index 9bcf4bf..dc6e3ad 100644
 +evidence.
 +==================
 +*/
++/*
++==================
++RB_DrawShaderErrorMaterial
++
++Draws the generated magenta/black checkerboard instead of a stage whose program is not OK. This is
++the tolerant-mode substitution required by spec 008 I-5: the broken stage is never bound, but the
++surface is visibly wrong rather than silently unlit. No program id is bound here.
++==================
++*/
++void RB_DrawShaderErrorMaterial( const srfTriangles_t *tri ) {
++	if ( !tri || !tri->numIndexes || !tri->ambientCache || !globalImages->errorMaterialImage ) {
++		return;
++	}
++
++	idDrawVert *ac = (idDrawVert *)vertexCache.Position( tri->ambientCache );
++
++	qglDisable( GL_VERTEX_PROGRAM_ARB );
++	qglDisable( GL_FRAGMENT_PROGRAM_ARB );
++	qglBindProgramARB( GL_VERTEX_PROGRAM_ARB, 0 );
++	qglBindProgramARB( GL_FRAGMENT_PROGRAM_ARB, 0 );
++
++	qglDisableClientState( GL_COLOR_ARRAY );
++	qglDisableClientState( GL_NORMAL_ARRAY );
++	qglDisableVertexAttribArrayARB( 9 );
++	qglDisableVertexAttribArrayARB( 10 );
++
++	GL_SelectTexture( 0 );
++	globalImages->errorMaterialImage->Bind();
++	qglEnableClientState( GL_TEXTURE_COORD_ARRAY );
++
++	// A stage may have left a texgen/scroll matrix on unit 0; the error material is plain texture.
++	qglMatrixMode( GL_TEXTURE );
++	qglLoadIdentity();
++	qglMatrixMode( GL_MODELVIEW );
++
++	qglVertexPointer( 3, GL_FLOAT, sizeof( idDrawVert ), ac->xyz.ToFloatPtr() );
++	qglTexCoordPointer( 2, GL_FLOAT, sizeof( idDrawVert ), reinterpret_cast<void *>( &ac->st ) );
++	qglColor4f( 1.0f, 1.0f, 1.0f, 1.0f );
++
++	GL_State( GLS_DEPTHMASK | GLS_SRCBLEND_ONE | GLS_DSTBLEND_ZERO | GLS_DEPTHFUNC_LESS );
++	RB_DrawElementsWithCounters( tri );
++}
++
 +static bool RB_StageProgramDrawable( const shaderStage_t *pStage, const drawSurf_t *surf ) {
 +	if ( pStage->newStage ) {
 +		return pStage->newStage->ProgramsDrawable();
@@ -8336,7 +8404,7 @@ index 9bcf4bf..dc6e3ad 100644
  /*
  =====================
  RB_BakeTextureMatrixIntoTexgen
-@@ -152,7 +179,8 @@ void RB_PrepareStageTexturing( const shaderStage_t *pStage,  const drawSurf_t *s
+@@ -152,7 +222,8 @@ void RB_PrepareStageTexturing( const shaderStage_t *pStage,  const drawSurf_t *s
  
  	if ( pStage->texture.texgen == TG_GLASSWARP ) {
  		if ( tr.backEndRenderer == BE_ARB2 /*|| tr.backEndRenderer == BE_NV30*/ ) {
@@ -8346,7 +8414,7 @@ index 9bcf4bf..dc6e3ad 100644
  			qglEnable( GL_FRAGMENT_PROGRAM_ARB );
  
  			GL_SelectTexture( 2 );
-@@ -210,18 +238,22 @@ void RB_PrepareStageTexturing( const shaderStage_t *pStage,  const drawSurf_t *s
+@@ -210,18 +281,22 @@ void RB_PrepareStageTexturing( const shaderStage_t *pStage,  const drawSurf_t *s
  
  				// Program env 5, 6, 7, 8 have been set in RB_SetProgramEnvironmentSpace
  
@@ -8373,7 +8441,7 @@ index 9bcf4bf..dc6e3ad 100644
  				qglEnable( GL_VERTEX_PROGRAM_ARB );
  			}
  		} else {
-@@ -456,6 +488,10 @@ void RB_T_FillDepthBuffer( const drawSurf_t *surf ) {
+@@ -456,6 +531,10 @@ void RB_T_FillDepthBuffer( const drawSurf_t *surf ) {
  				continue;
  			}
  
@@ -8384,18 +8452,22 @@ index 9bcf4bf..dc6e3ad 100644
  			// if we at least tried to draw an alpha tested stage,
  			// we won't draw the opaque surface
  			didDraw = true;
-@@ -771,6 +807,10 @@ void RB_STD_T_RenderShaderPasses( const drawSurf_t *surf ) {
+@@ -771,6 +850,14 @@ void RB_STD_T_RenderShaderPasses( const drawSurf_t *surf ) {
  			continue;
  		}
  
 +		if ( !RB_StageProgramDrawable( pStage, surf ) ) {
++			// Tolerant is loud: substitute the visible error material instead of a silent skip.
++			if ( d3::shaderport::Tolerant() ) {
++				RB_DrawShaderErrorMaterial( tri );
++			}
 +			continue;
 +		}
 +
  		// skip if the stage is ( GL_ZERO, GL_ONE ), which is used for some alpha masks
  		if ( ( pStage->drawStateBits & (GLS_SRCBLEND_BITS|GLS_DSTBLEND_BITS) ) == ( GLS_SRCBLEND_ZERO | GLS_DSTBLEND_ONE ) ) {
  			continue;
-@@ -804,7 +844,7 @@ void RB_STD_T_RenderShaderPasses( const drawSurf_t *surf ) {
+@@ -804,7 +891,7 @@ void RB_STD_T_RenderShaderPasses( const drawSurf_t *surf ) {
  
  			GL_State( pStage->drawStateBits );
  			
@@ -8404,7 +8476,7 @@ index 9bcf4bf..dc6e3ad 100644
  			qglEnable( GL_VERTEX_PROGRAM_ARB );
  
  			// megaTextures bind a lot of images and set a lot of parameters
-@@ -830,7 +870,7 @@ void RB_STD_T_RenderShaderPasses( const drawSurf_t *surf ) {
+@@ -830,7 +917,7 @@ void RB_STD_T_RenderShaderPasses( const drawSurf_t *surf ) {
  					newStage->fragmentProgramImages[i]->Bind();
  				}
  			}
@@ -8436,6 +8508,65 @@ index c59e3ea..cced93e 100644
  		demo->ReadFloat( surf->color[0] );
  		demo->ReadFloat( surf->color[1] );
  		demo->ReadFloat( surf->color[2] );
+diff --git a/a/neo/renderer/Image.h b/b/neo/renderer/Image.h
+index eb6581e..aa44eb0 100644
+--- a/a/neo/renderer/Image.h
++++ b/b/neo/renderer/Image.h
+@@ -390,6 +390,7 @@ public:
+ 
+ 	// built-in images
+ 	idImage *			defaultImage;
++	idImage *			errorMaterialImage;			// generated magenta/black checkerboard (spec 008 I-5)
+ 	idImage *			flatNormalMap;				// 128 128 255 in all pixels
+ 	idImage *			ambientNormalMap;			// tr.ambientLightVector encoded in all pixels
+ 	idImage *			rampImage;					// 0-255 in RGBA in S
+diff --git a/a/neo/renderer/Image_init.cpp b/b/neo/renderer/Image_init.cpp
+index 5a3bea2..ccfb96f 100644
+--- a/a/neo/renderer/Image_init.cpp
++++ b/b/neo/renderer/Image_init.cpp
+@@ -326,6 +326,34 @@ static void R_BlackImage( idImage *image ) {
+ 		TF_DEFAULT, false, TR_REPEAT, TD_DEFAULT );
+ }
+ 
++/*
++==================
++R_ErrorMaterialImage
++
++Generated magenta/black checkerboard substituted for a stage whose shader program is not OK in
++tolerant mode (spec 008 I-5). Deliberately ugly, and algorithmically generated, so it cannot be
++mistaken for retail art.
++==================
++*/
++#define	ERROR_MATERIAL_SIZE		64
++#define	ERROR_MATERIAL_CELL		8
++static void R_ErrorMaterialImage( idImage *image ) {
++	byte	data[ERROR_MATERIAL_SIZE][ERROR_MATERIAL_SIZE][4];
++
++	for ( int y = 0 ; y < ERROR_MATERIAL_SIZE ; y++ ) {
++		for ( int x = 0 ; x < ERROR_MATERIAL_SIZE ; x++ ) {
++			const bool magenta = ( ( x / ERROR_MATERIAL_CELL ) + ( y / ERROR_MATERIAL_CELL ) ) & 1;
++			data[y][x][0] = magenta ? 255 : 0;
++			data[y][x][1] = 0;
++			data[y][x][2] = magenta ? 255 : 0;
++			data[y][x][3] = 255;
++		}
++	}
++
++	image->GenerateImage( (byte *)data, ERROR_MATERIAL_SIZE, ERROR_MATERIAL_SIZE,
++		TF_NEAREST, false, TR_REPEAT, TD_DEFAULT );
++}
++
+ 
+ // the size determines how far away from the edge the blocks start fading
+ static const int BORDER_CLAMP_SIZE = 32;
+@@ -1951,6 +1979,7 @@ void idImageManager::Init() {
+ 
+ 	// create built in images
+ 	defaultImage = ImageFromFunction( "_default", R_DefaultImage );
++	errorMaterialImage = ImageFromFunction( "_shaderError", R_ErrorMaterialImage );
+ 	whiteImage = ImageFromFunction( "_white", R_WhiteImage );
+ 	blackImage = ImageFromFunction( "_black", R_BlackImage );
+ 	borderClampImage = ImageFromFunction( "_borderClamp", R_BorderClampImage );
 diff --git a/a/neo/renderer/Material.cpp b/b/neo/renderer/Material.cpp
 index 701c4a0..fe001b5 100644
 --- a/a/neo/renderer/Material.cpp
@@ -8964,10 +9095,20 @@ index bedf264..a83101e 100644
  			return false;
  		}
 diff --git a/a/neo/renderer/tr_local.h b/b/neo/renderer/tr_local.h
-index 1a20f1b..963c05d 100644
+index 1a20f1b..fc761d8 100644
 --- a/a/neo/renderer/tr_local.h
 +++ b/b/neo/renderer/tr_local.h
-@@ -1309,7 +1309,12 @@ void	RB_NV20_DrawInteractions( void );
+@@ -1277,6 +1277,9 @@ DRAW_STANDARD
+ */
+ 
+ void RB_DrawElementsWithCounters( const srfTriangles_t *tri );
++
++// Tolerant-mode substitution for a stage whose shader program is not OK (spec 008 I-5).
++void RB_DrawShaderErrorMaterial( const srfTriangles_t *tri );
+ void RB_DrawShadowElementsWithCounters( const srfTriangles_t *tri, int numIndexes );
+ void RB_STD_FillDepthBuffer( drawSurf_t **drawSurfs, int numDrawSurfs );
+ void RB_BindVariableStageImage( const textureStage_t *texture, const float *shaderRegisters );
+@@ -1309,7 +1312,12 @@ void	RB_NV20_DrawInteractions( void );
  void	R_ARB2_Init( void );
  void	RB_ARB2_DrawInteractions( void );
  void	R_ReloadARBPrograms_f( const idCmdArgs &args );

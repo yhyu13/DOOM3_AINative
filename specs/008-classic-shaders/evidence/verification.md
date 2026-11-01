@@ -410,3 +410,45 @@ Two notes a reviewer should not have to discover:
 - This branch is based before #43 pins `shaders/**` to LF. `provenance-record.ps1` hashes working bytes,
   so the tree was normalized to LF locally for this run; #43 makes that automatic and also normalizes
   the hash itself.
+---
+
+## 2026-11-01 demo-data verification (supersedes the demo-scope gaps above)
+
+The official free demo was staged outside git. This does not change any retail claim, and the earlier
+sections stay as the 2026-10-28/29 snapshot they are.
+
+| Claim | Result |
+|---|---|
+| Build | `cmake --preset win11-amd64` exit 0; `cmake --build --preset win11-amd64-release -- -m` exit 0 |
+| Demo staged | `scripts/prepare-demo-data.ps1` exit 0; `demo00.pk4`, 12,234 entries, SHA-256 `E373EC70…F64F9` |
+| Runtime census | **RUN** on three demo maps; `evidence/runtime-census.md`; 4 unresolved demo programs recorded |
+| Retail census | **NOT RUN** (no retail data) |
+| Tolerant substitution | **proven** with `evidence/tolerant-error-material-demo-city1.png`; strict counter-frame shows no magenta |
+| Tier B | 12 demo-observed variants in `variants.json`; `COMPILE OK: 6 programs, 12 Tier B variants, 35 stage compiles, 0 failures` |
+| Patch reconstruction | `verify-win11-amd64.ps1 -Sc006Only` exit 0: export 74 M rows, `git apply` exit 0, 74/74 hashes match |
+| Package gates | `tools/report.ps1` exit 0: 6/6 gates, KPI `28/32` tasks (spec 19/19), 18 entries, 5 files, 70 assertions |
+
+The earlier `Runtime census on retail data: NOT RUN` row remains true for retail; the demo run is a
+separate observation. `Engine resolver test: NOT RUN` is stale as a current statement (the in-engine
+selftest was recorded in `implementation.md` §12.3), but it is left as history. The regenerated
+`report.html`/`report.png` carry the `28/32` KPI and the four remaining blocked ids (T-025, T-027,
+T-030, T-032).
+
+### 2026-11-01 rebase re-run (base 04c6180)
+
+After rebasing `spec-008-census` onto `origin/main` `04c6180`, the build and the demo captures were
+re-run at the new base. Counters are unchanged; the frames and report are recaptured.
+
+| Check | Result |
+|---|---|
+| `cmake --preset win11-amd64` | exit 0 |
+| `cmake --build --preset win11-amd64-release -- -m` | exit 0 (Release) |
+| strict `demo_mars_city1` | exit 0; `requests=33 unresolved=15 materials_rejected=6 materials_error=0`; 0 magenta pixels |
+| strict `demo_mars_city2` | exit 0; `requests=38 unresolved=20 materials_rejected=9` |
+| strict `demo_mc_underground` | exit 0; `requests=31 unresolved=13 materials_rejected=6` |
+| tolerant `demo_mars_city1` | exit 0; `materials_error=6`; 23.76% magenta pixels |
+| off control `demo_mars_city1` | exit 0; 0 magenta pixels |
+| `tools.report.ps1` six gates | exit 0; 6/6 |
+
+The magenta test is a pixel predicate, not a caption: strict 0/480,000, off 0/480,000, tolerant
+114,031/480,000. No program was promoted to `owned`; T-027/T-030/T-032 remain untouched.

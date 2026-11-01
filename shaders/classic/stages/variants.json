@@ -1,6 +1,6 @@
 {
   "schema": "doom3-stage-variants/1",
-  "comment": "Tier B shipping set. A variant is emitted only when the material census observed the combination (ownership.md section 3.1: 'the actual shipped subset is whatever the material census observes'). The runtime census is BLOCKED (tasks.md T-031), so this list is empty by rule, not by omission. The 42-variant bound itself is proven by compile.ps1 -ProveBound.",
+  "comment": "Tier B shipping set. A variant is emitted only when the material census observed the combination (ownership.md section 3.1). Observed on the official free DOOM 3 demo (demo00.pk4, 67 .mtr files, 6341 material declarations) on 2026-11-01 with specs/008-classic-shaders/tools/runtime-census.ps1; the raw observation is specs/008-classic-shaders/evidence/runtime-census.md. The 42-variant bound is an upper limit, not a shipping target.",
   "bound": { "texgen": 7, "alphatest": 2, "vertexcolor": 3, "product": 42 },
   "texgenModes": {
     "0": "explicit",
@@ -11,5 +11,18 @@
     "5": "screen",
     "6": "screen2"
   },
-  "variants": []
+  "variants": [
+    { "texgen": 0, "alphatest": 0, "vertexcolor": 0, "stages": 3966 },
+    { "texgen": 0, "alphatest": 0, "vertexcolor": 1, "stages": 447 },
+    { "texgen": 0, "alphatest": 0, "vertexcolor": 2, "stages": 164 },
+    { "texgen": 0, "alphatest": 1, "vertexcolor": 0, "stages": 654 },
+    { "texgen": 0, "alphatest": 1, "vertexcolor": 1, "stages": 2 },
+    { "texgen": 1, "alphatest": 0, "vertexcolor": 0, "stages": 3 },
+    { "texgen": 2, "alphatest": 0, "vertexcolor": 0, "stages": 78 },
+    { "texgen": 2, "alphatest": 0, "vertexcolor": 1, "stages": 11 },
+    { "texgen": 3, "alphatest": 0, "vertexcolor": 0, "stages": 8 },
+    { "texgen": 4, "alphatest": 0, "vertexcolor": 0, "stages": 9 },
+    { "texgen": 5, "alphatest": 0, "vertexcolor": 0, "stages": 14 },
+    { "texgen": 5, "alphatest": 0, "vertexcolor": 1, "stages": 2 }
+  ]
 }

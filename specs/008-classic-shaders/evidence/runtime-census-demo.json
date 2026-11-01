@@ -1,0 +1,1123 @@
+{
+    "schema":  "doom3-runtime-census/1",
+    "generatedUtc":  "2026-11-01T07:02:29Z",
+    "datasets":  [
+                     {
+                         "pk4":  "demo00.pk4",
+                         "bytes":  483534533,
+                         "sha256":  "E373EC70B35CF72852A1F6014C2C2DC21F890A03CD41B21A9524755F951F64F9",
+                         "entries":  12234,
+                         "maps":  [
+                                      "maps/game/demo_mars_city1.map",
+                                      "maps/game/demo_mars_city2.map",
+                                      "maps/game/demo_mc_underground.map"
+                                  ],
+                         "glprogs":  [
+                                         "glprogs/ambientLight.vfp",
+                                         "glprogs/bumpyEnvironment.vfp",
+                                         "glprogs/colorProcess.vfp",
+                                         "glprogs/environment.vfp",
+                                         "glprogs/heatHaze.vfp",
+                                         "glprogs/heatHazeWithMask.vfp",
+                                         "glprogs/heatHazeWithMaskAndVertex.vfp",
+                                         "glprogs/interaction.vfp",
+                                         "glprogs/nv20_bumpAndLight.vp",
+                                         "glprogs/nv20_diffuseAndSpecularColor.vp",
+                                         "glprogs/nv20_diffuseColor.vp",
+                                         "glprogs/nv20_specularColor.vp",
+                                         "glprogs/R200_interaction.vp",
+                                         "glprogs/shadow.vp",
+                                         "glprogs/test.vfp"
+                                     ],
+                         "materialFiles":  67
+                     }
+                 ],
+    "materialFiles":  67,
+    "materialDeclarations":  6341,
+    "linesRead":  90460,
+    "requestCount":  73,
+    "postProcessCount":  0,
+    "megaTextureFiles":  [
+                             "area3.mega"
+                         ],
+    "tierB":  {
+                  "boundProduct":  42,
+                  "observedVariants":  12,
+                  "ordinaryStages":  5358,
+                  "glasswarpStages":  0,
+                  "postProcessStages":  0,
+                  "variants":  [
+                                   {
+                                       "texgen":  0,
+                                       "alphatest":  0,
+                                       "vertexcolor":  0,
+                                       "stages":  3966,
+                                       "materials":  [
+                                                         "textures/sfx/refract",
+                                                         "guis/assets/glassy",
+                                                         "ui/assets/map",
+                                                         "ui/assets/guisurfs/computerBackground",
+                                                         "ui/assets/guisurfs/computerBlueBackground"
+                                                     ]
+                                   },
+                                   {
+                                       "texgen":  0,
+                                       "alphatest":  0,
+                                       "vertexcolor":  1,
+                                       "stages":  447,
+                                       "materials":  [
+                                                         "textures/particles/duffybolt3",
+                                                         "textures/particles/blood2",
+                                                         "textures/particles/bloodstream4",
+                                                         "textures/particles/bfgball",
+                                                         "textures/particles/duffybolt_white"
+                                                     ]
+                                   },
+                                   {
+                                       "texgen":  0,
+                                       "alphatest":  0,
+                                       "vertexcolor":  2,
+                                       "stages":  164,
+                                       "materials":  [
+                                                         "textures/base_wall/xiantex3_dark_burn",
+                                                         "textures/base_wall/blend",
+                                                         "textures/rock/sharprock_dark_lavascroll_ns",
+                                                         "textures/hell/lavalanrockblend",
+                                                         "textures/hell/sandylanrockblend"
+                                                     ]
+                                   },
+                                   {
+                                       "texgen":  0,
+                                       "alphatest":  1,
+                                       "vertexcolor":  0,
+                                       "stages":  654,
+                                       "materials":  [
+                                                         "textures/decals/boothspeaker",
+                                                         "textures/decals/pipecap2vent",
+                                                         "textures/object/airlockfloorflat",
+                                                         "textures/object/paperdec3",
+                                                         "textures/decals/chemstorage"
+                                                     ]
+                                   },
+                                   {
+                                       "texgen":  0,
+                                       "alphatest":  1,
+                                       "vertexcolor":  1,
+                                       "stages":  2,
+                                       "materials":  [
+                                                         "particles/flowingblood",
+                                                         "textures/particles/hellmaggotsolid"
+                                                     ]
+                                   },
+                                   {
+                                       "texgen":  1,
+                                       "alphatest":  0,
+                                       "vertexcolor":  0,
+                                       "stages":  3,
+                                       "materials":  [
+                                                         "shaderDemos/env2",
+                                                         "shaderDemos/env3",
+                                                         "shaderDemos/envBath"
+                                                     ]
+                                   },
+                                   {
+                                       "texgen":  2,
+                                       "alphatest":  0,
+                                       "vertexcolor":  0,
+                                       "stages":  78,
+                                       "materials":  [
+                                                         "textures/base_door/deldoor2glass",
+                                                         "textures/base_door/gdoor1glass",
+                                                         "textures/base_door/glass_door",
+                                                         "models/characters/male_npc/hazmat/visor",
+                                                         "models/characters/male_npc/hazmat/dvisor"
+                                                     ]
+                                   },
+                                   {
+                                       "texgen":  2,
+                                       "alphatest":  0,
+                                       "vertexcolor":  1,
+                                       "stages":  11,
+                                       "materials":  [
+                                                         "textures/glass/breakyglass3",
+                                                         "textures/glass/breakyglass3_nvp",
+                                                         "textures/glass/breakyglass2",
+                                                         "textures/glass/breakyglass2_nvp",
+                                                         "textures/glass/breakyglass1_nvp"
+                                                     ]
+                                   },
+                                   {
+                                       "texgen":  3,
+                                       "alphatest":  0,
+                                       "vertexcolor":  0,
+                                       "stages":  8,
+                                       "materials":  [
+                                                         "textures/skies/colortest",
+                                                         "textures/skies/desertlightning",
+                                                         "textures/skies/desert",
+                                                         "textures/skies/commoutside",
+                                                         "shaderDemos/cloudySky"
+                                                     ]
+                                   },
+                                   {
+                                       "texgen":  4,
+                                       "alphatest":  0,
+                                       "vertexcolor":  0,
+                                       "stages":  9,
+                                       "materials":  [
+                                                         "shaderDemos/skybox",
+                                                         "textures/skies/marssky",
+                                                         "textures/skies/marscloud",
+                                                         "textures/skies/marssky_dust",
+                                                         "textures/skies/marssky_foreground"
+                                                     ]
+                                   },
+                                   {
+                                       "texgen":  5,
+                                       "alphatest":  0,
+                                       "vertexcolor":  0,
+                                       "stages":  14,
+                                       "materials":  [
+                                                         "ui/assets/guisurfs/moonvid",
+                                                         "ui/assets/guisurfs/video",
+                                                         "textures/sfx/roqtest",
+                                                         "gui/soundmeter2",
+                                                         "gui/soundmeter"
+                                                     ]
+                                   },
+                                   {
+                                       "texgen":  5,
+                                       "alphatest":  0,
+                                       "vertexcolor":  1,
+                                       "stages":  2,
+                                       "materials":  [
+                                                         "textures/particles/video",
+                                                         "textures/particles/testvideo"
+                                                     ]
+                                   }
+                               ]
+              },
+    "distinctKeys":  7,
+    "manifest":  "shaders/manifest/classic-programs.json",
+    "manifestKeys":  [
+                         "interaction",
+                         "environment",
+                         "bumpyenvironment",
+                         "shadow",
+                         "arbfp_glasswarp",
+                         "test",
+                         "megatexture",
+                         "ambientlight",
+                         "arbvp_glasswarp",
+                         "r200_interaction",
+                         "nv20_bumpandlight",
+                         "nv20_diffusecolor",
+                         "nv20_specularcolor",
+                         "nv20_diffuseandspecularcolor"
+                     ],
+    "keys":  [
+                 {
+                     "key":  "heathazewithmaskandvertex",
+                     "names":  [
+                                   "heatHazeWithMaskAndVertex.vfp"
+                               ],
+                     "requests":  21,
+                     "materialCount":  21
+                 },
+                 {
+                     "key":  "colorprocess",
+                     "names":  [
+                                   "colorProcess.vfp"
+                               ],
+                     "requests":  7,
+                     "materialCount":  7
+                 },
+                 {
+                     "key":  "heathaze",
+                     "names":  [
+                                   "heatHaze.vfp"
+                               ],
+                     "requests":  12,
+                     "materialCount":  6
+                 },
+                 {
+                     "key":  "heathazewithmask",
+                     "names":  [
+                                   "heatHazeWithMask.vfp"
+                               ],
+                     "requests":  28,
+                     "materialCount":  15
+                 },
+                 {
+                     "key":  "bumpyenvironment",
+                     "names":  [
+                                   "bumpyEnvironment.vfp"
+                               ],
+                     "requests":  2,
+                     "materialCount":  1
+                 },
+                 {
+                     "key":  "pinch",
+                     "names":  [
+                                   "pinch.cg"
+                               ],
+                     "requests":  2,
+                     "materialCount":  1
+                 },
+                 {
+                     "key":  "megatexture",
+                     "names":  [
+                                   "megaTexture.vfp"
+                               ],
+                     "requests":  1,
+                     "materialCount":  1
+                 }
+             ],
+    "collisions":  [
+
+                   ],
+    "namesOver63":  [
+
+                    ],
+    "unresolvedAgainstManifest":  [
+                                      "heathazewithmaskandvertex",
+                                      "colorprocess",
+                                      "heathaze",
+                                      "heathazewithmask",
+                                      "pinch"
+                                  ],
+    "stageMissingAgainstManifest":  [
+
+                                    ],
+    "requests":  [
+                     {
+                         "material":  "models/characters/male_npc/marine/h_mp1_invis",
+                         "file":  "materials/characters.mtr",
+                         "line":  2677,
+                         "keyword":  "program",
+                         "name":  "heatHazeWithMaskAndVertex.vfp",
+                         "key":  "heathazewithmaskandvertex",
+                         "megaFile":  "",
+                         "targets":  [
+                                         "vs",
+                                         "ps"
+                                     ]
+                     },
+                     {
+                         "material":  "models/characters/male_npc/marine/mp1_invis",
+                         "file":  "materials/characters.mtr",
+                         "line":  2701,
+                         "keyword":  "program",
+                         "name":  "heatHazeWithMaskAndVertex.vfp",
+                         "key":  "heathazewithmaskandvertex",
+                         "megaFile":  "",
+                         "targets":  [
+                                         "vs",
+                                         "ps"
+                                     ]
+                     },
+                     {
+                         "material":  "textures/decals/bloodyfilmred",
+                         "file":  "materials/decals.mtr",
+                         "line":  22,
+                         "keyword":  "program",
+                         "name":  "colorProcess.vfp",
+                         "key":  "colorprocess",
+                         "megaFile":  "",
+                         "targets":  [
+                                         "vs",
+                                         "ps"
+                                     ]
+                     },
+                     {
+                         "material":  "textures/decals/slash01",
+                         "file":  "materials/decals.mtr",
+                         "line":  1459,
+                         "keyword":  "program",
+                         "name":  "heatHazeWithMaskAndVertex.vfp",
+                         "key":  "heathazewithmaskandvertex",
+                         "megaFile":  "",
+                         "targets":  [
+                                         "vs",
+                                         "ps"
+                                     ]
+                     },
+                     {
+                         "material":  "leftSlash",
+                         "file":  "materials/decals.mtr",
+                         "line":  1519,
+                         "keyword":  "program",
+                         "name":  "heatHazeWithMaskAndVertex.vfp",
+                         "key":  "heathazewithmaskandvertex",
+                         "megaFile":  "",
+                         "targets":  [
+                                         "vs",
+                                         "ps"
+                                     ]
+                     },
+                     {
+                         "material":  "rightSlash",
+                         "file":  "materials/decals.mtr",
+                         "line":  1540,
+                         "keyword":  "program",
+                         "name":  "heatHazeWithMaskAndVertex.vfp",
+                         "key":  "heathazewithmaskandvertex",
+                         "megaFile":  "",
+                         "targets":  [
+                                         "vs",
+                                         "ps"
+                                     ]
+                     },
+                     {
+                         "material":  "bite",
+                         "file":  "materials/decals.mtr",
+                         "line":  4636,
+                         "keyword":  "program",
+                         "name":  "heatHazeWithMaskAndVertex.vfp",
+                         "key":  "heathazewithmaskandvertex",
+                         "megaFile":  "",
+                         "targets":  [
+                                         "vs",
+                                         "ps"
+                                     ]
+                     },
+                     {
+                         "material":  "tentacle_smack",
+                         "file":  "materials/decals.mtr",
+                         "line":  4659,
+                         "keyword":  "program",
+                         "name":  "heatHazeWithMaskAndVertex.vfp",
+                         "key":  "heathazewithmaskandvertex",
+                         "megaFile":  "",
+                         "targets":  [
+                                         "vs",
+                                         "ps"
+                                     ]
+                     },
+                     {
+                         "material":  "leftSmack",
+                         "file":  "materials/decals.mtr",
+                         "line":  4684,
+                         "keyword":  "program",
+                         "name":  "heatHazeWithMaskAndVertex.vfp",
+                         "key":  "heathazewithmaskandvertex",
+                         "megaFile":  "",
+                         "targets":  [
+                                         "vs",
+                                         "ps"
+                                     ]
+                     },
+                     {
+                         "material":  "rightSmack",
+                         "file":  "materials/decals.mtr",
+                         "line":  4706,
+                         "keyword":  "program",
+                         "name":  "heatHazeWithMaskAndVertex.vfp",
+                         "key":  "heathazewithmaskandvertex",
+                         "megaFile":  "",
+                         "targets":  [
+                                         "vs",
+                                         "ps"
+                                     ]
+                     },
+                     {
+                         "material":  "textures/glass/outdoor_glass1",
+                         "file":  "materials/glass.mtr",
+                         "line":  13,
+                         "keyword":  "Program",
+                         "name":  "heatHaze.vfp",
+                         "key":  "heathaze",
+                         "megaFile":  "",
+                         "targets":  [
+                                         "vs",
+                                         "ps"
+                                     ]
+                     },
+                     {
+                         "material":  "textures/glass/outdoor_glass1",
+                         "file":  "materials/glass.mtr",
+                         "line":  16,
+                         "keyword":  "fragmentProgram",
+                         "name":  "heatHaze.vfp",
+                         "key":  "heathaze",
+                         "megaFile":  "",
+                         "targets":  "ps"
+                     },
+                     {
+                         "material":  "textures/glass/breakyglass3",
+                         "file":  "materials/glass.mtr",
+                         "line":  53,
+                         "keyword":  "Program",
+                         "name":  "heatHazeWithMaskAndVertex.vfp",
+                         "key":  "heathazewithmaskandvertex",
+                         "megaFile":  "",
+                         "targets":  [
+                                         "vs",
+                                         "ps"
+                                     ]
+                     },
+                     {
+                         "material":  "textures/glass/breakyglass2",
+                         "file":  "materials/glass.mtr",
+                         "line":  116,
+                         "keyword":  "Program",
+                         "name":  "heatHazeWithMaskAndVertex.vfp",
+                         "key":  "heathazewithmaskandvertex",
+                         "megaFile":  "",
+                         "targets":  [
+                                         "vs",
+                                         "ps"
+                                     ]
+                     },
+                     {
+                         "material":  "textures/glass/breakyglass1",
+                         "file":  "materials/glass.mtr",
+                         "line":  206,
+                         "keyword":  "Program",
+                         "name":  "heatHazeWithMaskAndVertex.vfp",
+                         "key":  "heathazewithmaskandvertex",
+                         "megaFile":  "",
+                         "targets":  [
+                                         "vs",
+                                         "ps"
+                                     ]
+                     },
+                     {
+                         "material":  "textures/glass/glass1",
+                         "file":  "materials/glass.mtr",
+                         "line":  272,
+                         "keyword":  "Program",
+                         "name":  "heatHaze.vfp",
+                         "key":  "heathaze",
+                         "megaFile":  "",
+                         "targets":  [
+                                         "vs",
+                                         "ps"
+                                     ]
+                     },
+                     {
+                         "material":  "textures/glass/glass1",
+                         "file":  "materials/glass.mtr",
+                         "line":  275,
+                         "keyword":  "fragmentProgram",
+                         "name":  "heatHaze.vfp",
+                         "key":  "heathaze",
+                         "megaFile":  "",
+                         "targets":  "ps"
+                     },
+                     {
+                         "material":  "textures/glass/glass2",
+                         "file":  "materials/glass.mtr",
+                         "line":  368,
+                         "keyword":  "Program",
+                         "name":  "heatHaze.vfp",
+                         "key":  "heathaze",
+                         "megaFile":  "",
+                         "targets":  [
+                                         "vs",
+                                         "ps"
+                                     ]
+                     },
+                     {
+                         "material":  "textures/glass/glass2",
+                         "file":  "materials/glass.mtr",
+                         "line":  371,
+                         "keyword":  "fragmentProgram",
+                         "name":  "heatHaze.vfp",
+                         "key":  "heathaze",
+                         "megaFile":  "",
+                         "targets":  "ps"
+                     },
+                     {
+                         "material":  "textures/decals/bluestatica2x",
+                         "file":  "materials/kentest.mtr",
+                         "line":  14,
+                         "keyword":  "program",
+                         "name":  "colorProcess.vfp",
+                         "key":  "colorprocess",
+                         "megaFile":  "",
+                         "targets":  [
+                                         "vs",
+                                         "ps"
+                                     ]
+                     },
+                     {
+                         "material":  "textures/decals/bloodyfilm1",
+                         "file":  "materials/kentest.mtr",
+                         "line":  71,
+                         "keyword":  "program",
+                         "name":  "colorProcess.vfp",
+                         "key":  "colorprocess",
+                         "megaFile":  "",
+                         "targets":  [
+                                         "vs",
+                                         "ps"
+                                     ]
+                     },
+                     {
+                         "material":  "textures/decals/oldfilm1",
+                         "file":  "materials/kentest.mtr",
+                         "line":  114,
+                         "keyword":  "program",
+                         "name":  "colorProcess.vfp",
+                         "key":  "colorprocess",
+                         "megaFile":  "",
+                         "targets":  [
+                                         "vs",
+                                         "ps"
+                                     ]
+                     },
+                     {
+                         "material":  "textures/decals/greystatica2x",
+                         "file":  "materials/kentest.mtr",
+                         "line":  156,
+                         "keyword":  "program",
+                         "name":  "colorProcess.vfp",
+                         "key":  "colorprocess",
+                         "megaFile":  "",
+                         "targets":  [
+                                         "vs",
+                                         "ps"
+                                     ]
+                     },
+                     {
+                         "material":  "textures/decals/greystatica",
+                         "file":  "materials/kentest.mtr",
+                         "line":  188,
+                         "keyword":  "program",
+                         "name":  "colorProcess.vfp",
+                         "key":  "colorprocess",
+                         "megaFile":  "",
+                         "targets":  [
+                                         "vs",
+                                         "ps"
+                                     ]
+                     },
+                     {
+                         "material":  "textures/sfx/vpring_power3",
+                         "file":  "materials/patricktest.mtr",
+                         "line":  709,
+                         "keyword":  "vertexProgram",
+                         "name":  "heatHazeWithMask.vfp",
+                         "key":  "heathazewithmask",
+                         "megaFile":  "",
+                         "targets":  "vs"
+                     },
+                     {
+                         "material":  "textures/sfx/vpring_power3",
+                         "file":  "materials/patricktest.mtr",
+                         "line":  712,
+                         "keyword":  "fragmentProgram",
+                         "name":  "heatHazeWithMask.vfp",
+                         "key":  "heathazewithmask",
+                         "megaFile":  "",
+                         "targets":  "ps"
+                     },
+                     {
+                         "material":  "textures/sfx/water",
+                         "file":  "materials/patrick_d3ex.mtr",
+                         "line":  42,
+                         "keyword":  "vertexProgram",
+                         "name":  "heatHazeWithMask.vfp",
+                         "key":  "heathazewithmask",
+                         "megaFile":  "",
+                         "targets":  "vs"
+                     },
+                     {
+                         "material":  "textures/sfx/water",
+                         "file":  "materials/patrick_d3ex.mtr",
+                         "line":  45,
+                         "keyword":  "fragmentProgram",
+                         "name":  "heatHazeWithMask.vfp",
+                         "key":  "heathazewithmask",
+                         "megaFile":  "",
+                         "targets":  "ps"
+                     },
+                     {
+                         "material":  "textures/sfx/seneca_vptest",
+                         "file":  "materials/senetemp.mtr",
+                         "line":  15217,
+                         "keyword":  "vertexProgram",
+                         "name":  "heatHazeWithMask.vfp",
+                         "key":  "heathazewithmask",
+                         "megaFile":  "",
+                         "targets":  "vs"
+                     },
+                     {
+                         "material":  "textures/sfx/seneca_vptest",
+                         "file":  "materials/senetemp.mtr",
+                         "line":  15220,
+                         "keyword":  "fragmentProgram",
+                         "name":  "heatHazeWithMask.vfp",
+                         "key":  "heathazewithmask",
+                         "megaFile":  "",
+                         "targets":  "ps"
+                     },
+                     {
+                         "material":  "shaderDemos/heatHaze",
+                         "file":  "materials/shaderDemo.mtr",
+                         "line":  981,
+                         "keyword":  "vertexProgram",
+                         "name":  "heatHaze.vfp",
+                         "key":  "heathaze",
+                         "megaFile":  "",
+                         "targets":  "vs"
+                     },
+                     {
+                         "material":  "shaderDemos/heatHaze",
+                         "file":  "materials/shaderDemo.mtr",
+                         "line":  984,
+                         "keyword":  "fragmentProgram",
+                         "name":  "heatHaze.vfp",
+                         "key":  "heathaze",
+                         "megaFile":  "",
+                         "targets":  "ps"
+                     },
+                     {
+                         "material":  "shaderDemos/heatHazeWithMaskAndVertex",
+                         "file":  "materials/shaderDemo.mtr",
+                         "line":  998,
+                         "keyword":  "program",
+                         "name":  "heatHazeWithMaskAndVertex.vfp",
+                         "key":  "heathazewithmaskandvertex",
+                         "megaFile":  "",
+                         "targets":  [
+                                         "vs",
+                                         "ps"
+                                     ]
+                     },
+                     {
+                         "material":  "shaderDemos/bumpyReflect",
+                         "file":  "materials/shaderDemo.mtr",
+                         "line":  1038,
+                         "keyword":  "vertexProgram",
+                         "name":  "bumpyEnvironment.vfp",
+                         "key":  "bumpyenvironment",
+                         "megaFile":  "",
+                         "targets":  "vs"
+                     },
+                     {
+                         "material":  "shaderDemos/bumpyReflect",
+                         "file":  "materials/shaderDemo.mtr",
+                         "line":  1040,
+                         "keyword":  "fragmentProgram",
+                         "name":  "bumpyEnvironment.vfp",
+                         "key":  "bumpyenvironment",
+                         "megaFile":  "",
+                         "targets":  "ps"
+                     },
+                     {
+                         "material":  "shaderDemos/pinch",
+                         "file":  "materials/shaderDemo.mtr",
+                         "line":  1058,
+                         "keyword":  "vertexProgram",
+                         "name":  "pinch.cg",
+                         "key":  "pinch",
+                         "megaFile":  "",
+                         "targets":  "vs"
+                     },
+                     {
+                         "material":  "shaderDemos/pinch",
+                         "file":  "materials/shaderDemo.mtr",
+                         "line":  1060,
+                         "keyword":  "fragmentProgram",
+                         "name":  "pinch.cg",
+                         "key":  "pinch",
+                         "megaFile":  "",
+                         "targets":  "ps"
+                     },
+                     {
+                         "material":  "shaderDemos/megaTexture",
+                         "file":  "materials/shaderDemo.mtr",
+                         "line":  1081,
+                         "keyword":  "megaTexture",
+                         "name":  "megaTexture.vfp",
+                         "key":  "megatexture",
+                         "megaFile":  "area3.mega",
+                         "targets":  [
+                                         "vs",
+                                         "ps"
+                                     ]
+                     },
+                     {
+                         "material":  "shaderDemos/colorProcess",
+                         "file":  "materials/shaderDemo.mtr",
+                         "line":  1090,
+                         "keyword":  "program",
+                         "name":  "colorProcess.vfp",
+                         "key":  "colorprocess",
+                         "megaFile":  "",
+                         "targets":  [
+                                         "vs",
+                                         "ps"
+                                     ]
+                     },
+                     {
+                         "material":  "textures/sfx/vpstatic",
+                         "file":  "materials/vp_materials.mtr",
+                         "line":  8,
+                         "keyword":  "vertexProgram",
+                         "name":  "heatHaze.vfp",
+                         "key":  "heathaze",
+                         "megaFile":  "",
+                         "targets":  "vs"
+                     },
+                     {
+                         "material":  "textures/sfx/vpstatic",
+                         "file":  "materials/vp_materials.mtr",
+                         "line":  11,
+                         "keyword":  "fragmentProgram",
+                         "name":  "heatHaze.vfp",
+                         "key":  "heathaze",
+                         "megaFile":  "",
+                         "targets":  "ps"
+                     },
+                     {
+                         "material":  "textures/sfx/vpring1",
+                         "file":  "materials/vp_materials.mtr",
+                         "line":  33,
+                         "keyword":  "program",
+                         "name":  "heatHazeWithMaskAndVertex.vfp",
+                         "key":  "heathazewithmaskandvertex",
+                         "megaFile":  "",
+                         "targets":  [
+                                         "vs",
+                                         "ps"
+                                     ]
+                     },
+                     {
+                         "material":  "textures/sfx/vpring2",
+                         "file":  "materials/vp_materials.mtr",
+                         "line":  48,
+                         "keyword":  "program",
+                         "name":  "heatHazeWithMaskAndVertex.vfp",
+                         "key":  "heathazewithmaskandvertex",
+                         "megaFile":  "",
+                         "targets":  [
+                                         "vs",
+                                         "ps"
+                                     ]
+                     },
+                     {
+                         "material":  "textures/sfx/vpring3",
+                         "file":  "materials/vp_materials.mtr",
+                         "line":  63,
+                         "keyword":  "program",
+                         "name":  "heatHazeWithMaskAndVertex.vfp",
+                         "key":  "heathazewithmaskandvertex",
+                         "megaFile":  "",
+                         "targets":  [
+                                         "vs",
+                                         "ps"
+                                     ]
+                     },
+                     {
+                         "material":  "textures/sfx/vpsphere",
+                         "file":  "materials/vp_materials.mtr",
+                         "line":  78,
+                         "keyword":  "Program",
+                         "name":  "heatHazeWithMaskAndVertex.vfp",
+                         "key":  "heathazewithmaskandvertex",
+                         "megaFile":  "",
+                         "targets":  [
+                                         "vs",
+                                         "ps"
+                                     ]
+                     },
+                     {
+                         "material":  "textures/sfx/vpsphere",
+                         "file":  "materials/vp_materials.mtr",
+                         "line":  81,
+                         "keyword":  "fragmentProgram",
+                         "name":  "heatHazeWithMask.vfp",
+                         "key":  "heathazewithmask",
+                         "megaFile":  "",
+                         "targets":  "ps"
+                     },
+                     {
+                         "material":  "textures/sfx/vpsphereb",
+                         "file":  "materials/vp_materials.mtr",
+                         "line":  94,
+                         "keyword":  "program",
+                         "name":  "heatHazeWithMaskAndVertex.vfp",
+                         "key":  "heathazewithmaskandvertex",
+                         "megaFile":  "",
+                         "targets":  [
+                                         "vs",
+                                         "ps"
+                                     ]
+                     },
+                     {
+                         "material":  "textures/sfx/vptelesphere",
+                         "file":  "materials/vp_materials.mtr",
+                         "line":  110,
+                         "keyword":  "program",
+                         "name":  "heatHazeWithMaskAndVertex.vfp",
+                         "key":  "heathazewithmaskandvertex",
+                         "megaFile":  "",
+                         "targets":  [
+                                         "vs",
+                                         "ps"
+                                     ]
+                     },
+                     {
+                         "material":  "textures/sfx/vpfan",
+                         "file":  "materials/vp_materials.mtr",
+                         "line":  125,
+                         "keyword":  "program",
+                         "name":  "heatHazeWithMaskAndVertex.vfp",
+                         "key":  "heathazewithmaskandvertex",
+                         "megaFile":  "",
+                         "targets":  [
+                                         "vs",
+                                         "ps"
+                                     ]
+                     },
+                     {
+                         "material":  "textures/sfx/vppinch_bfgbolt",
+                         "file":  "materials/vp_materials.mtr",
+                         "line":  144,
+                         "keyword":  "program",
+                         "name":  "heatHazeWithMaskAndVertex.vfp",
+                         "key":  "heathazewithmaskandvertex",
+                         "megaFile":  "",
+                         "targets":  [
+                                         "vs",
+                                         "ps"
+                                     ]
+                     },
+                     {
+                         "material":  "textures/sfx/vppinch_bfgbolt",
+                         "file":  "materials/vp_materials.mtr",
+                         "line":  147,
+                         "keyword":  "fragmentProgram",
+                         "name":  "heatHazeWithMask.vfp",
+                         "key":  "heathazewithmask",
+                         "megaFile":  "",
+                         "targets":  "ps"
+                     },
+                     {
+                         "material":  "textures/sfx/vppinch",
+                         "file":  "materials/vp_materials.mtr",
+                         "line":  161,
+                         "keyword":  "vertexProgram",
+                         "name":  "heatHazeWithMask.vfp",
+                         "key":  "heathazewithmask",
+                         "megaFile":  "",
+                         "targets":  "vs"
+                     },
+                     {
+                         "material":  "textures/sfx/vppinch",
+                         "file":  "materials/vp_materials.mtr",
+                         "line":  164,
+                         "keyword":  "fragmentProgram",
+                         "name":  "heatHazeWithMask.vfp",
+                         "key":  "heathazewithmask",
+                         "megaFile":  "",
+                         "targets":  "ps"
+                     },
+                     {
+                         "material":  "textures/sfx/vp1ghost",
+                         "file":  "materials/vp_materials.mtr",
+                         "line":  178,
+                         "keyword":  "vertexProgram",
+                         "name":  "heatHazeWithMask.vfp",
+                         "key":  "heathazewithmask",
+                         "megaFile":  "",
+                         "targets":  "vs"
+                     },
+                     {
+                         "material":  "textures/sfx/vp1ghost",
+                         "file":  "materials/vp_materials.mtr",
+                         "line":  181,
+                         "keyword":  "fragmentProgram",
+                         "name":  "heatHazeWithMask.vfp",
+                         "key":  "heathazewithmask",
+                         "megaFile":  "",
+                         "targets":  "ps"
+                     },
+                     {
+                         "material":  "textures/sfx/vp1",
+                         "file":  "materials/vp_materials.mtr",
+                         "line":  196,
+                         "keyword":  "vertexProgram",
+                         "name":  "heatHazeWithMask.vfp",
+                         "key":  "heathazewithmask",
+                         "megaFile":  "",
+                         "targets":  "vs"
+                     },
+                     {
+                         "material":  "textures/sfx/vp1",
+                         "file":  "materials/vp_materials.mtr",
+                         "line":  199,
+                         "keyword":  "fragmentProgram",
+                         "name":  "heatHazeWithMask.vfp",
+                         "key":  "heathazewithmask",
+                         "megaFile":  "",
+                         "targets":  "ps"
+                     },
+                     {
+                         "material":  "textures/sfx/vp3",
+                         "file":  "materials/vp_materials.mtr",
+                         "line":  214,
+                         "keyword":  "vertexProgram",
+                         "name":  "heatHazeWithMask.vfp",
+                         "key":  "heathazewithmask",
+                         "megaFile":  "",
+                         "targets":  "vs"
+                     },
+                     {
+                         "material":  "textures/sfx/vp3",
+                         "file":  "materials/vp_materials.mtr",
+                         "line":  217,
+                         "keyword":  "fragmentProgram",
+                         "name":  "heatHazeWithMask.vfp",
+                         "key":  "heathazewithmask",
+                         "megaFile":  "",
+                         "targets":  "ps"
+                     },
+                     {
+                         "material":  "textures/sfx/vp1particle",
+                         "file":  "materials/vp_materials.mtr",
+                         "line":  233,
+                         "keyword":  "vertexProgram",
+                         "name":  "heatHazeWithMask.vfp",
+                         "key":  "heathazewithmask",
+                         "megaFile":  "",
+                         "targets":  "vs"
+                     },
+                     {
+                         "material":  "textures/sfx/vp1particle",
+                         "file":  "materials/vp_materials.mtr",
+                         "line":  236,
+                         "keyword":  "fragmentProgram",
+                         "name":  "heatHazeWithMask.vfp",
+                         "key":  "heathazewithmask",
+                         "megaFile":  "",
+                         "targets":  "ps"
+                     },
+                     {
+                         "material":  "textures/sfx/vp1particle2",
+                         "file":  "materials/vp_materials.mtr",
+                         "line":  251,
+                         "keyword":  "vertexProgram",
+                         "name":  "heatHazeWithMask.vfp",
+                         "key":  "heathazewithmask",
+                         "megaFile":  "",
+                         "targets":  "vs"
+                     },
+                     {
+                         "material":  "textures/sfx/vp1particle2",
+                         "file":  "materials/vp_materials.mtr",
+                         "line":  254,
+                         "keyword":  "fragmentProgram",
+                         "name":  "heatHazeWithMask.vfp",
+                         "key":  "heathazewithmask",
+                         "megaFile":  "",
+                         "targets":  "ps"
+                     },
+                     {
+                         "material":  "textures/sfx/vpfridge1glass",
+                         "file":  "materials/vp_materials.mtr",
+                         "line":  270,
+                         "keyword":  "Program",
+                         "name":  "heatHaze.vfp",
+                         "key":  "heathaze",
+                         "megaFile":  "",
+                         "targets":  [
+                                         "vs",
+                                         "ps"
+                                     ]
+                     },
+                     {
+                         "material":  "textures/sfx/vpfridge1glass",
+                         "file":  "materials/vp_materials.mtr",
+                         "line":  273,
+                         "keyword":  "fragmentProgram",
+                         "name":  "heatHaze.vfp",
+                         "key":  "heathaze",
+                         "megaFile":  "",
+                         "targets":  "ps"
+                     },
+                     {
+                         "material":  "textures/sfx/vppuzzglass",
+                         "file":  "materials/vp_materials.mtr",
+                         "line":  288,
+                         "keyword":  "vertexProgram",
+                         "name":  "heatHazeWithMask.vfp",
+                         "key":  "heathazewithmask",
+                         "megaFile":  "",
+                         "targets":  "vs"
+                     },
+                     {
+                         "material":  "textures/sfx/vppuzzglass",
+                         "file":  "materials/vp_materials.mtr",
+                         "line":  291,
+                         "keyword":  "fragmentProgram",
+                         "name":  "heatHazeWithMask.vfp",
+                         "key":  "heathazewithmask",
+                         "megaFile":  "",
+                         "targets":  "ps"
+                     },
+                     {
+                         "material":  "textures/sfx/vpalphaglass",
+                         "file":  "materials/vp_materials.mtr",
+                         "line":  307,
+                         "keyword":  "vertexProgram",
+                         "name":  "heatHazeWithMask.vfp",
+                         "key":  "heathazewithmask",
+                         "megaFile":  "",
+                         "targets":  "vs"
+                     },
+                     {
+                         "material":  "textures/sfx/vpalphaglass",
+                         "file":  "materials/vp_materials.mtr",
+                         "line":  310,
+                         "keyword":  "fragmentProgram",
+                         "name":  "heatHazeWithMask.vfp",
+                         "key":  "heathazewithmask",
+                         "megaFile":  "",
+                         "targets":  "ps"
+                     },
+                     {
+                         "material":  "textures/sfx/vp1band",
+                         "file":  "materials/vp_materials.mtr",
+                         "line":  326,
+                         "keyword":  "vertexProgram",
+                         "name":  "heatHazeWithMask.vfp",
+                         "key":  "heathazewithmask",
+                         "megaFile":  "",
+                         "targets":  "vs"
+                     },
+                     {
+                         "material":  "textures/sfx/vp1band",
+                         "file":  "materials/vp_materials.mtr",
+                         "line":  329,
+                         "keyword":  "fragmentProgram",
+                         "name":  "heatHazeWithMask.vfp",
+                         "key":  "heathazewithmask",
+                         "megaFile":  "",
+                         "targets":  "ps"
+                     },
+                     {
+                         "material":  "textures/sfx/vp2",
+                         "file":  "materials/vp_materials.mtr",
+                         "line":  344,
+                         "keyword":  "vertexProgram",
+                         "name":  "heatHazeWithMask.vfp",
+                         "key":  "heathazewithmask",
+                         "megaFile":  "",
+                         "targets":  "vs"
+                     },
+                     {
+                         "material":  "textures/sfx/vp2",
+                         "file":  "materials/vp_materials.mtr",
+                         "line":  347,
+                         "keyword":  "fragmentProgram",
+                         "name":  "heatHazeWithMask.vfp",
+                         "key":  "heathazewithmask",
+                         "megaFile":  "",
+                         "targets":  "ps"
+                     }
+                 ]
+}
