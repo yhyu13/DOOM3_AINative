@@ -5,8 +5,8 @@ one status per row. It is an index, not evidence: a row is only as good as the e
 names, and a task id is a plan reference that becomes coverage only when its own command output
 exists.
 
-**Last reconciled**: 2026-10-31, against `origin/main` `f9e84c8`, by the documentation cluster for
-issue #91.
+**Last reconciled**: 2026-11-01, against `origin/main` `1fafb81`, by the Q6 contract/traceability
+worker for issue #68.
 
 ## Status labels
 
@@ -46,9 +46,9 @@ executed. It is kept in the legend so that a future row cannot quietly become "a
 | FR-013 | T049, T054, T056 | `specs/004-quality-renderer/quality-rubric.md`, `src/renderer/rhi/residency.cpp` | `specs/004-quality-renderer/evidence-q4.md`, `specs/004-quality-renderer/evidence/t056/measurements.json`, `specs/004-quality-renderer/evidence/t056/vram.json` | `PARTIAL` — provenance recorded, fence-safe eviction tested (37 checks), seven budget rows `recorded`, VRAM peak 107,110,400 B over 12/12 runs; no engine residency path and no quality-tier activation on a real frame |
 | FR-014 | T055, T058–T061 | `specs/004-quality-renderer/provider-contract.md`, `src/renderer/rhi/reconstruction.cpp`, `src/renderer/ext/provider.cpp` | `specs/004-quality-renderer/evidence-q4.md` (T055/T086 rows), `specs/004-quality-renderer/evidence-q5.md`, `specs/004-quality-renderer/evidence-doc-cluster.md` | `PARTIAL` — the non-proprietary off path is byte-exact identity and passes 35 checks; T059 adds the optional-provider boundary and an 84-check off/missing-provider test (exit 0) plus a passing artifact/dependency inspection. The clean default configure and build exit 0, but the three-phase no-download observation is **NOT RUN** (no complete process trace or packet capture without elevation) and the default engine run is **NOT RUN** (no legal game data). See `specs/004-quality-renderer/evidence-q5.md` |
 | FR-015 | T058, T060–T062 | `specs/004-quality-renderer/provider-contract.md` | none | `NOT RUN` — no authorization, no hardware claim, no create/evaluate. `specs/004-quality-renderer/provider-clearance.md` does not exist. No DLSS 5 support or legal compatibility is claimed |
-| FR-016 | T063–T070 | `specs/004-quality-renderer/path-tracing-rubric.md`, `src/renderer/d3d12/pathtrace*.cpp` | `specs/004-quality-renderer/evidence-q6.md` | `PARTIAL` — CPU integrator, dynamic-update, material and denoiser cases pass (5/5 CTest, 233 checks) and the fallback is explicit; no DXR device, no converged capture, T069 PARTIAL, T070 NOT RUN |
+| FR-016 | T063–T070 | `specs/004-quality-renderer/path-tracing-rubric.md`, `src/renderer/d3d12/pathtrace*.cpp` | `specs/004-quality-renderer/evidence-q6.md` | `PARTIAL` — the CPU harness passes 5/5 in Debug (233 checks); Release is 4/5 on this host, where one denoiser depth-guide check fails (fix tracked in #68, not claimed here). A DXR device was created and a trivial 8×8 dispatch executed (`RAYTRACING_TIER=1_1`, `DISPATCH_HIT_PIXELS=64/64`, `DEBUG_ERRORS=0`), which is capability evidence only: no Q6 device renderer, no converged capture, T069 PARTIAL, T070 NOT RUN |
 | FR-017 | T004, T088, T089, T071–T075 | `specs/004-quality-renderer/portable-profile-contract.md`, `specs/004-quality-renderer/webgpu-mapping.md`, `web/profile/capability.mjs` | `specs/004-quality-renderer/evidence-q7a.md`, `specs/004-quality-renderer/evidence-t089.md`, `specs/004-quality-renderer/evidence-q7.md` | `PARTIAL` — three-tier contract, capability/fallback table and a procedural browser host slice exist; no WebGPU `doom3::rhi::Device` implementation, no real scene (T074 NOT RUN), no profile review (T075 NOT RUN); **the mapping gate is red on `main`** (62 problems, see §Red gates) |
-| FR-018 | T005, T056, T060, T069, T074 | `specs/004-quality-renderer/evidence-template.md` | `specs/004-quality-renderer/evidence-q0.md` … `evidence-q4.md`, `specs/004-quality-renderer/evidence-doc-cluster.md` | `PARTIAL` — template and validator signed off; Q0/Q1a/Q1b/Q3/Q4 records carry identity, commands, exits and thresholds. Q5/Q6/Q7 have no stage record with executed results, so the requirement is not uniformly met |
+| FR-018 | T005, T056, T060, T069, T074 | `specs/004-quality-renderer/evidence-template.md` | `specs/004-quality-renderer/evidence-q0.md` … `evidence-q4.md`, `specs/004-quality-renderer/evidence-q6.md`, `specs/004-quality-renderer/evidence-doc-cluster.md` | `PARTIAL` — template and validator signed off; the Q0/Q1a/Q1b/Q3/Q4 records carry identity, commands, exits and thresholds, and the Q6 record now adds build, adapter, command and exit for the probe and the CPU harness. Q5's three-phase no-download observation and default engine run, and Q7's target-specific real-scene run, remain NOT RUN, so the requirement is not uniformly met |
 | FR-019 | T001–T003, T033, T040, T084 | `specs/004-quality-renderer/engine-integration.md`, `AGENTS.md`, `docs/GIT_WORKFLOW.md` | `git submodule status` / `git -C doom3_orig/doom3 status --porcelain` recorded in `specs/004-quality-renderer/evidence-q0.md` and re-run in `specs/004-quality-renderer/evidence-doc-cluster.md` | `PARTIAL` — submodule clean at `a9c49da` and unchanged on 2026-10-31 (0 porcelain lines, no engine edit in this cluster); review coverage is partial (several review records named by earlier revisions of this file do not exist, §Missing records) and no human sign-off is recorded |
 
 ## Success criteria
@@ -117,9 +117,11 @@ not exist in the tree at `f9e84c8`. A missing record is not coverage:
 - **Q4 is accepted with limits, not green.** `review-q4-r3.md` states "Q4: ACCEPTED WITH LIMITS" and
   "not an unrestricted Q4-green claim"; its §6 limits are not upgraded to passes. No engine frame
   exists.
-- **Q6 and Q7 are partial.** Q6 has CPU reference slices only, with T069 PARTIAL and T070 NOT RUN.
-  Q7 has a contract, a capability table and a procedural browser host slice, with T072/T073 partly
-  open, T074/T075 NOT RUN. No DXR, DLSS or web-support claim follows from either.
+- **Q6 and Q7 are partial.** Q6 has CPU reference slices plus a DXR capability/dispatch probe on one
+  host (tier 1.1, 64/64 trivially dispatched); no Q6 device renderer or capture exists, so T069 stays
+  PARTIAL and T070 is NOT RUN. Q7 has a contract, a capability table and a procedural browser host
+  slice, with T072/T073 partly open, T074/T075 NOT RUN. No Q6 visual/capture, DLSS or web-support
+  claim follows from either.
 - **T055 is a Q4/US5 task, not Q5.** T086's provider branch follows T062 only if authorized and
   executed; it is NOT RUN and does not gate Q4 or the off path. SC-006 additionally requires the
   observed clean default configure/build/run, which a passing off-path test cannot substitute for.

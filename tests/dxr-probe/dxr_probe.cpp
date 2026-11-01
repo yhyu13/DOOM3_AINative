@@ -7,9 +7,13 @@
 // DispatchRays (8x8 camera rays at one triangle, read back from a UAV).
 //
 // Exit codes:
-//   0  device + tier + acceleration structures + dispatch all executed
-//   2  device or ray-tracing tier unsupported; no dispatch attempted
-//   1  the probe itself failed (unexpected HRESULT or wrong readback)
+//   0  PASS: device + tier + acceleration structures + dispatch all executed,
+//      DISPATCH_HIT_PIXELS == 64/64 and DEBUG_ERRORS == 0
+//   1  FAIL: unexpected HRESULT or map failure (RESULT=ERROR), a readback that
+//      is not 64/64, or DEBUG_ERRORS > 0 (RESULT=FAIL)
+//   2  UNSUPPORTED: no adapter, device or ray-tracing tier; no dispatch attempted
+//   3  NOT RUN: the debug layer (and therefore DEBUG_ERRORS) is unavailable, so
+//      the documented pass condition cannot be evaluated
 //
 // Every result line is printed as KEY=VALUE so the evidence file can quote it.
 
@@ -33,6 +37,43 @@ constexpr UINT kDispatchWidth = 8;
 constexpr UINT kDispatchHeight = 8;
 constexpr UINT kReadbackRowPitch = 256;
 constexpr UINT64 kFenceTimeoutMs = 30000;
+
+constexpr int kExitPass = 0;
+constexpr int kExitFail = 1;
+constexpr int kExitUnsupported = 2;
+constexpr int kExitNotRun = 3;
+
+// The documented pass condition needs the debug layer's error count. These
+// environment hooks exist only so the exit logic itself can be exercised
+// without a faulting GPU; every run that uses one declares it in its output.
+enum class SelfTestMode { kNone, kDebugError, kNoDebugLayer, kInvalid };
+
+const char* SelfTestModeName(SelfTestMode mode) {
+    switch (mode) {
+        case SelfTestMode::kDebugError: return "debug-error";
+        case SelfTestMode::kNoDebugLayer: return "no-debug-layer";
+        default: return "none";
+    }
+}
+
+SelfTestMode ReadSelfTestMode() {
+    char buffer[32] = {};
+    const DWORD length = GetEnvironmentVariableA(
+        "Q6_DXR_PROBE_SELFTEST", buffer, static_cast<DWORD>(sizeof(buffer)));
+    if (length == 0) {
+        return SelfTestMode::kNone;
+    }
+    if (length >= static_cast<DWORD>(sizeof(buffer))) {
+        return SelfTestMode::kInvalid;
+    }
+    if (std::strcmp(buffer, "debug-error") == 0) {
+        return SelfTestMode::kDebugError;
+    }
+    if (std::strcmp(buffer, "no-debug-layer") == 0) {
+        return SelfTestMode::kNoDebugLayer;
+    }
+    return SelfTestMode::kInvalid;
+}
 
 std::string Narrow(const wchar_t* wide) {
     if (wide == nullptr) {
@@ -414,10 +455,18 @@ bool CreatePipeline(ID3D12Device5* device5, ID3D12RootSignature* rootSignature,
                  "QueryInterface(ID3D12StateObjectProperties)");
 }
 
-void PrintStoredMessages(ID3D12InfoQueue* infoQueue) {
+struct DebugCounts {
+    bool available = false;
+    unsigned long long messages = 0;
+    unsigned long long errors = 0;
+    unsigned long long warnings = 0;
+};
+
+DebugCounts PrintStoredMessages(ID3D12InfoQueue* infoQueue, SelfTestMode selfTest) {
+    DebugCounts counts;
     if (infoQueue == nullptr) {
         std::printf("DEBUG_LAYER_MESSAGES=unavailable\n");
-        return;
+        return counts;
     }
     const UINT64 stored = infoQueue->GetNumStoredMessages();
     UINT64 errors = 0;
@@ -445,10 +494,31 @@ void PrintStoredMessages(ID3D12InfoQueue* infoQueue) {
             }
         }
     }
-    std::printf("DEBUG_LAYER_MESSAGES=%llu\n",
-                static_cast<unsigned long long>(stored));
-    std::printf("DEBUG_ERRORS=%llu\n", static_cast<unsigned long long>(errors));
-    std::printf("DEBUG_WARNINGS=%llu\n", static_cast<unsigned long long>(warnings));
+    counts.available = true;
+    counts.messages = static_cast<unsigned long long>(stored);
+    counts.errors = static_cast<unsigned long long>(errors);
+    counts.warnings = static_cast<unsigned long long>(warnings);
+    if (selfTest == SelfTestMode::kDebugError) {
+        ++counts.errors;
+        std::printf("SELFTEST_SYNTHETIC_DEBUG_ERRORS=1\n");
+    }
+    std::printf("DEBUG_LAYER_MESSAGES=%llu\n", counts.messages);
+    std::printf("DEBUG_ERRORS=%llu\n", counts.errors);
+    std::printf("DEBUG_WARNINGS=%llu\n", counts.warnings);
+    return counts;
+}
+
+int ExitCodeForResult(UINT32 hitPixels, const DebugCounts& debug) {
+    if (hitPixels != kDispatchWidth * kDispatchHeight) {
+        return kExitFail;
+    }
+    if (!debug.available) {
+        return kExitNotRun;
+    }
+    if (debug.errors != 0) {
+        return kExitFail;
+    }
+    return kExitPass;
 }
 
 }  // namespace
@@ -456,10 +526,20 @@ void PrintStoredMessages(ID3D12InfoQueue* infoQueue) {
 int main() {
     std::printf("PROBE=q6_dxr_capability_dispatch\n");
 
+    const SelfTestMode selfTest = ReadSelfTestMode();
+    if (selfTest == SelfTestMode::kInvalid) {
+        std::printf("SELFTEST_MODE=invalid\n");
+        std::printf("RESULT=ERROR\nEXIT_CODE=1\n");
+        return kExitFail;
+    }
+    if (selfTest != SelfTestMode::kNone) {
+        std::printf("SELFTEST_MODE=%s\n", SelfTestModeName(selfTest));
+    }
+
     ComPtr<IDXGIFactory6> factory;
     if (!Check(CreateDXGIFactory2(0, IID_PPV_ARGS(&factory)), "CreateDXGIFactory2")) {
         std::printf("RESULT=ERROR\nEXIT_CODE=1\n");
-        return 1;
+        return kExitFail;
     }
 
     struct AdapterInfo {
@@ -503,7 +583,7 @@ int main() {
     std::printf("ADAPTER_COUNT=%d\n", static_cast<int>(adapters.size()));
     if (adapters.empty()) {
         std::printf("RESULT=UNSUPPORTED\nEXIT_CODE=2\n");
-        return 2;
+        return kExitUnsupported;
     }
 
     // Prefer the named discrete adapter when present, else the non-software
@@ -552,11 +632,15 @@ int main() {
         std::printf("DRIVER_UMD=unreported (%s)\n", HrText(driverHr).c_str());
     }
 
-    // Enabling the debug layer is optional; when the Graphics Tools feature is
-    // absent the interface is unavailable and the probe continues.
+    // Enabling the debug layer is optional for the device work, but the
+    // documented pass condition needs its error count. When it is unavailable
+    // (or skipped by the no-debug-layer control) the run ends as NOT RUN, not
+    // as a pass with the condition unevaluated.
     ComPtr<ID3D12Debug> debugController;
     bool debugLayerEnabled = false;
-    if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)))) {
+    const bool skipDebugLayer = selfTest == SelfTestMode::kNoDebugLayer;
+    if (!skipDebugLayer &&
+        SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)))) {
         debugController->EnableDebugLayer();
         debugLayerEnabled = true;
     }
@@ -568,7 +652,7 @@ int main() {
     if (FAILED(deviceHr)) {
         std::printf("D3D12CreateDevice failed: %s\n", HrText(deviceHr).c_str());
         std::printf("DEVICE_CREATED=0\nRESULT=UNSUPPORTED\nEXIT_CODE=2\n");
-        return 2;
+        return kExitUnsupported;
     }
     std::printf("DEVICE_CREATED=1\n");
 
@@ -578,7 +662,7 @@ int main() {
     if (FAILED(optionsHr)) {
         std::printf("CheckFeatureSupport(OPTIONS5) failed: %s\n", HrText(optionsHr).c_str());
         std::printf("RESULT=ERROR\nEXIT_CODE=1\n");
-        return 1;
+        return kExitFail;
     }
     std::printf("RAYTRACING_TIER=%s (%d)\n", TierName(options5.RaytracingTier),
                 static_cast<int>(options5.RaytracingTier));
@@ -604,13 +688,13 @@ int main() {
     if (options5.RaytracingTier == D3D12_RAYTRACING_TIER_NOT_SUPPORTED) {
         std::printf("DXR_DEVICE_CREATED=0\n");
         std::printf("RESULT=UNSUPPORTED\nEXIT_CODE=2\n");
-        return 2;
+        return kExitUnsupported;
     }
 
     ComPtr<ID3D12Device5> device5;
     if (!Check(device.As(&device5), "QueryInterface(ID3D12Device5)")) {
         std::printf("RESULT=ERROR\nEXIT_CODE=1\n");
-        return 1;
+        return kExitFail;
     }
     std::printf("DXR_DEVICE_CREATED=1\n");
 
@@ -627,7 +711,7 @@ int main() {
     if (!Check(device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&queue)),
                "CreateCommandQueue")) {
         std::printf("RESULT=ERROR\nEXIT_CODE=1\n");
-        return 1;
+        return kExitFail;
     }
 
     UINT64 timestampFrequency = 0;
@@ -638,7 +722,7 @@ int main() {
                                               IID_PPV_ARGS(&allocator)),
                "CreateCommandAllocator")) {
         std::printf("RESULT=ERROR\nEXIT_CODE=1\n");
-        return 1;
+        return kExitFail;
     }
 
     ComPtr<ID3D12GraphicsCommandList4> commandList;
@@ -647,19 +731,19 @@ int main() {
                                          IID_PPV_ARGS(&commandList)),
                "CreateCommandList")) {
         std::printf("RESULT=ERROR\nEXIT_CODE=1\n");
-        return 1;
+        return kExitFail;
     }
 
     ComPtr<ID3D12Fence> fence;
     if (!Check(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)),
                "CreateFence")) {
         std::printf("RESULT=ERROR\nEXIT_CODE=1\n");
-        return 1;
+        return kExitFail;
     }
     HANDLE fenceEvent = CreateEventEx(nullptr, nullptr, 0, EVENT_ALL_ACCESS);
     if (fenceEvent == nullptr) {
         std::printf("CreateEventEx failed\nRESULT=ERROR\nEXIT_CODE=1\n");
-        return 1;
+        return kExitFail;
     }
 
     const auto waitForGpu = [&](UINT64 value) -> bool {
@@ -677,18 +761,18 @@ int main() {
     AccelerationStructure topLevel;
     if (!CreateBottomLevel(device5.Get(), commandList.Get(), &bottomLevel)) {
         std::printf("BLAS_CREATED=0\nRESULT=ERROR\nEXIT_CODE=1\n");
-        return 1;
+        return kExitFail;
     }
     if (!CreateTopLevel(device5.Get(), commandList.Get(), bottomLevel, &topLevel)) {
         std::printf("TLAS_CREATED=0\nRESULT=ERROR\nEXIT_CODE=1\n");
-        return 1;
+        return kExitFail;
     }
     std::printf("BLAS_CREATED=1\nTLAS_CREATED=1\n");
 
     ComPtr<ID3D12RootSignature> rootSignature;
     if (!CreateRootSignature(device5.Get(), &rootSignature)) {
         std::printf("RESULT=ERROR\nEXIT_CODE=1\n");
-        return 1;
+        return kExitFail;
     }
 
     std::vector<uint8_t> shaderBytes;
@@ -696,7 +780,7 @@ int main() {
     if (!ReadFileBytes(shaderPath, &shaderBytes)) {
         std::printf("Could not read %s\n", shaderPath.c_str());
         std::printf("RESULT=ERROR\nEXIT_CODE=1\n");
-        return 1;
+        return kExitFail;
     }
     std::printf("SHADER_BYTES=%llu\n",
                 static_cast<unsigned long long>(shaderBytes.size()));
@@ -705,9 +789,9 @@ int main() {
     ComPtr<ID3D12StateObjectProperties> stateProperties;
     if (!CreatePipeline(device5.Get(), rootSignature.Get(), shaderBytes,
                         &stateObject, &stateProperties)) {
-        PrintStoredMessages(infoQueue.Get());
+        PrintStoredMessages(infoQueue.Get(), SelfTestMode::kNone);
         std::printf("STATE_OBJECT_CREATED=0\nRESULT=ERROR\nEXIT_CODE=1\n");
-        return 1;
+        return kExitFail;
     }
     std::printf("STATE_OBJECT_CREATED=1\n");
 
@@ -729,7 +813,7 @@ int main() {
     }
     if (!identifiersOk) {
         std::printf("RESULT=ERROR\nEXIT_CODE=1\n");
-        return 1;
+        return kExitFail;
     }
 
     ComPtr<ID3D12Resource> shaderBindingTable = CreateBuffer(
@@ -737,13 +821,13 @@ int main() {
         D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_HEAP_TYPE_UPLOAD);
     if (!shaderBindingTable) {
         std::printf("RESULT=ERROR\nEXIT_CODE=1\n");
-        return 1;
+        return kExitFail;
     }
     D3D12_RANGE sbtRange{0, 256};
     void* sbtMapped = nullptr;
     if (!Check(shaderBindingTable->Map(0, &sbtRange, &sbtMapped), "Map(SBT)")) {
         std::printf("RESULT=ERROR\nEXIT_CODE=1\n");
-        return 1;
+        return kExitFail;
     }
     std::memset(sbtMapped, 0, 256);
     std::memcpy(static_cast<uint8_t*>(sbtMapped) + 0, identifiers[0].data,
@@ -776,7 +860,7 @@ int main() {
                    IID_PPV_ARGS(&outputTexture)),
                "CreateCommittedResource(output texture)")) {
         std::printf("RESULT=ERROR\nEXIT_CODE=1\n");
-        return 1;
+        return kExitFail;
     }
 
     D3D12_DESCRIPTOR_HEAP_DESC heapDesc{};
@@ -787,7 +871,7 @@ int main() {
     if (!Check(device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&descriptorHeap)),
                "CreateDescriptorHeap")) {
         std::printf("RESULT=ERROR\nEXIT_CODE=1\n");
-        return 1;
+        return kExitFail;
     }
     const UINT descriptorSize =
         device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
@@ -826,7 +910,7 @@ int main() {
         D3D12_RESOURCE_STATE_COPY_DEST, D3D12_HEAP_TYPE_READBACK);
     if (!readback || !timestampReadback) {
         std::printf("RESULT=ERROR\nEXIT_CODE=1\n");
-        return 1;
+        return kExitFail;
     }
 
     D3D12_QUERY_HEAP_DESC queryHeapDesc{};
@@ -836,7 +920,7 @@ int main() {
     if (!Check(device->CreateQueryHeap(&queryHeapDesc, IID_PPV_ARGS(&queryHeap)),
                "CreateQueryHeap")) {
         std::printf("RESULT=ERROR\nEXIT_CODE=1\n");
-        return 1;
+        return kExitFail;
     }
 
     // The list is still recording: the BLAS/TLAS builds above are recorded and
@@ -896,13 +980,13 @@ int main() {
 
     if (!Check(commandList->Close(), "Close")) {
         std::printf("RESULT=ERROR\nEXIT_CODE=1\n");
-        return 1;
+        return kExitFail;
     }
     ID3D12CommandList* lists[1] = {commandList.Get()};
     queue->ExecuteCommandLists(1, lists);
     if (!waitForGpu(1)) {
         std::printf("GPU wait failed\nRESULT=ERROR\nEXIT_CODE=1\n");
-        return 1;
+        return kExitFail;
     }
     std::printf("DISPATCH_EXECUTED=1\n");
 
@@ -926,7 +1010,7 @@ int main() {
     void* mappedReadback = nullptr;
     if (!Check(readback->Map(0, &readRange, &mappedReadback), "Map(readback)")) {
         std::printf("RESULT=ERROR\nEXIT_CODE=1\n");
-        return 1;
+        return kExitFail;
     }
     for (UINT y = 0; y < kDispatchHeight; ++y) {
         const uint8_t* row = static_cast<const uint8_t*>(mappedReadback) +
@@ -942,12 +1026,15 @@ int main() {
     readback->Unmap(0, &noWrite);
     std::printf("DISPATCH_HIT_PIXELS=%u/%u\n", hitPixels, kDispatchWidth * kDispatchHeight);
 
-    PrintStoredMessages(infoQueue.Get());
-
-    if (hitPixels != kDispatchWidth * kDispatchHeight) {
-        std::printf("RESULT=ERROR\nEXIT_CODE=1\n");
-        return 1;
+    const DebugCounts debugCounts = PrintStoredMessages(infoQueue.Get(), selfTest);
+    const int exitCode = ExitCodeForResult(hitPixels, debugCounts);
+    if (exitCode == kExitPass) {
+        std::printf("RESULT=PASS\n");
+    } else if (exitCode == kExitNotRun) {
+        std::printf("RESULT=NOT RUN\n");
+    } else {
+        std::printf("RESULT=FAIL\n");
     }
-    std::printf("RESULT=PASS\nEXIT_CODE=0\n");
-    return 0;
+    std::printf("EXIT_CODE=%d\n", exitCode);
+    return exitCode;
 }

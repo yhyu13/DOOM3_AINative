@@ -19,7 +19,7 @@ project is separate so that stays true.
 - whether a raytracing state object and shader binding table can be created;
 - the result of an 8x8 `DispatchRays` at one triangle, read back from a UAV (`64/64` expected);
 - a GPU timestamp for that dispatch only (a diagnostic, **not** a Q6 frame-pacing result);
-- debug-layer error/warning counts.
+- debug-layer error/warning counts (the error count is a pass condition).
 
 ## Build
 
@@ -39,14 +39,30 @@ cmake --build build-dxr-probe --config Release -- -m
 
 Exit codes:
 
-| Code | Meaning |
-|---|---|
-| 0 | device, tier, acceleration structures and dispatch all executed |
-| 2 | device or ray-tracing tier unsupported; no dispatch attempted |
-| 1 | the probe failed (unexpected HRESULT or a readback that is not 64/64) |
+| Code | `RESULT` | Meaning |
+|---|---|---|
+| 0 | `PASS` | device, tier, acceleration structures and dispatch all executed; `DISPATCH_HIT_PIXELS=64/64` **and** `DEBUG_ERRORS=0` |
+| 1 | `ERROR` / `FAIL` | the probe failed: an unexpected HRESULT or map failure (`ERROR`), or a readback that is not 64/64 or `DEBUG_ERRORS>0` (`FAIL`) |
+| 2 | `UNSUPPORTED` | device or ray-tracing tier unsupported; no dispatch attempted |
+| 3 | `NOT RUN` | the debug layer, and therefore `DEBUG_ERRORS`, is unavailable; the dispatch may have executed, but the documented pass condition cannot be evaluated |
 
-The dispatch result is green on a hit and red on a miss. `DISPATCH_HIT_PIXELS=64/64` and
-`DEBUG_ERRORS=0` are the pass conditions.
+`DISPATCH_HIT_PIXELS=64/64` and `DEBUG_ERRORS=0` are the pass conditions, and the exit code is
+derived from both. The shader writes green on a hit and red on a miss, so `DISPATCH_HIT_PIXELS`
+counts hits. A host without the D3D12 debug layer ends as `NOT RUN` (exit 3), never as a pass
+with the condition unevaluated; `DEBUG_LAYER_MESSAGES=unavailable` marks that case.
+
+## Self-test hooks (negative controls)
+
+The pass condition is only useful if its failing branch is exercised. Two environment variables
+force that without a faulting GPU. Both print `SELFTEST_MODE=<name>` in the output, and a run that
+uses one is a control, not capability evidence:
+
+| Variable | Effect | Expected result |
+|---|---|---|
+| `Q6_DXR_PROBE_SELFTEST=debug-error` | adds one synthetic debug-layer error after the real message count and prints `SELFTEST_SYNTHETIC_DEBUG_ERRORS=1` | `RESULT=FAIL`, exit 1 |
+| `Q6_DXR_PROBE_SELFTEST=no-debug-layer` | does not enable the debug layer, so `DEBUG_ERRORS` is never printed | `RESULT=NOT RUN`, exit 3 |
+
+An unrecognised value is itself an error (`SELFTEST_MODE=invalid`, exit 1).
 
 ## What it does not prove
 
