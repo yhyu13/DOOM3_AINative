@@ -219,6 +219,10 @@ const char* ModeName() {
     return gResolver ? d3::shader::ToString(gResolver->GetMode()) : "off";
 }
 
+bool Tolerant() {
+    return gResolver != nullptr && gResolver->GetMode() == Mode::Tolerant;
+}
+
 int Resolve(const char* keyword, const char* name, int target, char* outKey, int outKeySize) {
     if (outKey && outKeySize > 0) {
         outKey[0] = 0;

@@ -1,8 +1,10 @@
 # Fail-loud shader resolver: contract
 
 **Status**: contract **complete**; executable vectors **14/14 passing** (2026-10-28). The engine call
-sites are wired as of 2026-10-29 (modified engine files delivered through the tracked target patch);
-the tolerant-mode visible error material is not drawn yet. See `evidence/implementation.md` §12.
+sites are wired as of 2026-10-29 (modified engine files delivered through the tracked target patch).
+The tolerant-mode visible error material is **drawn as of 2026-11-01**, proven on the official demo
+with a frame and a strict counter-frame: `evidence/runtime-census.md` §7 and
+`evidence/implementation.md` §15.
 
 **Goal**: no draw may ever run with an unresolved shader program, and every failure must name the
 material, the stage, the program, and the reason.
@@ -315,11 +317,16 @@ would reproduce the bug the resolver exists to remove.
 Items 1–5 are the resolver core; 6 is the ordering defect; 7 keeps the two lists honest; 8 is
 operator ergonomics.
 
-Delivery (2026-10-29): items 1–8 are implemented in the engine copy and exported as modified-file
+Delivery (2026-11-01): items 1–8 are implemented in the engine copy and exported as modified-file
 hunks in `targets/win11-amd64/patches/all-changes.patch`; the pristine submodule is untouched. The
 classic GL backend still loads ARB text from data, so phase 2 binds that text; the authored HLSL is
-not consumed by this backend. Tolerant mode currently skips the broken stage instead of drawing the
-error material, so I-5 is only partly met.
+not consumed by this backend.
+
+Tolerant mode now draws the error material: `RB_DrawShaderErrorMaterial` binds the generated
+`_shaderError` image and draws the surface for a non-OK material stage and for a non-OK interaction
+pass, in both the ambient stage path and the interaction path. The program key is carried by the
+`SHADER ERROR` record (`program=... key=...`) and `shader_status` counts `materials_error`; the
+per-key image name described above was not implemented.
 
 ---
 

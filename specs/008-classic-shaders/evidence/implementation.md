@@ -745,3 +745,60 @@ was not committed), `report.ps1 -Out <temp>` printed
 follows the table rather than a typed sentence. The file was restored afterwards and
 `git status --porcelain` was empty; the committed report still lists the seven real ids.
 
+
+---
+
+## 15. Demo-data run: census, tolerant substitution, Tier B (2026-11-01)
+
+The official free DOOM 3 demo (`demo00.pk4`, 12,234 entries, three maps) was staged outside git with
+`scripts/prepare-demo-data.ps1`. This unblocked the parts of T-021, T-028 and T-031 that needed
+authorised data; it does **not** unblock retail parity (T-025, T-027, T-030).
+
+### 15.1 Commands and exit codes
+
+| # | Command | Exit | Result |
+|---|---|---|---|
+| 1 | `cmake --preset win11-amd64` | 0 | target copy created and patched |
+| 2 | `cmake --build --preset win11-amd64-release -- -m` | 0 | `build/bin/Release/DOOM3.exe`, `DOOM3XP.exe` |
+| 3 | `scripts/prepare-demo-data.ps1 -Pk4 <demo00.pk4> -RunDir _data\run` | 0 | `base\demo00.pk4` staged, GUI/script shims written |
+| 4 | `specs/008-classic-shaders/tools/runtime-census.ps1 -Pk4 _data\run\base\demo00.pk4` | 0 | 67 `.mtr`, 6,341 materials, 73 program tokens → 106 target requests, 12 Tier B variants |
+| 5 | `shaders/tools/get-toolchain.ps1` | 0 | DXC 1.9.2609.5 and Tint `106704a9ac3f`, asset hashes verified |
+| 6 | `shaders/tools/compile.ps1 -All` | 0 | `COMPILE OK: 6 programs, 12 Tier B variants, 35 stage compiles, 0 failures` |
+| 7 | `run-win11-amd64.ps1 ... -Map game/demo_mars_city1 -ExtraArgs ('strict','+shader_status')` | 0 | spawned, 800×600 capture, 309 distinct colours, 0 magenta pixels |
+| 8 | same, `game/demo_mars_city2` | 0 | 38 requests / 20 unresolved / 9 rejected |
+| 9 | same, `game/demo_mc_underground` | 0 | 31 requests / 13 unresolved / 6 rejected |
+| 10 | same map 1, `r_shaderMode tolerant` | 0 | 6 `materials_error`, 23.76% magenta pixels |
+| 11 | same map 1, `r_shaderMode off + r_showShadows 1` | 0 | control frame; legacy ARB text, not evidence |
+| 12 | `scripts/export-target-patches.ps1 -Name win11-amd64` | 0 | M-only patch regenerated |
+| 13 | `scripts/apply-target-patches.ps1 -Name win11-amd64` on a fresh copy | 0 | 0 mismatches |
+
+Capture size note: at 125% display scaling the engine's client size is 800×600 for a requested
+640×480, and `smoke-win11-amd64.ps1` exits 8 on that size check even when the menu renders. These runs
+therefore assert on the `qconsole.log` status/diagnostics and on the captured frame, not on a size
+match; no size mismatch is reported as a render failure.
+
+### 15.2 Code change
+
+| File | Change |
+|---|---|
+| `neo/renderer/Image.h`, `neo/renderer/Image_init.cpp` | add the generated `_shaderError` magenta/black checkerboard image |
+| `neo/renderer/tr_local.h`, `neo/renderer/draw_common.cpp` | `RB_DrawShaderErrorMaterial`; substitute it for a non-OK stage in `RB_STD_T_RenderShaderPasses` |
+| `neo/renderer/draw_arb2.cpp` | substitute it for a non-OK interaction pass; `off` never reaches the branch |
+| `src/renderer/shader/engine/shader_engine.{h,cpp}` | `shaderport::Tolerant()` (mode query used by the draw gates) |
+
+The engine changes live in `targets/win11-amd64/patches/all-changes.patch`; the pristine submodule is
+untouched. No program was promoted to `owned`.
+
+### 15.3 Evidence
+
+- `evidence/runtime-census.md` — full census, skip semantics, variant set, NOT OBSERVED list.
+- `evidence/runtime-census-demo.json` — machine-readable names/counts.
+- `evidence/tolerant-error-material-demo-city1.png` — tolerant frame, checkerboard visible.
+- `evidence/strict-refused-demo-city1.png` — strict frame, no magenta (`materials_rejected=6`).
+- `evidence/demo-off-city1-control.png` — control frame with legacy programs bound.
+- Pixel test (R > 100, B > 100, G < min(R,B)/2): tolerant 114,031/480,000 = 23.76% magenta;
+  strict 0; off 0. Frames recaptured at base `04c6180`.
+
+Limits: strict/tolerant frames are mostly unlit or error material because every manifest program is
+still `stub`; the nine-authoring-set parity comparison and all `owned` promotion remain blocked on
+retail data.

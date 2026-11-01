@@ -15,10 +15,10 @@ th{background:#eef0f4;font-size:12px;text-transform:uppercase;letter-spacing:.04
 .gaps li{margin:4px 0}.art{font-family:ui-monospace,Consolas,monospace;font-size:12px;color:var(--muted)}footer{margin-top:36px;color:var(--muted);font-size:12px}
 </style>
 <h1>Classic shaders - spec verification</h1>
-<p class="meta">superproject <code>f9e84c8</code> &middot; submodule <code>doom3_orig/doom3</code> &middot; generated 2026-11-01 01:16:05 +08:00 &middot; package <code>specs/008-classic-shaders</code> (tracked)</p>
+<p class="meta">superproject <code>51fa9f5</code> &middot; submodule <code>doom3_orig/doom3</code> &middot; generated 2026-11-01 16:36:16 +08:00 &middot; package <code>specs/008-classic-shaders</code> (tracked)</p>
 <div class="kpis">
 <span class="kpi"><b>6/6</b>gates passing</span>
-<span class="kpi"><b>25/32</b>tasks (spec 19/19)</span>
+<span class="kpi"><b>28/32</b>tasks (spec 19/19)</span>
 <span class="kpi"><b>18</b>program entries</span>
 <span class="kpi"><b>5</b>files to author</span>
 <span class="kpi"><b>70</b>content assertions</span>
@@ -78,8 +78,8 @@ CONTENT: 70 asserted, 0 failed; cited in prose: 70/70
 LINKS:   40 checked, 0 failed
 LIMIT:   prose anchors are range-checked only; only the 70 registered anchor lines are content-checked
 DOCS OK: 125 anchors, 70 content assertions, 40 links</pre></details></div>
-<div class="card"><div><span class="badge pass">PASS</span><span class="name">Provenance gate</span></div><div class="sum">PROVENANCE OK: 602 tracked files, no shader source, no ARB program bodies</div><div class="art">exit=0</div><details><summary class="art">command and output</summary><pre class="art">powershell -NoProfile -ExecutionPolicy Bypass -File specs/008-classic-shaders/tools/provenance-check.ps1
-PROVENANCE OK: 602 tracked files, no shader source, no ARB program bodies</pre></details></div>
+<div class="card"><div><span class="badge pass">PASS</span><span class="name">Provenance gate</span></div><div class="sum">PROVENANCE OK: 625 tracked files, no shader source, no ARB program bodies</div><div class="art">exit=0</div><details><summary class="art">command and output</summary><pre class="art">powershell -NoProfile -ExecutionPolicy Bypass -File specs/008-classic-shaders/tools/provenance-check.ps1
+PROVENANCE OK: 625 tracked files, no shader source, no ARB program bodies</pre></details></div>
 </div>
 <h2>Program census</h2>
 <p class="meta">18 entries over 13 files: 8 live-default entries (5 files), 2 debug-only, 5 non-ARB2, 3 dead.</p>
@@ -104,11 +104,12 @@ PROVENANCE OK: 602 tracked files, no shader source, no ARB program bodies</pre><
 <tr class="live-default"><td>18</td><td>355</td><td>FP</td><td><code>FPROG_GLASSWARP</code></td><td><code>arbFP_glasswarp.txt</code></td><td>live-default</td></tr>
 </tbody></table>
 <h2>Known gaps</h2><ul class="gaps">
-<li>Runtime census on retail data: <b>SKIPPED</b>; no authorized pk4 in the worktree.</li>
+<li>Runtime census: <b>RUN on the official free demo</b> (2026-11-01; four demo programs remain unresolved, recorded in <code>evidence/runtime-census.md</code>). <b>Retail: SKIPPED</b>; no retail pk4 in the worktree.</li>
 <li>Legal review of the derivative-work position: <b>BLOCKED</b>; conservative rules only.</li>
-<li>Implementation: <b>6/11</b> tasks done. Blocked tasks: <b>T-021, T-025, T-027, T-028, T-030, T-031, T-032</b>; each row in tasks.md names the exact missing input.</li>
+<li>Implementation: <b>8/11</b> tasks done. Blocked tasks: <b>T-025, T-027, T-030, T-032</b>; each row in tasks.md names the exact missing input.</li>
 <li>No program is <code>owned</code>: <code>ownership.md</code> section 5 criterion 5 needs a rendered comparison (T-027), which needs authorized data and a running classic backend.</li>
-<li>The five-file authoring set is a lower bound; material-declared programs are unknown until the runtime census.</li>
+<li>The five-file authoring set is a lower bound; the demo census observed seven material-declared keys, four of them outside the manifest. The retail set is still unknown.</li>
+<li>Tier B ships the 12 combinations the demo census observed (42 remains an upper bound); retail may add combinations, and the variants are compiled but not rendered in-engine.</li>
 </ul>
 <h2>Artifacts</h2><table><thead><tr><th>path</th></tr></thead><tbody>
 <tr><td><code>abi.md</code></td></tr>
@@ -116,8 +117,13 @@ PROVENANCE OK: 602 tracked files, no shader source, no ARB program bodies</pre><
 <tr><td><code>census.md</code></td></tr>
 <tr><td><code>evidence/census.html</code></td></tr>
 <tr><td><code>evidence/census.png</code></td></tr>
+<tr><td><code>evidence/demo-off-city1-control.png</code></td></tr>
 <tr><td><code>evidence/implementation.md</code></td></tr>
 <tr><td><code>evidence/report.png</code></td></tr>
+<tr><td><code>evidence/runtime-census.md</code></td></tr>
+<tr><td><code>evidence/runtime-census-demo.json</code></td></tr>
+<tr><td><code>evidence/strict-refused-demo-city1.png</code></td></tr>
+<tr><td><code>evidence/tolerant-error-material-demo-city1.png</code></td></tr>
 <tr><td><code>evidence/verification.md</code></td></tr>
 <tr><td><code>ownership.md</code></td></tr>
 <tr><td><code>plan.md</code></td></tr>
@@ -136,6 +142,7 @@ PROVENANCE OK: 602 tracked files, no shader source, no ARB program bodies</pre><
 <tr><td><code>tools/resolver-conformance.ps1</code></td></tr>
 <tr><td><code>tools/resolver-model.ps1</code></td></tr>
 <tr><td><code>tools/resolver-vectors.json</code></td></tr>
+<tr><td><code>tools/runtime-census.ps1</code></td></tr>
 <tr><td><code>tools/verify-docs.ps1</code></td></tr>
 </tbody></table>
 <footer>Generated by <code>tools/report.ps1</code>. The report is a rendering of the gates above; it is not independent evidence of shader behaviour.</footer>

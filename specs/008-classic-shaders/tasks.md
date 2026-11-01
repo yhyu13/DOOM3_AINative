@@ -13,18 +13,19 @@ a task can be done and still await independent review.
 | Scope | Done | Total | State |
 |---|---|---:|---|
 | Specification (S) | 19 | 19 | complete; self-reviewed; three review rounds |
-| Implementation (I) | 6 | 11 | 6 done, 5 blocked |
-| Gates (G) | 0 | 2 | blocked |
-| **All** | **25** | **32** | 25 done, 7 blocked |
+| Implementation (I) | 8 | 11 | 8 done, 3 blocked |
+| Gates (G) | 1 | 2 | demo census done; legal blocked |
+| **All** | **28** | **32** | 28 done, 4 blocked |
 
 Review: 19 specification tasks self-reviewed, two package-level agent reviews (`review.md` §2.1, §2.2),
 and a third round (`review.md` §2.3) that audited source truth and mutation-tested the gates. The
 third round found 25 defects, including 8 gates that could pass with their own subject broken; all are
-fixed and each fix has a mutation control. No human review yet. 6 implementation tasks are `DONE`;
-5 are `BLOCKED`, and each blocked row names the exact missing input while keeping the part that exists
-in its evidence column. Both gates are blocked. The engine wiring landed on 2026-10-29 (see
-`evidence/implementation.md` §12); the 2026-11-01 pass re-ran every gate, recorded the Emscripten pin
-and re-proved the data blocker (§13–§14).
+fixed and each fix has a mutation control. No human review yet. 8 implementation tasks are `DONE`;
+3 are `BLOCKED` (T-025, T-027, T-030), and each blocked row names the exact missing input while
+keeping the part that exists in its evidence column. T-031 is done on the demo; retail completeness
+and legal review remain blocked. The engine wiring landed on 2026-10-29 (see
+`evidence/implementation.md` §12); the 2026-11-01 demo pass closed the tolerant substitution, the
+runtime census and the observed Tier B set (§15), while retail parity stays blocked.
 
 `BLOCKED` means the row cannot advance in this repository: the missing input (authorized game data, a
 running classic backend, counsel) is named in the row. It is never counted as done, and a blocked row
@@ -75,14 +76,14 @@ does exist stays in the evidence column so the row is not read as "not started".
 | Id | Task | Depends on | Status | Acceptance / evidence |
 |---|---|---|---|---|
 | T-020 | Create `shaders/` tree, `d3_abi.hlsli`, `d3_input.hlsli`, `d3_arb.hlsli` skeleton | T-009, T-010 | DONE | all three headers exist under `shaders/classic/include/`; 11 stage compiles succeed for DXIL and SPIR-V; `reflect.ps1` shows only declared inputs and cbuffers |
-| T-021 | Implement the resolver core: manifest load, record/status, draw gating, init-order fix, reload re-resolution | T-007, T-008 | BLOCKED | **Done:** engine call sites through the tracked target patch — `R_LoadARBProgram` publishes an id only after a successful compile, phase-1 handles replace `R_FindARBProgram`, `R_InitShaderResolver` runs before `R_InitMaterials`, draw/bind sites gate on both phases, reload re-resolves (evidence §12). **Missing half:** the tolerant-mode magenta substitution (I-5) is not drawn; the gate logs the `ErrorMaterial` decision, counts it and skips the stage. It cannot be drawn or verified here: no authorized game data, and the engine aborts inside renderer init (`RenderSystem_init.cpp`) before a frame (§13.3). Needs: authorized `base/*.pk4` (demo or retail) plus a GL-capable desktop. |
+| T-021 | Implement the resolver core: manifest load, record/status, draw gating, init-order fix, reload re-resolution | T-007, T-008 | DONE | **Done:** engine call sites through the tracked target patch — `R_LoadARBProgram` publishes an id only after a successful compile, phase-1 handles replace `R_FindARBProgram`, `R_InitShaderResolver` runs before `R_InitMaterials`, draw/bind sites gate on both phases, reload re-resolves (evidence §12). **Tolerant substitution (I-5) is now drawn**: `RB_DrawShaderErrorMaterial` binds the generated `_shaderError` checkerboard for a non-OK stage and for non-OK interaction passes. On the demo `game/demo_mars_city1`, tolerant reports `materials_error=6` and the frame shows the checkerboard; strict reports `materials_rejected=6` and draws no magenta (evidence §15, `evidence/runtime-census.md` §7). **Limit:** no program is `owned`, so strict/tolerant still cannot render the classic passes correctly; `off` renders the legacy path and is not parity evidence. |
 | T-022 | Make material program parsing atomic; replace raw program ints with a validated handle | T-021 | DONE | `newShaderStage_t` carries `shaderProgramHandle_t` (key + code + requested/blocked), `program` resolves as a pair, and a one-sided file installs neither stage. In-engine `shader_selftest` case 2 passes; `material_atomic` ctest passes (evidence §12.3). |
 | T-023 | Pin DXC/Tint/Emscripten and implement `compile.ps1` / `reflect.ps1` | T-020 | DONE | `pins.json` pins DXC 1.9.2609.5 and Tint (Dawn `106704a9ac3f`, asset SHA-256 verified), and now pins Emscripten 6.0.13 (`e13ee988…`, `emdawnwebgpu` port, recorded from the accepted run). `shaders/tools/verify-emscripten-pin.ps1` exits 0 on the pinned tool, 1 on a wrong version or commit, 2 (SKIP, never a pass) with no emsdk; mutation controls in §13.2. `compile.ps1` emits DXIL + SPIR-V + WGSL and re-parses the WGSL; `verify-golden.ps1` hashes all three. **Limit:** the wasm build belongs to the web target and no emsdk is installed on this host, so the real-tool check is recorded SKIPPED. |
 | T-024 | Engine tests: missing, one-sided, compile-failed, tolerant, reload | T-021, T-022 | DONE | `shader_selftest` runs the five cases inside `DOOM3.exe` against local resolver instances: `SHADER SELFTEST: PASS 5/5`, 8/8 markers via `tests/shader/run-engine-selftest.ps1` (exit 0). The core ctest suite is still 6/6 (evidence §12.3–§12.4). |
-| T-025 | Author `shadow.hlsl` + manifest entry + provenance record | T-020, T-023 | BLOCKED | **Done:** `shaders/classic/programs/shadow.hlsl` compiles DXIL + SPIR-V, manifest `stub`, PV-004 hashed; the shadow draw path is gated by the resolver. **Missing:** the shadow pass has not been compared in a running engine, and the classic GL backend still consumes retail ARB text. Needs: authorized data plus a running classic backend (the same input as T-027). |
+| T-025 | Author `shadow.hlsl` + manifest entry + provenance record | T-020, T-023 | BLOCKED | **Done:** `shaders/classic/programs/shadow.hlsl` compiles DXIL + SPIR-V, manifest `stub`, PV-004 hashed; the shadow draw path is gated by the resolver. **Demo observation:** the three demo maps exercise stencil shadows (466/639/616 light entities, 319/505/296 without `noshadows 1`), but the `shadow` stub makes the engine take the fixed-function fallback. **Missing:** no authored-program comparison — the classic GL backend binds the data's `shadow.vp`, not `shadow.hlsl`. Needs: retail data plus a backend that consumes the authored program (same input as T-027). |
 | T-026 | Reflection/ABI conformance test for every program | T-020, T-025, T-030 | DONE | `shaders/tools/reflect.ps1` → `REFLECT OK: 11 stages, 0 violations`; also proves each fragment input signature equals its vertex output signature. Limit: the reflection itself reads DXIL; the WGSL side is validated separately by `compile.ps1` through the pinned Tint. |
 | T-027 | Parity capture for the classic passes | T-025, T-028, T-030 | BLOCKED | needs authorized retail data and a running classic backend; neither exists |
-| T-028 | Tier B generic stage shaders within the 42-variant bound | T-020, T-023 | BLOCKED | **Done:** `generic_texgen.hlsl` compiled across the full bound: `BOUND PROOF OK: 42 variants x 2 stages = 84 compiles, 0 failures`. **Missing:** the shipped set is empty by rule — a variant may ship only when the material census observed the combination, and the census is blocked (T-031). Needs: the runtime census on authorized data. |
+| T-028 | Tier B generic stage shaders within the 42-variant bound | T-020, T-023 | DONE | **Done:** `generic_texgen.hlsl` compiled across the full bound (`BOUND PROOF OK: 42 variants x 2 stages = 84 compiles, 0 failures`). The shipped set is now the **12 combinations the demo material census observed** (5,358 ordinary stages) in `shaders/classic/stages/variants.json`; `COMPILE OK: 6 programs, 12 Tier B variants, 35 stage compiles (DXIL + SPIR-V + WGSL), 0 failures`. **Limit:** 42 remains an upper bound, not a target; texgen `screen2` and the unlisted cross-products are NOT OBSERVED in the demo, retail may add combinations, and the variants are compiled but not yet rendered in-engine. |
 | T-029 | `shader_status` / `shader_reload` console commands with counters | T-021 | DONE | Registered in `R_InitCommands`; `shader_status` prints the manifest/request/non-OK counts and `shader_reload` prints the before/after delta. Observed in `qconsole.log` in off and strict modes (evidence §12.2–§12.5). |
 | T-030 | Author `interaction.hlsl`, `environment.hlsl`, `bumpyenvironment.hlsl`, `arbfp_glasswarp.hlsl`, optional `test.hlsl` | T-025, T-026 | BLOCKED | **Done:** all five required programs plus the optional debug program exist, compile to DXIL + SPIR-V + validated WGSL and are hashed (PV-001…PV-006). **Missing:** none is `owned` — `ownership.md` §5 criterion 5 needs the rendered comparison (T-027), and the manifest correctly says `stub`. Needs: authorized data plus a running classic backend. |
 
@@ -92,10 +93,12 @@ does exist stays in the evidence column so the row is not read as "not started".
 
 | Id | Gate | Status | Why blocked | What unblocks it |
 |---|---|---|---|---|
-| T-031 | Runtime census on authorized local data | BLOCKED | no `*.pk4` in the worktree or default install path; data is EULA-bound | authorized local install + the procedure in `census.md` §7 |
+| T-031 | Runtime census on authorized local data | **DONE on the official free demo; retail BLOCKED** | demo run: 3 maps, 106 static target requests, 7 keys, 4 unresolved names; see `evidence/runtime-census.md` | retail data for census completeness (T-027) |
 | T-032 | Legal review of the derivative-work position | BLOCKED | no counsel review has occurred | a reviewer decision; P-1..P-5 remain conservative until then |
 
-A blocked gate is never reported as passed. The package is complete **with** these two known gaps.
+A blocked gate is never reported as passed. The demo census is a run, not a pass: its
+zero-unresolved acceptance fails against four demo programs, and retail completeness is still
+blocked. Legal review remains the only repository-wide blocker.
 
 ---
 
@@ -106,7 +109,8 @@ A blocked gate is never reported as passed. The package is complete **with** the
 - Six programs compiling for two targets does **not** mean they are `owned`, and `owned` is required
   before they may be drawn.
 - The provenance gate passing does **not** mean the legal position is settled.
-- The 42-variant bound compiling does **not** mean Tier B ships anything.
+- The 42-variant bound compiling does **not** mean all 42 ship; the 12 demo-observed variants do
+  **not** mean retail coverage, and compiling a variant does **not** mean it renders correctly yet.
 
 ---
 
@@ -115,17 +119,17 @@ A blocked gate is never reported as passed. The package is complete **with** the
 1. Independent review of the implementation (`review.md` §4 checklist) — the repository rule forbids
    self-approving the first engine PR, so the resolver core and wiring need a reviewer who did not
    write them.
-2. Supply authorized game data (an official demo `base/*.pk4` or a retail install) plus a GL-capable
-   desktop. Every remaining implementation item unblocks from that one input: the tolerant magenta
-   substitution (T-021) can be drawn and captured, the shadow/interaction passes can be compared
-   (T-025, T-030), the runtime census can run (T-031) and then Tier B can ship observed variants
-   (T-028). The 2026-11-01 probe in `evidence/implementation.md` §13.3 shows the engine aborting
-   inside renderer init without it, so no partial substitute is possible.
-3. Tolerant-mode visual substitution: the gate skips a non-OK stage in both modes, but the magenta
-   error material required by I-5 is not drawn yet. Wire it before promoting any program to `owned`.
+2. Supply **retail** data plus a GL-capable desktop for the remaining comparison work: the shadow
+   pass (T-025), the interaction/environment passes (T-030) and retail census completeness (T-031).
+   The official demo already unblocked and closed the tolerant substitution (T-021) and the shipped
+   Tier B set (T-028); it is not a substitute for retail parity.
+3. ~~Tolerant-mode visual substitution~~ — done. `RB_DrawShaderErrorMaterial` draws the generated
+   checkerboard for non-OK stages and interactions; the demo frame and the strict counter-frame are
+   in `evidence/runtime-census.md` §7. It still does **not** license promoting a program to `owned`.
 4. Emscripten: the identity is pinned in `shaders/tools/pins.json` and `verify-emscripten-pin.ps1`
    fails closed on a different local emsdk. Running that check against a real emsdk, and the wasm
    build itself, remain the web target's. Tint is pinned and WGSL is validated here, so the last
    missing `owned` criterion is the rendered comparison (T-027), not the shader build.
-5. When authorized data and a running classic backend exist, run T-031 before claiming census
-   completeness and T-027 before promoting any program to `owned`.
+5. With retail data, re-run the census before claiming completeness and run T-027 before promoting
+   any program to `owned`. Do not treat the demo's four unresolved names or its 12 Tier B variants
+   as the retail set.

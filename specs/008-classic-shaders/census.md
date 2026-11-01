@@ -1,7 +1,8 @@
 # Program census: classic ARB2 shader programs
 
-**Status**: static census **complete and machine-verified** (2026-10-28). Runtime census on
-retail data **NOT RUN — SKIPPED, not passed**.
+**Status**: static census **complete and machine-verified** (2026-10-28). Runtime census **RUN on the
+official free demo (2026-11-01)** — observed, but acceptance §7.3 is **not met** (four demo programs
+are outside the manifest). Runtime census on **retail data is NOT RUN**.
 
 **Scope**: every shader program the classic ARB2 renderer can request, as referenced by the
 pristine engine source. Fixed-function-equivalent stage state (blend, depth, texgen) is covered by
@@ -187,27 +188,43 @@ normal failure modes this port must remove.
 
 ### 7.1 Status
 
-**BLOCKED / SKIPPED.** No `*.pk4` exists in the worktree, `targets/win11-amd64/doom3/base` contains
-only `default.cfg`, and no retail install was found at the default Steam path on this machine on
-2026-10-28.
-Game data is EULA-bound and must not be committed, so the runtime census cannot be reproduced from
-the repository alone. This is recorded as a skip, not a pass.
+**RUN on the official free demo (2026-11-01); retail NOT RUN.** The demo `demo00.pk4`
+(SHA-256 `E373EC70…F64F9`, 12,234 entries, three maps) was staged locally with
+`scripts/prepare-demo-data.ps1` and is not committed. Every step in §7.2 was executed; the full
+observation is `evidence/runtime-census.md` and `evidence/runtime-census-demo.json`.
+
+The acceptance in §7.3 is **not met**: the three demo maps request `colorProcess.vfp`,
+`heatHaze.vfp`, `heatHazeWithMask.vfp` and `heatHazeWithMaskAndVertex.vfp`, none of which is in the
+manifest. They are recorded as unresolved; no manifest entry was added to make the gate pass.
+`pinch` and `megaTexture.vfp` are declared by unused `shaderDemo.mtr` materials and were **NOT
+OBSERVED** in any of the three maps. Retail completeness remains blocked on retail data.
+
+Earlier state (2026-10-28): SKIPPED, because no `*.pk4` existed in the worktree and no retail install
+was found. That skip is superseded by the demo run, not converted into a pass.
 
 ### 7.2 Procedure (to run when authorized local data exists)
 
 1. Build the census build with resolver logging enabled (implementation task T-021).
-2. Enumerate `base/*.pk4` and list `glprogs/*` entry names and `materials/*.mtr` names. Record
+2. Stage the data outside git: `scripts/prepare-demo-data.ps1 -Pk4 <pk4> -RunDir <worktree>\_data\run`.
+   Enumerate `base/*.pk4` and list `glprogs/*` entry names and `materials/*.mtr` names. Record
    **names and counts only**; do not extract or commit shader text.
 3. Parse the `.mtr` files for `program`, `vertexProgram`, `fragmentProgram` and `megaTexture`
    tokens. Each occurrence becomes a request. `postProcess` is a sort key
    (`neo/renderer/Material.cpp:358`), not a program request; record it separately if post-process
-   coverage matters.
-4. Run `DOOM3.exe +set r_shaderMode strict +map <representative map>` for the parity scene set.
-5. Dump `shader_status` (requested, resolved, unresolved, unsupported, per-material counts).
+   coverage matters. Steps 2–3 are automated by
+   `specs/008-classic-shaders/tools/runtime-census.ps1`, which also records the Tier B stage
+   combinations (`texgen`, `alphaTest`, `vertexColor`) from the same data.
+4. Run `scripts/run-win11-amd64.ps1 -Map <map> -ExtraArgs @('+set','r_shaderMode','strict',
+   '+shader_status')` for every map in the scene set (`+devmap` under the script), capturing
+   `qconsole.log` and a frame.
+5. Dump `shader_status` (requested, resolved, unresolved, unsupported, per-material counts) from the
+   post-initialisation line; counter-check the `SHADER ERROR` decision lines.
 6. Compare step 3 with step 5. Every requested name must be in the manifest or explicitly
-   `unsupported` with a reason.
-7. Record in `evidence/runtime-census.md` (created when this procedure is first run): data-set label and version, date, machine, map list,
-   counts, and the full list of unresolved/unsupported names. No shader text, no pak contents.
+   `unsupported` with a reason. Record static names the map set never uses as **NOT OBSERVED** with
+   the map list, never as resolved.
+7. Record in `evidence/runtime-census.md`: data-set label and version, date, machine, map list,
+   counts, and the full list of unresolved/unsupported/not-observed names. No shader text, no pak
+   contents.
 
 ### 7.3 Acceptance
 
@@ -228,19 +245,26 @@ the repository alone. This is recorded as a skip, not a pass.
 | `ambientLight.vfp` and `arbVP_glasswarp.txt` are unbound | **proven** | no compiled bind site |
 | `draw_exp.cpp` is not compiled | **proven** | absent from `targets/win11-amd64/sources.cmake` |
 | Materials can request arbitrary programs | **proven** | `neo/renderer/Material.cpp:1490` |
-| The retail data requests exactly this set | **not proven** | runtime census not run |
+| The demo data requests custom programs outside the static table | **proven (demo)** | `evidence/runtime-census.md` §3: 7 keys, 4 shipped `glprogs` files outside the table |
+| The demo map set uses 4 of those 7 keys | **proven (demo)** | `evidence/runtime-census.md` §4; `pinch`, `megatexture`, `bumpyenvironment` NOT OBSERVED |
+| Every demo request is in the manifest | **disproven (demo)** | 4 unresolved names, same section |
+| The retail data requests exactly this set | **not proven** | retail runtime census not run |
 | The five live-default programs (plus optional `test.vfp`) are the whole authoring set | **not proven** | `megaTexture.vfp` and material-declared programs are outside the table |
 
-The last two rows are why the runtime census remains an open gate. Do not claim "the port covers
-all shaders" from this document.
+The last two rows are why the runtime census remains an open gate for retail. Do not claim "the port
+covers all shaders" from this document.
 
 ---
 
 ## 9. Open questions
 
-1. Does retail data actually reference `megaTexture.vfp`, or only the editor/test maps? (Needs the
-   runtime census.)
+1. Does retail data actually reference `megaTexture.vfp`, or only the editor/test maps? **Demo
+   answer: NOT OBSERVED.** `megaTexture area3.mega` occurs once, in `shaderDemos/megaTexture`
+   (`materials/shaderDemo.mtr`); none of the three demo maps uses that material. Retail is still
+   unknown.
 2. Are there material stages that request a program file by a name that collides under the
-   extension-stripping rule? (Census step 3, compared by normalized key.)
-3. Does any shipped material name a program without a file extension? (The lookup supports it;
-   whether data uses it is unknown.)
+   extension-stripping rule? **Demo answer: no.** 7 distinct keys, 0 collisions, 0 names >63
+   characters (`evidence/runtime-census.md` §3).
+3. Does any shipped material name a program without a file extension? **Demo answer: no.** Every
+   observed name carries an extension (`.vfp`, `.cg` for the shader-demo request, `.mega` for the
+   mega file). Retail is still unknown.
