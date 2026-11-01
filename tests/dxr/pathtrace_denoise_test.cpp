@@ -4,7 +4,10 @@
 // generation change must reject the previous sample instead of blending it.
 // The bilateral filter is checked for the two properties that matter here:
 // variance falls on a flat noisy region, and a colour or depth edge is not
-// smeared. The expected means are computed in the test from the input array.
+// smeared. The expected means are computed in the test from the input array;
+// the depth-guide fixture instead compares against stated values from an
+// independent float64 reference, including a control that the far-side
+// expectation tracks its own input.
 
 #include "dxr_test_support.h"
 
@@ -52,6 +55,20 @@ void FillNoise(std::vector<float>* image, uint32_t width, uint32_t height, float
 float PixelLuma(const std::vector<float>& image, uint32_t width, uint32_t x, uint32_t y) {
     const size_t index = (static_cast<size_t>(y) * width + x) * 3;
     return dxr_test::Luma(&image[index]);
+}
+
+// Every channel of one pixel against one expected value. The fixtures below
+// feed a grey image, and a normalised weighted mean with one weight per
+// neighbour maps grey to grey, so a correct filter returns the same value in
+// R, G and B. Checking the three channels separately is what catches a
+// reduction that loses a channel.
+void NearRgb(dxr_test::Runner* runner, const std::vector<float>& image, uint32_t width,
+             uint32_t x, uint32_t y, float expected, float tolerance, const std::string& label) {
+    static const char* kChannel[3] = {" (red channel)", " (green channel)", " (blue channel)"};
+    const size_t index = (static_cast<size_t>(y) * width + x) * 3;
+    for (uint32_t channel = 0; channel < 3; ++channel) {
+        runner->Near(image[index + channel], expected, tolerance, label + kChannel[channel]);
+    }
 }
 
 }  // namespace
@@ -218,7 +235,59 @@ int main() {
                     "the bright side of a colour edge is preserved");
     }
 
+    // --- Bilateral filter: flat field with a depth guide -------------------
+    //
+    // No edge anywhere: a constant image under a constant depth guide. Every
+    // guide weight is 1, so the output is the input, in every channel. This
+    // asserts the depth-guided code path with the edge question removed: a
+    // reduction that loses a channel fails here without an edge to expose it,
+    // and no threshold can absorb the failure.
+    {
+        const uint32_t width = 8;
+        const uint32_t height = 8;
+        std::vector<float> flat;
+        Fill(&flat, width, height, 0.5f);
+        std::vector<float> depth(width * height, 2.0f);
+        std::vector<float> output;
+        Fill(&output, width, height, 0.0f);
+        DenoiseDesc desc;
+        desc.width = width;
+        desc.height = height;
+        desc.radius = 2;
+        desc.sigmaColor = 0.25f;
+        desc.sigmaDepth = 0.05f;
+        std::string error;
+        runner.Check(DenoiseBilateral(flat.data(), depth.data(), desc, output.data(), &error),
+                     "a flat image with a depth guide denoises");
+        NearRgb(&runner, output, width, 0, 0, 0.5f, 1.0e-6f,
+                "a flat image with a depth guide keeps its value");
+        NearRgb(&runner, output, width, width - 1, height - 1, 0.5f, 1.0e-6f,
+                "a flat image with a depth guide keeps its corner");
+        runner.Near(VarianceLuminance(output.data(), width, height), 0.0f, 1.0e-6f,
+                    "a flat image with a depth guide stays flat");
+    }
+
     // --- Bilateral filter: depth guide -------------------------------------
+    //
+    // The expectations are the output of an independent float64 reference that
+    // evaluates the documented filter over these exact inputs:
+    //
+    //   luma(c)      = 0.2126*c.r + 0.7152*c.g + 0.0722*c.b
+    //   spatial      = 1 / (1 + dx^2 + dy^2)
+    //   colourWeight = exp(-|luma(n) - luma(centre)| / sigmaColor)
+    //   depthWeight  = exp(-|depth(n) - depth(centre)| / sigmaDepth)
+    //   out(centre)  = sum(weight * colour(n)) / sum(weight)
+    //
+    //   depth-guided: x=0..3 -> 0.276396, 0.276691, 0.276151, 0.267982
+    //                 x=4..7 -> 0.7 in every channel
+    //   depth-free:   x=3     -> 0.390166, x=4 -> 0.577112
+    //
+    // The far side is the exact source value, not a threshold: every neighbour
+    // that keeps a non-zero weight sits on the same depth carrying 0.7, and the
+    // opposite side's weight is bounded by exp(-|5.0 - 1.0| / 0.05) = 1.8e-35.
+    // A correct filter therefore returns 0.7 within rounding, whatever the
+    // /fp: mode, and the assertion below must not be relaxed to hide a filter
+    // that does not.
     {
         const uint32_t width = 8;
         const uint32_t height = 1;
@@ -243,17 +312,47 @@ int main() {
         desc.radius = 2;
         desc.sigmaColor = 10.0f;
         desc.sigmaDepth = 0.05f;
+        // The far side is exact to within the 1.8e-35 opposite-side weight and
+        // to within 1.2e-8 of the float64 reference; 1e-6 is ~80x that.
+        const float kExactTolerance = 1.0e-6f;
+        // The exp-weighted averages land within 1e-7 of the float64 reference
+        // here; 2e-3 leaves room for another runtime's expf.
+        const float kAveragedTolerance = 2.0e-3f;
         std::string error;
         runner.Check(DenoiseBilateral(image.data(), nullptr, desc, withoutDepth.data(), &error),
                      "the depth-free filter runs");
         runner.Check(DenoiseBilateral(image.data(), depth.data(), desc, withDepth.data(), &error),
                      "the depth-guided filter runs");
-        runner.Check(PixelLuma(withDepth, width, 3, 0) < 0.35f,
-                     "the depth guide keeps the near side from bleeding");
-        runner.Check(PixelLuma(withoutDepth, width, 3, 0) > 0.38f,
-                     "without a depth guide the sides blend");
-        runner.Check(PixelLuma(withDepth, width, 4, 0) > 0.65f,
-                     "the depth guide keeps the far side from bleeding");
+        runner.Near(PixelLuma(withDepth, width, 3, 0), 0.267982f, kAveragedTolerance,
+                    "the depth guide keeps the near side from bleeding");
+        runner.Near(PixelLuma(withoutDepth, width, 3, 0), 0.390166f, kAveragedTolerance,
+                    "without a depth guide the near side blends");
+        runner.Near(PixelLuma(withoutDepth, width, 4, 0), 0.577112f, kAveragedTolerance,
+                    "without a depth guide the far side blends");
+        NearRgb(&runner, withDepth, width, 4, 0, 0.7f, kExactTolerance,
+                "the depth guide keeps the far side from bleeding");
+
+        // Control: the assertion above must track its own input. Move the
+        // far-side source by 0.3 -- 3e5 times the stated tolerance -- and the
+        // filtered far side has to move with it. A result that is constant,
+        // stale, or missing a channel cannot satisfy both this and the check
+        // above, so the 1e-6 tolerance is doing real work rather than being
+        // wide enough to accept 0.0.
+        std::vector<float> perturbed = image;
+        for (uint32_t x = 4; x < width; ++x) {
+            for (uint32_t channel = 0; channel < 3; ++channel) {
+                perturbed[x * 3 + channel] = 0.4f;
+            }
+        }
+        std::vector<float> perturbedOut;
+        Fill(&perturbedOut, width, height, 0.0f);
+        runner.Check(
+            DenoiseBilateral(perturbed.data(), depth.data(), desc, perturbedOut.data(), &error),
+            "the perturbed control denoise runs");
+        NearRgb(&runner, perturbedOut, width, 4, 0, 0.4f, kExactTolerance,
+                "control: the far side follows a perturbed source");
+        runner.Check(std::fabs(perturbedOut[4 * 3 + 0] - 0.7f) > kExactTolerance,
+                     "control: the perturbed far side is beyond the stated tolerance");
     }
 
     // --- Invalid denoise inputs --------------------------------------------
