@@ -32,6 +32,57 @@ function Read-Log([string]$Path) {
     if (-not (Test-Path -LiteralPath $Path)) { return '' }
     return (Get-Content -LiteralPath $Path -Raw)
 }
+function Invoke-PythonProbe([string]$Exe, [string[]]$Prefix, [string]$Code) {
+    # Native stderr redirected through 2>&1 becomes a terminating NativeCommandError under
+    # $ErrorActionPreference = 'Stop' on PowerShell 5.1, so relax the preference for the probe.
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $text = (& $Exe @Prefix -c $Code 2>&1 | Out-String).Trim()
+        $code = $LASTEXITCODE
+    } catch {
+        $text = $_.Exception.Message
+        $code = 1
+    } finally {
+        $ErrorActionPreference = $previous
+    }
+    $lastLine = @($text -split "`r?`n" | Where-Object { $_ -ne '' } | Select-Object -Last 1)
+    return [pscustomobject]@{ Code = $code; Text = $text; LastLine = $(if ($lastLine.Count) { $lastLine[0] } else { '' }) }
+}
+function Resolve-Python3WithPillow {
+    <#
+      Resolve the interpreter for compare-screenshots.py: prefer the py launcher with -3, then a
+      python on PATH. A candidate counts only when it is Python 3 and can import Pillow, so a
+      failure names the missing interpreter or package instead of a launcher quirk.
+    #>
+    $candidates = @()
+    $launcher = Get-Command py -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($launcher) { $candidates += [pscustomobject]@{ Label = 'py -3'; Exe = $launcher.Source; Prefix = @('-3') } }
+    $onPath = Get-Command python -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($onPath) { $candidates += [pscustomobject]@{ Label = 'python'; Exe = $onPath.Source; Prefix = @() } }
+
+    $problems = @()
+    foreach ($candidate in $candidates) {
+        $version = Invoke-PythonProbe $candidate.Exe $candidate.Prefix 'import sys; raise SystemExit(0 if sys.version_info[0] == 3 else 1)'
+        if ($version.Code -ne 0) {
+            $problems += ("{0} ({1}) is not Python 3{2}" -f $candidate.Label, $candidate.Exe, $(if ($version.LastLine) { ": $($version.LastLine)" } else { '' }))
+            continue
+        }
+        $pillow = Invoke-PythonProbe $candidate.Exe $candidate.Prefix 'import PIL; print(PIL.__version__)'
+        if ($pillow.Code -ne 0) {
+            $problems += ("{0} ({1}) cannot import Pillow{2}" -f $candidate.Label, $candidate.Exe, $(if ($pillow.LastLine) { ": $($pillow.LastLine)" } else { '' }))
+            continue
+        }
+        $pythonVersion = Invoke-PythonProbe $candidate.Exe $candidate.Prefix 'import sys; print(sys.version.split()[0])'
+        return [pscustomobject]@{
+            Exe   = $candidate.Exe
+            Prefix = $candidate.Prefix
+            Label = ("{0} ({1}, Python {2}, Pillow {3})" -f $candidate.Label, $candidate.Exe, $pythonVersion.Text, $pillow.Text)
+        }
+    }
+    if ($candidates.Count -eq 0) { $problems += 'no Python launcher on PATH: py.exe (py -3) and python.exe are both missing' }
+    return [pscustomobject]@{ Exe = $null; Prefix = @(); Label = ''; Problems = $problems }
+}
 
 # SC-001: executable exists and is x64.
 if (-not (Test-Path -LiteralPath $Exe)) {
@@ -145,15 +196,33 @@ if ($baseProblem) {
     Report 'SC-005' 'FAIL' 'HD screenshot missing'
 } else {
     $cmp = Join-Path $PSScriptRoot 'compare-screenshots.py'
-    $py = Get-Command py -ErrorAction SilentlyContinue
-    if (-not $py) {
-        Report 'SC-005' 'FAIL' 'py launcher not found; install Python 3 with Pillow'
+    $python = Resolve-Python3WithPillow
+    if (-not $python.Exe) {
+        Report 'SC-005' 'FAIL' ("no Python 3 interpreter with Pillow for compare-screenshots.py: {0}" -f ($python.Problems -join '; '))
     } else {
-        $out = & py -3 $cmp --base $baseShot --hd $shot --threshold $Threshold 2>&1
-        $code = $LASTEXITCODE
+        $prefix = $python.Prefix
+        $thresholdArg = $Threshold.ToString([System.Globalization.CultureInfo]::InvariantCulture)
+        $previous = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
+        try {
+            $out = & $python.Exe @prefix $cmp --base $baseShot --hd $shot --threshold $thresholdArg 2>&1
+            $code = $LASTEXITCODE
+        } catch {
+            $out = @($_.Exception.Message)
+            $code = 1
+        } finally {
+            $ErrorActionPreference = $previous
+        }
         $out | ForEach-Object { Write-Host "  $_" }
-        if ($code -eq 0) { Report 'SC-005' 'PASS' "image difference >= $Threshold%; baseline pack-free with forced image settings" }
-        else { Report 'SC-005' 'FAIL' "image difference below $Threshold% or comparison error" }
+        $resultText = ($out | Out-String)
+        $diffPercent = if ($resultText -match 'DIFF_PERCENT=([0-9.]+)') { $Matches[1] } else { $null }
+        if ($code -eq 0) {
+            Report 'SC-005' 'PASS' ("DIFF_PERCENT={0} >= {1}%; baseline pack-free with forced image settings; interpreter {2}" -f $diffPercent, $thresholdArg, $python.Label)
+        } elseif ($diffPercent) {
+            Report 'SC-005' 'FAIL' ("DIFF_PERCENT={0} < {1}% or comparison error (exit {2}); interpreter {3}" -f $diffPercent, $thresholdArg, $code, $python.Label)
+        } else {
+            Report 'SC-005' 'FAIL' ("comparison error (exit {0}); interpreter {1}" -f $code, $python.Label)
+        }
     }
 }
 
