@@ -4,7 +4,9 @@ Status: author evidence for issue #53, written 2026-10-30. This is **not** Q2 ac
 classic-parity result and not an independent review. It records what the merged superproject code
 does, what was observed on this host, and what could not run. **Updated 2026-11-02:** the engine fork
 (PR #1) merged and PR #113 bumps the submodule to `cd6ae660`; the target patch was re-exported and
-the target was rebuilt from the bumped tree (§4.5). T083 remains NOT RUN.
+the target was rebuilt from the bumped tree (§4.5). **Second pass:** after #115 merged at `b7c1a68`,
+#113 was rebased onto it and the configure, build, Q2 and contract checks were rerun; both contract
+gates are now green. T083 remains NOT RUN.
 
 **Headline: the adapter, the material plan and the light plan exist and are exercised; no classic
 frame was drawn and no GL-vs-D3D12 image comparison exists.** Every image row below is `NOT RUN` or
@@ -189,7 +191,7 @@ conflict was the `R_InitCommands` insertion point, resolved by keeping both comm
 
 | # | Command | Exit | Result |
 |---|---|---|---|
-| 20 | `git rebase origin/main` on the PR #113 head | 0 | rebased onto `a2b4613`; one commit, no conflicts |
+| 20 | `git rebase origin/main` on the PR #113 head | 0 | first onto `a2b4613`, then onto `b7c1a68` after #115 merged; both rebases clean, no conflicts |
 | 21 | `git -C doom3_orig/doom3 checkout cd6ae660…`; `git status --porcelain` | 0 | gitlink at `cd6ae660`, submodule tree clean |
 | 22 | `scripts/export-target-patches.ps1 -Name win11-amd64` | 0 | `Modified 74, Added 0, Removed 0`; patch 768,242 B; manifest 74 M rows |
 | 23 | fresh `new-target` then `scripts/apply-target-patches.ps1 -Name win11-amd64` | 0 | `Applied patch: 74 files verified, 0 mismatches` |
@@ -201,7 +203,8 @@ conflict was the `R_InitCommands` insertion point, resolved by keeping both comm
 | 29 | `ctest -R "renderer\.q2\." -C Release` | 0 | **3/3** (`command_order`, `classic_compatibility`, `classic_gui`) |
 | 30 | full `ctest -C Release` | 8 | **37/38**; only `rhi.q1a.diagnostics` fails with the known `D3D12GetDebugInterface failed (hr=0x887A002D)` Q1a residual (§2.1) |
 | 31 | `scripts/test-target-patches.ps1` | 0 | **39 passed, 0 failed** |
-| 32 | `py -3 -I scripts/validate-rhi-contract.py` | 1 | pre-existing: Q4 `src/renderer/q4_harness/*.h` violate the D3D12-vocabulary scan; the same command exits 1 on clean `main` and no Q2 file is reported |
+| 32 | `py -3 -I scripts/validate-rhi-contract.py` | 0 | **PASS** after #115 (`b7c1a68`): structure and lexical gate over 25 headers and 30 public test files |
+| 33 | `py -3 -I scripts/validate-webgpu-mapping.py` | 0 | **OK**: 119/119 public declarations classified; statuses, check rows and justifications valid |
 
 Artefacts (worktree-local, git-ignored): `DOOM3.exe` 17,316,352 B and `DOOM3XP.exe`
 17,499,648 B in `build/bin/Release/`. The D3D12 imports are still absent because no engine call site
@@ -272,7 +275,7 @@ the frozen Q0 ceilings, and T-05/T-06/T-08/T-09 remain unmeasured.
 | B3 | The portable seam accepts no vertex/index geometry | T080 world draw submission is extraction-only; `drawSubmissionUnavailable` is set | New Q1b-extension task |
 | B4 | No engine call site yet (T036), so the linker pulls nothing from `doom3_rhi` | Both executables link, but `d3d12.dll`/`dxgi.dll` are absent from `dumpbin /dependents`; that acceptance row is PARTIAL, not PASS | Q2 fork work (B5) |
 | B5 | T036 engine-side selector/typed failure landed in fork PR #1 and is present in the bumped tree (`renderapi_status` and `r_renderApi` are compiled into `DOOM3.exe`, §4.5). The portable sink install (`R_SetQ2SceneSink`) and `RC_*` dispatch call site are still absent | `r_renderApi 1` reaches the typed "no scene consumer" failure; `d3d12.dll`/`dxgi.dll` remain absent from `dumpbin /dependents` (B4 stays PARTIAL); T083 cannot run without legal data | Q2 port integration |
-| B6 | `validate-webgpu-mapping.py` exits 1 with 62 problems on current `main` | Pre-Q2 header gate is red (S3); unchanged by this PR | #36 / T089 |
+| B6 | ~~`validate-webgpu-mapping.py` exits 1 with 62 problems on current `main`~~ | **Resolved by #115 (`b7c1a68`)**: `validate-webgpu-mapping.py` now exits 0 with 119/119 declarations classified, and `validate-rhi-contract.py` also exits 0 | #36 / T089 (closed) |
 | B7 | Build-system change (`targets/win11-amd64/CMakeLists.txt`, resolved 2026-10-30) | Reviewer reran the build and tests and recorded the evidence (§4.3); no owner sign-off under `AGENTS.md` §11 | Reviewer |
 
 Stop conditions triggered or relevant: **S13** (no legal data → SKIPPED), **S3** (mapping gate red,
