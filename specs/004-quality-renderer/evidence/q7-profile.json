@@ -13,9 +13,9 @@
     "headless": true
   },
   "page": {
-    "runNonce": "q7b-1793587776475-1",
+    "runNonce": "q7b-1793588505981-1",
     "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
-    "page": "http://127.0.0.1:64559/web/profile/index.html?run=q7b-1793587776475-1"
+    "page": "http://127.0.0.1:58862/web/profile/index.html?run=q7b-1793588505981-1"
   },
   "scene": {
     "id": "q7-procedural-field/1",
@@ -689,12 +689,12 @@
         {
           "id": "P6-main-loop",
           "status": "PASS",
-          "detail": "loop ran 46 fixed tick(s) over 27 host frame(s)",
+          "detail": "loop ran 48 fixed tick(s) over 28 host frame(s)",
           "observed": {
-            "lastTimestampMs": 1123.8,
-            "accumulatorMs": 0.6333333333332405,
-            "ticks": 46,
-            "frames": 27,
+            "lastTimestampMs": 1138.2,
+            "accumulatorMs": 0.6999999999999886,
+            "ticks": 48,
+            "frames": 28,
             "droppedMs": 0,
             "paused": false
           }
@@ -1160,12 +1160,12 @@
         {
           "id": "P6-main-loop",
           "status": "PASS",
-          "detail": "loop ran 45 fixed tick(s) over 24 host frame(s)",
+          "detail": "loop ran 47 fixed tick(s) over 28 host frame(s)",
           "observed": {
-            "lastTimestampMs": 1118.5,
-            "accumulatorMs": 0.49999999999995026,
-            "ticks": 45,
-            "frames": 24,
+            "lastTimestampMs": 1146.9,
+            "accumulatorMs": 0.5666666666667055,
+            "ticks": 47,
+            "frames": 28,
             "droppedMs": 0,
             "paused": false
           }
