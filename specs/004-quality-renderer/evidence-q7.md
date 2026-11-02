@@ -21,14 +21,16 @@ fixture.
 - **Data identity and rights**: synthetic only. The procedural WGSL, synthetic VFS file and every
   expected value are authored here. No game data, retail shader, `glprogs`, derived pack or
   third-party SDK source is copied or required.
-  Content hashes at the time of the run:
-  - `web/profile/capability.mjs` `39ED4973689A2CCE6176A618BF82DAC2BCEC6B19F0A930FE3C732ACDF62295F1`
-  - `web/profile/profile.mjs` `F6B97E17AAA3739A5172B552F5412FF218B9769BC3926EC317F7F8EE44E337EC`
-  - `web/profile/scene.mjs` `EBFE8DA443E62D1508632916F0E56DBBAD3E24F0F4B8F31F4B531F6CA80B9875`
-  - `tests/webgpu/run-profile.mjs` `073D5266F190BDF5132C32E99735719E9BC88D21B9FDCED7E00CA02B2A4F7916`
-  - `tests/webgpu/profile.test.mjs` `A3827577F003E1AB49F33ECB97556D2001F03648F41BB085D022DC033313FA98`
-  - `tests/webgpu/profile-source-guard.test.mjs` `F994E0A6BB48ECD88EBBF9903D6F223B71B501F59B290B6073723355862E296F`
-  - `tests/webgpu/browser-pin.json` `13A07A1245E166F6A42FDD79060DF3DE78E41DF5A40CDC4B9D9DFC0069EE0249`
+  Content hashes at the time of the run. Each value is the SHA-256 of the committed blob
+  (`git show <rev>:<path>`), not the Windows working-tree bytes; `* text=auto` normalizes line
+  endings in the repository, so a worktree hash would drift.
+  - `web/profile/capability.mjs` `CC4637A64176DA7BF131399DBDB1FAED7C80E00EC9C7096C2AB1FA63001CA22B`
+  - `web/profile/profile.mjs` `206265A88B674A6DBD2866EE4A3EC343D8EF266E5194DC56D1FC668CF8D38AFA`
+  - `web/profile/scene.mjs` `5F1BFD08F4440440AE63B87CD4BD97B64FE1E6FAE1A075F430119AA1C8D775E1`
+  - `tests/webgpu/run-profile.mjs` `E5A62CF6AEAA9C7A69CEB0CE07725F610712E81E025586E02E6FFCFDBF75CBFC`
+  - `tests/webgpu/profile.test.mjs` `EC4B4C906FE44CF434E00791F21934FDCE92FDDE4DF274A6F10307C742E1D15D`
+  - `tests/webgpu/profile-source-guard.test.mjs` `48AC15E2BA5DC4A8DA24DCE24F1C4431E13804772CF22559DDAA2631CB34587C`
+  - `tests/webgpu/browser-pin.json` `72469D4153ACC177A0CD0E305EE71AF9BA5AE69C15FADE85470BD27962A54D60`
 - **Scene and inputs**: one full-screen procedural field (`q7-procedural-field/1`) on a 480×270 CSS
   canvas (drawing buffer 478×268 at DPR 1 because the CSS border is inside `box-sizing: border-box`),
   animated by a time uniform. Keyboard input is exercised synthetically (`KeyW` down/up). Pointer
