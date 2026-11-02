@@ -54,12 +54,18 @@ struct Material {
     int kind = kDiffuse;
     bool alphaTest = false;
     float alphaThreshold = 0.5f;
-    // 0: no uv, 1: planar xz (origin/scale from uvOriginScale).
+    // 0: no uv, 1: planar xz, 2: planar xy, 3: planar yz (origin/scale from
+    // uvOriginScale).
     int uvMode = 0;
     float uvOriginX = 0.0f;
     float uvOriginZ = 0.0f;
     float uvScaleX = 1.0f;
     float uvScaleZ = 1.0f;
+    // Q4 content cell, or -1 for a synthetic material. When set, base colour,
+    // roughness, metalness, alpha and emissive are sampled from the content
+    // atlas instead of the flat fields above.
+    int contentCell = -1;
+    float emissiveScale = 1.0f;
 };
 
 struct Object {
@@ -108,6 +114,12 @@ struct Scene {
     std::vector<Material> materials;
     std::vector<Object> objects;
     uint32_t maxDepth = 6;
+    // True when a material samples the Q4 content atlas. The capture records it
+    // so a synthetic fixture cannot be read as a content capture.
+    bool useContent = false;
+    // Camera the previous frame was rendered from, when this scene is one frame
+    // of a sequence. Used only for recording; the harness passes its own.
+    Camera previousCamera;
 };
 
 // Builds one named fixture at `frame`. Unknown names fail instead of returning
