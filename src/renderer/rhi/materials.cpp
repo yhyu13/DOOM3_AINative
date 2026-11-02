@@ -168,8 +168,68 @@ Status PlanMaterial(const MaterialInput& input, const ProgramGate& gate, Materia
         }
         plan->stages[i].kind = canonical[i];
         plan->stages[i].programId = programId;
+        plan->needsTexture[i] = canonical[i] == StageClass::Bump ||
+                                canonical[i] == StageClass::Diffuse ||
+                                canonical[i] == StageClass::Specular;
     }
     plan->stageCount = stageCount;
+    if (error != nullptr) {
+        error->clear();
+    }
+    return Status::Ok;
+}
+
+Status BindMaterialTextures(const MaterialPlan& plan,
+                            const MaterialStageTextures& textures,
+                            BoundMaterialPlan* bound, std::string* error) {
+    if (bound == nullptr) {
+        if (error != nullptr) {
+            *error = "BindMaterialTextures needs an output plan";
+        }
+        return Status::InvalidArgument;
+    }
+    *bound = BoundMaterialPlan();
+    bound->coverage = plan.coverage;
+    bound->drawClass = plan.drawClass;
+    if (plan.refusal != nullptr) {
+        // A refused material binds nothing; the refusal is carried forward so
+        // the caller cannot mistake an empty plan for an untextured draw.
+        bound->refusal = plan.refusal;
+        if (error != nullptr) {
+            error->clear();
+        }
+        return Status::Ok;
+    }
+    for (uint32_t i = 0; i < plan.stageCount; ++i) {
+        const MaterialStage& stage = plan.stages[i];
+        Texture texture;
+        switch (stage.kind) {
+            case StageClass::Bump:
+                texture = textures.bump;
+                break;
+            case StageClass::Diffuse:
+                texture = textures.diffuse;
+                break;
+            case StageClass::Specular:
+                texture = textures.specular;
+                break;
+            default:
+                break;
+        }
+        if (plan.needsTexture[i] && texture.id == 0) {
+            if (error != nullptr) {
+                *error = std::string("classic stage ") + ToString(stage.kind) +
+                         " declares a map but no texture was uploaded for it; the stage "
+                         "is not sampled through an implicit substitute";
+            }
+            *bound = BoundMaterialPlan();
+            return Status::InvalidArgument;
+        }
+        bound->stages[i].kind = stage.kind;
+        bound->stages[i].programId = stage.programId;
+        bound->stages[i].texture = texture;
+    }
+    bound->stageCount = plan.stageCount;
     if (error != nullptr) {
         error->clear();
     }

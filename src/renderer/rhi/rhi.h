@@ -132,6 +132,114 @@ struct ShaderModule {
     uint32_t id = 0;
 };
 
+// ---------------------------------------------------------------------------
+// Q2 geometry and texture resources (T080/T081)
+// ---------------------------------------------------------------------------
+//
+// A buffer is caller-supplied bytes in one of the two uses the classic ordered
+// stream needs. A texture carries a full mip chain; block-compressed bytes are
+// stored exactly as encoded (the seam does not define a block encoder). The
+// formats are the Q4 content pins (BC7 sRGB base colour/emissive, BC5 linear
+// normal XY, BC4 single channel) plus the uncompressed forms a synthetic
+// fixture can write without an encoder.
+
+struct Buffer {
+    uint32_t id = 0;
+};
+
+enum class BufferUsage {
+    Vertex,
+    Index,
+};
+
+struct BufferDesc {
+    BufferUsage usage = BufferUsage::Vertex;
+    // Tightly packed resource bytes. Vertex buffers are read as `Vertex` when a
+    // pipeline declares `vertexInput`; an index buffer is 16-bit unsigned.
+    std::vector<uint8_t> bytes;
+};
+
+enum class TextureFormat {
+    RGBA8Unorm = 0,
+    RGBA8Srgb,
+    R8Unorm,
+    // Q4 pins: BC4_UNORM (roughness/metalness/ao), BC5_UNORM (normal XY),
+    // BC7_UNORM_SRGB (base colour/emissive).
+    BC4Unorm,
+    BC5Unorm,
+    BC7UnormSrgb,
+    BC7Unorm,
+};
+
+struct TextureMip {
+    uint32_t width = 0;
+    uint32_t height = 0;
+    // Tightly packed rows for uncompressed formats; tightly packed encoded
+    // blocks (4x4) for block-compressed formats.
+    std::vector<uint8_t> bytes;
+};
+
+struct TextureDesc {
+    TextureFormat format = TextureFormat::RGBA8Unorm;
+    // Mip 0 first. Every mip after the first is half the previous size, with a
+    // minimum of one texel (4x4 blocks for block-compressed formats).
+    std::vector<TextureMip> mips;
+};
+
+struct Texture {
+    uint32_t id = 0;
+};
+
+// The one vertex layout the classic ordered stream submits. A pipeline that
+// declares `vertexInput` reads exactly this layout.
+struct Vertex {
+    float position[3] = {0.0f, 0.0f, 0.0f};
+    float texCoord[2] = {0.0f, 0.0f};
+};
+
+enum class CullMode {
+    None = 0,
+    Front,
+    Back,
+};
+
+enum class CompareFunc {
+    Never = 0,
+    Less,
+    Equal,
+    LessEqual,
+    Greater,
+    NotEqual,
+    GreaterEqual,
+    Always,
+};
+
+enum class StencilOp {
+    Keep = 0,
+    Zero,
+    Replace,
+    IncrementSaturate,
+    DecrementSaturate,
+    Invert,
+    IncrementWrap,
+    DecrementWrap,
+};
+
+struct StencilFaceState {
+    CompareFunc func = CompareFunc::Always;
+    StencilOp failStencil = StencilOp::Keep;
+    StencilOp failDepth = StencilOp::Keep;
+    StencilOp pass = StencilOp::Keep;
+};
+
+struct StencilState {
+    bool enabled = false;
+    uint8_t readMask = 0xFF;
+    uint8_t writeMask = 0xFF;
+    StencilFaceState front;
+    StencilFaceState back;
+};
+
 enum class ShaderStage {
     Vertex,
     Pixel,
@@ -154,27 +262,66 @@ struct Pipeline {
 struct GraphicsPipelineDesc {
     ShaderModule vertexShader;
     ShaderModule pixelShader;
-    // Number of colour attachments the pixel program writes, 1..4.
+    // Number of colour attachments the pixel program writes, 0..4. Zero is the
+    // stencil-only shadow-volume pass, which writes no colour.
     uint32_t colorAttachmentCount = 1;
     bool depthTest = false;
     bool depthWrite = false;
     // The pixel program reads the depth attachment as a sampled input.
     bool sampleDepth = false;
+    // Reads position/texCoord from a vertex buffer described by `Vertex`
+    // instead of the Q1b procedural fullscreen triangle.
+    bool vertexInput = false;
+    // The pixel program samples the draw item's texture at register t0 through
+    // the static point sampler at s0.
+    bool textured = false;
+    CullMode cullMode = CullMode::None;
+    // A stencil-enabled pipeline uses the depth-stencil attachment format, so
+    // every pipeline in that frame must also enable stencil (a pipeline may
+    // still keep every op at Keep with a zero write mask).
+    StencilState stencil;
 };
 
 struct ComputePipelineDesc {
     ShaderModule computeShader;
 };
 
+// One ordered draw. A pipeline with `vertexInput` consumes its vertex/index
+// buffers; the item transform is applied by the vertex program and `tint` is
+// the per-item colour multiplier. `texture` is sampled when the pipeline
+// declares `textured`. `stencilRef` is the comparison reference for a
+// stencil-enabled pipeline.
+struct DrawItem {
+    Buffer vertexBuffer;
+    uint32_t vertexCount = 0;
+    // Optional. When `indexCount` is non-zero the backend issues an indexed
+    // draw through this buffer.
+    Buffer indexBuffer;
+    uint32_t indexCount = 0;
+    Texture texture;
+    float tint[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+    // Column-major model-to-clip transform.
+    float transform[16] = {1.0f, 0.0f, 0.0f, 0.0f,
+                           0.0f, 1.0f, 0.0f, 0.0f,
+                           0.0f, 0.0f, 1.0f, 0.0f,
+                           0.0f, 0.0f, 0.0f, 1.0f};
+    uint8_t stencilRef = 0;
+};
+
 // One ordered draw pass. `colorIndices` selects which frame attachments this
 // pass writes; each attachment is written by exactly one pass. `colorClears`
 // is parallel to `colorIndices` (entry i belongs to colorIndices[i]) and is
-// applied when the pass begins.
+// applied when the pass begins. A stencil-only pass has `colorCount == 0` and
+// no colour targets; its pipeline must also declare zero colour attachments.
 struct DrawPassDesc {
     Pipeline pipeline;
     const uint32_t* colorIndices = nullptr;
     uint32_t colorCount = 0;
     const ClearRow* colorClears = nullptr;
+    // Ordered item list for a `vertexInput` pipeline. Empty keeps the Q1b
+    // procedural fullscreen-triangle behaviour and is rejected otherwise.
+    const DrawItem* items = nullptr;
+    uint32_t itemCount = 0;
     // One uniform colour multiplier uploaded for this pass. It is deliberately
     // per-submission data so frame-slot reuse can be checked for stale bytes.
     float tint[4] = {1.0f, 1.0f, 1.0f, 1.0f};
@@ -268,6 +415,16 @@ public:
                                   std::string* error);
     Status CreateComputePipeline(const ComputePipelineDesc& desc, Pipeline* pipeline,
                                  std::string* error);
+
+    // Creates a device-scoped resource and uploads its bytes. A texture carries
+    // a full mip chain. Creation records no frame work; a created handle may be
+    // named by any later DrawItem.
+    Status CreateBuffer(const BufferDesc& desc, Buffer* buffer, std::string* error);
+    Status CreateTexture(const TextureDesc& desc, Texture* texture, std::string* error);
+    // Drops the caller handle. The backend keeps the object until no recorded
+    // submission can still reference it and returns NotReady while one can.
+    Status DestroyBuffer(const Buffer& buffer, std::string* error);
+    Status DestroyTexture(const Texture& texture, std::string* error);
 
     // Records the ordered passes and readbacks, then returns without waiting.
     // Colour attachments are read back by index with ReadbackAttachment.

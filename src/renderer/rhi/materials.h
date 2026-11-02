@@ -84,6 +84,10 @@ struct MaterialPlan {
     CoverageClass coverage = CoverageClass::Opaque;
     DrawClass drawClass = DrawClass::Opaque;
     bool usesMegaTexture = false;
+    // Parallel to `stages`: the stage's classic map must be uploaded before the
+    // stage can be drawn. A declared map with no texture is refused by
+    // BindMaterialTextures rather than sampled as an implicit white texel.
+    bool needsTexture[3] = {false, false, false};
     // Non-null means "must not be drawn"; the string is a stable literal naming the reason.
     const char* refusal = nullptr;
 };
@@ -92,6 +96,44 @@ struct MaterialPlan {
 // is Ok with a non-null `refusal` and stageCount 0, so the caller can report it per material.
 Status PlanMaterial(const MaterialInput& input, const ProgramGate& gate, MaterialPlan* plan,
                     std::string* error);
+
+// ---------------------------------------------------------------------------
+// Classic stage texture binding (T081)
+// ---------------------------------------------------------------------------
+//
+// The classic interaction program samples one map per stage: bump, then
+// diffuse, then specular. Uploading a texture is the RHI's job; this decides
+// which uploaded texture a stage binds and refuses a declared map that was not
+// uploaded. No implicit white/black substitute is produced.
+
+struct MaterialStageTextures {
+    Texture bump;
+    Texture diffuse;
+    Texture specular;
+};
+
+struct BoundMaterialStage {
+    StageClass kind = StageClass::None;
+    uint32_t programId = 0;
+    // Zero means the stage runs untextured (the caller's program owns that).
+    Texture texture;
+};
+
+struct BoundMaterialPlan {
+    BoundMaterialStage stages[3];
+    uint32_t stageCount = 0;
+    CoverageClass coverage = CoverageClass::Opaque;
+    DrawClass drawClass = DrawClass::Opaque;
+    // Non-null exactly when the material plan refused the draw.
+    const char* refusal = nullptr;
+};
+
+// A refused plan binds nothing and keeps its refusal. A plan whose stage
+// declares a map but receives no texture is InvalidArgument: a declared map is
+// never sampled through a substitute.
+Status BindMaterialTextures(const MaterialPlan& plan,
+                            const MaterialStageTextures& textures,
+                            BoundMaterialPlan* bound, std::string* error);
 
 // ---------------------------------------------------------------------------
 // Q4 modern material contract (T050/T051)

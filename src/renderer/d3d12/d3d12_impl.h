@@ -223,6 +223,11 @@ struct SubmissionRecord {
     uint32_t bufferElementCount = 0;
     uint32_t bufferElementSize = 0;
     uint32_t bufferReadbackBytes = 0;
+    // Q2 geometry: per-submission shader-visible texture views and the ordered
+    // per-item constant buffer (transform + tint, 256-byte stride).
+    ComPtr<ID3D12DescriptorHeap> itemViews;
+    ComPtr<ID3D12Resource> itemConstants;
+    uint32_t itemConstantCount = 0;
     uint32_t slotIndex = 0;
     uint64_t slotCompletedAtAcquire = 0;
     uint32_t historyGeneration = 0;
@@ -268,6 +273,14 @@ struct Q1bHost {
     virtual Status ReadbackClear(const Submission& submission, ReadbackResult* result,
                                  std::string* error) = 0;
 };
+
+// Portable texture format to the backend's native format. Defined in
+// rhi_attachments.cpp because it is the only translation unit that needs the
+// block layout arithmetic.
+DXGI_FORMAT NativeTextureFormat(TextureFormat format);
+// Encoded/uncompressed bytes for one row of a mip at `width` texels. For block
+// formats this is the tightly packed encoded bytes of one 4-texel block row.
+uint32_t TextureRowBytes(TextureFormat format, uint32_t width);
 
 struct Q1bState;
 }  // namespace detail
@@ -424,6 +437,8 @@ struct Device::Impl : public d3d12::detail::Q1bHost {
         record.depth.Reset();
         record.buffer.Reset();
         record.bufferReadback.Reset();
+        record.itemViews.Reset();
+        record.itemConstants.Reset();
         record.commandList.Reset();
         record.gateFence.Reset();
         record.allocator.Reset();
@@ -1281,6 +1296,10 @@ struct PipelineRecord {
     bool depthWrite = false;
     bool sampleDepth = false;
     bool compute = false;
+    bool vertexInput = false;
+    bool textured = false;
+    bool stencilEnabled = false;
+    uint8_t stencilWriteMask = 0;
 };
 
 struct SurfaceRecord {
@@ -1307,6 +1326,27 @@ struct FrameSlot {
     uint64_t serial = 0;
 };
 
+// Q2 geometry resources. Buffers live in an UPLOAD heap and stay mapped for
+// their lifetime, which is legal for vertex/index use and avoids a copy.
+// Textures live in a DEFAULT heap and are populated once by a serialized copy
+// before any frame can name them.
+struct GeometryBufferRecord {
+    uint32_t id = 0;
+    BufferUsage usage = BufferUsage::Vertex;
+    uint32_t byteCount = 0;
+    ComPtr<ID3D12Resource> resource;
+};
+
+struct GeometryTextureRecord {
+    uint32_t id = 0;
+    TextureFormat format = TextureFormat::RGBA8Unorm;
+    DXGI_FORMAT nativeFormat = DXGI_FORMAT_UNKNOWN;
+    uint32_t width = 0;
+    uint32_t height = 0;
+    uint32_t mipCount = 0;
+    ComPtr<ID3D12Resource> resource;
+};
+
 }  // namespace detail
 }  // namespace d3d12
 
@@ -1324,6 +1364,10 @@ struct Q1bState {
                                   std::string* error);
     Status CreateComputePipeline(const ComputePipelineDesc& desc, Pipeline* pipeline,
                                  std::string* error);
+    Status CreateBuffer(const BufferDesc& desc, Buffer* buffer, std::string* error);
+    Status CreateTexture(const TextureDesc& desc, Texture* texture, std::string* error);
+    Status DestroyBuffer(const Buffer& buffer, std::string* error);
+    Status DestroyTexture(const Texture& texture, std::string* error);
     Status SubmitDrawFrame(const DrawFrameDesc& desc, Submission* submission,
                            std::string* error, bool gated = false);
     Status SubmitCompute(const ComputeDispatchDesc& desc, Submission* submission,
@@ -1351,11 +1395,11 @@ struct Q1bState {
                                  uint32_t* rowPitch, ComPtr<ID3D12Resource>* readback,
                                  std::string* error);
     Status CreateDepthAttachment(uint32_t width, uint32_t height,
-                                 float optimizedDepth,
+                                 float optimizedDepth, bool withStencil,
                                  ComPtr<ID3D12Resource>* texture, std::string* error);
     Status RecordDrawPasses(ID3D12GraphicsCommandList* list, FrameSlot& slot,
                             const DrawFrameDesc& desc,
-                            d3d12::detail::SubmissionRecord& record,
+                            d3d12::detail::SubmissionRecord& record, bool frameStencil,
                             std::string* error);
     Status CreateComputeResources(const ComputeDispatchDesc& desc, FrameSlot& slot,
                                   ComPtr<ID3D12Resource>* buffer,
@@ -1373,9 +1417,13 @@ struct Q1bState {
     uint32_t nextPipelineId = 1;
     uint32_t nextSurfaceId = 1;
     uint32_t nextShaderId = 1;
+    uint32_t nextBufferId = 1;
+    uint32_t nextTextureId = 1;
     std::map<uint32_t, ShaderRecord> shaders;
     std::map<uint32_t, PipelineRecord> pipelines;
     std::map<uint32_t, SurfaceRecord> surfaces;
+    std::map<uint32_t, GeometryBufferRecord> buffers;
+    std::map<uint32_t, GeometryTextureRecord> textures;
     std::vector<FrameSlot> slots;
 };
 

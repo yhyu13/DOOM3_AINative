@@ -132,6 +132,45 @@ Status PlanLight(const LightInput& light, const MaterialShadowInput& material, b
     return Status::Ok;
 }
 
+Status PlanShadowVolume(const LightPlan& light, ShadowVolumePlan* plan, std::string* error) {
+    if (plan == nullptr) {
+        if (error != nullptr) {
+            *error = "PlanShadowVolume needs an output plan";
+        }
+        return Status::InvalidArgument;
+    }
+    *plan = ShadowVolumePlan();
+    if (!light.interactionPass || light.ambientPass || light.fogOrBlendPass) {
+        // Ambient/fog/blend never own a shadow volume.
+        if (error != nullptr) {
+            error->clear();
+        }
+        return Status::Ok;
+    }
+    const uint32_t chains = (light.firstChain == ShadowPolicy::None ? 0u : 1u) +
+                            (light.secondChain == ShadowPolicy::None ? 0u : 1u);
+    if (chains == 0) {
+        // CP-07 exclusion: a no-shadows material or light, or a self-shadow-only
+        // combination with no remaining chain, emits no stencil work.
+        if (error != nullptr) {
+            error->clear();
+        }
+        return Status::Ok;
+    }
+    plan->enabled = true;
+    plan->chainCount = chains;
+    plan->facePassCount = chains * 2u;
+    plan->faces[0] = ShadowVolumeFace::Back;
+    plan->faces[1] = ShadowVolumeFace::Front;
+    plan->stencilRef = 1;
+    plan->depthClampUsed = false;
+    plan->requiresClosedVolume = true;
+    if (error != nullptr) {
+        error->clear();
+    }
+    return Status::Ok;
+}
+
 const char* ToString(SurfaceStage value) {
     switch (value) {
         case SurfaceStage::Opaque: return "Opaque";
