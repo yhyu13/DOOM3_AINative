@@ -101,6 +101,12 @@ struct LightPacket {
     LightInput light;
     MaterialShadowInput material;
     bool sameEntity = false;
+    // The engine emits one packet per shadow chain and states which one this
+    // packet represents: 0 keeps the derived global+local plan, 1 is the
+    // global chain and 2 the local chain. The adapter narrows the plan to that
+    // single chain after PlanLight, so a two-chain packet is never silently
+    // dropped and a one-chain packet is never expanded.
+    int chainKind = 0;
 };
 
 // Pre-translated geometry. No engine pointer, GL enum or vertex-cache handle

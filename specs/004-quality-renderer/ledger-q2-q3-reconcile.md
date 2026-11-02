@@ -1,4 +1,4 @@
-# Q2/Q3 ledger reconciliation (2026-11-02)
+﻿# Q2/Q3 ledger reconciliation (2026-11-02)
 
 Status: reconciliation of the Q2 (US3) and Q3 (US4) task rows against merged work. This is
 **not** Q2/Q3 acceptance, not a parity or capture result, and not an independent review. It changes
@@ -147,3 +147,45 @@ Q3 acceptance, T044's block or T048's moving-scene/review block.
 B4 (no Q3 fork branch / no owner sign-off) and B5 (superproject sink linkage) are now split: B5's
 superproject half is resolved, while B4 still blocks T044's `Model_md5.cpp` snapshot and therefore the
 retail-engine frame. B1 is unchanged, so no moving-scene capture or Q3 acceptance is claimed.
+
+## Addendum 2026-11-02 — Q2/Q3 fork call sites and bump preparation
+
+Branch `spec-004-q2-q3-engine` (fork PR https://github.com/yhyu13/DOOM-3/pull/2, merged to fork
+`master` at `c87e87b`) implements the engine half the earlier ledger marked absent. The superproject bump points
+`doom3_orig/doom3` at `c87e87b` (from `cd6ae660`), re-exports the target patch and contract-tests the
+seam. It does **not** accept Q2 or Q3 and is not merged.
+
+| Row | Previous state | State after fork PR #2 + bump | Remaining |
+|---|---|---|---|
+| T080 | PARTIAL; no geometry submission | Fork emits `surfacePacket` with the `srfTriangles_t` snapshot and model transform; target build links it; `renderer.q2.fork_seam` submits the synthetic surface | Live engine frame: no device consumer in `DOOM3.exe`; no retail data |
+| T081 | PARTIAL; no texture upload | Fork forwards `GenerateImage` RGBA8 bytes, dimensions, filter/repeat and stable identity, plus per-stage image ids; target build links `R_Q2ImageIdentity`/`R_Q2EmitImageUpload` | No device texture cache in the engine; no live engine upload |
+| T082 | PARTIAL; no stencil call site | Fork emits one light packet per global/local chain with `chainKind`, surface count, noShadow/noSelfShadow and exclusion facts; `renderer.q2.fork_seam` proves one local chain + one excluded light | Engine sends no shadow-volume mesh; retail CP-07 NOT RUN |
+| T044 | PARTIAL; engine half BLOCKED | Fork `Model_md5.cpp` keeps a private `(viewId, stable surface id)` previous pose with generation handling; target build defines `R_Q3PreviousPrivatePose`/`R_Q3ResetPrivatePoses`; `privatePose` reaches `FrameIntegration` | Engine path needs a device consumer and an md5 asset to run; runtime BLOCKED |
+| T048 | PARTIAL; moving scene BLOCKED | Unchanged: analytic checks pass, moving scene still needs a live engine frame | `review-q3.md` absent |
+| T085 | DONE (engine-link half) | Sink accepts surfaces/images/poses; the fork call sites now feed it | Still no device backend/pipelines in the engine |
+| T039/T040/T083 | BLOCKED/NOT RUN | Unchanged | Retail data (B1) and independent review (B2) |
+
+### Corrected blockers
+
+- **B4** (no Q3 fork branch / no owner sign-off) is **resolved for this branch**: the owner authorized
+  the branch and bump on 2026-11-02 (verbatim "me grant right"), and the branch exists. The remaining
+  T044 block is data plus a device consumer, not permission.
+- **B5** (no sink consumer) was already split by the T085 addendum; the fork call sites now supply the
+  values. The engine still installs no device backend/pipelines, so no live frame is claimed.
+- **B6/B7** (portable seam missing vertex/texture/stencil) are stale: the seam has all three.
+  The engine-side equivalents are delivered on the fork; their runtime remains unproven.
+- **B1** (retail/demo data) is unchanged. Every CP-07 and parity image row stays `NOT RUN`/`SKIPPED`.
+- **B2/B3** (no independent `review-q2.md`/`review-q3.md`) are unchanged. Neither PR may merge without
+  an independent review; the bump additionally needs the recorded owner sign-off.
+
+### Non-claims
+
+- No engine frame, retail scene, CP-07 row, texture parity, moving-scene capture or pose stream is
+  claimed. The `renderer.q2.fork_seam` frames are synthetic.
+- A light packet with no shadow chain is `lightsExcluded`; the portable adapter does not yet draw a
+  shade-only interaction frame for a real `noShadows` light with lit surfaces. The fixture's excluded
+  light has no interaction surfaces, so that adapter gap is not claimed as fixed.
+- The target patch is re-exported against `c87e87b`; `apply-target-patches.ps1` verified 74/74 modified
+  rows on a fresh copy. The patch remains a modified-files-only reconstruction.
+- The fork and bump PRs are open for review. Nothing here is Q2/Q3 acceptance.
+

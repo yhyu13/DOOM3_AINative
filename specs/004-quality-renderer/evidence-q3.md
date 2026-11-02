@@ -1,4 +1,4 @@
-# Q3 motion, history and HUD evidence (T043, T044, T045, T047, T048, T085)
+﻿# Q3 motion, history and HUD evidence (T043, T044, T045, T047, T048, T085)
 
 Status: author evidence for issue [#62](https://github.com/yhyu13/DOOM3_AINative/issues/62) and
 the residual tracking issue [#120](https://github.com/yhyu13/DOOM3_AINative/issues/120), written
@@ -133,7 +133,7 @@ py -3 -I specs/004-quality-renderer/tools/motion_fixtures.py --self-test        
 | `Contract header/test gate` (earlier `build-q3-residual` pass) | RUN | PASS | `header scan: RUN over 25 header(s) and 30 public test file(s)`, exit 0; the current 27/33 run is recorded in §6.4 | `build-q3-residual/validate-rhi-contract.log` |
 | Fixture document + self-test | RUN | PASS | `20 fixture rows and 10 validity rows match the generator`; `5 numeric mutations and the zero-valid contract are detected` | `build-q3-residual/fixture-check.log`, `fixture-self-test.log` |
 | Negative control: generation check removed | RUN | **FAIL (intended)** | `q3_skinned_history_test` exit 1, 3 failures; restored run 58/0 exit 0 | `build-q3-residual/mutation-skinned-history.log`, `restore-skinned-history.log` |
-| Engine-fork private pose snapshot (`Model_md5.cpp`) | NOT RUN | **BLOCKED** | See §6.1; no fork Q3 branch, submodule bump needs owner sign-off, no data to exercise an md5 model | — |
+| Engine-fork private pose snapshot (`Model_md5.cpp`) | NOT RUN | **BLOCKED** | Implemented on fork PR #2, merged to fork `master` at `c87e87b`; runtime needs a device consumer and an md5 asset. See §7. | — |
 | Engine-fork call sites / actual frame resources (T085 fork half) | RUN (superproject half) | **PASS; fork half BLOCKED** | Fork call sites are absent (live geometry source and private pose); the superproject installs the `R_SetQ2SceneSink` consumer and links the Q3 sources, and the synthetic frame/motion readback passes. See §6.2 | `build-tests/q3-engine-frame.log`, `build-tests/q3-engine-motion.log` |
 | Legal-data moving-scene capture (T048) | SKIPPED | **BLOCKED** | No authorized `.pk4`/`.pk3`/`.pak`, no engine binary and no engine call site; image comparison not attempted | — |
 | Independent review (`review-q3.md`) | NOT RUN | — | Requested in the PR; a non-author must rerun the commands at the reviewed SHA and record the verdict | — |
@@ -298,3 +298,52 @@ Artifacts: `specs/004-quality-renderer/evidence/q3-engine-sink-frame.png` and
   Q4/Q5/Q6/Q7 harness change and no submodule or retail-data change. The `rhi.q1a.diagnostics`
   result must be reported for the reviewer's host, not waived.
 - **Review decision and unresolved items**: NOT RUN.
+
+## 7. T044 engine-fork private pose snapshot (2026-11-02)
+
+Status: author evidence for the fork half on branch `spec-004-q2-q3-engine`, merged to fork
+`master` at `c87e87b` (`https://github.com/yhyu13/DOOM-3/pull/2`). This corrects §6.1's "there is no Q3
+fork branch" and "no owner sign-off" statements for this branch only. It does not claim Q3 acceptance
+and does not replace `review-q3.md`.
+
+### 7.1 What the fork now does
+
+`neo/renderer/Model_md5.cpp` keeps a private store keyed by `(viewId, stable surface id)`:
+
+- `R_Q3NextGeneration` advances a generation only when `surf->geometry` is allocated or its
+  vertex/index counts change, not on every frame.
+- `R_Q3CommitPrivatePose` copies the posed `idDrawVert::xyz` values after `R_DeriveTangents`, moves
+  the old current copy to `previous`, and records the generation.
+- The copy owns its memory. A later `R_FreeStaticTriSurf` of the shared dynamic surface cannot
+  invalidate it, and a different `viewId` (main/mirror/camera) has its own record.
+- `R_Q3PreviousPrivatePose` returns the previous copy only when the requested generation matches; a
+  regenerated surface returns no stale vertices.
+- The same snapshot is forwarded through the sink's `privatePose` callback. The portable
+  `EngineQ2SinkConsumer` commits it to `FrameIntegration`, and `R_Q3ResetPrivatePoses` clears the
+  store on modern-path shutdown.
+
+`tr.viewDef->isMirror`/`isSubview` supplies the view kind (0 main, 1 mirror, 2 camera); `viewID`
+supplies the per-view identity. The engine store is gated on `R_ModernRenderApiRunning()`, so the
+OpenGL reference path does not copy posed vertices.
+
+### 7.2 Commands and exits
+
+| Command | Exit | Observed |
+|---|---:|---|
+| `git -C <fork> push -u origin spec-004-q2-q3-engine` | 0 | branch `99ef55a`; fork PR https://github.com/yhyu13/DOOM-3/pull/2 later merged to `master` at `c87e87b` |
+| `cmake --build --preset win11-amd64-release -- -m` | 0 | `DOOM3.exe` 17,605,120 bytes and `DOOM3XP.exe` 17,788,416 bytes from the reconstructed target copy |
+| `dumpbin /symbols ...\doom3_engine.lib` | 0 | `R_Q3PreviousPrivatePose` and `R_Q3ResetPrivatePoses` are defined in the engine object library |
+| `q2_fork_seam_test.exe` | 0 | hardware and software PASS; the `privatePose` callback retains `77/2` positions and a newer generation returns `Generation` |
+| `ctest --test-dir build-q2 -C Release` | 0 | 45/45 passed |
+| `ctest --test-dir build-q2 -C Debug` | 0 | 45/45 passed |
+| `q3_skinned_history_test.exe` | 0 | the portable regeneration/deletion/subview cases remain 58/0 |
+
+### 7.3 The half that is still BLOCKED
+
+The engine-side snapshot is compiled and linked, but it has **not** been exercised on an md5 model:
+no `.pk4`/`.pk3`/`.pak` or extracted md5 asset exists in this worktree, and the target engine still
+refuses the modern path without a device consumer. The fork half is therefore compile/link evidence
+plus the portable seam assertion, not a live pose stream. That runtime half is **BLOCKED on retail
+data and a device consumer**, not on permission: the owner authorized the branch and the bump on
+2026-11-02. T044 stays unchecked; `review-q3.md` is still NOT RUN.
+

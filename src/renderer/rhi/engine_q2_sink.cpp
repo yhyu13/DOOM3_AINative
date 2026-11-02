@@ -56,15 +56,27 @@ LightKind ToLightKind(const Q2SinkLightFacts& facts) {
     return LightKind::Ambient;
 }
 
+ViewKind ToViewKind(uint32_t value) {
+    switch (value) {
+        case 1: return ViewKind::Mirror;
+        case 2: return ViewKind::Camera;
+        case 3: return ViewKind::Shadow;
+        default: return ViewKind::Main;
+    }
+}
+
 }  // namespace
 
 EngineQ2SinkConsumer::EngineQ2SinkConsumer() {
     callbacks_.user = this;
     callbacks_.initialize = &EngineQ2SinkConsumer::InitializeThunk;
     callbacks_.shutdown = &EngineQ2SinkConsumer::ShutdownThunk;
+    callbacks_.imageUpload = &EngineQ2SinkConsumer::ImageUploadThunk;
     callbacks_.beginView = &EngineQ2SinkConsumer::BeginViewThunk;
+    callbacks_.surfacePacket = &EngineQ2SinkConsumer::SurfacePacketThunk;
     callbacks_.drawPacket = &EngineQ2SinkConsumer::DrawPacketThunk;
     callbacks_.lightPacket = &EngineQ2SinkConsumer::LightPacketThunk;
+    callbacks_.privatePose = &EngineQ2SinkConsumer::PrivatePoseThunk;
     callbacks_.endView = &EngineQ2SinkConsumer::EndViewThunk;
     callbacks_.setColorTarget = &EngineQ2SinkConsumer::SetColorTargetThunk;
     callbacks_.copyToImage = &EngineQ2SinkConsumer::CopyToImageThunk;
@@ -88,6 +100,8 @@ bool EngineQ2SinkConsumer::Initialize(int width, int height, std::string* error)
     lastError_.clear();
     lastResult_ = SceneExecuteResult();
     queue_.Clear();
+    surfaces_.clear();
+    imageUploads_.clear();
 
     auto fail = [error](const std::string& reason) {
         if (error != nullptr) {
@@ -98,6 +112,11 @@ bool EngineQ2SinkConsumer::Initialize(int width, int height, std::string* error)
 
     if (width <= 0 || height <= 0) {
         return fail("the classic scene consumer needs a non-zero display extent");
+    }
+    // The consumer itself resolves the surfaces the engine sends. A caller that
+    // supplied an external source keeps it.
+    if (desc_.geometry == nullptr) {
+        desc_.geometry = this;
     }
     if (!desc_.structuralOnly) {
         if (desc_.backend == nullptr || desc_.geometry == nullptr) {
@@ -152,6 +171,8 @@ bool EngineQ2SinkConsumer::Initialize(int width, int height, std::string* error)
 
 void EngineQ2SinkConsumer::Shutdown() {
     queue_.Clear();
+    surfaces_.clear();
+    imageUploads_.clear();
     lastResult_ = SceneExecuteResult();
     lastError_.clear();
     initialized_ = false;
@@ -245,11 +266,16 @@ bool EngineQ2SinkConsumer::LightPacket(const Q2SinkLightFacts& light) {
     packet.light.falloffRadius = light.falloffRadius;
     packet.light.noShadows = light.noShadows;
     packet.light.multiFrustum = light.numShadowFrustums > 1;
-    // The engine light facts carry no material shadow declarations; those are
-    // per draw surface and must not be guessed here.
-    packet.material.noShadows = false;
-    packet.material.noSelfShadow = false;
-    packet.sameEntity = false;
+    packet.chainKind = light.chainKind;
+    // The engine emitted one packet per chain and stated why it is excluded.
+    // A no-chain packet for a lit surface must not make the adapter derive the
+    // default global+local pair, so it is expressed as the material-noShadows
+    // suppression; a noShadows light is expressed as the light suppression.
+    packet.material.noShadows =
+        light.chainMaterialNoShadows ||
+        (light.excluded && light.chainKind == 0 && !light.noShadows);
+    packet.material.noSelfShadow = light.chainMaterialNoSelfShadow;
+    packet.sameEntity = light.chainSameEntity;
     if (!queue_.DrawLight(packet)) {
         return Refuse("the classic stream could not express a light packet");
     }
@@ -331,6 +357,100 @@ bool EngineQ2SinkConsumer::SwapBuffers() {
     return true;
 }
 
+bool EngineQ2SinkConsumer::SurfacePacket(
+    unsigned int surfaceId, const Q2SinkSurfaceGeometry& geometry) {
+    if (!initialized_) {
+        return Refuse(
+            "a world surface arrived before the classic scene consumer initialized");
+    }
+    if (surfaceId == 0) {
+        return Refuse("a world surface has no identity");
+    }
+    if (geometry.vertices.empty()) {
+        return Refuse("a world surface carries no vertices");
+    }
+    for (uint16_t index : geometry.indices) {
+        if (index >= geometry.vertices.size()) {
+            return Refuse("a world surface index is outside the vertex array");
+        }
+    }
+    if (!desc_.captureGeometry) {
+        return true;
+    }
+    SceneSurfaceGeometry stored;
+    stored.vertices = geometry.vertices;
+    stored.indices = geometry.indices;
+    std::memcpy(stored.transform, geometry.transform, sizeof(stored.transform));
+    surfaces_[surfaceId] = std::move(stored);
+    return true;
+}
+
+bool EngineQ2SinkConsumer::ImageUpload(const Q2SinkImageUpload& image) {
+    if (!initialized_) {
+        return Refuse(
+            "an image upload arrived before the classic scene consumer initialized");
+    }
+    if (image.imageId == 0) {
+        return Refuse("an image upload has no identity");
+    }
+    if (image.width <= 0 || image.height <= 0) {
+        return Refuse("an image upload has an empty extent");
+    }
+    if (!image.pixels.empty()) {
+        const int bytesPerTexel = (image.format == 0) ? 4 : 1;
+        if (image.bytesPerRow != image.width * bytesPerTexel) {
+            return Refuse("an image upload has an inconsistent row pitch");
+        }
+        const size_t expected = static_cast<size_t>(image.bytesPerRow) *
+                                static_cast<size_t>(image.height);
+        if (image.pixels.size() != expected) {
+            return Refuse("an image upload has an inconsistent byte count");
+        }
+    }
+    Q2SinkImageUpload stored = image;
+    if (!desc_.captureImageUploads) {
+        stored.pixels.clear();
+    }
+    imageUploads_[image.imageId] = std::move(stored);
+    return true;
+}
+
+bool EngineQ2SinkConsumer::PrivatePose(const Q2SinkPrivatePose& pose) {
+    if (!initialized_) {
+        return Refuse(
+            "a private pose arrived before the classic scene consumer initialized");
+    }
+    if (pose.surfaceId == 0 || pose.generation == 0 || pose.positions.empty()) {
+        return Refuse("a private pose has no identity, generation or positions");
+    }
+    return frame_.CommitPrivatePose(ToViewKind(pose.viewKind), pose.surfaceId,
+                                    pose.generation, pose.positions);
+}
+
+bool EngineQ2SinkConsumer::ResolveSurface(uint32_t surfaceId,
+                                          SceneSurfaceGeometry* geometry) {
+    if (geometry == nullptr) {
+        return false;
+    }
+    const auto found = surfaces_.find(surfaceId);
+    if (found == surfaces_.end()) {
+        return false;
+    }
+    *geometry = found->second;
+    return true;
+}
+
+bool EngineQ2SinkConsumer::ResolveLight(
+    const doom3::rhi::LightPacket& packet, SceneLightGeometry* geometry) {
+    if (desc_.lightGeometrySource != nullptr &&
+        desc_.lightGeometrySource != this) {
+        return desc_.lightGeometrySource->ResolveLight(packet, geometry);
+    }
+    // The value-only engine seam does not carry shadow-volume/shade geometry
+    // yet. Refuse the packet instead of inventing a volume.
+    return false;
+}
+
 bool EngineQ2SinkConsumer::CommitRenderedView(const RenderedViewCommit& commit) {
     return initialized_ && frame_.CommitView(commit);
 }
@@ -394,6 +514,15 @@ void EngineQ2SinkConsumer::ShutdownThunk(void* user) {
     }
 }
 
+bool EngineQ2SinkConsumer::ImageUploadThunk(void* user,
+                                            const Q2SinkImageUpload* image) {
+    auto* consumer = static_cast<EngineQ2SinkConsumer*>(user);
+    if (consumer == nullptr || image == nullptr) {
+        return false;
+    }
+    return consumer->ImageUpload(*image);
+}
+
 bool EngineQ2SinkConsumer::BeginViewThunk(void* user, unsigned int viewId,
                                           int x, int y, int width, int height,
                                           bool overlay, bool worldGui,
@@ -402,6 +531,15 @@ bool EngineQ2SinkConsumer::BeginViewThunk(void* user, unsigned int viewId,
     return consumer != nullptr &&
            consumer->BeginView(viewId, x, y, width, height, overlay, worldGui,
                                projection);
+}
+
+bool EngineQ2SinkConsumer::SurfacePacketThunk(
+    void* user, unsigned int surfaceId, const Q2SinkSurfaceGeometry* geometry) {
+    auto* consumer = static_cast<EngineQ2SinkConsumer*>(user);
+    if (consumer == nullptr || geometry == nullptr) {
+        return false;
+    }
+    return consumer->SurfacePacket(surfaceId, *geometry);
 }
 
 bool EngineQ2SinkConsumer::DrawPacketThunk(
@@ -424,6 +562,15 @@ bool EngineQ2SinkConsumer::LightPacketThunk(void* user,
         return false;
     }
     return consumer->LightPacket(*light);
+}
+
+bool EngineQ2SinkConsumer::PrivatePoseThunk(void* user,
+                                            const Q2SinkPrivatePose* pose) {
+    auto* consumer = static_cast<EngineQ2SinkConsumer*>(user);
+    if (consumer == nullptr || pose == nullptr) {
+        return false;
+    }
+    return consumer->PrivatePose(*pose);
 }
 
 bool EngineQ2SinkConsumer::EndViewThunk(void* user) {

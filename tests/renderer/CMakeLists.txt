@@ -197,6 +197,18 @@ if(MSVC)
     target_compile_options(q3_engine_frame_test PRIVATE /W4 /permissive- /EHsc)
 endif()
 
+# Engine-fork seam fixture (T080-T082/T044). It drives the same callback table
+# with the values the fork call sites fill: ordered surface geometry, a texture
+# upload, one packet per shadow chain with its exclusion, and a private pose.
+# Synthetic content + a device; a host without one returns 77 (SKIP).
+add_executable(q2_fork_seam_test q2_fork_seam_test.cpp)
+target_link_libraries(q2_fork_seam_test PRIVATE q3_integration q1a_rhi)
+target_compile_features(q2_fork_seam_test PRIVATE cxx_std_17)
+target_include_directories(q2_fork_seam_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+if(MSVC)
+    target_compile_options(q2_fork_seam_test PRIVATE /W4 /permissive- /EHsc)
+endif()
+
 enable_testing()
 
 set(Q1A_EVIDENCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/q1a-evidence")
@@ -286,6 +298,7 @@ set_tests_properties(
 add_test(NAME renderer.q2.command_order COMMAND q2_engine_command_order_test)
 add_test(NAME renderer.q2.classic_compatibility COMMAND q2_classic_compatibility_test)
 add_test(NAME renderer.q2.classic_gui COMMAND q2_classic_gui_test)
+add_test(NAME renderer.q2.fork_seam COMMAND q2_fork_seam_test)
 set_tests_properties(
     renderer.q2.command_order
     renderer.q2.classic_compatibility
@@ -293,6 +306,14 @@ set_tests_properties(
     PROPERTIES
         TIMEOUT 120
         LABELS "q2"
+)
+set_tests_properties(
+    renderer.q2.fork_seam
+    PROPERTIES
+        SKIP_RETURN_CODE 77
+        TIMEOUT 240
+        LABELS "q2;q3"
+        ENVIRONMENT "RHI_EVIDENCE_DIR=${Q1A_EVIDENCE_DIR}"
 )
 
 # Q4 hybrid-quality portable slices (T050/T051/T052/T053/T054/T055). Like the
