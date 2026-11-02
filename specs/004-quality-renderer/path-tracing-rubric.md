@@ -131,4 +131,10 @@ rejection is not a threshold.
   no device renderer and no capture path. No Q6 capture exists.
 - A standalone probe (`tests/dxr-probe`) queries `RaytracingTier` and dispatches a trivial ray on this
   host. That is not a Q6 renderer, and no Q6 frame time or latency is measured or claimed.
-- Every numeric threshold above is predeclared and **unmeasured**.
+- A second standalone tool (`tests/dxr-capture`) now renders **synthetic fixtures** for the static,
+  rigid, skinned, alpha/emissive and transmission cases on a real DXR device; `evidence-q6.md` §4.5
+  records the images, hashes, convergence, flat-field noise and reference timings. The fixtures do
+  not carry a PT-S1..S5 content identity and are not engine frames, so those rows stay BLOCKED; the
+  thresholds above are measured on the fixtures, not accepted for the identities.
+- Every numeric threshold above is predeclared. The §4.5 fixture measurements are the first
+  observations; they are not a review verdict.

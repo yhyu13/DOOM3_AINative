@@ -1,0 +1,14 @@
+Cross-process determinism check, Q6 T069 capture (2026-11-02)
+
+Command:
+  q6_dxr_capture.exe --out specs\004-quality-renderer\evidence\t069 --width 320 --height 180
+  q6_dxr_capture.exe --out build-dxr-capture\_rerun --width 320 --height 180
+  compare SHA-256 of the 13 PNGs, sorted by file name
+
+Result:
+  files=13 vs 13
+  mismatches=0
+  both process exits=0
+
+Same adapter (Intel Graphics, LUID 0x000000000001725F, UMD 32.0.101.8331) and driver.
+Cross-vendor or cross-driver byte identity is not claimed.
