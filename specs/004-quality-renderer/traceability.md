@@ -5,8 +5,8 @@ one status per row. It is an index, not evidence: a row is only as good as the e
 names, and a task id is a plan reference that becomes coverage only when its own command output
 exists.
 
-**Last reconciled**: 2026-11-01, against `origin/main` `1fafb81`, by the Q6 contract/traceability
-worker for issue #68.
+**Last reconciled**: 2026-11-02, against `origin/main` `86e4eb3`, by the Q2 reconciliation for
+issue #53. The Q6-owned rows are unchanged from the 2026-11-01 pass at `1fafb81`.
 
 ## Status labels
 
@@ -24,7 +24,7 @@ executed. It is kept in the legend so that a future row cannot quietly become "a
 
 | Group | PASS | PARTIAL | NOT RUN | UNPROVEN | Total |
 |---|---|---|---|---|---|
-| Functional requirements (FR-001…FR-019) | 2 | 15 | 2 | 0 | 19 |
+| Functional requirements (FR-001…FR-019) | 2 | 16 | 1 | 0 | 19 |
 | Success criteria (SC-001…SC-008) | 1 | 3 | 4 | 0 | 8 |
 
 ## Functional requirements
@@ -33,10 +33,10 @@ executed. It is kept in the legend so that a future row cannot quietly become "a
 |---|---|---|---|---|
 | FR-001 | T006, T009, T010, T011 | `specs/004-quality-renderer/baseline-procedure.md`, `specs/004-quality-renderer/reference-scenes.md` | `specs/004-quality-renderer/evidence-q0.md` | `PASS` — fresh build identity, source/submodule revision, data identity, hardware, commands and outcomes; T011 review in §8. Limit: one host, one GL renderer, one demo data set |
 | FR-002 | T007, T010 | `specs/004-quality-renderer/reference-scenes.md` | `specs/004-quality-renderer/evidence-q0.md` | `PASS` — four categories captured twice with scene ids and frozen ceilings; no case SKIPPED on that host. Limit: demo data, not retail scenes |
-| FR-003 | T004, T012, T014, T035 | `specs/004-quality-renderer/contracts/rhi-foundation.md`, `specs/004-quality-renderer/engine-integration.md` | `specs/004-quality-renderer/evidence-rhi-contract.md`, `specs/004-quality-renderer/review-rhi-contract.md`, `specs/004-quality-renderer/evidence-q1a.md` | `PARTIAL` — contract signed off 2026-10-28 on `11ea64a`; Q1a/Q1b run through the portable seam; **the header gate is red on `main`** (26 violations, all `src/renderer/q4_harness/*.h`, see §Red gates); no engine scene adapter (T035) |
+| FR-003 | T004, T012, T014, T035 | `specs/004-quality-renderer/contracts/rhi-foundation.md`, `specs/004-quality-renderer/engine-integration.md` | `specs/004-quality-renderer/evidence-rhi-contract.md`, `specs/004-quality-renderer/review-rhi-contract.md`, `specs/004-quality-renderer/evidence-q1a.md` | `PARTIAL` — contract signed off 2026-10-28 on `11ea64a`; Q1a/Q1b run through the portable seam; the header gate passes after #115 (`validate-rhi-contract.py` PASS; `--self-test` exit 0), and the `f9e84c8` red-gate record is historical; no engine scene adapter (T035) |
 | FR-004 | T004, T012, T022–T029, T085 | `specs/004-quality-renderer/contracts/rhi-foundation.md`, `specs/004-quality-renderer/data-model.md` | `specs/004-quality-renderer/evidence-q1a.md`, `specs/004-quality-renderer/evidence-q1.md`, `specs/004-quality-renderer/evidence-doc-cluster.md` | `PARTIAL` — draw, compute, MRT, readable depth, velocity/validity, history, present and separate overlay run as fixtures (32/32 CTest); T085's engine call sites absent |
-| FR-005 | T013–T019, T024–T028, T030 | `src/renderer/rhi/`, `src/renderer/d3d12/`, `tests/renderer/` | `specs/004-quality-renderer/evidence-q1a.md`, `specs/004-quality-renderer/evidence-q1.md`, `specs/004-quality-renderer/evidence-doc-cluster.md` | `PARTIAL` — clear/copy transitions, fence retirement, resize/shutdown and fault-injected removal pass; on 2026-10-31 the debug layer and GPU-based validation actually executed here (`errors=0`, 4 unwaived warnings per case) but T030/T031 remain open and that run has no independent review |
-| FR-006 | T036, T037, T039, T080–T083 | `specs/004-quality-renderer/classic-parity.md` | `specs/004-quality-renderer/evidence-q2.md` | `NOT RUN` — no selector, no failed-initialization test, no engine path; `evidence-q2.md` records no classic frame |
+| FR-005 | T013–T019, T024–T028, T030 | `src/renderer/rhi/`, `src/renderer/d3d12/`, `tests/renderer/` | `specs/004-quality-renderer/evidence-q1a.md`, `specs/004-quality-renderer/evidence-q1.md`, `specs/004-quality-renderer/evidence-doc-cluster.md` | `PARTIAL` — clear/copy transitions, fence retirement, resize/shutdown and fault-injected removal pass; T030 and T031 are now checked (2026-11-01/02). The layer executed on the Graphics Tools host (`errors=0`, unwaived messages 0) while non-GDK hosts report SKIPPED (`0x887A002D`), so the result stays host-specific |
+| FR-006 | T036, T037, T039, T080–T083 | `specs/004-quality-renderer/classic-parity.md` | `specs/004-quality-renderer/evidence-q2.md` | `PARTIAL` — the engine selector and typed failure landed (fork PR #1; submodule bump #113): `renderapi_status` and `r_renderApi` are in the rebuilt `DOOM3.exe`. T036's failed-initialization test, T039's parity rows (no legal data), T080–T082's production slices and T083's forced-failure run remain open; no classic frame has been drawn |
 | FR-007 | T034, T037, T038, T080–T082 | `specs/004-quality-renderer/classic-parity.md` | `specs/004-quality-renderer/evidence-q2.md` | `PARTIAL` — CPU fixtures for stage order, alpha coverage, lights, shadow exclusions, fog/blend, subviews and the GUI split pass (`renderer.q2.*`); the production slices T080–T082 and every engine-side case are absent |
 | FR-008 | T041–T046 | `tests/renderer/motion-fixtures.md`, `src/renderer/rhi/motion_history.cpp`, `src/renderer/rhi/view_history.cpp` | `specs/004-quality-renderer/evidence-q3-tests.md`, `specs/004-quality-renderer/evidence-q3.md` | `PARTIAL` — reprojection, rendered-frame identity, generation and every invalidation trigger pass as fixtures; real-scene motion is T048 and has not been run |
 | FR-009 | T043–T045, T085 | `src/renderer/rhi/view_history.cpp`, `src/renderer/rhi/skinned_history.cpp`, `src/renderer/rhi/frame_integration.cpp` | `specs/004-quality-renderer/evidence-q3.md` | `PARTIAL` — view isolation and a 43-check private-pose retention test pass; the `engine-fork:neo/renderer/Model_md5.cpp` snapshot needs a fork PR and submodule bump, and T085's engine call sites are absent |
@@ -47,7 +47,7 @@ executed. It is kept in the legend so that a future row cannot quietly become "a
 | FR-014 | T055, T058–T061 | `specs/004-quality-renderer/provider-contract.md`, `src/renderer/rhi/reconstruction.cpp`, `src/renderer/ext/provider.cpp` | `specs/004-quality-renderer/evidence-q4.md` (T055/T086 rows), `specs/004-quality-renderer/evidence-q5.md`, `specs/004-quality-renderer/evidence-doc-cluster.md` | `PARTIAL` — the non-proprietary off path is byte-exact identity and passes 35 checks; T059 adds the optional-provider boundary and an 84-check off/missing-provider test (exit 0) plus a passing artifact/dependency inspection. The clean default configure and build exit 0, but the three-phase no-download observation is **NOT RUN** (no complete process trace or packet capture without elevation) and the default engine run is **NOT RUN** (no legal game data). See `specs/004-quality-renderer/evidence-q5.md` |
 | FR-015 | T058, T060–T062 | `specs/004-quality-renderer/provider-contract.md` | none | `NOT RUN` — no authorization, no hardware claim, no create/evaluate. `specs/004-quality-renderer/provider-clearance.md` does not exist. No DLSS 5 support or legal compatibility is claimed |
 | FR-016 | T063–T070 | `specs/004-quality-renderer/path-tracing-rubric.md`, `src/renderer/d3d12/pathtrace*.cpp` | `specs/004-quality-renderer/evidence-q6.md` | `PARTIAL` — the CPU harness passes 5/5 in Debug (233 checks); Release is 4/5 on this host, where one denoiser depth-guide check fails (fix tracked in #68, not claimed here). A DXR device was created and a trivial 8×8 dispatch executed (`RAYTRACING_TIER=1_1`, `DISPATCH_HIT_PIXELS=64/64`, `DEBUG_ERRORS=0`), which is capability evidence only: no Q6 device renderer, no converged capture, T069 PARTIAL, T070 NOT RUN |
-| FR-017 | T004, T088, T089, T071–T075 | `specs/004-quality-renderer/portable-profile-contract.md`, `specs/004-quality-renderer/webgpu-mapping.md`, `web/profile/capability.mjs` | `specs/004-quality-renderer/evidence-q7a.md`, `specs/004-quality-renderer/evidence-t089.md`, `specs/004-quality-renderer/evidence-q7.md` | `PARTIAL` — three-tier contract, capability/fallback table and a procedural browser host slice exist; no WebGPU `doom3::rhi::Device` implementation, no real scene (T074 NOT RUN), no profile review (T075 NOT RUN); **the mapping gate is red on `main`** (62 problems, see §Red gates) |
+| FR-017 | T004, T088, T089, T071–T075 | `specs/004-quality-renderer/portable-profile-contract.md`, `specs/004-quality-renderer/webgpu-mapping.md`, `web/profile/capability.mjs` | `specs/004-quality-renderer/evidence-q7a.md`, `specs/004-quality-renderer/evidence-t089.md`, `specs/004-quality-renderer/evidence-q7.md` | `PARTIAL` — three-tier contract, capability/fallback table and a procedural browser host slice exist; no WebGPU `doom3::rhi::Device` implementation, no real scene (T074 NOT RUN), no profile review (T075 NOT RUN); the mapping gate passes after #115 (`OK: 119/119`, exit 0), and the `f9e84c8` red-gate record is historical |
 | FR-018 | T005, T056, T060, T069, T074 | `specs/004-quality-renderer/evidence-template.md` | `specs/004-quality-renderer/evidence-q0.md` … `evidence-q4.md`, `specs/004-quality-renderer/evidence-q6.md`, `specs/004-quality-renderer/evidence-doc-cluster.md` | `PARTIAL` — template and validator signed off; the Q0/Q1a/Q1b/Q3/Q4 records carry identity, commands, exits and thresholds, and the Q6 record now adds build, adapter, command and exit for the probe and the CPU harness. Q5's three-phase no-download observation and default engine run, and Q7's target-specific real-scene run, remain NOT RUN, so the requirement is not uniformly met |
 | FR-019 | T001–T003, T033, T040, T084 | `specs/004-quality-renderer/engine-integration.md`, `AGENTS.md`, `docs/GIT_WORKFLOW.md` | `git submodule status` / `git -C doom3_orig/doom3 status --porcelain` recorded in `specs/004-quality-renderer/evidence-q0.md` and re-run in `specs/004-quality-renderer/evidence-doc-cluster.md` | `PARTIAL` — submodule clean at `a9c49da` and unchanged on 2026-10-31 (0 porcelain lines, no engine edit in this cluster); review coverage is partial (several review records named by earlier revisions of this file do not exist, §Missing records) and no human sign-off is recorded |
 
@@ -64,11 +64,13 @@ executed. It is kept in the legend so that a future row cannot quietly become "a
 | SC-007 | T063–T070 | `specs/004-quality-renderer/path-tracing-rubric.md` | `specs/004-quality-renderer/evidence-q6.md` | `NOT RUN` — no converged static record and no moving/skinned capture; every visual row is NOT RUN with a reason |
 | SC-008 | T071–T075 | `specs/004-quality-renderer/portable-profile-contract.md`, `web/profile/capability.mjs` | `specs/004-quality-renderer/evidence-q7.md` | `NOT RUN` — no claimed target has a target-specific real-scene test; T074/T075 are NOT RUN. The Q7a spike is a conformance gate, not target support |
 
-## Red gates on `main` at `f9e84c8`
+## Gate snapshot on `main` at `f9e84c8` (historical; both cleared by #115)
 
-Two documented gate commands fail today. Both are recorded with command and exit code in
-[`evidence-doc-cluster.md`](./evidence-doc-cluster.md); neither is a documentation defect, so neither
-was fixed in a docs-only change.
+At `f9e84c8` two documented gate commands failed. Both are recorded with command and exit code in
+[`evidence-doc-cluster.md`](./evidence-doc-cluster.md); neither was a documentation defect, so neither
+was fixed in a docs-only change. **Rechecked 2026-11-02:** both commands now exit 0 after #115
+(`validate-rhi-contract.py` PASS, including `--self-test`; `validate-webgpu-mapping.py` OK,
+119/119), so this section is kept as history, not as current state.
 
 1. `python -I scripts/validate-rhi-contract.py --self-test` → **exit 1**, 26 failures, every one of
    the form `prohibited D3D12 vocabulary in engine-facing header src\renderer\q4_harness\*.h`
@@ -76,14 +78,14 @@ was fixed in a docs-only change.
    [contract](./contracts/rhi-foundation.md) excludes only `src/renderer/d3d12/` and
    `src/renderer/ext/` from the scan, so Q4's harness headers sit outside the allowed tier. The
    header gate — and therefore FR-003's "no Windows-native handle in scene/material interfaces" and
-   FR-017's lexical half — is failing on the current tree. Resolving it means either moving those
+   FR-017's lexical half — was failing on that tree. Resolving it meant either moving those
    headers under `src/renderer/d3d12/`, placing them under `src/renderer/ext/`, or amending the scan
    roots by a reviewed contract change. That is a `src/renderer/**` owner's decision, not a docs one.
 2. `python -I scripts/validate-webgpu-mapping.py` → **exit 1**,
    `INVALID: 62 problem(s); 57/119 declarations mapped` (62 `declaration not mapped` lines, e.g.
    `DrawFrameDesc.passes`, `DrawPassDesc.colorClears`, `SurfaceDesc.width`). T089 reconciled five
-   declarations; later Q1b/Q2/Q3 declarations were added without mappings. FR-017's mapping half is
-   not currently satisfied on `main`.
+   declarations; later Q1b/Q2/Q3 declarations were added without mappings. FR-017's mapping half was
+   not satisfied at that revision.
 
 ## Missing records named elsewhere
 
