@@ -8486,7 +8486,7 @@ index 9bcf4bf..dc4e5bf 100644
  
  			// draw it
 diff --git a/a/neo/renderer/GuiModel.cpp b/b/neo/renderer/GuiModel.cpp
-index c59e3ea..cced93e 100644
+index 23c57e5..2ae8de3 100644
 --- a/a/neo/renderer/GuiModel.cpp
 +++ b/b/neo/renderer/GuiModel.cpp
 @@ -90,7 +90,7 @@ void idGuiModel::WriteToDemo( idDemoFile *demo ) {
@@ -8783,7 +8783,7 @@ index 8d45a0e..c026ade 100644
  typedef struct {
  	int					conditionRegister;	// if registers[conditionRegister] == 0, skip stage
 diff --git a/a/neo/renderer/RenderSystem.cpp b/b/neo/renderer/RenderSystem.cpp
-index 1527e4c..46bf03c 100644
+index 9d0493e..6603a4d 100644
 --- a/a/neo/renderer/RenderSystem.cpp
 +++ b/b/neo/renderer/RenderSystem.cpp
 @@ -634,6 +634,9 @@ void idRenderSystemLocal::BeginFrame( int windowWidth, int windowHeight ) {
@@ -8813,7 +8813,7 @@ index 5d3edbc..976436a 100644
  	glyphInfo_t			glyphs [GLYPHS_PER_FONT];
  	float				glyphScale;
 diff --git a/a/neo/renderer/RenderSystem_init.cpp b/b/neo/renderer/RenderSystem_init.cpp
-index feb2d8f..4f4c3f2 100644
+index 7f4c81d..9bb4df7 100644
 --- a/a/neo/renderer/RenderSystem_init.cpp
 +++ b/b/neo/renderer/RenderSystem_init.cpp
 @@ -45,6 +45,7 @@ static void GfxInfo_f( void );
@@ -8824,7 +8824,7 @@ index feb2d8f..4f4c3f2 100644
  idCVar r_glDriver( "r_glDriver", "", CVAR_RENDERER, "\"opengl32\", etc." );
  idCVar r_useLightPortalFlow( "r_useLightPortalFlow", "1", CVAR_RENDERER | CVAR_BOOL, "use a more precise area reference determination" );
  idCVar r_multiSamples( "r_multiSamples", "0", CVAR_RENDERER | CVAR_ARCHIVE | CVAR_INTEGER, "number of antialiasing samples" );
-@@ -692,7 +693,8 @@ void R_InitOpenGL( void ) {
+@@ -698,7 +699,8 @@ void R_InitOpenGL( void ) {
  	R_R200_Init();
  	R_ARB2_Init();
  
@@ -8834,7 +8834,7 @@ index feb2d8f..4f4c3f2 100644
  	R_ReloadARBPrograms_f( idCmdArgs() );
  
  	// allocate the vertex array range or vertex objects
-@@ -767,7 +769,7 @@ void GL_CheckErrors( void ) {
+@@ -773,7 +775,7 @@ void GL_CheckErrors( void ) {
  				strcpy( s, "GL_OUT_OF_MEMORY" );
  				break;
  			default:
@@ -8843,10 +8843,10 @@ index feb2d8f..4f4c3f2 100644
  				break;
  		}
  
-@@ -2046,6 +2048,10 @@ R_InitCommands
- =================
+@@ -2274,6 +2276,10 @@ R_InitCommands
  */
  void R_InitCommands( void ) {
+ 	cmdSystem->AddCommand( "renderapi_status", R_RenderApiStatus_f, CMD_FL_RENDERER, "prints the render API selection, state and typed failure" );
 +	cmdSystem->AddCommand( "shader_status", R_ShaderStatus_f, CMD_FL_RENDERER, "prints the classic shader resolver status" );
 +	cmdSystem->AddCommand( "shader_reload", R_ReloadARBPrograms_f, CMD_FL_RENDERER, "re-resolves and re-binds classic shader programs" );
 +	cmdSystem->AddCommand( "reloadARBprograms", R_ReloadARBPrograms_f, CMD_FL_RENDERER, "alias of shader_reload" );
@@ -8854,7 +8854,7 @@ index feb2d8f..4f4c3f2 100644
  	cmdSystem->AddCommand( "MakeMegaTexture", idMegaTexture::MakeMegaTexture_f, CMD_FL_RENDERER|CMD_FL_CHEAT, "processes giant images" );
  	cmdSystem->AddCommand( "sizeUp", R_SizeUp_f, CMD_FL_RENDERER, "makes the rendered view larger" );
  	cmdSystem->AddCommand( "sizeDown", R_SizeDown_f, CMD_FL_RENDERER, "makes the rendered view smaller" );
-@@ -2155,6 +2161,10 @@ void idRenderSystemLocal::Init( void ) {
+@@ -2383,6 +2389,10 @@ void idRenderSystemLocal::Init( void ) {
  	// build brightness translation tables
  	R_SetColorMappings();
  
@@ -8865,7 +8865,7 @@ index feb2d8f..4f4c3f2 100644
  	R_InitMaterials();
  
  	renderModelManager->Init();
-@@ -2212,6 +2222,8 @@ void idRenderSystemLocal::Shutdown( void ) {
+@@ -2440,6 +2450,8 @@ void idRenderSystemLocal::Shutdown( void ) {
  	delete guiModel;
  	delete demoGuiModel;
  
@@ -8873,7 +8873,7 @@ index feb2d8f..4f4c3f2 100644
 +
  	Clear();
  
- 	ShutdownOpenGL();
+ 	R_ShutdownRenderApi();
 diff --git a/a/neo/renderer/RenderWorld_demo.cpp b/b/neo/renderer/RenderWorld_demo.cpp
 index 76f292d..ba4fd82 100644
 --- a/a/neo/renderer/RenderWorld_demo.cpp
@@ -9095,10 +9095,10 @@ index bedf264..a83101e 100644
  			return false;
  		}
 diff --git a/a/neo/renderer/tr_local.h b/b/neo/renderer/tr_local.h
-index 1a20f1b..fc761d8 100644
+index c534e4a..c8d367f 100644
 --- a/a/neo/renderer/tr_local.h
 +++ b/b/neo/renderer/tr_local.h
-@@ -1277,6 +1277,9 @@ DRAW_STANDARD
+@@ -1290,6 +1290,9 @@ DRAW_STANDARD
  */
  
  void RB_DrawElementsWithCounters( const srfTriangles_t *tri );
@@ -9108,7 +9108,7 @@ index 1a20f1b..fc761d8 100644
  void RB_DrawShadowElementsWithCounters( const srfTriangles_t *tri, int numIndexes );
  void RB_STD_FillDepthBuffer( drawSurf_t **drawSurfs, int numDrawSurfs );
  void RB_BindVariableStageImage( const textureStage_t *texture, const float *shaderRegisters );
-@@ -1309,7 +1312,12 @@ void	RB_NV20_DrawInteractions( void );
+@@ -1322,7 +1325,12 @@ void	RB_NV20_DrawInteractions( void );
  void	R_ARB2_Init( void );
  void	RB_ARB2_DrawInteractions( void );
  void	R_ReloadARBPrograms_f( const idCmdArgs &args );
