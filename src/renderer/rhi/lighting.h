@@ -71,6 +71,40 @@ Status PlanLight(const LightInput& light, const MaterialShadowInput& material, b
                  LightPlan* plan, std::string* error);
 
 // ---------------------------------------------------------------------------
+// Stencil shadow-volume plan (T082 / CP-07)
+// ---------------------------------------------------------------------------
+//
+// The classic stencil path draws each shadow-volume chain twice: back faces
+// increment, front faces decrement, both on depth-fail (z-fail), then the lit
+// pass is accepted only where the stencil is zero. A suppressed light or a
+// light with no chain emits no volume pass at all — that is the exclusion path,
+// not "draw a volume and hope the shader ignores it".
+//
+// The modern backend has no portable depth-clamp disable. This plan never asks
+// for one: the volume must be a closed mesh so the far cap ends the z-fail
+// count instead of an extended/clamped far plane.
+
+enum class ShadowVolumeFace {
+    Back = 0,
+    Front,
+};
+
+struct ShadowVolumePlan {
+    bool enabled = false;
+    // Global and local chains each own one volume.
+    uint32_t chainCount = 0;
+    // Two face passes per chain, in draw order: back increment, front decrement.
+    uint32_t facePassCount = 0;
+    ShadowVolumeFace faces[2] = {ShadowVolumeFace::Back, ShadowVolumeFace::Front};
+    uint8_t stencilRef = 1;
+    // Recorded so a reader cannot claim a clamp trick that the backend lacks.
+    bool depthClampUsed = false;
+    bool requiresClosedVolume = true;
+};
+
+Status PlanShadowVolume(const LightPlan& light, ShadowVolumePlan* plan, std::string* error);
+
+// ---------------------------------------------------------------------------
 // Q4 direct light and shadow inputs (T052)
 // ---------------------------------------------------------------------------
 //

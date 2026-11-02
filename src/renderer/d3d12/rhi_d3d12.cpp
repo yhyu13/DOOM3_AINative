@@ -395,6 +395,47 @@ Status Device::SubmitCompute(const ComputeDispatchDesc& desc, Submission* submis
     return impl_->q1b->SubmitCompute(desc, submission, error);
 }
 
+Status Device::CreateBuffer(const BufferDesc& desc, Buffer* buffer, std::string* error) {
+    if (buffer == nullptr) {
+        return d3d12::detail::Fail(Status::InvalidArgument, error, "buffer output is null");
+    }
+    *buffer = Buffer{};
+    const Status ready = impl_->RequireQ1b(error);
+    if (ready != Status::Ok) {
+        return ready;
+    }
+    return impl_->q1b->CreateBuffer(desc, buffer, error);
+}
+
+Status Device::CreateTexture(const TextureDesc& desc, Texture* texture, std::string* error) {
+    if (texture == nullptr) {
+        return d3d12::detail::Fail(Status::InvalidArgument, error,
+                                   "texture output is null");
+    }
+    *texture = Texture{};
+    const Status ready = impl_->RequireQ1b(error);
+    if (ready != Status::Ok) {
+        return ready;
+    }
+    return impl_->q1b->CreateTexture(desc, texture, error);
+}
+
+Status Device::DestroyBuffer(const Buffer& buffer, std::string* error) {
+    const Status ready = impl_->RequireQ1b(error);
+    if (ready != Status::Ok) {
+        return ready;
+    }
+    return impl_->q1b->DestroyBuffer(buffer, error);
+}
+
+Status Device::DestroyTexture(const Texture& texture, std::string* error) {
+    const Status ready = impl_->RequireQ1b(error);
+    if (ready != Status::Ok) {
+        return ready;
+    }
+    return impl_->q1b->DestroyTexture(texture, error);
+}
+
 Status Device::ReadbackAttachment(const Submission& submission, uint32_t attachmentIndex,
                                   ReadbackResult* result, std::string* error) {
     if (result == nullptr) {

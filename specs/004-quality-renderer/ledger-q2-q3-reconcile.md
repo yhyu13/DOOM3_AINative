@@ -118,3 +118,19 @@ above; a checked portable row would still not claim the fork half, a real frame 
 - PR #121's independent verdict arrived after its merge; that is recorded as a process breach, not
   as a content defect. It does not satisfy T048's `review-q3.md` requirement.
 - The `rhi.q1a.diagnostics` host failure (`hr=0x887A002D`) is unchanged and is not cited as a pass.
+
+## Addendum 2026-11-02 — T080–T082 superproject slice (branch `feat/q2-draw-texture-stencil`)
+
+This addendum corrects the blocker table above for the superproject half only. It does not change
+any acceptance, parity or review claim.
+
+| Row | Previous state | State after this branch | Remaining block |
+|---|---|---|---|
+| T080 | PARTIAL; no geometry submission | Superproject **delivered and device-tested** (`renderer.q2.draw_geometry`, `renderer.q2.scene_submit`) | Engine-fork call site (B5) |
+| T081 | PARTIAL; no texture upload/sampling | Superproject **delivered and device-tested** (`renderer.q2.texture_sampling`, `CreateTexture` for RGBA8/sRGB/R8/BC4/BC5/BC7_UNORM_SRGB) | Engine-fork `Image*` upload call site |
+| T082 | PARTIAL; no stencil state | Superproject **delivered**; synthetic CP-07 PASS plus a swapped-op negative control (`renderer.q2.stencil_shadow`) | Engine-fork interaction call site; every retail-data CP-07 row (B1) |
+
+B5 still holds for the engine integration. B6 and B7 described the portable seam's *missing* code and
+are now stale for the superproject half: the seam has vertex/index submission, texture sampling and
+stencil state. They remain accurate for the fork half. B1 (no data) and B2 (no Q2 review) are
+unchanged, so Q2 is still not accepted and no CP row becomes parity.

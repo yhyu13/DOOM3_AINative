@@ -7,7 +7,7 @@ does, what was observed on this host, and what could not run. **Updated 2026-11-
 the target was rebuilt from the bumped tree (§4.5). **Second pass:** after #115 merged at `b7c1a68`,
 #113 was rebased onto it and the configure, build, Q2 and contract checks were rerun; both contract
 gates are now green. **Third pass:** the same checks were rerun after rebasing onto `c63f57a`
-(#118); the patch/manifest did not change. T083 remains NOT RUN.
+(#118); the patch/manifest did not change. T083 remains NOT RUN. **Fourth pass (2026-11-02, branch `feat/q2-draw-texture-stencil`):** the T080–T082 superproject slices are delivered and device-tested; the fork call sites and every retail-data row remain NOT RUN. See §10. Q2 is still not accepted.
 
 **Headline: the adapter, the material plan and the light plan exist and are exercised; no classic
 frame was drawn and no GL-vs-D3D12 image comparison exists.** Every image row below is `NOT RUN` or
@@ -296,7 +296,94 @@ claims a typed-error observation.
 **NOT RUN.** T040 requires a reviewer that is not the author, with the reviewed SHA recorded
 verbatim in `review-q2.md`. Nothing in this file is a review.
 
-## 10. What would make this claim stronger
+## 10. T080–T082 production-slice evidence (2026-11-02)
+
+Status: author evidence on branch `feat/q2-draw-texture-stencil` (worktree
+`feat-q2-draw-texture-stencil-c7b90452a8c513d7`), based on `main` at `32e9bd7`. This is **not** Q2
+acceptance, not classic parity and not an independent review. It records what the superproject RHI
+now does and what ran on this host. The engine-fork half of each task and every retail-data row
+remain **NOT RUN / BLOCKED**, and no statement here implies otherwise.
+
+### 10.1 What changed
+
+| Task | File | Behaviour now proved |
+|---|---|---|
+| T080 | `src/renderer/rhi/rhi.h`, `src/renderer/d3d12/rhi_attachments.cpp`, `src/renderer/d3d12/rhi_pipeline.cpp` | `CreateBuffer` (vertex/index), `DrawItem` with per-item transform/tint/stencil reference, vertex-input graphics pipelines, ordered indexed and non-indexed draws. A frame can now submit real geometry instead of only a procedural fullscreen triangle. |
+| T080 | `src/renderer/rhi/engine_scene_adapter.{h,cpp}` | World surfaces are extracted *and submitted* in stream order through a `SceneGeometryBackend`; `drawSubmissionUnavailable` is false when the frame was submitted and `drawsSubmitted` counts it. `Device` is not named by the CPU adapter build; the backend interface keeps the structural tests free of the native library. |
+| T081 | `rhi.h`, `rhi_attachments.cpp`, `rhi_pipeline.cpp` | `Device::CreateTexture` uploads RGBA8/RGBA8-sRGB/R8 and the Q4 pins BC4_UNORM, BC5_UNORM and BC7_UNORM_SRGB, with a validated full mip chain; a draw item binds one SRV through a per-submission shader-visible heap; the static point sampler is declared in the root signature. |
+| T081 | `src/renderer/rhi/materials.{h,cpp}` | `BindMaterialTextures` maps bump/diffuse/specular to uploaded textures and returns `InvalidArgument` for a declared map with no texture instead of sampling an implicit white/black substitute. |
+| T082 | `rhi.h`, `rhi_pipeline.cpp`, `lighting.{h,cpp}` | Front/back stencil face states, per-item `OMSetStencilRef`, stencil-enabled PSOs using a D24 depth-stencil attachment, stencil-only passes with zero colour targets, and `PlanShadowVolume`: back-increment/front-decrement pairs, no volume for a suppressed light or ambient/fog/blend pass. `depthClampUsed = false` and `requiresClosedVolume = true` are recorded rather than assumed. |
+
+No target `CMakeLists.txt`, submodule, Q4 harness, Q5/Q6/Q7 file or engine source was changed.
+
+### 10.2 Commands and exits
+
+All commands ran in this worktree on 2026-11-02. Logs are in the git-ignored `build-q2/` and
+`build/` directories; the machine-readable exit is what is recorded.
+
+| Command | Exit | Observed |
+|---|---|---|
+| `cmake -S tests/renderer -B build-q2 -G "Visual Studio 17 2022" -A x64` | 0 | MSVC 19.44.35228.0, Windows SDK 10.0.26100.0 |
+| `cmake --build build-q2 --config Release -- -m` | 0 | every renderer test executable built |
+| `ctest -C Release --output-on-failure` (in `build-q2`) | 0 | **42/42 passed**, including `renderer.q2.draw_geometry`, `texture_sampling`, `stencil_shadow`, `scene_submit` |
+| `cmake --build build-q2 --config Debug -- -m` | 0 | every Debug executable built |
+| `ctest -C Debug --output-on-failure` | 0 | **42/42 passed** |
+| `q2_gpu_test.exe geometry` | 0 | hardware PASS, software PASS (`SUMMARY pass=2 fail=0 skip=0`) |
+| `q2_gpu_test.exe texture` | 0 | hardware PASS, software PASS |
+| `q2_gpu_test.exe stencil` | 0 | hardware PASS, software PASS |
+| `q2_gpu_test.exe scene` | 0 | hardware PASS, software PASS |
+| `cmake --preset win11-amd64` | 0 | `new-target` + `apply-target-patches` exit 0, configure done |
+| `cmake --build --preset win11-amd64-release -- -m` | 0 | `doom3_rhi.lib`, `DOOM3.exe` and `DOOM3XP.exe` linked |
+| `py -3 scripts/validate-rhi-contract.py` | 0 | 25 headers / 32 public test files scanned, PASS |
+
+Host adapters observed by the fixtures: `Intel(R) Graphics` (vendor `0x8086`, device `0x7D67`) as
+hardware index 0, and `Microsoft Basic Render Driver` (WARP). The AMD RX 9070 XT named for the host
+is not adapter 0 in this run and was not separately selected; no NVIDIA SDK, driver extension or
+vendor-specific path is used.
+
+### 10.3 Synthetic offscreen frames
+
+Each frame is the 8x8 readback of an offscreen draw, upscaled 16x by the test helper. They are
+synthetic evidence of the RHI path, not a classic scene and not parity.
+
+| Frame | Proves |
+|---|---|
+| `evidence/q2-t080-draw-order.png` | green drawn after red wins the left half; the reversed submission flips the winner |
+| `evidence/q2-t081-texture-sampling.png` | a 2x2 RGBA8 texture samples as four exact quadrants through a point sampler |
+| `evidence/q2-t082-stencil-shadow.png` | CP-07 synthetic: back-only columns keep the clear colour (stencil 1), the overlap and the outside are lit (stencil 0); swapped ops flip it |
+| `evidence/q2-t082-scene-surfaces.png` | the scene adapter submits two ordered world surfaces (green left-half over red full-screen) |
+| `evidence/q2-t082-scene-light.png` | the adapter submits the light frame after the surfaces; one casting light shades, and the `noShadows` packet adds no stencil work |
+
+### 10.4 Exact expectations, stated before the readback
+
+- RGBA8: red `(255,0,0)`, green `(0,255,0)`, blue `(0,0,255)`, white `(255,255,255)` at the four
+  quadrant centres of the 8x8 target.
+- sRGB: `128/255` decodes to `0.21586` linear = `55/255`; the UNORM control stays `128`.
+- BC4: an all-zero-index block with endpoints `(0,255)` samples `0`; with `(255,0)` it samples `255`.
+- BC5: red block endpoint `255`, green block endpoint `0` samples `(255,0,0)`.
+- BC7: a uniform `0xFF` block is the fixed test vector and samples opaque white. This proves format
+  acceptance, mip-chain handling and sampling; it does **not** prove arbitrary BC7 texel decoding,
+  because no block encoder is part of this slice.
+- Material binding: a diffuse stage with `hasDiffuseMap` and no uploaded texture is `InvalidArgument`.
+
+### 10.5 Blocked halves and limits
+
+1. **Engine fork.** T080/T081/T082 still require the reviewed fork call sites
+   (`engine-fork:neo/renderer/RenderSystem.cpp`, material/image upload and the interaction path). The
+   fork was not edited; the submodule gitlink is unchanged. Those halves are **BLOCKED** and cannot be
+   claimed from this superproject PR.
+2. **Retail data.** There is still no `.pk4`/`.pk3`/`.pak` in the worktree, so no CP-01…CP-30 image row,
+   no T083 forced-failure launch and no classic frame were produced. Every such row remains `NOT RUN`
+   or `SKIPPED`.
+3. **One chain per light packet.** A packet carries one shadow chain; the adapter returns
+   `Unsupported` for a two-chain light instead of drawing only the first, and the engine is expected
+   to emit one packet per chain. That is a contract decision, not a tested engine behaviour.
+4. **Depth sampling + stencil.** A frame may not mix a sampled depth SRV with per-item texture views,
+   and depth sampling in a stencil frame is refused; neither combination is needed by this slice.
+5. **Hardware coverage.** Both the Intel adapter and WARP pass; the AMD adapter was not selected. No
+   statement here generalises beyond the adapters named in §10.2.
+
+## 11. What would make this claim stronger
 
 1. ~~Link both executables and record the `dumpbin` rows.~~ **Done** in §4.3; the remaining gap is the
    `d3d12.dll`/`dxgi.dll` dependents row, which needs an engine call site (B4/B5), not a build change.
@@ -305,3 +392,5 @@ verbatim in `review-q2.md`. Nothing in this file is a review.
 3. Provision the Q0 demo data and measure T-05/T-06/T-08/T-09 with a GL-vs-GL control **before** any
    comparison.
 4. Land T036 and T083 with the fork PR and submodule bump.
+
+

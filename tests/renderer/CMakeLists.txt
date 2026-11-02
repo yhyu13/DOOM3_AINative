@@ -368,3 +368,31 @@ set_tests_properties(
         TIMEOUT 120
         LABELS "q7"
 )
+
+# Q2 production-path GPU fixtures (T080/T081/T082). These are not structural
+# checks: they upload geometry and textures, record draw frames on the selected
+# device and compare the readback with fixture literals. A host without a
+# D3D12 device returns 77 (SKIP); it never reports PASS without a frame.
+add_executable(q2_gpu_test q2_geometry_texture_stencil_test.cpp)
+target_link_libraries(q2_gpu_test PRIVATE q1a_rhi q2_classic)
+target_compile_features(q2_gpu_test PRIVATE cxx_std_17)
+target_include_directories(q2_gpu_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+if(MSVC)
+    target_compile_options(q2_gpu_test PRIVATE /W4 /permissive- /EHsc)
+endif()
+
+add_test(NAME renderer.q2.draw_geometry COMMAND q2_gpu_test geometry)
+add_test(NAME renderer.q2.texture_sampling COMMAND q2_gpu_test texture)
+add_test(NAME renderer.q2.stencil_shadow COMMAND q2_gpu_test stencil)
+add_test(NAME renderer.q2.scene_submit COMMAND q2_gpu_test scene)
+set_tests_properties(
+    renderer.q2.draw_geometry
+    renderer.q2.texture_sampling
+    renderer.q2.stencil_shadow
+    renderer.q2.scene_submit
+    PROPERTIES
+        SKIP_RETURN_CODE 77
+        TIMEOUT 240
+        LABELS "q2"
+        ENVIRONMENT "RHI_EVIDENCE_DIR=${Q1A_EVIDENCE_DIR}"
+)

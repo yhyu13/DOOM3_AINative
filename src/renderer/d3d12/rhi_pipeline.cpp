@@ -45,6 +45,69 @@ std::string BlobText(ID3DBlob* blob) {
     return result;
 }
 
+D3D12_CULL_MODE NativeCull(CullMode mode) {
+    switch (mode) {
+        case CullMode::None:
+            return D3D12_CULL_MODE_NONE;
+        case CullMode::Front:
+            return D3D12_CULL_MODE_FRONT;
+        case CullMode::Back:
+            return D3D12_CULL_MODE_BACK;
+    }
+    return D3D12_CULL_MODE_NONE;
+}
+
+D3D12_COMPARISON_FUNC NativeCompare(CompareFunc value) {
+    switch (value) {
+        case CompareFunc::Never:
+            return D3D12_COMPARISON_FUNC_NEVER;
+        case CompareFunc::Less:
+            return D3D12_COMPARISON_FUNC_LESS;
+        case CompareFunc::Equal:
+            return D3D12_COMPARISON_FUNC_EQUAL;
+        case CompareFunc::LessEqual:
+            return D3D12_COMPARISON_FUNC_LESS_EQUAL;
+        case CompareFunc::Greater:
+            return D3D12_COMPARISON_FUNC_GREATER;
+        case CompareFunc::NotEqual:
+            return D3D12_COMPARISON_FUNC_NOT_EQUAL;
+        case CompareFunc::GreaterEqual:
+            return D3D12_COMPARISON_FUNC_GREATER_EQUAL;
+        case CompareFunc::Always:
+            return D3D12_COMPARISON_FUNC_ALWAYS;
+    }
+    return D3D12_COMPARISON_FUNC_ALWAYS;
+}
+
+D3D12_STENCIL_OP NativeStencilOp(StencilOp value) {
+    switch (value) {
+        case StencilOp::Keep:
+            return D3D12_STENCIL_OP_KEEP;
+        case StencilOp::Zero:
+            return D3D12_STENCIL_OP_ZERO;
+        case StencilOp::Replace:
+            return D3D12_STENCIL_OP_REPLACE;
+        case StencilOp::IncrementSaturate:
+            return D3D12_STENCIL_OP_INCR_SAT;
+        case StencilOp::DecrementSaturate:
+            return D3D12_STENCIL_OP_DECR_SAT;
+        case StencilOp::Invert:
+            return D3D12_STENCIL_OP_INVERT;
+        case StencilOp::IncrementWrap:
+            return D3D12_STENCIL_OP_INCR;
+        case StencilOp::DecrementWrap:
+            return D3D12_STENCIL_OP_DECR;
+    }
+    return D3D12_STENCIL_OP_KEEP;
+}
+
+void FillStencilFace(const StencilFaceState& source, D3D12_DEPTH_STENCILOP_DESC* target) {
+    target->StencilFailOp = NativeStencilOp(source.failStencil);
+    target->StencilDepthFailOp = NativeStencilOp(source.failDepth);
+    target->StencilPassOp = NativeStencilOp(source.pass);
+    target->StencilFunc = NativeCompare(source.func);
+}
+
 ComPtr<ID3D12RootSignature> CreateGraphicsLayout(ID3D12Device* device,
                                                  std::string* error) {
     D3D12_DESCRIPTOR_RANGE range{};
@@ -54,7 +117,7 @@ ComPtr<ID3D12RootSignature> CreateGraphicsLayout(ID3D12Device* device,
     range.RegisterSpace = 0;
     range.OffsetInDescriptorsFromTableStart = 0;
 
-    D3D12_ROOT_PARAMETER parameters[2]{};
+    D3D12_ROOT_PARAMETER parameters[3]{};
     parameters[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
     parameters[0].Descriptor.ShaderRegister = 0;
     parameters[0].Descriptor.RegisterSpace = 0;
@@ -63,6 +126,12 @@ ComPtr<ID3D12RootSignature> CreateGraphicsLayout(ID3D12Device* device,
     parameters[1].DescriptorTable.NumDescriptorRanges = 1;
     parameters[1].DescriptorTable.pDescriptorRanges = &range;
     parameters[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+    // Per-draw-item transform + tint. The classic ordered stream submits one
+    // item per world surface, so the data cannot live in the per-pass b0 slot.
+    parameters[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+    parameters[2].Descriptor.ShaderRegister = 1;
+    parameters[2].Descriptor.RegisterSpace = 0;
+    parameters[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
     D3D12_STATIC_SAMPLER_DESC sampler{};
     sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
@@ -79,7 +148,7 @@ ComPtr<ID3D12RootSignature> CreateGraphicsLayout(ID3D12Device* device,
     sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
     D3D12_ROOT_SIGNATURE_DESC description{};
-    description.NumParameters = 2;
+    description.NumParameters = 3;
     description.pParameters = parameters;
     description.NumStaticSamplers = 1;
     description.pStaticSamplers = &sampler;
@@ -173,9 +242,13 @@ Status d3d12::detail::Q1bState::CreateShaderModule(const ShaderModuleDesc& desc,
 Status d3d12::detail::Q1bState::CreateGraphicsPipeline(const GraphicsPipelineDesc& desc,
                                                       Pipeline* pipeline,
                                                       std::string* error) {
-    if (desc.colorAttachmentCount == 0 || desc.colorAttachmentCount > 4) {
+    if (desc.colorAttachmentCount > 4) {
         return Fail(Status::InvalidArgument, error,
-                    "graphics pipeline colour attachment count must be 1..4");
+                    "graphics pipeline colour attachment count must be 0..4");
+    }
+    if (desc.stencil.enabled && !(desc.depthTest || desc.depthWrite)) {
+        return Fail(Status::InvalidArgument, error,
+                    "a stencil pipeline needs the depth-stencil attachment enabled");
     }
     const auto vertex = shaders.find(desc.vertexShader.id);
     const auto pixel = shaders.find(desc.pixelShader.id);
@@ -214,11 +287,14 @@ Status d3d12::detail::Q1bState::CreateGraphicsPipeline(const GraphicsPipelineDes
     }
     state.SampleMask = UINT_MAX;
     state.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
-    state.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+    state.RasterizerState.CullMode = NativeCull(desc.cullMode);
     state.RasterizerState.FrontCounterClockwise = FALSE;
     state.RasterizerState.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
     state.RasterizerState.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
     state.RasterizerState.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
+    // D3D12 has no portable depth-clamp disable: clipping is always on. A
+    // shadow volume must therefore be closed so the z-fail count is bounded by
+    // the back-face cap instead of a clamped far plane. See lighting.cpp.
     state.RasterizerState.DepthClipEnable = TRUE;
     state.RasterizerState.MultisampleEnable = FALSE;
     state.RasterizerState.AntialiasedLineEnable = FALSE;
@@ -228,13 +304,31 @@ Status d3d12::detail::Q1bState::CreateGraphicsPipeline(const GraphicsPipelineDes
     state.DepthStencilState.DepthWriteMask =
         desc.depthWrite ? D3D12_DEPTH_WRITE_MASK_ALL : D3D12_DEPTH_WRITE_MASK_ZERO;
     state.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
-    state.DepthStencilState.StencilEnable = FALSE;
-    state.DepthStencilState.StencilReadMask = D3D12_DEFAULT_STENCIL_READ_MASK;
-    state.DepthStencilState.StencilWriteMask = D3D12_DEFAULT_STENCIL_WRITE_MASK;
-    state.DSVFormat = (desc.depthTest || desc.depthWrite || desc.sampleDepth)
-                          ? DXGI_FORMAT_D32_FLOAT
+    state.DepthStencilState.StencilEnable = desc.stencil.enabled ? TRUE : FALSE;
+    state.DepthStencilState.StencilReadMask = desc.stencil.readMask;
+    state.DepthStencilState.StencilWriteMask = desc.stencil.writeMask;
+    FillStencilFace(desc.stencil.front, &state.DepthStencilState.FrontFace);
+    FillStencilFace(desc.stencil.back, &state.DepthStencilState.BackFace);
+    // A stencil pipeline must use the depth-stencil format; every pipeline in
+    // a stencil frame does, so all their PSOs agree on the attachment format.
+    const bool usesDepth =
+        desc.depthTest || desc.depthWrite || desc.sampleDepth || desc.stencil.enabled;
+    state.DSVFormat = usesDepth
+                          ? (desc.stencil.enabled ? DXGI_FORMAT_D24_UNORM_S8_UINT
+                                                  : DXGI_FORMAT_D32_FLOAT)
                           : DXGI_FORMAT_UNKNOWN;
-    state.InputLayout = {nullptr, 0};
+    if (desc.vertexInput) {
+        static const D3D12_INPUT_ELEMENT_DESC kLayout[] = {
+            {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,
+             D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+            {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12,
+             D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+        };
+        static_assert(sizeof(Vertex) == 20, "portable vertex stride changed");
+        state.InputLayout = {kLayout, 2};
+    } else {
+        state.InputLayout = {nullptr, 0};
+    }
     state.IBStripCutValue = D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED;
     state.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
     state.NumRenderTargets = desc.colorAttachmentCount;
@@ -250,6 +344,10 @@ Status d3d12::detail::Q1bState::CreateGraphicsPipeline(const GraphicsPipelineDes
     record.depthTest = desc.depthTest;
     record.depthWrite = desc.depthWrite;
     record.sampleDepth = desc.sampleDepth;
+    record.vertexInput = desc.vertexInput;
+    record.textured = desc.textured;
+    record.stencilEnabled = desc.stencil.enabled;
+    record.stencilWriteMask = desc.stencil.enabled ? desc.stencil.writeMask : 0;
     const HRESULT hr = host->Device()->CreateGraphicsPipelineState(
         &state, __uuidof(ID3D12PipelineState),
         reinterpret_cast<void**>(record.state.GetAddressOf()));
@@ -267,7 +365,7 @@ Status d3d12::detail::Q1bState::CreateGraphicsPipeline(const GraphicsPipelineDes
 
 Status d3d12::detail::Q1bState::RecordDrawPasses(
     ID3D12GraphicsCommandList* list, FrameSlot& slot, const DrawFrameDesc& desc,
-    d3d12::detail::SubmissionRecord& record, std::string* error) {
+    d3d12::detail::SubmissionRecord& record, bool frameStencil, std::string* error) {
     const UINT increment =
         host->Device()->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
     D3D12_DESCRIPTOR_HEAP_DESC rtvHeap{};
@@ -311,13 +409,110 @@ Status d3d12::detail::Q1bState::RecordDrawPasses(
                        static_cast<LONG>(desc.height)};
     list->RSSetViewports(1, &viewport);
     list->RSSetScissorRects(1, &scissor);
-    ID3D12DescriptorHeap* heaps[] = {slot.heap.Get()};
+
+    // Every draw item owns one texture descriptor and one 256-byte constant
+    // slice. Both are submission-scoped, so a later frame cannot overwrite data
+    // the device is still reading.
+    uint32_t totalItems = 0;
+    for (uint32_t passIndex = 0; passIndex < desc.passCount; ++passIndex) {
+        totalItems += desc.passes[passIndex].itemCount;
+    }
+    const UINT srvIncrement = host->Device()->GetDescriptorHandleIncrementSize(
+        D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+    if (totalItems > 0) {
+        D3D12_DESCRIPTOR_HEAP_DESC itemHeap{};
+        itemHeap.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+        itemHeap.NumDescriptors = totalItems;
+        itemHeap.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+        itemHeap.NodeMask = 0;
+        hr = host->Device()->CreateDescriptorHeap(
+            &itemHeap, __uuidof(ID3D12DescriptorHeap),
+            reinterpret_cast<void**>(record.itemViews.GetAddressOf()));
+        if (FAILED(hr)) {
+            return Fail(Status::Error, error,
+                        "CreateDescriptorHeap(item views) " +
+                            d3d12::detail::HrString(hr));
+        }
+        const uint64_t constantBytes = static_cast<uint64_t>(totalItems) * 256ull;
+        D3D12_RESOURCE_DESC constants{};
+        constants.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+        constants.Alignment = 0;
+        constants.Width = constantBytes;
+        constants.Height = 1;
+        constants.DepthOrArraySize = 1;
+        constants.MipLevels = 1;
+        constants.Format = DXGI_FORMAT_UNKNOWN;
+        constants.SampleDesc.Count = 1;
+        constants.SampleDesc.Quality = 0;
+        constants.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+        constants.Flags = D3D12_RESOURCE_FLAG_NONE;
+        D3D12_HEAP_PROPERTIES uploadHeap{};
+        uploadHeap.Type = D3D12_HEAP_TYPE_UPLOAD;
+        uploadHeap.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+        uploadHeap.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+        uploadHeap.CreationNodeMask = 1;
+        uploadHeap.VisibleNodeMask = 1;
+        hr = host->Device()->CreateCommittedResource(
+            &uploadHeap, D3D12_HEAP_FLAG_NONE, &constants,
+            D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, __uuidof(ID3D12Resource),
+            reinterpret_cast<void**>(record.itemConstants.GetAddressOf()));
+        if (FAILED(hr)) {
+            return Fail(Status::Error, error,
+                        "CreateCommittedResource(item constants) " +
+                            d3d12::detail::HrString(hr));
+        }
+        void* mapped = nullptr;
+        hr = record.itemConstants->Map(0, nullptr, &mapped);
+        if (FAILED(hr) || mapped == nullptr) {
+            return Fail(Status::Error, error, "Map(item constants) failed");
+        }
+        auto* bytes = static_cast<uint8_t*>(mapped);
+        uint32_t flat = 0;
+        for (uint32_t passIndex = 0; passIndex < desc.passCount; ++passIndex) {
+            const DrawPassDesc& pass = desc.passes[passIndex];
+            for (uint32_t itemIndex = 0; itemIndex < pass.itemCount; ++itemIndex) {
+                const DrawItem& item = pass.items[itemIndex];
+                uint8_t* target = bytes + static_cast<uint64_t>(flat) * 256ull;
+                std::memcpy(target, item.transform, sizeof(item.transform));
+                std::memcpy(target + sizeof(item.transform), item.tint,
+                            sizeof(item.tint));
+                D3D12_CPU_DESCRIPTOR_HANDLE handle =
+                    record.itemViews->GetCPUDescriptorHandleForHeapStart();
+                handle.ptr += static_cast<SIZE_T>(flat) * srvIncrement;
+                D3D12_SHADER_RESOURCE_VIEW_DESC srv{};
+                srv.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+                srv.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+                srv.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+                srv.Texture2D.MipLevels = static_cast<UINT>(-1);
+                const auto texture = textures.find(item.texture.id);
+                if (item.texture.id != 0 && texture != textures.end()) {
+                    srv.Format = texture->second.nativeFormat;
+                    host->Device()->CreateShaderResourceView(
+                        texture->second.resource.Get(), &srv, handle);
+                } else {
+                    // A tint-only pipeline still has a descriptor-table root
+                    // parameter; bind a null view rather than leaving the
+                    // descriptor uninitialised.
+                    host->Device()->CreateShaderResourceView(nullptr, &srv, handle);
+                }
+                ++flat;
+            }
+        }
+        record.itemConstants->Unmap(0, nullptr);
+        record.itemConstantCount = totalItems;
+    }
+
+    ID3D12DescriptorHeap* heaps[] = {
+        record.itemViews ? record.itemViews.Get() : slot.heap.Get()};
     list->SetDescriptorHeaps(1, heaps);
 
     const D3D12_CPU_DESCRIPTOR_HANDLE srvCpu =
         slot.heap->GetCPUDescriptorHandleForHeapStart();
     const D3D12_GPU_DESCRIPTOR_HANDLE srvGpu =
         slot.heap->GetGPUDescriptorHandleForHeapStart();
+    const D3D12_GPU_DESCRIPTOR_HANDLE itemGpu =
+        record.itemViews ? record.itemViews->GetGPUDescriptorHandleForHeapStart()
+                         : D3D12_GPU_DESCRIPTOR_HANDLE{};
 
     std::vector<bool> cleared(desc.attachmentCount, false);
     bool depthCleared = false;
@@ -343,11 +538,33 @@ Status d3d12::detail::Q1bState::RecordDrawPasses(
                             std::to_string(program.id) + " writes " +
                             std::to_string(program.colorCount));
         }
-        if (pass.colorCount == 0 || pass.colorIndices == nullptr ||
-            pass.colorClears == nullptr) {
+        if (pass.colorCount != 0 &&
+            (pass.colorIndices == nullptr || pass.colorClears == nullptr)) {
             return Fail(Status::InvalidArgument, error,
                         "pass " + std::to_string(passIndex) +
                             " has no colour attachment declaration");
+        }
+        if (program.vertexInput) {
+            if (pass.itemCount == 0 || pass.items == nullptr) {
+                return Fail(Status::InvalidArgument, error,
+                            "pass " + std::to_string(passIndex) +
+                                " uses a vertex-input pipeline without draw items");
+            }
+        } else if (pass.itemCount != 0) {
+            return Fail(Status::InvalidArgument, error,
+                        "pass " + std::to_string(passIndex) +
+                            " declares draw items for a procedural fullscreen pipeline");
+        }
+        if (program.sampleDepth && totalItems > 0) {
+            return Fail(Status::Unsupported, error,
+                        "a frame cannot mix depth sampling with per-item texture views: "
+                        "one shader-visible descriptor heap is bound per pass");
+        }
+        if (pass.colorCount == 0 && !program.vertexInput) {
+            // Zero colour targets is the stencil-only shadow-volume pass.
+            return Fail(Status::InvalidArgument, error,
+                        "pass " + std::to_string(passIndex) +
+                            " writes no colour and draws no items");
         }
         if ((program.depthTest || program.depthWrite || program.sampleDepth) &&
             !record.depth) {
@@ -383,8 +600,10 @@ Status d3d12::detail::Q1bState::RecordDrawPasses(
             targets.push_back(handle);
         }
         if (record.depth && !depthCleared) {
-            list->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, desc.depthClear, 0,
-                                        0, nullptr);
+            const D3D12_CLEAR_FLAGS flags =
+                frameStencil ? (D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL)
+                             : D3D12_CLEAR_FLAG_DEPTH;
+            list->ClearDepthStencilView(dsv, flags, desc.depthClear, 0, 0, nullptr);
             depthCleared = true;
         }
         if (program.sampleDepth) {
@@ -410,7 +629,64 @@ Status d3d12::detail::Q1bState::RecordDrawPasses(
         list->OMSetRenderTargets(pass.colorCount, targets.data(), FALSE,
                                  record.depth ? &dsv : nullptr);
         list->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        list->DrawInstanced(3, 1, 0, 0);
+        if (program.vertexInput) {
+            uint32_t flat = 0;
+            for (uint32_t earlier = 0; earlier < passIndex; ++earlier) {
+                flat += desc.passes[earlier].itemCount;
+            }
+            for (uint32_t itemIndex = 0; itemIndex < pass.itemCount; ++itemIndex) {
+                const DrawItem& item = pass.items[itemIndex];
+                const auto vertex = buffers.find(item.vertexBuffer.id);
+                if (vertex == buffers.end()) {
+                    return Fail(Status::InvalidArgument, error,
+                                "draw item names an unknown vertex buffer");
+                }
+                D3D12_VERTEX_BUFFER_VIEW vertexView{};
+                vertexView.BufferLocation = vertex->second.resource->GetGPUVirtualAddress();
+                vertexView.SizeInBytes = vertex->second.byteCount;
+                vertexView.StrideInBytes = static_cast<UINT>(sizeof(Vertex));
+                list->IASetVertexBuffers(0, 1, &vertexView);
+                D3D12_INDEX_BUFFER_VIEW indexView{};
+                bool indexed = false;
+                if (item.indexCount != 0) {
+                    const auto index = buffers.find(item.indexBuffer.id);
+                    if (index == buffers.end() ||
+                        index->second.usage != BufferUsage::Index) {
+                        return Fail(Status::InvalidArgument, error,
+                                    "draw item names an unknown index buffer");
+                    }
+                    indexView.BufferLocation =
+                        index->second.resource->GetGPUVirtualAddress();
+                    indexView.SizeInBytes = index->second.byteCount;
+                    indexView.Format = DXGI_FORMAT_R16_UINT;
+                    list->IASetIndexBuffer(&indexView);
+                    indexed = true;
+                }
+                if (program.stencilEnabled) {
+                    list->OMSetStencilRef(item.stencilRef);
+                }
+                D3D12_GPU_DESCRIPTOR_HANDLE table = itemGpu;
+                table.ptr += static_cast<UINT64>(flat + itemIndex) * srvIncrement;
+                list->SetGraphicsRootDescriptorTable(1, table);
+                list->SetGraphicsRootConstantBufferView(
+                    2, record.itemConstants->GetGPUVirtualAddress() +
+                           static_cast<UINT64>(flat + itemIndex) * 256ull);
+                if (indexed) {
+                    list->DrawIndexedInstanced(item.indexCount, 1, 0, 0, 0);
+                } else {
+                    list->DrawInstanced(item.vertexCount, 1, 0, 0);
+                }
+            }
+        } else {
+            list->SetGraphicsRootConstantBufferView(
+                2, slot.constants->GetGPUVirtualAddress());
+            list->SetGraphicsRootDescriptorTable(1, srvGpu);
+            if (program.stencilEnabled) {
+                // The procedural shade pass has no item to carry a reference.
+                list->OMSetStencilRef(0);
+            }
+            list->DrawInstanced(3, 1, 0, 0);
+        }
 
         record.journal.push_back(d3d12::JournalEntry{
             "pass " + std::to_string(passIndex), "declared",
@@ -463,7 +739,7 @@ Status d3d12::detail::Q1bState::SubmitDrawFrame(const DrawFrameDesc& desc,
     std::vector<bool> written(desc.attachmentCount, false);
     for (uint32_t passIndex = 0; passIndex < desc.passCount; ++passIndex) {
         const DrawPassDesc& pass = desc.passes[passIndex];
-        if (pass.colorIndices == nullptr || pass.colorCount == 0) {
+        if (pass.colorCount != 0 && pass.colorIndices == nullptr) {
             return Fail(Status::InvalidArgument, error,
                         "pass " + std::to_string(passIndex) + " has no colours");
         }
@@ -487,6 +763,81 @@ Status d3d12::detail::Q1bState::SubmitDrawFrame(const DrawFrameDesc& desc,
             return Fail(Status::InvalidArgument, error,
                         "colour attachment " + std::to_string(i) +
                             " is declared but never written");
+        }
+    }
+
+    // Q2 geometry validation happens before any GPU work is recorded. A
+    // stencil-enabled pipeline fixes the frame's depth-stencil format, so every
+    // pipeline in that frame must enable stencil as well.
+    bool frameStencil = false;
+    for (uint32_t passIndex = 0; passIndex < desc.passCount; ++passIndex) {
+        const DrawPassDesc& pass = desc.passes[passIndex];
+        const auto pipeline = pipelines.find(pass.pipeline.id);
+        if (pipeline == pipelines.end()) {
+            return Fail(Status::InvalidArgument, error,
+                        "pass " + std::to_string(passIndex) +
+                            " names an unknown pipeline");
+        }
+        const PipelineRecord& program = pipeline->second;
+        if (program.stencilEnabled) {
+            frameStencil = true;
+        }
+        if (program.vertexInput) {
+            if (pass.itemCount == 0 || pass.items == nullptr) {
+                return Fail(Status::InvalidArgument, error,
+                            "pass " + std::to_string(passIndex) +
+                                " uses a vertex-input pipeline without draw items");
+            }
+            for (uint32_t itemIndex = 0; itemIndex < pass.itemCount; ++itemIndex) {
+                const DrawItem& item = pass.items[itemIndex];
+                if (item.vertexBuffer.id == 0 || item.vertexCount == 0 ||
+                    buffers.find(item.vertexBuffer.id) == buffers.end()) {
+                    return Fail(Status::InvalidArgument, error,
+                                "draw item " + std::to_string(itemIndex) + " in pass " +
+                                    std::to_string(passIndex) +
+                                    " has no usable vertex buffer");
+                }
+                if (item.indexCount != 0 &&
+                    (item.indexBuffer.id == 0 ||
+                     buffers.find(item.indexBuffer.id) == buffers.end())) {
+                    return Fail(Status::InvalidArgument, error,
+                                "draw item " + std::to_string(itemIndex) + " in pass " +
+                                    std::to_string(passIndex) +
+                                    " has no usable index buffer");
+                }
+                if (program.textured &&
+                    (item.texture.id == 0 ||
+                     textures.find(item.texture.id) == textures.end())) {
+                    return Fail(Status::InvalidArgument, error,
+                                "draw item " + std::to_string(itemIndex) + " in pass " +
+                                    std::to_string(passIndex) +
+                                    " has no usable texture for a textured pipeline");
+                }
+            }
+        } else if (pass.itemCount != 0) {
+            return Fail(Status::InvalidArgument, error,
+                        "pass " + std::to_string(passIndex) +
+                            " declares draw items for a procedural fullscreen pipeline");
+        }
+    }
+    if (frameStencil) {
+        if (!desc.depthEnabled) {
+            return Fail(Status::InvalidArgument, error,
+                        "a stencil frame needs the depth-stencil attachment");
+        }
+        for (uint32_t passIndex = 0; passIndex < desc.passCount; ++passIndex) {
+            const auto pipeline = pipelines.find(desc.passes[passIndex].pipeline.id);
+            if (pipeline != pipelines.end() && !pipeline->second.stencilEnabled) {
+                return Fail(Status::InvalidArgument, error,
+                            "pass " + std::to_string(passIndex) +
+                                " uses a pipeline without stencil in a stencil frame; "
+                                "all PSOs must agree on the depth-stencil format");
+            }
+            if (pipeline != pipelines.end() && pipeline->second.sampleDepth) {
+                return Fail(Status::Unsupported, error,
+                            "depth sampling is not supported in a stencil frame "
+                            "(D24_UNORM_S8_UINT has no R32_FLOAT read view here)");
+            }
         }
     }
 
@@ -521,10 +872,14 @@ Status d3d12::detail::Q1bState::SubmitDrawFrame(const DrawFrameDesc& desc,
                         "pass " + std::to_string(passIndex) +
                             " uses depth but the frame has no depth attachment");
         }
-        if (pipeline->second.depthWrite) {
+        if (pipeline->second.depthWrite ||
+            (pipeline->second.stencilEnabled &&
+             pipeline->second.stencilWriteMask != 0)) {
+            // Stencil lives in the depth-stencil resource, so an op that writes
+            // it is a write of that resource for ordering purposes.
             declaration.uses.push_back(PassUse{depthResource, Access::Write});
-        }
-        if (pipeline->second.sampleDepth) {
+        } else if (pipeline->second.sampleDepth ||
+                   pipeline->second.stencilEnabled) {
             declaration.uses.push_back(PassUse{depthResource, Access::Read});
         }
         declarations.push_back(std::move(declaration));
@@ -589,15 +944,15 @@ Status d3d12::detail::Q1bState::SubmitDrawFrame(const DrawFrameDesc& desc,
     }
     if (desc.depthEnabled) {
         const Status created = CreateDepthAttachment(desc.width, desc.height,
-                                                     desc.depthClear, &record.depth,
-                                                     error);
+                                                     desc.depthClear, frameStencil,
+                                                     &record.depth, error);
         if (created != Status::Ok) {
             return created;
         }
     }
 
     const Status recorded =
-        RecordDrawPasses(slot->list.Get(), *slot, desc, record, error);
+        RecordDrawPasses(slot->list.Get(), *slot, desc, record, frameStencil, error);
     if (recorded != Status::Ok) {
         return recorded;
     }
