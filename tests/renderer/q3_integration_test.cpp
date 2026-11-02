@@ -11,8 +11,9 @@
 //   * the Q3 production slices view_history.cpp and overlay_composition.cpp.
 //
 // It does not claim an engine frame: the fork call sites (private pose snapshot
-// in neo/renderer/Model_md5.cpp and RC_* dispatch) are blocked on a fork PR and
-// a submodule bump, recorded in evidence-q3.md.
+// in neo/renderer/Model_md5.cpp and the sink/dispatch half) are blocked on a
+// Q3 fork branch, owner sign-off for the submodule bump and authorized data,
+// recorded in evidence-q3.md §6.
 
 #include "rhi/frame_integration.h"
 #include "motion_test_support.h"
@@ -238,6 +239,191 @@ void RunQueueOrdering(Runner* runner) {
     runner->Check(!error.empty(), "HUD-before-scene refusal is actionable");
     runner->Check(reordered.Size() == before,
                   "refused stream was not consumed");
+}
+
+// The Q2 stream that the integration executes: one scene view followed by the
+// display HUD. The overlay is part of the executed stream but never history.
+void BuildQ2Frame(rhi::SceneCommandQueue* queue) {
+    queue->BeginView(q2_test::MakeSceneView(1, 640, 360));
+    queue->Draw(q2_test::MakePacket(10, 3));
+    queue->EndView();
+    queue->BeginView(rhi::MakeDisplayOverlayView(2, 1280, 720));
+    queue->Draw(q2_test::MakePacket(11, 1));
+    queue->EndView();
+}
+
+// T085: execute the actual Q2 ordered stream, then take the current/previous
+// pose from the executed scene view and write per-pixel motion/validity into
+// the frame resource. The second frame proves the previous pose advanced with
+// the rendered frame, not with a simulation tick.
+void RunQ2ScenePoseWiring(Runner* runner) {
+    struct Row {
+        const char* label;
+        rhi::MotionVec3 previous;
+        rhi::MotionVec3 current;
+        double du;
+        double dv;
+        double toleranceU;
+        double toleranceV;
+    };
+    const double yaw2 = 2.0 * kPi / 180.0;
+    const Row rows[] = {
+        {"SKN-01 q2 scene", P(100.0, 0.0, 1.0), P(100.0, 0.0, 0.5), 0.0,
+         -0.003333333, 1.00e-07, 1.91e-06},
+        {"SKN-02 q2 scene", P(100.0, 0.0, 0.0), P(100.0, 0.0, 0.0), 0.0, 0.0,
+         1.00e-07, 1.00e-07},
+        {"SKN-03 q2 scene",
+         P(100.0 * std::cos(yaw2), 100.0 * std::sin(yaw2), 1.0),
+         P(100.0, 0.0, 1.0), -0.013095289, -0.000004064, 7.63e-06, 1.00e-07},
+        {"DEF-01 q2 scene", P(100.0, 0.0, 0.3), P(100.0, 0.0, -0.2), 0.0,
+         -0.003333333, 1.00e-07, 1.91e-06},
+    };
+
+    for (const Row& row : rows) {
+        rhi::FrameIntegration frame;
+        std::string error;
+        runner->Check(frame.Initialize(
+                          rhi::FrameIntegrationDesc{Render(), Display()},
+                          &error) == rhi::Status::Ok,
+                      std::string(row.label) + " integration initialized");
+
+        rhi::SceneAdapterDesc adapterDesc;
+        adapterDesc.displayWidth = 1280;
+        adapterDesc.displayHeight = 720;
+        adapterDesc.structuralOnly = true;
+        rhi::SceneAdapter adapter;
+        runner->Check(adapter.Initialize(adapterDesc, &error) ==
+                          rhi::Status::Ok,
+                      std::string(row.label) + " Q2 adapter initialized");
+
+        // Frame 1: execute the Q2 stream, then commit the scene view it
+        // reported. The HUD in the same stream must never enter history.
+        rhi::SceneCommandQueue first;
+        BuildQ2Frame(&first);
+        rhi::SceneExecuteResult executed;
+        runner->Check(frame.ExecuteFrame(&adapter, &first, &executed, &error) ==
+                          rhi::Status::Ok,
+                      std::string(row.label) + " Q2 stream executed",
+                      error);
+        runner->Check(executed.viewIds.size() == 2u &&
+                          executed.viewIds[0] == 1u &&
+                          executed.viewIds[1] == 2u,
+                      std::string(row.label) + " executed scene then HUD");
+        runner->Check(executed.drawsSubmitted == 0u &&
+                          executed.drawSubmissionUnavailable,
+                      std::string(row.label) +
+                          " structural-only adapter submitted no draw");
+
+        const rhi::ViewIdentity sceneIdentity = Identity(executed.viewIds[0]);
+        rhi::RenderedViewCommit previous;
+        previous.kind = rhi::ViewKind::Main;
+        previous.identity = sceneIdentity;
+        previous.camera = CameraAt(0.0, 0.0, 0.0);
+        previous.records.push_back(Record(row.previous));
+        previous.poseIdentity = 41u;
+        previous.poseGeneration = 3u;
+        previous.posedPositions.push_back(row.previous);
+        runner->Check(frame.CommitView(previous),
+                      std::string(row.label) + " previous pose committed");
+
+        rhi::RenderedViewCommit overlay;
+        overlay.kind = rhi::ViewKind::Main;
+        overlay.identity = Identity(executed.viewIds[1]);
+        overlay.camera = CameraAt(0.0, 0.0, 0.0);
+        overlay.records.push_back(Record(row.current));
+        overlay.displayOverlay = true;
+        runner->Check(!frame.CommitView(overlay),
+                      std::string(row.label) + " executed HUD refused");
+
+        rhi::RenderedViewState stored;
+        runner->Validity(std::string(row.label) + " previous view",
+                         frame.Previous(rhi::ViewKind::Main, sceneIdentity,
+                                        &stored),
+                         rhi::MotionValidity::Valid);
+        if (stored.records.size() == 1u) {
+            runner->Check(SamePoint(stored.records[0].point, row.previous),
+                          std::string(row.label) + " previous point");
+        } else {
+            runner->Check(false, std::string(row.label) + " previous record");
+        }
+
+        std::vector<rhi::MotionVec3> privatePose;
+        runner->Validity(
+            std::string(row.label) + " previous private pose",
+            frame.PreviousPrivatePose(rhi::ViewKind::Main, 41u, 3u,
+                                      &privatePose),
+            rhi::MotionValidity::Valid);
+        if (privatePose.size() == 1u) {
+            runner->Check(SamePoint(privatePose[0], row.previous),
+                          std::string(row.label) + " private pose point");
+        }
+
+        // Current pose -> previous pose disagreement is the per-pixel value.
+        const rhi::MotionSample sample = rhi::ReprojectPoint(
+            stored.camera, stored.records[0], CameraAt(0.0, 0.0, 0.0),
+            Record(row.current));
+        runner->Validity(std::string(row.label) + " motion valid",
+                         sample.validity, rhi::MotionValidity::Valid);
+        runner->Near(std::string(row.label) + " du", sample.vector.du, row.du,
+                     row.toleranceU);
+        runner->Near(std::string(row.label) + " dv", sample.vector.dv, row.dv,
+                     row.toleranceV);
+        runner->Check(frame.StorePerPixelMotion(320u, 180u, sample),
+                      std::string(row.label) + " motion stored");
+
+        const rhi::PerPixelMotionSample resource =
+            frame.LoadPerPixelMotion(320u, 180u);
+        runner->Check(resource.valid,
+                      std::string(row.label) + " resource valid");
+        runner->Near(std::string(row.label) + " resource du", resource.x,
+                     row.du, kTolPixel);
+        runner->Near(std::string(row.label) + " resource dv", resource.y,
+                     row.dv, kTolPixel);
+
+        // Frame 2: execute the Q2 stream again and commit the current pose as
+        // the newly rendered frame. The previous pose must advance with the
+        // rendered frame and the stale generation must be rejected.
+        rhi::SceneCommandQueue second;
+        BuildQ2Frame(&second);
+        runner->Check(frame.ExecuteFrame(&adapter, &second, &executed,
+                                         &error) == rhi::Status::Ok,
+                      std::string(row.label) + " second Q2 stream executed",
+                      error);
+        rhi::RenderedViewCommit current = previous;
+        current.records.clear();
+        current.records.push_back(Record(row.current));
+        current.poseGeneration = 4u;
+        current.posedPositions.clear();
+        current.posedPositions.push_back(row.current);
+        runner->Check(frame.CommitView(current),
+                      std::string(row.label) + " current pose committed");
+
+        rhi::RenderedViewState advanced;
+        if (frame.Previous(rhi::ViewKind::Main, sceneIdentity, &advanced) ==
+                rhi::MotionValidity::Valid &&
+            advanced.records.size() == 1u) {
+            runner->Check(SamePoint(advanced.records[0].point, row.current),
+                          std::string(row.label) +
+                              " previous advanced with the rendered frame");
+        } else {
+            runner->Check(false, std::string(row.label) + " advanced view");
+        }
+        runner->Validity(
+            std::string(row.label) + " stale pose generation rejected",
+            frame.PreviousPrivatePose(rhi::ViewKind::Main, 41u, 3u,
+                                      &privatePose),
+            rhi::MotionValidity::Generation);
+        if (frame.PreviousPrivatePose(rhi::ViewKind::Main, 41u, 4u,
+                                      &privatePose) ==
+                rhi::MotionValidity::Valid &&
+            privatePose.size() == 1u) {
+            runner->Check(SamePoint(privatePose[0], row.current),
+                          std::string(row.label) +
+                              " advanced private pose");
+        } else {
+            runner->Check(false, std::string(row.label) + " advanced pose");
+        }
+    }
 }
 
 void RunHistoryAndMotion(Runner* runner) {
@@ -524,6 +710,7 @@ int main() {
     Runner runner;
     RunFixtureVectors(&runner);
     RunQueueOrdering(&runner);
+    RunQ2ScenePoseWiring(&runner);
     RunHistoryAndMotion(&runner);
     RunInvalidation(&runner);
     RunPrivatePose(&runner);
