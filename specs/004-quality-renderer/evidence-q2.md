@@ -1,4 +1,4 @@
-# Q2 engine-adapter and classic-path evidence (T034, T035, T037, T038, T080–T082, T039)
+﻿# Q2 engine-adapter and classic-path evidence (T034, T035, T037, T038, T080–T082, T039)
 
 Status: author evidence for issue #53, written 2026-10-30. This is **not** Q2 acceptance, not a
 classic-parity result and not an independent review. It records what the merged superproject code
@@ -393,4 +393,71 @@ synthetic evidence of the RHI path, not a classic scene and not parity.
    comparison.
 4. Land T036 and T083 with the fork PR and submodule bump.
 
+
+
+## 12. T080–T082 engine-fork call sites (2026-11-02)
+
+Status: author evidence for the fork half on branch `spec-004-q2-q3-engine`, merged to fork `master`
+at `c87e87b` (`https://github.com/yhyu13/DOOM-3/pull/2`). This section **corrects** §10.5's
+"fork was not edited" statement for that branch only. It is not Q2 acceptance, not classic parity and
+not an independent review.
+
+### 12.1 What the fork now emits
+
+| Task | Fork file | Behaviour |
+|---|---|---|
+| T080 | `neo/renderer/tr_backend.cpp`, `RenderApi.h` | `surfacePacket` precedes `drawPacket` for the same id with the `srfTriangles_t` vertex/index snapshot (offset/stride layout), the model-to-world transform and a 2- or 4-byte index size. The consumer stores it and `SceneGeometrySource::ResolveSurface` returns it. |
+| T081 | `neo/renderer/tr_backend.cpp`, `Image_load.cpp`, `Image.h` | `q2MaterialFacts_t` carries up to eight stage image identities and the image's filter/repeat. `GenerateImage` forwards tightly packed RGBA8 bytes and the sampler metadata before the GL-only `glConfig.isInitialized` early return, so the D3D12 path receives the texture without a GL upload. `R_Q2ImageIdentity` is one namespace shared with `CopyRender`. |
+| T082 | `neo/renderer/tr_backend.cpp` | One `lightPacket` per global/local shadow chain instead of one aggregate packet. `chainKind`, the chain surface count, `noSelfShadow`/`noShadows` facts and an explicit exclusion kind travel with the packet. Ambient/fog/blend and noShadows/no-chain lights emit one excluded packet and no volume. |
+| T044 | `neo/renderer/Model_md5.cpp` | A private `(viewId, stable surface id)` store with a one-frame previous copy and a generation that advances only when the shared surface is regenerated. `UpdateSurface` commits after the posed vertices exist; the copy owns its memory, so freeing the shared cache does not invalidate it. |
+
+The superproject consumer mirrors these values and now executes a synthetic frame through them. It
+still installs no device backend in `DOOM3.exe`; `R_InitRenderApi` refuses the modern path with the
+typed no-consumer message, so the fork call sites are compiled, linked and dormant until a consumer
+with device pipelines exists.
+
+### 12.2 Commands and exits
+
+| Command | Exit | Observed |
+|---|---:|---|
+| `git -C <fork> push -u origin spec-004-q2-q3-engine` | 0 | branch `99ef55a`; fork PR https://github.com/yhyu13/DOOM-3/pull/2 later merged to `master` at `c87e87b` |
+| `cmake --build --preset win11-amd64-release -- -m` (target copy with the fork diff) | 0 | `DOOM3.exe` and `DOOM3XP.exe` linked; no `error C`/`error LNK` |
+| `scripts/export-target-patches.ps1 -Name win11-amd64` (submodule at `c87e87b`) | 0 | `Modified 74, Added 0, Removed 0`; patch 768,242 bytes |
+| `scripts/new-target.ps1 -Name win11-amd64 -Force` | 0 | 2,157 files / 33.8 MB copied from `c87e87b` |
+| `scripts/apply-target-patches.ps1 -Name win11-amd64` | 0 | `Applied patch: 74 files verified, 0 mismatches` |
+| `cmake --preset win11-amd64` | 0 | configure done after the reconstruction |
+| `cmake --build --preset win11-amd64-release -- -m` | 0 | `DOOM3.exe` 17,605,120 bytes; `DOOM3XP.exe` 17,788,416 bytes |
+| `dumpbin /symbols ...\doom3_engine.lib` | 0 | `R_Q2ImageIdentity`, `R_Q2EmitImageUpload`, `R_Q3PreviousPrivatePose`, `R_Q3ResetPrivatePoses` defined in the engine object library |
+| `ctest --test-dir build-q2 -C Release` | 0 | **45/45 passed** |
+| `ctest --test-dir build-q2 -C Debug` | 0 | **45/45 passed** |
+| `q2_fork_seam_test.exe` | 0 | hardware and software adapters: `FORK PASS`; `SUMMARY pass=2 fail=0 skip=0` |
+
+The new `renderer.q2.fork_seam` fixture drives the extended callback table with synthetic content:
+`surfacePacket` (4 vertices / 12 indices), a 2×2 RGBA8 upload, one local shadow chain, one excluded
+light and a private pose. It records `draws extracted=1 submitted=1 refused=0 lights=2 excluded=1
+passes=3 submissions=2 unavailable=0`; the surface readback is white and the light readback is black
+in the shadowed column and red elsewhere. The frames are
+`specs/004-quality-renderer/evidence/q2-fork-seam-surface.png` and `q2-fork-seam-light.png` in the
+test's evidence directory, not parity captures.
+
+### 12.3 Limits (unchanged acceptance)
+
+1. **No live engine frame.** The engine target has no device consumer/pipelines, so `r_renderApi 1`
+   still reaches the typed refusal. The fork call sites are compile/link evidence, not a rendered
+   engine frame.
+2. **No retail data.** No `.pk4`/`.pk3`/`.pak` is present, so CP-07 and every T039 image row remain
+   `NOT RUN`/`SKIPPED`. The fixture's shadow frame is synthetic.
+3. **Index width.** The portable RHI vertex layout uses `uint16_t` indices. The registration unit
+   refuses an index above 65535 instead of truncating it; a real large surface needs a 32-bit index
+   path or per-surface splitting.
+4. **Shadow volume source.** The engine seam still does not send shadow-volume meshes; the fixture
+   supplies the closed back/front volume. T082's exclusion facts and chain counts are delivered, but
+   the real volume geometry is future work.
+5. **No shade-only interaction pass.** The seam now forwards the exclusion facts, but the portable
+   adapter treats a light packet with no shadow chain as `lightsExcluded` and does not draw a
+   shade-only interaction frame. A real `noShadows` light that still has lit surfaces therefore needs
+   an adapter path before its interaction is claimed. The synthetic fixture's excluded light has no
+   interaction surfaces, so it does not exercise that case.
+6. **Reviews.** T040 is still NOT RUN and Q2 is not accepted. The fork PR and the bump PR require an
+   independent reviewer; this file is author evidence only.
 

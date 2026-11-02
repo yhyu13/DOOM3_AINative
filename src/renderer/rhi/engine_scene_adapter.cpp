@@ -456,6 +456,17 @@ Status SceneAdapter::Execute(SceneCommandQueue* queue, SceneExecuteResult* resul
                     queue->ConsumeFront(count);
                     return Status::InvalidArgument;
                 }
+                // The engine already split a two-chain light into one packet
+                // per chain (T082). Narrow the derived plan to that chain; a
+                // suppressed (noShadows) plan stays empty.
+                if (lightPlan.firstChain != ShadowPolicy::None &&
+                    (command.light.chainKind == 1 ||
+                     command.light.chainKind == 2)) {
+                    lightPlan.firstChain = command.light.chainKind == 1
+                                               ? ShadowPolicy::Global
+                                               : ShadowPolicy::Local;
+                    lightPlan.secondChain = ShadowPolicy::None;
+                }
                 ShadowVolumePlan volumePlan;
                 if (PlanShadowVolume(lightPlan, &volumePlan, error) != Status::Ok) {
                     queue->ConsumeFront(count);
