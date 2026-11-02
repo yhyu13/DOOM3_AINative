@@ -1,15 +1,18 @@
 # Q2 engine-adapter implementation brief (T034–T040, T080–T083)
 
 **Status**: dispatch brief for issue [#53](https://github.com/yhyu13/DOOM3_AINative/issues/53), written
-2026-10-29. This is **not** a specification, an implementation, a capture, or an acceptance record.
-**Q2 is not ready and not complete**: one blocking prerequisite (S2 resolver engine wiring) has not
-landed, Q1's validation gate is open, and no engine adapter exists. The design contracts are
+2026-10-29 and rechecked 2026-11-02 after PR #113. This is **not** a specification, an implementation,
+a capture, or an acceptance record. **Q2 is not ready and not complete**: S2 resolver engine wiring
+now lands (P1 closed), Q1 closed with a host-specific caveat (P3), but the five classic programs are
+still `stub` (P2), T036's failed-initialization test is absent, T039 and T083 have no legal data, and
+no classic frame has been drawn. The design contracts are
 `classic-parity.md` (T032) and `engine-integration.md` (T033); this file decides only the order,
 ownership, gates and stop conditions for executing them. Where this file and those contracts
 disagree, the contracts win and this file is corrected.
 
-**Baseline inspected**: `main` at `4a2fd7c`. The S2 worktree state below is a local snapshot and may
-move; re-check it before dispatch.
+**Baseline inspected**: `main` at `86e4eb3` on 2026-11-02, which contains the #113 merge
+(`8815239`) and the T031 tick (#128). The 2026-10-29 snapshot was `4a2fd7c`; every task state and
+prerequisite below was rechecked against `86e4eb3`.
 
 ---
 
@@ -25,26 +28,28 @@ Nothing here authorizes engine code. The implementation issue is open and blocke
 
 ---
 
-## 2. Prerequisites (exact state, 2026-10-29)
+## 2. Prerequisites (snapshot 2026-10-29, rechecked 2026-11-02)
 
 | # | Prerequisite | State | Evidence |
 |---|---|---|---|
-| P1 | **S2 resolver engine wiring** | **NOT MET.** The resolver core and its tests are on `main` (`src/renderer/shader/shader_resolver.cpp`), but `R_LoadARBProgram`, `R_FindARBProgram`, the `Material.cpp` atomic parse, the draw gate and the two console commands are engine-side and untouched. An uncommitted attempt exists in the `feat/29-resolver-wiring` worktree: a modified `targets/win11-amd64/CMakeLists.txt` and untracked `src/renderer/shader/engine/{shader_engine.cpp,shader_engine.h}`. It is **not merged and not an issue**. | `specs/008-classic-shaders/tasks.md` §E.2; T-021/T-022/T-024/T-029 marked `PARTIAL`; `resolver.md` §10 |
+| P1 | **S2 resolver engine wiring** | **MET (2026-11-02).** `src/renderer/shader/engine/shader_engine.cpp` and the target `CMakeLists.txt` wiring are on `main` (PR #59, `2487baf`). The four console commands (`shader_status`, `shader_reload`, `reloadARBprograms`, `shader_selftest`) are in the target patch re-exported by #113, which configured and built. | `git log --oneline -- src/renderer/shader/engine`; PR #59; `targets/win11-amd64/patches/all-changes.patch` |
 | P2 | **Five classic programs** | **PARTIAL.** `interaction`, `environment`, `bumpyenvironment`, `arbfp_glasswarp` and `shadow` are authored and compile to DXIL + SPIR-V + validated WGSL; the optional `test` program also compiles. The manifest (`shaders/manifest/classic-programs.json`) holds **14 entries**: 6 `stub` (`interaction`, `environment`, `bumpyenvironment`, `shadow`, `arbfp_glasswarp`, `test`), 1 `unsupported` (`megatexture`) and 7 `absent` (`ambientlight`, `arbvp_glasswarp`, `r200_interaction`, `nv20_bumpandlight`, `nv20_diffusecolor`, `nv20_specularcolor`, `nv20_diffuseandspecularcolor`). **None is `owned`**; the rendered comparison (T-027) is `BLOCKED` on authorised data and a running classic backend. A `stub` program must not be drawn as if it were owned. | `specs/008-classic-shaders/tasks.md` T-025/T-030; `ownership.md` §5 |
-| P3 | **Q1** | **RESIDUAL ACCEPTED, GATE OPEN.** Q1b fixtures are merged (`f1e4feb`, 17/17 Release and Debug). T030 and T031 stay open because the debug layer and GPU-based validation are `SKIPPED` (`0x887A002D`, `validation_executed=0`) on both the hardware and software adapter. The owner accepted this on 2026-10-29 as a recorded gap; the acceptance does not turn a skip into a pass. | `specs/004-quality-renderer/evidence-q1.md` (T030/T031 rows, owner-acceptance section) |
-| P4 | **Q7a / T088** | **DONE.** Mapping gate 57/57, browser spike 12 required checks twice, Emscripten/wasm leg twice. Caveat: `py -3 -I scripts/validate-webgpu-mapping.py` still exits 1 on current `main` (62 problems), owned by open issue #36 (T089). | `specs/004-quality-renderer/evidence-q7a.md`; `plan.md` Q7a row; `tasks.md` Q1 status note |
+| P3 | **Q1** | **DONE (2026-11-02).** Q1b fixtures are merged (`f1e4feb`, 17/17 Release and Debug). T030 and T031 are both checked (`tasks.md`): T030 ran the debug layer and GPU-based validation on the Graphics Tools host (`debug=RUN`, `gpu_validation=RUN`, `errors=0`, unwaived messages 0); T031 is ticked after the skipped-layer fix. Caveat: T030's RUN evidence is host-specific; non-GDK hosts report SKIPPED (`0x887A002D`), so Q2 must not universalize Q1. | `specs/004-quality-renderer/evidence-q1.md`; `tasks.md` T030/T031 notes |
+| P4 | **Q7a / T088** | **DONE.** Mapping gate 57/57, browser spike 12 required checks twice, Emscripten/wasm leg twice. The 2026-10-29 caveat (mapping gate exiting 1 with 62 problems) was cleared by #115; on 2026-11-02 `py -3 -I scripts/validate-webgpu-mapping.py` prints `OK: 119/119 public declarations classified` and exits 0. | `specs/004-quality-renderer/evidence-q7a.md`; `plan.md` Q7a row; `tasks.md` Q1 status note |
 | P5 | **Q0** | **DONE and merged** (PR #31): `baseline-final13`, all four categories `PASS` twice under fixed-tic drives. The values are same-renderer repeatability, not cross-renderer parity. Host is a virtual display with an Intel adapter; not a discrete-GPU quality baseline. | `specs/004-quality-renderer/classic-parity.md` §2; `evidence-q0.md` |
 | P6 | **T004 / T005** | **DONE and independently reviewed** (PR #27): three-tier RHI contract, header gate, evidence template. | `contracts/rhi-foundation.md`; `review-rhi-contract.md`; `evidence-template.md` |
 | P7 | **T032 / T033** | **DONE as design only** (ticked after the Round 8 PASS in `review-q2-design.md` §3.6). No engine build, capture, or independent Q2 sign-off exists. | `classic-parity.md`; `engine-integration.md`; `review-q2-design.md` §4 |
 
-**Dispatch rule.** P1 and P2 gate any adapter work that draws classic materials. P3 gates the Q2
-validation wording, not the adapter compile: Q2 may build and capture with the residual disclosed,
-but may never state that Q1 passed. No Q2 execution starts while P1 is unmerged unless the owner
-records a written re-scope in issue #53 — a decision, not an inference.
+**Dispatch rule.** P1 is closed; P2 now gates any adapter work that draws classic materials. P3 is
+closed but its caveat still governs the Q2 validation wording, not the adapter compile: Q2 may build
+and capture, but may never state that Q1 passed universally — T030's RUN evidence is host-specific
+and non-GDK hosts report SKIPPED. No Q2 execution that draws classic
+materials starts while P2 is unresolved unless the owner records a written re-scope in issue #53 —
+a decision, not an inference.
 
-**Coordination.** The uncommitted S2 wiring owns `targets/win11-amd64/CMakeLists.txt` and
-`src/renderer/shader/engine/**` right now. Q2 must not edit either path, nor open a second
-`CMakeLists.txt` writer, until that work lands or is abandoned.
+**Coordination.** The S2 wiring is merged, so it no longer holds `targets/win11-amd64/CMakeLists.txt`
+or `src/renderer/shader/engine/**` as an uncommitted writer. T036's linkage edit to the target
+`CMakeLists.txt` is unblocked, but it stays one writer per file with any other active worktree.
 
 ---
 
@@ -85,8 +90,8 @@ Hard rules from `engine-integration.md` §3–§4:
 The ordering is a dependency chain, not a preference. Fixtures are authored red before the code that
 satisfies them.
 
-1. **Close P1 and P2** (S2 engine wiring merged; the manifest state agreed). Resolve P3 in writing.
-   Nothing below starts on an unmerged `CMakeLists.txt` writer.
+1. **Close P2** (P1 closed 2026-11-02; the manifest state still needs agreement). Resolve P3 in
+   writing. Nothing below starts on a second `CMakeLists.txt` writer.
 2. **T034 — command-stream fixtures, red.** `tests/renderer/engine_command_order_test.cpp` covers
    view, set-buffer, copy and present order plus the mid-frame split:
    `CaptureRenderToFile` executes and clears the queue; `CaptureRenderToImage` appends a copy without
@@ -167,8 +172,8 @@ Stop the issue and return to the coordinator — do not widen scope, lower a thr
 
 | # | Condition | Consequence | Required action |
 |---|---|---|---|
-| S1 | P1 (S2 engine wiring) is still unmerged when T035 lands, or a `stub` program is drawn | The classic path draws unowned programs; parity is meaningless | Stop; land the wiring under its own issue, or record a written owner re-scope in #53 |
-| S2 | A Q2 statement would imply Q1 passed while T030/T031 are open | False validation claim | Reword to the accepted-residual fact; if a reviewer requires Q1 green, re-plan the host/SDK |
+| S1 | A `stub` program is drawn, or P2 is still unresolved when T035 lands | The classic path draws unowned programs; parity is meaningless | Stop; reconcile the manifest state, or record a written owner re-scope in #53 |
+| S2 | A Q2 statement would imply Q1 passed universally, ignoring the host-specific SKIPPED result | False validation claim | Reword to the host-specific fact (T030 RUN on GDK; SKIPPED elsewhere); do not universalize Q1 |
 | S3 | `validate-webgpu-mapping.py` still exits 1 at capture time and no waiver exists | The pre-Q2 header gate is red | Reconcile via #36/T089, or record an explicit reviewer waiver before capture |
 | S4 | Q0 label, values, executable, tic, host or capture method changes | The frozen ceilings no longer describe the reference | Re-baseline Q0 before any comparison; do not reuse the old ceilings |
 | S5 | A GL-vs-GL control exceeds its scene ceiling | The scene is not deterministic enough for image parity | Mark the row `SKIPPED` with the reason; do not widen the tolerance |
@@ -178,7 +183,7 @@ Stop the issue and return to the coordinator — do not widen scope, lower a thr
 | S9 | Any of the 30 `glConfig.isInitialized` sites is left unclassified, or the modern path still calls `RB_STD_DrawView` | Fabricated state or a GL pass on the modern path | Stop; resolve every row by group |
 | S10 | A `GLenum`, `idImage*`, `qgl*` call or `tri->ambientCache` pointer reaches `doom3::rhi` | Breaks the portable boundary and the header gate | Stop; translate at the boundary |
 | S11 | Both executables cannot link under `/MT`/`/MTd` (`LNK2038`), or `doom3_rhi` is missing from one EXE | One executable lacks the backend | Stop; fix linkage before any capture |
-| S12 | T035 and T080 would be edited concurrently, or the resolver wiring is still the `CMakeLists.txt` writer | Two writers on one file | Split ownership or sequence; do not merge over it |
+| S12 | T035 and T080 would be edited concurrently, or two worktrees would write the target `CMakeLists.txt` | Two writers on one file | Split ownership or sequence; do not merge over it |
 | S13 | Legal demo data is unavailable, or a fixture needs invented/retail content | Image parity cannot run | `SKIPPED` with reason; Q2 is not claimable |
 | S14 | A case exceeds its gate and is not a listed unsupported case with a reviewer decision | Parity failure | `FAIL`; fix or re-plan, never "known difference" without a row |
 | S15 | The GL path changes in a way that moves Q0, or the modern path introduces an automatic switch | The reference moved, or FR-006 is violated | Stop; revert the GL change / remove the switch |
@@ -205,9 +210,13 @@ Stop the issue and return to the coordinator — do not widen scope, lower a thr
 
 - This file adds no threshold, scene, program or engine claim; it points at the contracts.
 - Q2 is not described as ready, selectable, captured, or complete.
-- P1 is recorded as **not landed** because it is not on `main`; the uncommitted worktree is named as
-  a coordination constraint, not as evidence.
+- P1 is recorded as **met** (2026-11-02) with the merged wiring named as evidence; the 2026-10-29
+  snapshot is preserved in the row history, not presented as current.
+- The recheck is pinned to `main` at `86e4eb3`; it changes no threshold, scene, program or engine
+  claim.
 - The manifest is recorded as 6 `stub` (the five required programs plus the optional `test`), 1
   `unsupported` (`megatexture`) and 7 `absent`; none is `owned`.
-- The Q7a caveat (red mapping gate on `main`) is recorded alongside T088 being done.
-- The Q1 owner acceptance is recorded as a gap, not a pass.
+- The Q7a caveat is recorded as cleared by #115 (mapping gate `OK: 119/119`, exit 0), not as a
+  current red gate.
+- The Q1 result is recorded as host-specific (T030 RUN on the Graphics Tools host, SKIPPED elsewhere), not as a
+  universal pass.
