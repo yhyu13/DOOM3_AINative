@@ -120,8 +120,8 @@ typed failure are in the bumped tree, but the failed-initialization unit test is
 forced-failure launch ran. T037 is **PARTIAL** (portal/subview coverage absent). T038 is
 **PARTIAL** (structural cases pass; the named `tr_guisurf.cpp` handling is absent). T039 is
 **BLOCKED** on retail/demo data (#105); no image row is a parity pass. T040 is **NOT RUN**:
-`review-q2.md` does not exist. T080–T082 are **PARTIAL**: extraction/classification exists, but draw
-submission, texture upload/sampling and the stencil path do not. Q2 is **not accepted**. See
+`review-q2.md` does not exist. T080–T082 **superproject half delivered and device-tested** (#134); fork call sites, retail CP-07,
+T040 review and Q2 acceptance remain open. Q2 is **not accepted**. See
 [ledger-q2-q3-reconcile.md](./ledger-q2-q3-reconcile.md).
 
 ## Phase 6 — US4: Motion, history and HUD (P1; Q3)
