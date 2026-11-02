@@ -22,6 +22,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
+  OPTIONAL_FEATURES,
+  REQUIRED_LIMITS,
+  WEB_PROFILE_ID,
+} from "../../web/profile/capability.mjs";
+import {
   PROFILE_EXPECTED_NOT_RUN,
   PROFILE_REQUIRED_CHECKS,
 } from "../../web/profile/profile.mjs";
@@ -256,7 +261,44 @@ async function runOnce({ browserPath, args, pin, httpPort, logs, attempt, nonce 
   }
 }
 
-function summarize(result) {
+// T073 target-adapter evidence: the run must carry the live capability table
+// for the explicitly named target, not just a status string. A report that
+// drops the adapter identity, limits or features is incomplete evidence.
+export function capabilityProblems(result) {
+  const problems = [];
+  const capability = result?.capability;
+  if (!capability || typeof capability !== "object") {
+    problems.push("capability:missing");
+    return problems;
+  }
+  if (capability.targetId !== WEB_PROFILE_ID) {
+    problems.push(`capability:target-mismatch(${capability.targetId})`);
+  }
+  if (!capability.adapter || typeof capability.adapter !== "object") {
+    problems.push("capability:adapter-missing");
+  } else if (!String(capability.adapter.description || capability.adapter.vendor || "").length) {
+    problems.push("capability:adapter-identity-blank");
+  }
+  if (!Number.isInteger(capability.contractVersion) || capability.contractVersion < 1) {
+    problems.push("capability:contract-version-missing");
+  }
+  const rows = Array.isArray(capability.rows) ? capability.rows : [];
+  for (const rule of REQUIRED_LIMITS) {
+    if (!rows.some((row) => row.kind === "limit" && row.name === rule.name)) {
+      problems.push(`capability:missing-limit(${rule.name})`);
+    }
+  }
+  for (const feature of OPTIONAL_FEATURES) {
+    if (!rows.some((row) => row.kind === "feature" && row.name === feature.name)) {
+      problems.push(`capability:missing-feature(${feature.name})`);
+    }
+  }
+  if (!Array.isArray(capability.fallbacks)) problems.push("capability:fallbacks-missing");
+  if (!Array.isArray(capability.unsupported)) problems.push("capability:unsupported-missing");
+  return problems;
+}
+
+export function summarize(result) {
   const byId = new Map((result.checks || []).map((check) => [check.id, check]));
   const missing = PROFILE_REQUIRED_CHECKS.filter((id) => !byId.has(id));
   const failed = PROFILE_REQUIRED_CHECKS.filter((id) => {
@@ -280,7 +322,8 @@ function summarize(result) {
   }
   if (result.scene?.realScene !== false) failed.push("scene:realScene-must-be-false");
   if (result.realScene?.status !== "NOT RUN") failed.push("realScene:must-be-NOT-RUN");
-  if (result.targetId !== "webgpu-browser") failed.push("target:not-webgpu-browser");
+  if (result.targetId !== WEB_PROFILE_ID) failed.push("target:not-webgpu-browser");
+  failed.push(...capabilityProblems(result));
   return { byId, missing, failed };
 }
 
@@ -357,6 +400,8 @@ async function main() {
 
   const report = {
     schema: SCHEMA,
+    targetId: first.result.targetId,
+    contract: first.result.contract ?? null,
     browser: {
       name: first.version,
       protocol: first.protocol,
@@ -370,6 +415,7 @@ async function main() {
     page: first.result.env,
     scene: first.result.scene,
     realScene: first.result.realScene,
+    capability: first.result.capability ?? null,
     repetitions: runs.length,
     repeatable,
     requiredChecks: PROFILE_REQUIRED_CHECKS,
@@ -377,6 +423,7 @@ async function main() {
     attempts: runs.map((run) => ({
       summary: run.result.summary,
       capabilityStatus: run.result.capability?.status ?? null,
+      capability: run.result.capability ?? null,
       checks: run.result.checks,
     })),
     summary: first.result.summary,
@@ -400,7 +447,13 @@ async function main() {
   process.exit(exitCode);
 }
 
-main().catch((error) => {
-  console.error(error.stack || String(error));
-  process.exit(2);
-});
+const isEntryPoint = process.argv[1]
+  ? path.resolve(process.argv[1]).toLowerCase() === fileURLToPath(import.meta.url).toLowerCase()
+  : false;
+
+if (isEntryPoint) {
+  main().catch((error) => {
+    console.error(error.stack || String(error));
+    process.exit(2);
+  });
+}

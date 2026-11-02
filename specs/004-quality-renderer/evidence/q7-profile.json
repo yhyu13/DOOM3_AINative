@@ -1,5 +1,7 @@
 {
   "schema": "q7-webgpu-profile-run/1",
+  "targetId": "webgpu-browser",
+  "contract": "q7-webgpu-capability/1",
   "browser": {
     "name": "Chrome/156.0.8078.76",
     "protocol": "1.3",
@@ -11,9 +13,9 @@
     "headless": true
   },
   "page": {
-    "runNonce": "q7b-1793365724525-1",
+    "runNonce": "q7b-1793588505981-1",
     "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
-    "page": "http://127.0.0.1:56234/web/profile/index.html?run=q7b-1793365724525-1"
+    "page": "http://127.0.0.1:58862/web/profile/index.html?run=q7b-1793588505981-1"
   },
   "scene": {
     "id": "q7-procedural-field/1",
@@ -24,6 +26,257 @@
   "realScene": {
     "status": "NOT RUN",
     "reason": "no legal DOOM 3 game data is present in this repository; retail pk4/pk3 assets are EULA-bound and were not supplied for this slice"
+  },
+  "capability": {
+    "schema": "q7-webgpu-capability/1",
+    "contractVersion": 1,
+    "targetId": "webgpu-browser",
+    "status": "DEGRADED",
+    "adapter": {
+      "description": "",
+      "vendor": "intel",
+      "architecture": "xe-lpg",
+      "device": "",
+      "fallbackAdapter": false,
+      "reportedFacts": "0x0"
+    },
+    "rows": [
+      {
+        "id": "limit:maxBufferSize",
+        "kind": "limit",
+        "name": "maxBufferSize",
+        "requirement": 268435456,
+        "direction": "at-least",
+        "advertised": 268435456,
+        "status": "PASS",
+        "fallback": null,
+        "reason": "advertised value meets the requirement"
+      },
+      {
+        "id": "limit:maxStorageBufferBindingSize",
+        "kind": "limit",
+        "name": "maxStorageBufferBindingSize",
+        "requirement": 134217728,
+        "direction": "at-least",
+        "advertised": 134217728,
+        "status": "PASS",
+        "fallback": null,
+        "reason": "advertised value meets the requirement"
+      },
+      {
+        "id": "limit:maxTextureDimension2D",
+        "kind": "limit",
+        "name": "maxTextureDimension2D",
+        "requirement": 8192,
+        "direction": "at-least",
+        "advertised": 8192,
+        "status": "PASS",
+        "fallback": null,
+        "reason": "advertised value meets the requirement"
+      },
+      {
+        "id": "limit:maxBindGroups",
+        "kind": "limit",
+        "name": "maxBindGroups",
+        "requirement": 4,
+        "direction": "at-least",
+        "advertised": 4,
+        "status": "PASS",
+        "fallback": null,
+        "reason": "advertised value meets the requirement"
+      },
+      {
+        "id": "limit:maxSampledTexturesPerShaderStage",
+        "kind": "limit",
+        "name": "maxSampledTexturesPerShaderStage",
+        "requirement": 16,
+        "direction": "at-least",
+        "advertised": 16,
+        "status": "PASS",
+        "fallback": null,
+        "reason": "advertised value meets the requirement"
+      },
+      {
+        "id": "limit:maxStorageBuffersPerShaderStage",
+        "kind": "limit",
+        "name": "maxStorageBuffersPerShaderStage",
+        "requirement": 8,
+        "direction": "at-least",
+        "advertised": 8,
+        "status": "PASS",
+        "fallback": null,
+        "reason": "advertised value meets the requirement"
+      },
+      {
+        "id": "limit:maxUniformBuffersPerShaderStage",
+        "kind": "limit",
+        "name": "maxUniformBuffersPerShaderStage",
+        "requirement": 12,
+        "direction": "at-least",
+        "advertised": 12,
+        "status": "PASS",
+        "fallback": null,
+        "reason": "advertised value meets the requirement"
+      },
+      {
+        "id": "limit:maxUniformBufferBindingSize",
+        "kind": "limit",
+        "name": "maxUniformBufferBindingSize",
+        "requirement": 65536,
+        "direction": "at-least",
+        "advertised": 65536,
+        "status": "PASS",
+        "fallback": null,
+        "reason": "advertised value meets the requirement"
+      },
+      {
+        "id": "limit:minUniformBufferOffsetAlignment",
+        "kind": "limit",
+        "name": "minUniformBufferOffsetAlignment",
+        "requirement": 256,
+        "direction": "at-most",
+        "advertised": 256,
+        "status": "PASS",
+        "fallback": null,
+        "reason": "advertised value meets the requirement"
+      },
+      {
+        "id": "limit:maxVertexBuffers",
+        "kind": "limit",
+        "name": "maxVertexBuffers",
+        "requirement": 8,
+        "direction": "at-least",
+        "advertised": 8,
+        "status": "PASS",
+        "fallback": null,
+        "reason": "advertised value meets the requirement"
+      },
+      {
+        "id": "limit:maxVertexAttributes",
+        "kind": "limit",
+        "name": "maxVertexAttributes",
+        "requirement": 16,
+        "direction": "at-least",
+        "advertised": 16,
+        "status": "PASS",
+        "fallback": null,
+        "reason": "advertised value meets the requirement"
+      },
+      {
+        "id": "limit:maxColorAttachments",
+        "kind": "limit",
+        "name": "maxColorAttachments",
+        "requirement": 8,
+        "direction": "at-least",
+        "advertised": 8,
+        "status": "PASS",
+        "fallback": null,
+        "reason": "advertised value meets the requirement"
+      },
+      {
+        "id": "limit:maxColorAttachmentBytesPerSample",
+        "kind": "limit",
+        "name": "maxColorAttachmentBytesPerSample",
+        "requirement": 32,
+        "direction": "at-least",
+        "advertised": 32,
+        "status": "PASS",
+        "fallback": null,
+        "reason": "advertised value meets the requirement"
+      },
+      {
+        "id": "limit:maxComputeInvocationsPerWorkgroup",
+        "kind": "limit",
+        "name": "maxComputeInvocationsPerWorkgroup",
+        "requirement": 256,
+        "direction": "at-least",
+        "advertised": 256,
+        "status": "PASS",
+        "fallback": null,
+        "reason": "advertised value meets the requirement"
+      },
+      {
+        "id": "feature:timestamp-query",
+        "kind": "feature",
+        "name": "timestamp-query",
+        "requirement": "optional",
+        "direction": "present",
+        "advertised": false,
+        "status": "FALLBACK",
+        "fallback": "cpu-frame-timing",
+        "reason": "GPU timestamps unavailable; use CPU frame timing and make no GPU performance claim",
+        "impact": "info"
+      },
+      {
+        "id": "feature:texture-compression-bc",
+        "kind": "feature",
+        "name": "texture-compression-bc",
+        "requirement": "optional",
+        "direction": "present",
+        "advertised": false,
+        "status": "FALLBACK",
+        "fallback": "bc-transcode-required",
+        "reason": "BC textures must be transcoded before upload; no BC asset is exercised in this slice",
+        "impact": "quality"
+      },
+      {
+        "id": "feature:depth-clip-control",
+        "kind": "feature",
+        "name": "depth-clip-control",
+        "requirement": "optional",
+        "direction": "present",
+        "advertised": false,
+        "status": "FALLBACK",
+        "fallback": "no-clip-plane",
+        "reason": "DOOM 3 does not require clip planes; alphaNotch is already shader-side",
+        "impact": "info"
+      },
+      {
+        "id": "feature:float32-filterable",
+        "kind": "feature",
+        "name": "float32-filterable",
+        "requirement": "optional",
+        "direction": "present",
+        "advertised": false,
+        "status": "FALLBACK",
+        "fallback": "nearest-or-half-float",
+        "reason": "use nearest filtering or a half-float format for float textures",
+        "impact": "info"
+      }
+    ],
+    "fallbacks": [
+      {
+        "id": "cpu-frame-timing",
+        "feature": "timestamp-query",
+        "impact": "info",
+        "reason": "GPU timestamps unavailable; use CPU frame timing and make no GPU performance claim"
+      },
+      {
+        "id": "bc-transcode-required",
+        "feature": "texture-compression-bc",
+        "impact": "quality",
+        "reason": "BC textures must be transcoded before upload; no BC asset is exercised in this slice"
+      },
+      {
+        "id": "no-clip-plane",
+        "feature": "depth-clip-control",
+        "impact": "info",
+        "reason": "DOOM 3 does not require clip planes; alphaNotch is already shader-side"
+      },
+      {
+        "id": "nearest-or-half-float",
+        "feature": "float32-filterable",
+        "impact": "info",
+        "reason": "use nearest filtering or a half-float format for float textures"
+      }
+    ],
+    "unsupported": [],
+    "notes": [
+      "status READY means every required row passed and no quality fallback was selected",
+      "status DEGRADED still requires explicit fallback behaviour and must not be reported as full support",
+      "status UNSUPPORTED means the profile must refuse to claim the target",
+      "an adapter-reported identifier of 0x0 is recorded, never used for selection"
+    ]
   },
   "repetitions": 2,
   "repeatable": true,
@@ -54,6 +307,257 @@
         "total": 15
       },
       "capabilityStatus": "DEGRADED",
+      "capability": {
+        "schema": "q7-webgpu-capability/1",
+        "contractVersion": 1,
+        "targetId": "webgpu-browser",
+        "status": "DEGRADED",
+        "adapter": {
+          "description": "",
+          "vendor": "intel",
+          "architecture": "xe-lpg",
+          "device": "",
+          "fallbackAdapter": false,
+          "reportedFacts": "0x0"
+        },
+        "rows": [
+          {
+            "id": "limit:maxBufferSize",
+            "kind": "limit",
+            "name": "maxBufferSize",
+            "requirement": 268435456,
+            "direction": "at-least",
+            "advertised": 268435456,
+            "status": "PASS",
+            "fallback": null,
+            "reason": "advertised value meets the requirement"
+          },
+          {
+            "id": "limit:maxStorageBufferBindingSize",
+            "kind": "limit",
+            "name": "maxStorageBufferBindingSize",
+            "requirement": 134217728,
+            "direction": "at-least",
+            "advertised": 134217728,
+            "status": "PASS",
+            "fallback": null,
+            "reason": "advertised value meets the requirement"
+          },
+          {
+            "id": "limit:maxTextureDimension2D",
+            "kind": "limit",
+            "name": "maxTextureDimension2D",
+            "requirement": 8192,
+            "direction": "at-least",
+            "advertised": 8192,
+            "status": "PASS",
+            "fallback": null,
+            "reason": "advertised value meets the requirement"
+          },
+          {
+            "id": "limit:maxBindGroups",
+            "kind": "limit",
+            "name": "maxBindGroups",
+            "requirement": 4,
+            "direction": "at-least",
+            "advertised": 4,
+            "status": "PASS",
+            "fallback": null,
+            "reason": "advertised value meets the requirement"
+          },
+          {
+            "id": "limit:maxSampledTexturesPerShaderStage",
+            "kind": "limit",
+            "name": "maxSampledTexturesPerShaderStage",
+            "requirement": 16,
+            "direction": "at-least",
+            "advertised": 16,
+            "status": "PASS",
+            "fallback": null,
+            "reason": "advertised value meets the requirement"
+          },
+          {
+            "id": "limit:maxStorageBuffersPerShaderStage",
+            "kind": "limit",
+            "name": "maxStorageBuffersPerShaderStage",
+            "requirement": 8,
+            "direction": "at-least",
+            "advertised": 8,
+            "status": "PASS",
+            "fallback": null,
+            "reason": "advertised value meets the requirement"
+          },
+          {
+            "id": "limit:maxUniformBuffersPerShaderStage",
+            "kind": "limit",
+            "name": "maxUniformBuffersPerShaderStage",
+            "requirement": 12,
+            "direction": "at-least",
+            "advertised": 12,
+            "status": "PASS",
+            "fallback": null,
+            "reason": "advertised value meets the requirement"
+          },
+          {
+            "id": "limit:maxUniformBufferBindingSize",
+            "kind": "limit",
+            "name": "maxUniformBufferBindingSize",
+            "requirement": 65536,
+            "direction": "at-least",
+            "advertised": 65536,
+            "status": "PASS",
+            "fallback": null,
+            "reason": "advertised value meets the requirement"
+          },
+          {
+            "id": "limit:minUniformBufferOffsetAlignment",
+            "kind": "limit",
+            "name": "minUniformBufferOffsetAlignment",
+            "requirement": 256,
+            "direction": "at-most",
+            "advertised": 256,
+            "status": "PASS",
+            "fallback": null,
+            "reason": "advertised value meets the requirement"
+          },
+          {
+            "id": "limit:maxVertexBuffers",
+            "kind": "limit",
+            "name": "maxVertexBuffers",
+            "requirement": 8,
+            "direction": "at-least",
+            "advertised": 8,
+            "status": "PASS",
+            "fallback": null,
+            "reason": "advertised value meets the requirement"
+          },
+          {
+            "id": "limit:maxVertexAttributes",
+            "kind": "limit",
+            "name": "maxVertexAttributes",
+            "requirement": 16,
+            "direction": "at-least",
+            "advertised": 16,
+            "status": "PASS",
+            "fallback": null,
+            "reason": "advertised value meets the requirement"
+          },
+          {
+            "id": "limit:maxColorAttachments",
+            "kind": "limit",
+            "name": "maxColorAttachments",
+            "requirement": 8,
+            "direction": "at-least",
+            "advertised": 8,
+            "status": "PASS",
+            "fallback": null,
+            "reason": "advertised value meets the requirement"
+          },
+          {
+            "id": "limit:maxColorAttachmentBytesPerSample",
+            "kind": "limit",
+            "name": "maxColorAttachmentBytesPerSample",
+            "requirement": 32,
+            "direction": "at-least",
+            "advertised": 32,
+            "status": "PASS",
+            "fallback": null,
+            "reason": "advertised value meets the requirement"
+          },
+          {
+            "id": "limit:maxComputeInvocationsPerWorkgroup",
+            "kind": "limit",
+            "name": "maxComputeInvocationsPerWorkgroup",
+            "requirement": 256,
+            "direction": "at-least",
+            "advertised": 256,
+            "status": "PASS",
+            "fallback": null,
+            "reason": "advertised value meets the requirement"
+          },
+          {
+            "id": "feature:timestamp-query",
+            "kind": "feature",
+            "name": "timestamp-query",
+            "requirement": "optional",
+            "direction": "present",
+            "advertised": false,
+            "status": "FALLBACK",
+            "fallback": "cpu-frame-timing",
+            "reason": "GPU timestamps unavailable; use CPU frame timing and make no GPU performance claim",
+            "impact": "info"
+          },
+          {
+            "id": "feature:texture-compression-bc",
+            "kind": "feature",
+            "name": "texture-compression-bc",
+            "requirement": "optional",
+            "direction": "present",
+            "advertised": false,
+            "status": "FALLBACK",
+            "fallback": "bc-transcode-required",
+            "reason": "BC textures must be transcoded before upload; no BC asset is exercised in this slice",
+            "impact": "quality"
+          },
+          {
+            "id": "feature:depth-clip-control",
+            "kind": "feature",
+            "name": "depth-clip-control",
+            "requirement": "optional",
+            "direction": "present",
+            "advertised": false,
+            "status": "FALLBACK",
+            "fallback": "no-clip-plane",
+            "reason": "DOOM 3 does not require clip planes; alphaNotch is already shader-side",
+            "impact": "info"
+          },
+          {
+            "id": "feature:float32-filterable",
+            "kind": "feature",
+            "name": "float32-filterable",
+            "requirement": "optional",
+            "direction": "present",
+            "advertised": false,
+            "status": "FALLBACK",
+            "fallback": "nearest-or-half-float",
+            "reason": "use nearest filtering or a half-float format for float textures",
+            "impact": "info"
+          }
+        ],
+        "fallbacks": [
+          {
+            "id": "cpu-frame-timing",
+            "feature": "timestamp-query",
+            "impact": "info",
+            "reason": "GPU timestamps unavailable; use CPU frame timing and make no GPU performance claim"
+          },
+          {
+            "id": "bc-transcode-required",
+            "feature": "texture-compression-bc",
+            "impact": "quality",
+            "reason": "BC textures must be transcoded before upload; no BC asset is exercised in this slice"
+          },
+          {
+            "id": "no-clip-plane",
+            "feature": "depth-clip-control",
+            "impact": "info",
+            "reason": "DOOM 3 does not require clip planes; alphaNotch is already shader-side"
+          },
+          {
+            "id": "nearest-or-half-float",
+            "feature": "float32-filterable",
+            "impact": "info",
+            "reason": "use nearest filtering or a half-float format for float textures"
+          }
+        ],
+        "unsupported": [],
+        "notes": [
+          "status READY means every required row passed and no quality fallback was selected",
+          "status DEGRADED still requires explicit fallback behaviour and must not be reported as full support",
+          "status UNSUPPORTED means the profile must refuse to claim the target",
+          "an adapter-reported identifier of 0x0 is recorded, never used for selection"
+        ]
+      },
       "checks": [
         {
           "id": "P1-device",
@@ -185,12 +689,12 @@
         {
           "id": "P6-main-loop",
           "status": "PASS",
-          "detail": "loop ran 41 fixed tick(s) over 32 host frame(s)",
+          "detail": "loop ran 48 fixed tick(s) over 28 host frame(s)",
           "observed": {
-            "lastTimestampMs": 1020.9,
-            "accumulatorMs": 0.6666666666666146,
-            "ticks": 41,
-            "frames": 32,
+            "lastTimestampMs": 1138.2,
+            "accumulatorMs": 0.6999999999999886,
+            "ticks": 48,
+            "frames": 28,
             "droppedMs": 0,
             "paused": false
           }
@@ -274,6 +778,257 @@
         "total": 15
       },
       "capabilityStatus": "DEGRADED",
+      "capability": {
+        "schema": "q7-webgpu-capability/1",
+        "contractVersion": 1,
+        "targetId": "webgpu-browser",
+        "status": "DEGRADED",
+        "adapter": {
+          "description": "",
+          "vendor": "intel",
+          "architecture": "xe-lpg",
+          "device": "",
+          "fallbackAdapter": false,
+          "reportedFacts": "0x0"
+        },
+        "rows": [
+          {
+            "id": "limit:maxBufferSize",
+            "kind": "limit",
+            "name": "maxBufferSize",
+            "requirement": 268435456,
+            "direction": "at-least",
+            "advertised": 268435456,
+            "status": "PASS",
+            "fallback": null,
+            "reason": "advertised value meets the requirement"
+          },
+          {
+            "id": "limit:maxStorageBufferBindingSize",
+            "kind": "limit",
+            "name": "maxStorageBufferBindingSize",
+            "requirement": 134217728,
+            "direction": "at-least",
+            "advertised": 134217728,
+            "status": "PASS",
+            "fallback": null,
+            "reason": "advertised value meets the requirement"
+          },
+          {
+            "id": "limit:maxTextureDimension2D",
+            "kind": "limit",
+            "name": "maxTextureDimension2D",
+            "requirement": 8192,
+            "direction": "at-least",
+            "advertised": 8192,
+            "status": "PASS",
+            "fallback": null,
+            "reason": "advertised value meets the requirement"
+          },
+          {
+            "id": "limit:maxBindGroups",
+            "kind": "limit",
+            "name": "maxBindGroups",
+            "requirement": 4,
+            "direction": "at-least",
+            "advertised": 4,
+            "status": "PASS",
+            "fallback": null,
+            "reason": "advertised value meets the requirement"
+          },
+          {
+            "id": "limit:maxSampledTexturesPerShaderStage",
+            "kind": "limit",
+            "name": "maxSampledTexturesPerShaderStage",
+            "requirement": 16,
+            "direction": "at-least",
+            "advertised": 16,
+            "status": "PASS",
+            "fallback": null,
+            "reason": "advertised value meets the requirement"
+          },
+          {
+            "id": "limit:maxStorageBuffersPerShaderStage",
+            "kind": "limit",
+            "name": "maxStorageBuffersPerShaderStage",
+            "requirement": 8,
+            "direction": "at-least",
+            "advertised": 8,
+            "status": "PASS",
+            "fallback": null,
+            "reason": "advertised value meets the requirement"
+          },
+          {
+            "id": "limit:maxUniformBuffersPerShaderStage",
+            "kind": "limit",
+            "name": "maxUniformBuffersPerShaderStage",
+            "requirement": 12,
+            "direction": "at-least",
+            "advertised": 12,
+            "status": "PASS",
+            "fallback": null,
+            "reason": "advertised value meets the requirement"
+          },
+          {
+            "id": "limit:maxUniformBufferBindingSize",
+            "kind": "limit",
+            "name": "maxUniformBufferBindingSize",
+            "requirement": 65536,
+            "direction": "at-least",
+            "advertised": 65536,
+            "status": "PASS",
+            "fallback": null,
+            "reason": "advertised value meets the requirement"
+          },
+          {
+            "id": "limit:minUniformBufferOffsetAlignment",
+            "kind": "limit",
+            "name": "minUniformBufferOffsetAlignment",
+            "requirement": 256,
+            "direction": "at-most",
+            "advertised": 256,
+            "status": "PASS",
+            "fallback": null,
+            "reason": "advertised value meets the requirement"
+          },
+          {
+            "id": "limit:maxVertexBuffers",
+            "kind": "limit",
+            "name": "maxVertexBuffers",
+            "requirement": 8,
+            "direction": "at-least",
+            "advertised": 8,
+            "status": "PASS",
+            "fallback": null,
+            "reason": "advertised value meets the requirement"
+          },
+          {
+            "id": "limit:maxVertexAttributes",
+            "kind": "limit",
+            "name": "maxVertexAttributes",
+            "requirement": 16,
+            "direction": "at-least",
+            "advertised": 16,
+            "status": "PASS",
+            "fallback": null,
+            "reason": "advertised value meets the requirement"
+          },
+          {
+            "id": "limit:maxColorAttachments",
+            "kind": "limit",
+            "name": "maxColorAttachments",
+            "requirement": 8,
+            "direction": "at-least",
+            "advertised": 8,
+            "status": "PASS",
+            "fallback": null,
+            "reason": "advertised value meets the requirement"
+          },
+          {
+            "id": "limit:maxColorAttachmentBytesPerSample",
+            "kind": "limit",
+            "name": "maxColorAttachmentBytesPerSample",
+            "requirement": 32,
+            "direction": "at-least",
+            "advertised": 32,
+            "status": "PASS",
+            "fallback": null,
+            "reason": "advertised value meets the requirement"
+          },
+          {
+            "id": "limit:maxComputeInvocationsPerWorkgroup",
+            "kind": "limit",
+            "name": "maxComputeInvocationsPerWorkgroup",
+            "requirement": 256,
+            "direction": "at-least",
+            "advertised": 256,
+            "status": "PASS",
+            "fallback": null,
+            "reason": "advertised value meets the requirement"
+          },
+          {
+            "id": "feature:timestamp-query",
+            "kind": "feature",
+            "name": "timestamp-query",
+            "requirement": "optional",
+            "direction": "present",
+            "advertised": false,
+            "status": "FALLBACK",
+            "fallback": "cpu-frame-timing",
+            "reason": "GPU timestamps unavailable; use CPU frame timing and make no GPU performance claim",
+            "impact": "info"
+          },
+          {
+            "id": "feature:texture-compression-bc",
+            "kind": "feature",
+            "name": "texture-compression-bc",
+            "requirement": "optional",
+            "direction": "present",
+            "advertised": false,
+            "status": "FALLBACK",
+            "fallback": "bc-transcode-required",
+            "reason": "BC textures must be transcoded before upload; no BC asset is exercised in this slice",
+            "impact": "quality"
+          },
+          {
+            "id": "feature:depth-clip-control",
+            "kind": "feature",
+            "name": "depth-clip-control",
+            "requirement": "optional",
+            "direction": "present",
+            "advertised": false,
+            "status": "FALLBACK",
+            "fallback": "no-clip-plane",
+            "reason": "DOOM 3 does not require clip planes; alphaNotch is already shader-side",
+            "impact": "info"
+          },
+          {
+            "id": "feature:float32-filterable",
+            "kind": "feature",
+            "name": "float32-filterable",
+            "requirement": "optional",
+            "direction": "present",
+            "advertised": false,
+            "status": "FALLBACK",
+            "fallback": "nearest-or-half-float",
+            "reason": "use nearest filtering or a half-float format for float textures",
+            "impact": "info"
+          }
+        ],
+        "fallbacks": [
+          {
+            "id": "cpu-frame-timing",
+            "feature": "timestamp-query",
+            "impact": "info",
+            "reason": "GPU timestamps unavailable; use CPU frame timing and make no GPU performance claim"
+          },
+          {
+            "id": "bc-transcode-required",
+            "feature": "texture-compression-bc",
+            "impact": "quality",
+            "reason": "BC textures must be transcoded before upload; no BC asset is exercised in this slice"
+          },
+          {
+            "id": "no-clip-plane",
+            "feature": "depth-clip-control",
+            "impact": "info",
+            "reason": "DOOM 3 does not require clip planes; alphaNotch is already shader-side"
+          },
+          {
+            "id": "nearest-or-half-float",
+            "feature": "float32-filterable",
+            "impact": "info",
+            "reason": "use nearest filtering or a half-float format for float textures"
+          }
+        ],
+        "unsupported": [],
+        "notes": [
+          "status READY means every required row passed and no quality fallback was selected",
+          "status DEGRADED still requires explicit fallback behaviour and must not be reported as full support",
+          "status UNSUPPORTED means the profile must refuse to claim the target",
+          "an adapter-reported identifier of 0x0 is recorded, never used for selection"
+        ]
+      },
       "checks": [
         {
           "id": "P1-device",
@@ -405,12 +1160,12 @@
         {
           "id": "P6-main-loop",
           "status": "PASS",
-          "detail": "loop ran 39 fixed tick(s) over 40 host frame(s)",
+          "detail": "loop ran 47 fixed tick(s) over 28 host frame(s)",
           "observed": {
-            "lastTimestampMs": 1018.7,
-            "accumulatorMs": 0.5000000000000107,
-            "ticks": 39,
-            "frames": 40,
+            "lastTimestampMs": 1146.9,
+            "accumulatorMs": 0.5666666666667055,
+            "ticks": 47,
+            "frames": 28,
             "droppedMs": 0,
             "paused": false
           }

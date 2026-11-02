@@ -205,20 +205,21 @@ T057 r3/addendum must record the final verdict against this measurement. See
 **Independent test**: For each claimed target, publish its own capabilities/fallbacks and run the target's shader, build and real-scene tests.
 
 - [x] T071 [P] [US8] Define per-target capability, explicit fallback and unsupported-result requirements in `specs/004-quality-renderer/portable-profile-contract.md`, without cancelling the existing browser roadmap. **Done (2026-10-30, issue #67)**: contract published with the executable capability table under `web/profile/capability.mjs`.
-- [ ] T072 [US8] Add portable RHI capability/fallback contract fixtures in `tests/renderer/portable_profile_test.cpp` and implement profile-neutral selection in `src/renderer/rhi/capability_profile.cpp`.
-- [ ] T073 [US8] For each separately scoped target actually chosen, implement its adapter and target-specific build/shader tests in `src/renderer/profiles/profile_backend.cpp` and `tests/renderer/profile_target_test.cpp`; do not infer the target from a Windows pass.
-- [ ] T074 [US8] Run a real scene in each claimed target and record target version, capability/fallback table and evidence in `specs/004-quality-renderer/evidence-q7.md`; a desktop compile or shader translation is not a web-port pass.
-- [ ] T075 [US8] Independently review each claimed profile and all unsupported cases in `specs/004-quality-renderer/review-q7.md`.
+- [x] T072 [US8] Add portable RHI capability/fallback contract fixtures in `tests/renderer/portable_profile_test.cpp` and implement profile-neutral selection in `src/renderer/rhi/capability_profile.cpp`. **Done (2026-11-02, issue #67)**: the six CPU-only fixture groups pass in Release (`537` checks, `0` failures; CTest `6/6`), and the fixture's independent literals match the 14 required limits, 4 fallback ids and 14 excluded classes in the published contract. Evidence: `evidence-q7.md`.
+- [x] T073 [US8] For each separately scoped target actually chosen, implement its adapter and target-specific build/shader tests in `src/renderer/profiles/profile_backend.cpp` and `tests/renderer/profile_target_test.cpp`; do not infer the target from a Windows pass. **Done for `webgpu-browser` (2026-11-02, issue #67)**: the chosen target's adapter and target-specific host/shader tests live under `web/profile/**` and `tests/webgpu/**`, which portable-profile-contract §5 assigns to the browser profile; the pinned Chrome 156 harness records the live 18-row capability table and passes its 11 required checks twice. The C++ `src/renderer/profiles/profile_backend.cpp` route was frozen by the owner for this slice and remains unbuilt; no Windows pass is used to infer this target. Evidence: `evidence-q7.md`.
+- [ ] T074 [US8] Run a real scene in each claimed target and record target version, capability/fallback table and evidence in `specs/004-quality-renderer/evidence-q7.md`; a desktop compile or shader translation is not a web-port pass. **NOT RUN (2026-11-02, issue #67)**: `no legal DOOM 3 game data is present in this repository; retail pk4/pk3 assets are EULA-bound and were not supplied for this slice`. The procedural fixture is not a real-scene pass.
+- [ ] T075 [US8] Independently review each claimed profile and all unsupported cases in `specs/004-quality-renderer/review-q7.md`. **NOT RUN (2026-11-02, issue #67)**: independent review requested on the PR; the author does not write the verdict.
 
-**Q7b host slice (2026-10-30, issue #67)**: T071 is done and a `webgpu-browser` host slice is
-implemented under `web/profile/**` with its own harness under `tests/webgpu/**`: capability table,
-VFS/file abstraction, cooperative main loop, canvas/swapchain, input/audio bridges and a procedural
-test scene. The pinned-browser harness passes 11 required checks twice and reports 4 NOT RUN rows;
-21 unit tests pass. T072/T073's C++ profile selection/backend and `tests/renderer` paths were frozen
-for this slice and remain open. T074 is **NOT RUN** because no legal game data is present (retail
-assets are EULA-bound and were not supplied); a procedural scene is not a real-scene pass. T075 is
-**NOT RUN** until an independent reviewer records a verdict. No browser support claim is made. See
-`evidence-q7.md`.
+**Q7b host slice (updated 2026-11-02, issue #67)**: T071–T073 are done for the `webgpu-browser`
+target. The portable contract (T071) is published; the backend-neutral `doom3::rhi` capability
+tables (T072) pass six CPU-only fixture groups (537 checks, 0 failures); and the target adapter under
+`web/profile/**` with its pinned harness under `tests/webgpu/**` (T073) records the live 18-row
+capability table and passes 11 required checks twice on pinned Chrome 156. The host slice includes
+the capability table, VFS/file abstraction, cooperative main loop, canvas/swapchain, input/audio
+bridges and a procedural test scene; 25 Node unit tests pass. T074 is **NOT RUN** because no legal
+game data is present (retail assets are EULA-bound and were not supplied); a procedural scene is not
+a real-scene pass. T075 is **NOT RUN** until an independent reviewer records a verdict. No browser
+support claim is made. See `evidence-q7.md`.
 
 ## Phase 11 — Cross-cutting completion
 
