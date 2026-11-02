@@ -17,6 +17,7 @@
 // specs/004-quality-renderer/evidence-q3.md §6.
 
 #include "rhi/engine_scene_adapter.h"
+#include "rhi/frame_motion_resources.h"
 #include "rhi/frame_resources.h"
 #include "rhi/overlay_composition.h"
 #include "rhi/skinned_history.h"
@@ -114,6 +115,12 @@ public:
     // out-of-range coordinate is refused.
     bool StorePerPixelMotion(uint32_t x, uint32_t y, const MotionSample& sample);
     PerPixelMotionSample LoadPerPixelMotion(uint32_t x, uint32_t y) const;
+
+    // Turns the current per-pixel history into two device-scoped textures. This
+    // is the actual frame-resource write for T085: the texture content is the
+    // same motion/validity the fixture reads back through LoadPerPixelMotion.
+    Status UploadPerPixelMotion(Device& device, MotionFrameResource* resource,
+                                std::string* error) const;
 
     // Consumes the Q2 stream only when its declared view order equals the
     // post-reconstruction plan. A display overlay declared before the scene (or
