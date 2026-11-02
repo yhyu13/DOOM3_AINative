@@ -39,6 +39,7 @@ import {
   PROFILE_EXPECTED_NOT_RUN,
   PROFILE_REQUIRED_CHECKS,
 } from "../../web/profile/profile.mjs";
+import { capabilityProblems, summarize } from "./run-profile.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..", "..");
@@ -392,4 +393,53 @@ test("browser pin is explicit and carries the unsafe-webgpu flag", () => {
   assert.equal(typeof pin.evidenceVersion, "string");
   assert.ok(pin.flags.includes("--enable-unsafe-webgpu"));
   assert.match(pin.name, /Chrome/);
+});
+
+function completeProfileResult() {
+  const checks = [
+    ...PROFILE_REQUIRED_CHECKS.map((id) => ({ id, status: "PASS", detail: "executed" })),
+    ...Object.entries(PROFILE_EXPECTED_NOT_RUN).map(([id, detail]) => ({ id, status: "NOT RUN", detail })),
+  ];
+  return {
+    targetId: WEB_PROFILE_ID,
+    capability: evaluateCapability({
+      targetId: WEB_PROFILE_ID,
+      adapter: { description: "synthetic target adapter" },
+      limits: fullLimits(),
+      features: allFeatures(),
+    }),
+    scene: { realScene: false },
+    realScene: { status: "NOT RUN" },
+    checks,
+  };
+}
+
+test("harness report: a complete target-adapter result has no findings", () => {
+  const { missing, failed } = summarize(completeProfileResult());
+  assert.deepEqual(missing, []);
+  assert.deepEqual(failed, []);
+  assert.deepEqual(capabilityProblems(completeProfileResult()), []);
+});
+
+test("harness report: a result without the live capability table is refused", () => {
+  const result = completeProfileResult();
+  result.capability = null;
+  assert.ok(summarize(result).failed.includes("capability:missing"));
+});
+
+test("harness report: a capability table for another target is refused", () => {
+  const result = completeProfileResult();
+  result.capability = evaluateCapability({
+    targetId: "win11-amd64",
+    adapter: { description: "synthetic native adapter" },
+    limits: fullLimits(),
+    features: allFeatures(),
+  });
+  assert.ok(summarize(result).failed.some((entry) => entry.startsWith("capability:target-mismatch")));
+});
+
+test("harness report: a capability table missing a required limit row is refused", () => {
+  const result = completeProfileResult();
+  result.capability.rows = result.capability.rows.filter((row) => row.name !== "maxBufferSize");
+  assert.ok(summarize(result).failed.includes("capability:missing-limit(maxBufferSize)"));
 });
