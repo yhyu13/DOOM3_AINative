@@ -15,9 +15,10 @@ fixture.
 
 ## Identity and scope
 
-- **Source identity**: base `b7c1a68` (`origin/main`, the S0 gate repair), branch
-  `feat/q7-t072-t075`; the commit that carries this record is in the PR for issue #67.
-  `doom3_orig/doom3` untouched and clean at `a9c49da5afb18201d31e3f0a429a037e56ce2b9a`.
+- **Source identity**: rebased onto `origin/main` `8815239` (Q2 #113 merged; earlier rebases were
+  `c63f57a` and `b7c1a68`), branch `feat/q7-t072-t075`; the commit that carries this record is in the
+  PR for issue #67. `doom3_orig/doom3` is untouched by this PR and clean at
+  `cd6ae660f4b8de2cd9b7624017e17c89124e8ccb`, advanced by #113 from `a9c49da5`.
 - **Data identity and rights**: synthetic only. The procedural WGSL, synthetic VFS file and every
   expected value are authored here. No game data, retail shader, `glprogs`, derived pack or
   third-party SDK source is copied or required.
