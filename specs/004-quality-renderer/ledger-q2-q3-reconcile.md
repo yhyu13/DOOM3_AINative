@@ -134,3 +134,16 @@ B5 still holds for the engine integration. B6 and B7 described the portable seam
 are now stale for the superproject half: the seam has vertex/index submission, texture sampling and
 stencil state. They remain accurate for the fork half. B1 (no data) and B2 (no Q2 review) are
 unchanged, so Q2 is still not accepted and no CP row becomes parity.
+
+## Addendum 2026-11-02 — T085 engine-link slice (branch `feat/q3-t085-engine-link`)
+
+This addendum corrects the T085 row for the superproject engine-link half only. It does not change
+Q3 acceptance, T044's block or T048's moving-scene/review block.
+
+| Row | Previous state | State after this branch | Remaining block |
+|---|---|---|---|
+| T085 | PARTIAL; no sink consumer, no Q3 linkage, no frame resource | **DONE for the engine-link half**: `EngineQ2SinkConsumer` installed through `R_SetQ2SceneSink`; Q3 sources linked into `doom3_engine` via `doom3_rhi`; `renderer.q3.engine_frame` submits a real ordered two-surface frame; `renderer.q3.motion_resources` uploads/readbacks motion and validity; 44/44 tests in Debug and Release | A fork call site supplying the live geometry source and private pose (T044), plus legal data for a moving-scene capture (B1) |
+
+B4 (no Q3 fork branch / no owner sign-off) and B5 (superproject sink linkage) are now split: B5's
+superproject half is resolved, while B4 still blocks T044's `Model_md5.cpp` snapshot and therefore the
+retail-engine frame. B1 is unchanged, so no moving-scene capture or Q3 acceptance is claimed.

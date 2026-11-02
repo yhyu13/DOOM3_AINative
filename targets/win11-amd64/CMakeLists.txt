@@ -129,6 +129,16 @@ set(DOOM3_LINK_LIBS
 # configure instead of silently building a backend that is not there.
 set(PORT_RENDERER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../src/renderer")
 
+# The Q2 scene-sink registration unit is the one engine translation unit that
+# includes neo/renderer/RenderApi.h (spec 004 T085). It is compiled into the
+# engine objects, not into doom3_rhi, so a static initializer can install the
+# consumer before R_InitRenderApi. C++17 matches the portable Q3 headers.
+target_sources(doom3_engine PRIVATE
+    "${PORT_RENDERER_DIR}/rhi/engine_q2_sink_install.cpp")
+target_include_directories(doom3_engine PRIVATE "${PORT_RENDERER_DIR}")
+set_source_files_properties("${PORT_RENDERER_DIR}/rhi/engine_q2_sink_install.cpp"
+    PROPERTIES COMPILE_OPTIONS "/std:c++17")
+
 set(DOOM3_RHI_SOURCES
     "${PORT_RENDERER_DIR}/d3d12/rhi_d3d12.cpp"
     "${PORT_RENDERER_DIR}/d3d12/rhi_pipeline.cpp"
@@ -140,6 +150,17 @@ set(DOOM3_RHI_SOURCES
     "${PORT_RENDERER_DIR}/rhi/frame_graph.cpp"
     "${PORT_RENDERER_DIR}/rhi/engine_scene_adapter.cpp"
     "${PORT_RENDERER_DIR}/rhi/materials.cpp"
+    # Q3 history/pose/motion/composition slices and the Q2 sink consumer
+    # (spec 004 T042-T047, T085). These are the production sources the Q3
+    # fixtures already exercise; linking them here is what puts the same
+    # implementation behind doom3_engine, not a test-only copy.
+    "${PORT_RENDERER_DIR}/rhi/motion_history.cpp"
+    "${PORT_RENDERER_DIR}/rhi/skinned_history.cpp"
+    "${PORT_RENDERER_DIR}/rhi/view_history.cpp"
+    "${PORT_RENDERER_DIR}/rhi/overlay_composition.cpp"
+    "${PORT_RENDERER_DIR}/rhi/frame_integration.cpp"
+    "${PORT_RENDERER_DIR}/rhi/frame_motion_resources.cpp"
+    "${PORT_RENDERER_DIR}/rhi/engine_q2_sink.cpp"
 )
 foreach(rhi_source IN LISTS DOOM3_RHI_SOURCES)
     if(NOT EXISTS "${rhi_source}")

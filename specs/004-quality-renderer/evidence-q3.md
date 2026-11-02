@@ -6,11 +6,13 @@ the residual tracking issue [#120](https://github.com/yhyu13/DOOM3_AINative/issu
 records what the portable slices do on this host and exactly what could not run.
 
 **Headline: T044's portable half now covers shared-geometry regeneration, deletion and the
-`generation` supersession path, and T085's portable half executes the actual Q2 ordered stream
-before taking the current/previous pose and writing per-pixel motion/validity. The full Q3 set is
-green in Debug and Release. T048's analytic checks ran; its moving-scene check and independent
-review are still blocked. The engine-fork halves of T044 and T085 remain BLOCKED for the exact
-reasons in §6. No engine frame was executed and no image was captured.**
+`generation` supersession path. T085's engine-link half is DONE: the superproject installs the
+`R_SetQ2SceneSink` consumer, links the Q3 sources into `doom3_engine`, submits a synthetic ordered
+two-surface frame and reads back per-pixel motion and validity from device textures. The full Q3 set
+is green in Debug and Release. T048's analytic checks ran; its moving-scene check and independent
+review are still blocked. The fork call sites of T044 and T085 (live geometry source, private
+`Model_md5.cpp` pose) remain BLOCKED for the exact reasons in §6. No retail-engine frame was
+executed.**
 
 ## Identity and scope
 
@@ -122,13 +124,17 @@ py -3 -I specs/004-quality-renderer/tools/motion_fixtures.py --self-test        
 | `rhi.q3.history_reset` (T045) | RUN | PASS | `checks=55 failures=0`, exit 0, Release and Debug | `build-q3-residual/Release-q3_history_reset_test.log`, `Debug-q3_history_reset_test.log` |
 | `rhi.q3.overlay_composition` (T047) | RUN | PASS | `checks=33 failures=0`, exit 0, Release and Debug | `build-q3-residual/Release-q3_overlay_composition_test.log`, `Debug-q3_overlay_composition_test.log` |
 | `rhi.q3.frame_integration` (T085 portable half) | RUN | PASS | `checks=211 failures=0`, exit 0, Release and Debug: actual Q2 stream executed, then SKN-01..03/DEF-01 previous pose committed, current pose reprojected, per-pixel motion/validity stored, HUD refused, second Q2 frame advances the previous pose, structural-only draw count is zero | `build-q3-residual/Release-q3_frame_integration_test.log`, `Debug-q3_frame_integration_test.log` |
-| Full CTest Release | RUN | **PARTIAL** | 37/38, exit 8. Only `rhi.q1a.diagnostics` fails (`hr=0x887A002D`, no D3D12 debug layer on this host); all Q3 verdicts are real pass exits | `build-q3-residual/ctest-Release.log` |
-| Q3 label CTest Release/Debug | RUN | PASS | 4/4 each, exit 0 | `build-q3-residual/ctest-Release-q3.log`, `ctest-Debug-q3.log` |
-| Contract header/test gate | RUN | PASS | `header scan: RUN over 25 header(s) and 30 public test file(s)`, exit 0 | `build-q3-residual/validate-rhi-contract.log` |
+| `renderer.q3.engine_frame` (T085 engine link) | RUN | PASS | Sink callbacks executed through the real adapter on hardware and software adapters; `draws=2 submitted=2 submissions=1`, green-left/red-right readback; BMP/PNG captured | `build-tests/q3-engine-frame.log`, `specs/004-quality-renderer/evidence/q3-engine-sink-frame.png` |
+| `renderer.q3.motion_resources` (T085 engine link) | RUN | PASS | Previous/current pose reprojected; motion bytes `0,0,212,154`, valid pixel `255`, invalid pixel `0`; both textures read back from the device on both adapters | `build-tests/q3-engine-motion.log`, `specs/004-quality-renderer/evidence/q3-engine-motion-resources.png` |
+| Engine link (T085) | RUN | PASS | Q3 sources + installer compiled into `doom3_engine`; `R_SetQ2SceneSink` referenced from the installer object and its strings present in `DOOM3.exe` | `build/_installer_symbols.log`, `build/_build.log` |
+| Full renderer CTest on this branch, Release and Debug | RUN | PASS | 44/44 in each configuration, exit 0; Q3 label 6/6 in each | `build-tests/_ctest-all-release.log`, `build-tests/_ctest-all-debug.log` |
+| `Full CTest Release` (earlier `build-q3-residual` pass) | RUN | **PARTIAL** | 37/38, exit 8. Only `rhi.q1a.diagnostics` fails (`hr=0x887A002D`, no D3D12 debug layer on that host); all Q3 verdicts are real pass exits | `build-q3-residual/ctest-Release.log` |
+| `Q3 label CTest Release/Debug` (earlier `build-q3-residual` pass) | RUN | PASS | 4/4 each, exit 0 | `build-q3-residual/ctest-Release-q3.log`, `ctest-Debug-q3.log` |
+| `Contract header/test gate` (earlier `build-q3-residual` pass) | RUN | PASS | `header scan: RUN over 25 header(s) and 30 public test file(s)`, exit 0; the current 27/33 run is recorded in §6.4 | `build-q3-residual/validate-rhi-contract.log` |
 | Fixture document + self-test | RUN | PASS | `20 fixture rows and 10 validity rows match the generator`; `5 numeric mutations and the zero-valid contract are detected` | `build-q3-residual/fixture-check.log`, `fixture-self-test.log` |
 | Negative control: generation check removed | RUN | **FAIL (intended)** | `q3_skinned_history_test` exit 1, 3 failures; restored run 58/0 exit 0 | `build-q3-residual/mutation-skinned-history.log`, `restore-skinned-history.log` |
 | Engine-fork private pose snapshot (`Model_md5.cpp`) | NOT RUN | **BLOCKED** | See §6.1; no fork Q3 branch, submodule bump needs owner sign-off, no data to exercise an md5 model | — |
-| Engine-fork / actual frame resources (T085 fork half) | NOT RUN | **BLOCKED** | See §6.2; the superproject installs no Q2 sink consumer and links no Q3 sources into `doom3_engine` | — |
+| Engine-fork call sites / actual frame resources (T085 fork half) | RUN (superproject half) | **PASS; fork half BLOCKED** | Fork call sites are absent (live geometry source and private pose); the superproject installs the `R_SetQ2SceneSink` consumer and links the Q3 sources, and the synthetic frame/motion readback passes. See §6.2 | `build-tests/q3-engine-frame.log`, `build-tests/q3-engine-motion.log` |
 | Legal-data moving-scene capture (T048) | SKIPPED | **BLOCKED** | No authorized `.pk4`/`.pk3`/`.pak`, no engine binary and no engine call site; image comparison not attempted | — |
 | Independent review (`review-q3.md`) | NOT RUN | — | Requested in the PR; a non-author must rerun the commands at the reviewed SHA and record the verdict | — |
 
@@ -186,12 +192,14 @@ change maps to `Generation`; an unrendered view reports `NoHistory`. A `Valid` r
 
 | Task | Status after this slice | Note |
 |---|---|---|
-| T044 | **PORTABLE HALF PASS; engine half BLOCKED** | 58/0 in Debug and Release; regeneration/deletion/subview tests; `Model_md5.cpp` snapshot blocked per §6.1 |
-| T048 | **ANALYTIC PASS; MOVING-SCENE BLOCKED; REVIEW NOT RUN** | All Q3 analytic suites green; no legal data, no engine frame; independent review requested in the PR |
-| T085 | **PORTABLE HALF PASS; engine half BLOCKED** | Q2-executed stream -> previous/current pose -> per-pixel motion/validity, 211/0; engine call sites blocked per §6.2 |
+| T044 | **PORTABLE HALF PASS; engine half BLOCKED** | 58/0 in Debug and Release; regeneration/deletion/subview tests; `Model_md5.cpp` snapshot blocked per §6.1. Rechecked on this branch: the fork still has no Q3 branch and no owner sign-off |
+| T048 | **ANALYTIC PASS; MOVING-SCENE BLOCKED; REVIEW NOT RUN** | All Q3 analytic suites green; the T085 sink path now submits a synthetic frame, but no legal-data moving scene and no independent review; requested in the PR |
+| T085 | **DONE (engine-link half)** | `R_SetQ2SceneSink` consumer installed, Q3 sources linked into `doom3_engine`, synthetic Q2-executed frame submitted and read back, per-pixel motion/validity uploaded as device textures; 44/44 Debug and Release. No retail-engine frame is claimed |
 
-The task rows are updated in `tasks.md` with these qualifications. A checked portable row does not
-claim the fork half, a real frame or Q3 acceptance.
+The task rows are updated in `tasks.md` with these qualifications. T085 claims the superproject
+engine-link half only: the installed consumer and frame resources are exercised by a synthetic Q2
+stream, not by a retail `.pk4` scene, and T044's fork snapshot remains unbuilt. Q3 acceptance is still
+not claimed.
 
 ## Blockers and findings
 
@@ -213,43 +221,80 @@ Recorded evidence, not an assumption:
 5. No authorized game data exists in the worktree: a bounded recursive search for
    `*.pk4`/`*.pk3`/`*.pak` returns zero files, and no `DOOM3.exe` is built. Even a fork snapshot
    could not be exercised on an md5 model here.
-6. `targets/win11-amd64/CMakeLists.txt` and the root CMake are out of scope for this assignment;
-   the engine does not link the Q3 integration.
+6. `targets/win11-amd64/CMakeLists.txt` now links the Q3 sources and the sink registration unit into
+   `doom3_engine` for T085, but that does not add the `Model_md5.cpp` previous-pose snapshot. T044
+   still needs a fork branch and a reviewed, owner-signed submodule bump; editing the read-only
+   submodule or the target copy is not a substitute.
 
 The portable copy semantics (regeneration, deletion, generation supersession, subview isolation)
 are proven by `q3_skinned_history_test`; the engine `UpdateSurface` call site is not.
 
-### 6.2 T085 engine-fork / actual-frame-resource wiring
+### 6.2 T085 engine-link / actual-frame-resource wiring
 
-Recorded evidence:
+Delivered on this branch (2026-11-02):
 
-1. `grep` over `src/` for `R_SetQ2SceneSink`/`q2SceneSink_t` returns no consumer. The fork emits
-   the Q2 sink, but the superproject never installs one, so there is no engine path from
-   `RB_*`/`RC_*` into `doom3::rhi::SceneAdapter`.
-2. No Q3 source is linked into `doom3_engine`; the target/root CMake is untouched by assignment.
-   The Q3 integration is compiled only by `tests/renderer/CMakeLists.txt`.
-3. The Q2 adapter is `structuralOnly`; the new test asserts `drawsSubmitted == 0` and
-   `drawSubmissionUnavailable == true`. It extracts and classifies, but cannot submit geometry.
-4. No legal data and no engine frame (see §6.1 items 5 and 6), so no GPU motion/validity resource
-   is written and no image can be captured.
+1. `src/renderer/rhi/engine_q2_sink.{h,cpp}` is the portable consumer. It translates the ordered
+   `beginView`/`drawPacket`/`lightPacket`/`endView`/`setColorTarget`/`copyToImage`/`swapBuffers`
+   sequence into a `SceneCommandQueue`, executes it through `FrameIntegration`, and refuses a frame
+   that would submit only part of the extracted draws or lights.
+2. `src/renderer/rhi/engine_q2_sink_install.cpp` includes the fork `renderer/RenderApi.h`, bridges
+   the engine's value structs to the portable ones, and installs the consumer with
+   `R_SetQ2SceneSink` from a static object in `doom3_engine` before `R_InitRenderApi` runs.
+3. `targets/win11-amd64/CMakeLists.txt` compiles the installer into `doom3_engine` and adds the Q3
+   production sources (`motion_history`, `skinned_history`, `view_history`, `overlay_composition`,
+   `frame_integration`, `frame_motion_resources`, `engine_q2_sink`) to `doom3_rhi`, which
+   `doom3_engine` links and `DOOM3_LINK_LIBS` places on both executable lines.
+4. `src/renderer/rhi/frame_motion_resources.cpp` writes the `HistoryBuffer` into two device textures:
+   RGBA8 motion (binary16 du in R/G, dv in B/A) and R8 validity (255/0). This is the actual
+   frame-resource write behind `FrameIntegration::UploadPerPixelMotion`.
+5. `tests/renderer/q3_engine_frame_test.cpp` drives the same callback table: `frame` submits a real
+   ordered two-surface frame (`drawsSubmitted=2`, one submission, green-left/red-right readback) and
+   `motion` reprojects the previous/current pose, stores a valid sample and an invalid sample,
+   uploads the two textures, renders them through a vertex-input fullscreen quad and reads the exact
+   bytes back.
 
-The superproject sequence (Q2 stream executed -> current/previous pose -> per-pixel motion and
-validity) is proven by `q3_frame_integration_test`; the engine call site and a real frame are not.
+What is still not claimed: the fork call sites that supply a live geometry source and the private
+`Model_md5.cpp` pose are absent, so the engine executable cannot render a retail scene and no
+retail `.pk4` frame is captured. That remains T044/T048 work and is recorded as BLOCKED there.
+
+### 6.4 Commands and exits for the T085 engine-link run
+
+Run on this host on 2026-11-02; logs are worktree-local and git-ignored.
+
+| Command | Exit | Observed |
+|---|---:|---|
+| `cmake --preset win11-amd64` | 0 | target copy created/patched; C++ compiler MSVC 19.44.35228.0 |
+| `cmake --build --preset win11-amd64-release -- -m` | 0 | `build/bin/Release/DOOM3.exe` 17,580,032 bytes and `DOOM3XP.exe` 17,763,328 bytes; no `error C`/`error LNK` |
+| `dumpbin /symbols ...engine_q2_sink_install.obj` | 0 | `g_installer` defined and `R_SetQ2SceneSink` referenced |
+| `findstr` for the consumer's refusal strings in `DOOM3.exe` | 0 | strings present, so `engine_q2_sink.cpp` and its dependencies were linked |
+| `ctest --test-dir build-tests -C Release` | 0 | 44/44 passed |
+| `ctest --test-dir build-tests -C Debug` | 0 | 44/44 passed |
+| `q3_frame_integration_test.exe` | 0 | `checks=211 failures=0` |
+| `q3_engine_frame_test.exe frame` | 0 | hardware and software adapters PASS; `draws=2 submitted=2 submissions=1`; pixels green-left/red-right |
+| `q3_engine_frame_test.exe motion` | 0 | both adapters PASS; motion bytes `0,0,212,154`, validity `255` then `0` |
+| `python scripts/validate-rhi-contract.py` | 0 | header scan over 27 headers and 33 public test files |
+
+Artifacts: `specs/004-quality-renderer/evidence/q3-engine-sink-frame.png` and
+`q3-engine-motion-resources.png` (8x8 readbacks scaled to 128x128 nearest).
 
 ### 6.3 Other findings
 
 - The public-header collision from issue #58 remains fixed by the `PerPixelMotionSample` rename;
   issue #58 stays open until its owner accepts it.
-- `rhi.q1a.diagnostics` is host-blocked (`hr=0x887A002D`) and is recorded as a failure, not a pass.
-  It does not touch the changed Q3 tests.
+- `rhi.q1a.diagnostics` failed on the earlier residual host (`hr=0x887A002D`, no debug layer) and is
+  recorded there as a failure. On this branch's host it passed as part of 44/44; that does not waive
+  the earlier host's result.
 
 ## Independent review
 
 - **Independent reviewer**: NOT RUN — requested in the PR. The author must not merge without an
   `APPROVED` verdict from a non-author at the reviewed SHA, per AGENTS.md §11.
-- **Review scope and commands**: rerun the seven Q3 executables in Debug and Release
-  (`build-q3-residual/{Release,Debug}/q3_*_test.exe`), the Q3 label CTest, the contract validator
-  and the fixture self-test; inspect the new `RunRegenerationAndDeletion` and
-  `RunQ2ScenePoseWiring` cases; confirm no `targets/`/root CMake, Q4/Q5/Q6/Q7 or submodule change.
-  The `rhi.q1a.diagnostics` host failure must be reported, not waived.
+- **Review scope and commands**: rerun the Q3 executables in Debug and Release, including
+  `q3_engine_frame_test frame` and `q3_engine_frame_test motion`; rerun the Q3 label CTest, the full
+  renderer suite, the contract validator and the fixture self-test; rebuild
+  `cmake --build --preset win11-amd64-release -- -m` and confirm the installer object references
+  `R_SetQ2SceneSink` and the consumer strings are present in `DOOM3.exe`; inspect
+  `RunQ2ScenePoseWiring`, the new sink consumer and `frame_motion_resources.cpp`; confirm no
+  Q4/Q5/Q6/Q7 harness change and no submodule or retail-data change. The `rhi.q1a.diagnostics`
+  result must be reported for the reviewer's host, not waived.
 - **Review decision and unresolved items**: NOT RUN.

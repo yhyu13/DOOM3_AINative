@@ -161,7 +161,9 @@ target_compile_definitions(q2_classic_compatibility_test PRIVATE
 # stream and writes the Q3 history, private pose and per-pixel motion seams. The
 # engine-fork call sites are not part of this target; see evidence-q3.md.
 add_library(q3_integration STATIC
-    "${Q1A_SOURCE_ROOT}/src/renderer/rhi/frame_integration.cpp")
+    "${Q1A_SOURCE_ROOT}/src/renderer/rhi/frame_integration.cpp"
+    "${Q1A_SOURCE_ROOT}/src/renderer/rhi/frame_motion_resources.cpp"
+    "${Q1A_SOURCE_ROOT}/src/renderer/rhi/engine_q2_sink.cpp")
 target_include_directories(q3_integration PUBLIC "${Q1A_HEADER_ROOT}"
     "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(q3_integration PUBLIC q2_classic q3_production q3_motion)
@@ -181,6 +183,19 @@ function(add_q3_integration_test target source)
 endfunction()
 
 add_q3_integration_test(q3_frame_integration_test q3_integration_test.cpp)
+
+# T085 engine-link fixture: drives the same sink callback table the engine
+# installs, executes the Q2 stream through the real adapter and a device,
+# uploads the per-pixel motion/validity frame resources and reads them back.
+# A host without a device returns 77 (SKIP); it never reports PASS without a
+# frame.
+add_executable(q3_engine_frame_test q3_engine_frame_test.cpp)
+target_link_libraries(q3_engine_frame_test PRIVATE q3_integration q1a_rhi)
+target_compile_features(q3_engine_frame_test PRIVATE cxx_std_17)
+target_include_directories(q3_engine_frame_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+if(MSVC)
+    target_compile_options(q3_engine_frame_test PRIVATE /W4 /permissive- /EHsc)
+endif()
 
 enable_testing()
 
@@ -244,6 +259,8 @@ add_test(NAME rhi.q3.view_history COMMAND q3_view_history_test)
 add_test(NAME rhi.q3.history_reset COMMAND q3_history_reset_test)
 add_test(NAME rhi.q3.overlay_composition COMMAND q3_overlay_composition_test)
 add_test(NAME rhi.q3.frame_integration COMMAND q3_frame_integration_test)
+add_test(NAME renderer.q3.engine_frame COMMAND q3_engine_frame_test frame)
+add_test(NAME renderer.q3.motion_resources COMMAND q3_engine_frame_test motion)
 set_tests_properties(
     rhi.q3.view_history
     rhi.q3.history_reset
@@ -252,6 +269,15 @@ set_tests_properties(
     PROPERTIES
         TIMEOUT 120
         LABELS "q3"
+)
+set_tests_properties(
+    renderer.q3.engine_frame
+    renderer.q3.motion_resources
+    PROPERTIES
+        SKIP_RETURN_CODE 77
+        TIMEOUT 240
+        LABELS "q3"
+        ENVIRONMENT "RHI_EVIDENCE_DIR=${Q1A_EVIDENCE_DIR}"
 )
 
 # Q2 classic-path fixtures. These are structural/classification checks: no legal demo data
