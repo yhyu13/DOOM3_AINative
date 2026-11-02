@@ -129,11 +129,12 @@ Status SubmitValidationDraw(Device& device, std::string* error) {
 // reporting, not for validation execution.
 int gValidationExecuted = 0;
 
-// The debug layer is process-global: once any case enables it, every later
-// device in this process runs under it, including a case that requested
+// The debug layer is process-global: once any case actually enables it, every
+// later device in this process runs under it, including a case that requested
 // nothing. `evidence-q1.md` records that inheritance for the software `none`
 // case, whose queue holds the same four ID-820 warnings. Track the process-wide
-// state rather than inferring it from the current case's request alone.
+// state, but only after a report says the layer RAN. A request, or a request
+// that came back SKIPPED, never sets this flag.
 bool gLayerEnabledOnce = false;
 
 // Totals used to reproduce the evidence's "28 = 7 cases x 4" relation without
@@ -163,9 +164,6 @@ int RunCase(AdapterClass adapterClass, bool requestDebug, bool requestGpuValidat
         return 1;
     }
 
-    const bool layerActive = gLayerEnabledOnce || requestDebug || requestGpuValidation;
-    gLayerEnabledOnce = layerActive;
-
     const DiagnosticReport requested = doom3::rhi::d3d12::ReadDiagnostics(device);
     q1a_test::Log("DIAGNOSTICS class=%s combo=%s debug_requested=%s "
                   "gpu_validation_requested=%s debug=%s gpu_validation=%s "
@@ -184,7 +182,19 @@ int RunCase(AdapterClass adapterClass, bool requestDebug, bool requestGpuValidat
         requested.gpuBasedValidation == CheckState::Run;
     if (validationExecuted) {
         ++gValidationExecuted;
+        // Only a RUN report proves the process-global layer is really on.
+        // Requesting it is not enough: on a host without the SDK layer the
+        // report is SKIPPED and nothing enforces validation.
+        gLayerEnabledOnce = true;
     }
+    // A requested layer that came back SKIPPED is neither active nor a pass.
+    // Every case that runs under a layer (including one inherited from an
+    // earlier case) still gets the exact-count assertions below.
+    const bool requestedValidation = requestDebug || requestGpuValidation;
+    const bool validationSkipped = requestedValidation && !validationExecuted;
+    const bool layerActive = gLayerEnabledOnce;
+    q1a_test::Log("DIAGNOSTICS layer_active=%s",
+                  layerActive ? "true" : "false");
     q1a_test::Log("DIAGNOSTICS validation_executed=%s",
                   validationExecuted ? "true" : "false");
     q1a_private::LogDiagnosticMessages("requested", requested);
@@ -323,8 +333,17 @@ int RunCase(AdapterClass adapterClass, bool requestDebug, bool requestGpuValidat
     // Same cumulative allowance as after-clear: the Q1b phase may not add one
     // ID-820, so a report above that budget is unwaived.
     ok &= q1a_private::RequireNoUnwaivedMessages("after", after, clearBudget);
-    if (!validationExecuted) {
-        q1a_test::Log("DIAGNOSTICS validation=SKIPPED debug=%s gpu_validation=%s",
+    if (validationSkipped) {
+        // Keep the layer's own failure reason on the skipped row. On a host
+        // without the SDK layer this is the documented 0x887A002D condition.
+        q1a_test::Log("DIAGNOSTICS validation=SKIPPED debug=%s gpu_validation=%s "
+                      "debug_detail=%s gpu_validation_detail=%s",
+                      doom3::rhi::d3d12::ToString(requested.debugLayer),
+                      doom3::rhi::d3d12::ToString(requested.gpuBasedValidation),
+                      requested.debugLayerDetail.c_str(),
+                      requested.gpuBasedValidationDetail.c_str());
+    } else if (!requestedValidation) {
+        q1a_test::Log("DIAGNOSTICS validation=NOT_REQUESTED debug=%s gpu_validation=%s",
                       doom3::rhi::d3d12::ToString(requested.debugLayer),
                       doom3::rhi::d3d12::ToString(requested.gpuBasedValidation));
     }
@@ -332,7 +351,13 @@ int RunCase(AdapterClass adapterClass, bool requestDebug, bool requestGpuValidat
     const Status shutdown = device.Shutdown();
     ok &= q1a_test::Require(shutdown == Status::Ok,
                             "diagnostics device did not shut down cleanly");
-    return ok ? 0 : 1;
+    if (!ok) {
+        return 1;
+    }
+    // Correct opt-in reporting is not a validation run. A requested layer that
+    // came back SKIPPED must be reported as SKIPPED, not PASS, so the suite
+    // cannot claim the layer executed when it did not.
+    return validationSkipped ? q1a_test::kSkipExitCode : 0;
 }
 
 }  // namespace
@@ -379,7 +404,8 @@ int main() {
     q1a_test::Log("DIAGNOSTICS_SUMMARY cases_pass=%d fail=%d skip=%d "
                   "validation_executed=%d layer_active_cases=%d "
                   "clear_820_total=%d clear_820_expected=%d "
-                  "(a case pass is opt-in reporting, not a validation run)",
+                  "(pass is a reporting/functional check, not a validation run; "
+                  "skip means the layer was requested but did not run)",
                   passes, failures, skips, gValidationExecuted, gLayerActiveCases,
                   gClearTarget820Total, expectedTotal820);
     const bool totalOk = q1a_test::Require(

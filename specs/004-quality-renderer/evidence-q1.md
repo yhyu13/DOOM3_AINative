@@ -16,7 +16,14 @@ implementation objection resolved by the scoped, exact-count control approved by
 the independent review on PR #106 (R11) at `2a09c71`. Both waivers and their
 review points are recorded below. **T031 remains open**: its earlier review
 covers `35ce54e` and does not cover this change; a fresh independent review of
-full Q1 is still required. No claim is made for Q1 as a whole, game parity, DXR,
+full Q1 is still required. The final independent review
+(`review-q1-final.md`, PR #117) found one remaining defect, B-1: a
+requested-but-skipped debug/GPU-validation layer was treated as active, so the
+Q1 suite was red on a host without `d3d12SDKLayers.dll`. B-1 is fixed on
+2026-11-02 (see "Q1 skipped-layer fix" below): skipped cases now report
+`SKIPPED`, the active-layer counts exclude them, and the layer-absent suite is
+green. That fix still needs the fresh independent review, so T031 is not
+ticked. No claim is made for Q1 as a whole, game parity, DXR,
 DLSS, WebGPU or a shipped renderer. The 2026-10-29 record is retained below as
 history.
 
@@ -362,7 +369,7 @@ first command.
 | T028 | PASS | Window surface, resize, minimize/restore, destroy, restart |
 | T029 | PASS | Declared accesses, pass order and invalid uses |
 | T030 | PASS | All fixtures pass. On 2026-11-01 the debug layer and GPU-based validation executed on a Graphics Tools host: `debug=RUN`, `gpu_validation=RUN`, `errors=0`, unwaived messages 0. W-820 and W-1016 are accepted with review points (waiver table above): the independent review on PR #101 (R9) accepted both waivers at `67a108d`, and the independent review on PR #106 (R11) approved the scoped exact-count control at `2a09c71`. The gate also found and the change fixes a Q1b optimized-clear mismatch and an in-flight back-buffer release in surface resize/destroy (`id=921`). Ticked on that acceptance |
-| T031 | REVIEW STALE / OPEN | `review-q1.md` covers `35ce54e`; the 2026-11-01 backend and fixture changes require a fresh independent review of this PR's head |
+| T031 | REVIEW STALE / OPEN | `review-q1.md` covers `35ce54e`; `review-q1-final.md` (PR #117) then blocked full Q1 on B-1 (skipped layer treated as active). B-1 is fixed on 2026-11-02 (see below); the suite is green on a layer-absent host with explicit `SKIPPED` rows. T031 can be re-reviewed against this head and remains unticked |
 
 ## Limitations and open items
 
@@ -373,9 +380,9 @@ first command.
    T031. The 2026-10-29 host could not enable the layer (`0x887A002D`); that
    history is retained above and is not rewritten.
 2. **The independent review is stale for this change.** `review-q1.md` reviewed
-   `35ce54e`; the 2026-11-01 change modifies the backend and fixtures, so T031
-   needs a fresh independent review of this PR's head. The author self-review is
-   `review-q1-self.md` and does not replace it.
+   `35ce54e`, and `review-q1-final.md` (PR #117) blocked on B-1. B-1 is fixed on
+   2026-11-02, so T031 needs a fresh independent review of the new head. The
+   author self-review is `review-q1-self.md` and does not replace it.
 3. **Shader input is backend-declared program text.** The public seam carries
    opaque bytes, but the C++ fixtures embed a program whose language is a
    D3D12-backend capability. The Q7a mapping gate still has to decide the
@@ -580,7 +587,9 @@ Open findings from that review, recorded so the accepted state is not read as
   fail the `expected=4` assertion instead of taking the documented skip path
   (`AllowedWhenRequested` accepts `Skipped`). This opens no waiver hole, but it
   is a behaviour change relative to the old gate that has only been exercised
-  on a Graphics Tools host.
+  on a Graphics Tools host. **Resolved 2026-11-02:** the driver now derives
+  activity from the `RUN` report and sends a requested-but-skipped case down the
+  `kSkipExitCode` path; see "Q1 skipped-layer fix" below.
 - **W-1016 is still an unbounded boolean.** `WaiverBudget::allowStartupOptions1016`
   waives every severity-MESSAGE ID-1016 in a report. It is the same shape
   MAJOR-1 objected to for ID 820, at far lower risk because the message is
@@ -617,3 +626,111 @@ expressly leaving the ledger decision to the ledger owner. This tick records
 that acceptance; it does not claim R11 accepted the waivers. T031 remains open
 and needs a fresh, independent review of full Q1; `review-q1.md` covers
 `35ce54e`, not this change.
+
+## Q1 skipped-layer fix (2026-11-02, T031 B-1)
+
+`review-q1-final.md` (PR #117) blocked full Q1 on one defect: the diagnostics
+fixture treated a requested-but-skipped debug/GPU-validation layer as active.
+The fixture derived `layerActive` from the request, so on a host without
+`d3d12SDKLayers.dll` it expected four ID-820 warnings per case and 28 in total
+while nothing was emitted. This change fixes the fixture only; no backend,
+submodule, target copy, CMake file, other Q stage or other test is touched.
+
+Worktree `fix/q1-skipped-layer` based on `origin/main` at `08de566`; one writer,
+one build directory `build-q1-skipped` (git-ignored).
+
+### Change
+
+`tests/renderer/d3d12/rhi_diagnostics_test.cpp`:
+
+- `layerActive` now comes from the diagnostic report, not the request:
+  `gLayerEnabledOnce` is set only when `debugLayer` or `gpuBasedValidation`
+  reports `CheckState::Run`. A request, or a request that reports `Skipped`,
+  never sets it. The process-global inheritance for a later `none` case is
+  preserved because the flag, once set by a real run, stays set.
+- `expectedClear820` remains `q1a_test::kHeight` for a genuinely active case and
+  `0` otherwise; `gLayerActiveCases` is incremented only for active cases, so
+  `expectedTotal820 = kHeight * gLayerActiveCases` counts only active cases.
+- A case that requested the layer and got `Skipped` for every requested
+  capability now returns `q1a_test::kSkipExitCode`, after any real failure has
+  already returned 1. It is logged as `result=SKIPPED`, not `PASS`.
+- The skip row keeps the layer's reason: `debug_detail=` and
+  `gpu_validation_detail=` still print `D3D12GetDebugInterface failed
+  (hr=0x887A002D)`, and the `validation=SKIPPED` row now repeats the detail.
+- The per-case exact counts (`clearDelta820 == expectedClear820`, `drawDelta820
+  == 0`, `drawDelta821 == 0`), the cumulative waiver budget and the
+  `kQ1bDepthClear` `static_assert` are unchanged. Active-layer checking is not
+  weakened.
+
+### Host
+
+| Item | Observed |
+|---|---|
+| OS / shell | Windows 11 amd64; PowerShell 5.1 |
+| Compiler | MSVC 19.44.35228.0 (toolset 14.44.35207, VS 2022 Professional 17.14) |
+| CMake | 3.31.6-msvc6, generator `Visual Studio 17 2022`, `-A x64` |
+| Python (validators) | 3.14.4 |
+| Debug layer | absent: `d3d12SDKLayers.dll` is not in `C:\Windows\System32`; `D3D12Core.dll` is present |
+| Condition | `D3D12GetDebugInterface` returns `0x887A002D` on both adapters, the same documented condition as `review-q1-final.md` |
+
+### Before and after (diagnostics summary, verbatim)
+
+Before, from `review-q1-final.md` at `origin/main` `b7c1a68`, exit 1:
+
+```text
+cases_pass=1 fail=7 skip=0 validation_executed=0 layer_active_cases=7 clear_820_total=0 clear_820_expected=28
+```
+
+After, this worktree, Debug and Release identical, exit 0:
+
+```text
+cases_pass=2 fail=0 skip=6 validation_executed=0 layer_active_cases=0 clear_820_total=0 clear_820_expected=0
+```
+
+The six skipped cases are `debug_only`, `gpu_validation_only` and `both` on the
+hardware and software adapters. The two passes are the `none` cases, which are
+functional checks and request no layer. Each skipped row carries the reason:
+
+```text
+DIAGNOSTICS debug_detail=D3D12GetDebugInterface failed (hr=0x887A002D)
+DIAGNOSTICS gpu_validation_detail=D3D12GetDebugInterface (GPU-based validation) failed (hr=0x887A002D)
+DIAGNOSTICS validation=SKIPPED debug=SKIPPED gpu_validation=SKIPPED debug_detail=... gpu_validation_detail=...
+DIAGNOSTICS_CASE class=hardware combo=both result=SKIPPED
+DIAGNOSTICS_CASE class=software combo=both result=SKIPPED
+```
+
+### Commands and exits
+
+All commands ran from the worktree root; logs are retained under the
+git-ignored `build-q1-skipped/`.
+
+| Command | Exit | Observed |
+|---|---|---|
+| `cmake -S tests/renderer -B build-q1-skipped -G "Visual Studio 17 2022" -A x64` | 0 | MSVC 19.44, SDK 10.0.26100 |
+| `cmake --build build-q1-skipped --config Debug -- -m` | 0 | all fixtures linked |
+| `ctest --test-dir build-q1-skipped -C Debug -R "rhi\.q1" --no-tests=error` | 0 | `100% tests passed, 0 tests failed out of 17` |
+| `build-q1-skipped/Debug/q1a_diagnostics_test.exe` | 0 | summary above; `rhi.q1a.diagnostics` passes |
+| `cmake --build build-q1-skipped --config Release -- -m` | 0 | all fixtures linked |
+| `ctest --test-dir build-q1-skipped -C Release -R "rhi\.q1" --no-tests=error` | 0 | `100% tests passed, 0 tests failed out of 17` |
+| `build-q1-skipped/Release/q1a_diagnostics_test.exe` | 0 | summary above |
+| `ctest --test-dir build-q1-skipped -C Debug --no-tests=error --output-on-failure --output-junit build-q1-skipped/ctest-Debug-junit.xml` | 0 | `100% tests passed, 0 tests failed out of 38` |
+| `ctest --test-dir build-q1-skipped -C Release --no-tests=error --output-on-failure --output-junit build-q1-skipped/ctest-Release-junit.xml` | 0 | `100% tests passed, 0 tests failed out of 38` |
+| `py -3 -I scripts/validate-q1b-fixtures.py` | 0 | `PASS q1b-fixtures.md: pattern, tints, compute, MRT, depth and controls` |
+| `py -3 -I scripts/validate-q1b-fixtures.py --self-test` | 0 | altered values rejected |
+| `py -3 -I scripts/validate-rhi-contract.py --self-test` | 0 | `PASS header gate self-test`; full scan also 0 |
+| `git diff --check` | 0 | clean |
+
+### Layer-present path
+
+The 28 = 7 x 4 relation for a layer-enabled run is unchanged by construction:
+only a `RUN` report sets `gLayerEnabledOnce`, which is the same condition the
+2026-11-01 host met. That host was not available here, so this change does not
+claim a second layer-enabled run. The recorded 2026-11-01 run remains the
+layer-enabled evidence; this run proves the layer-absent path now skips instead
+of failing.
+
+### T031
+
+T031 remains unticked. The fixture defect B-1 is fixed and the suite is green
+with explicit `SKIPPED` rows on this host, so T031 can be re-reviewed against
+this head; the re-review is still required and is not replaced by this record.
