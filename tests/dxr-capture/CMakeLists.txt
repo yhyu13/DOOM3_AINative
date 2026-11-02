@@ -42,8 +42,21 @@ add_custom_target(q6_dxr_capture_shader DEPENDS "${CAPTURE_SHADER}")
 add_executable(q6_dxr_capture
     dxr_capture.cpp
     capture_scene.cpp
-    "${REPO_ROOT}/src/renderer/d3d12/pathtrace_denoise.cpp"
+    pt_content.cpp
+    pt_scene.cpp
+    "${REPO_ROOT}/src/renderer/dxr/q6_content.cpp"
+    "${REPO_ROOT}/src/renderer/dxr/q6_frame.cpp"
+    "${REPO_ROOT}/src/renderer/dxr/q6_motion_texture.cpp"
+    "${REPO_ROOT}/src/renderer/dxr/q6_pt_scene.cpp"
+    "${REPO_ROOT}/src/renderer/d3d12/raytracing_capability.cpp"
     "${REPO_ROOT}/src/renderer/rhi/motion_history.cpp"
+    "${REPO_ROOT}/src/renderer/rhi/skinned_history.cpp"
+    "${REPO_ROOT}/src/renderer/rhi/view_history.cpp"
+    "${REPO_ROOT}/src/renderer/rhi/overlay_composition.cpp"
+    "${REPO_ROOT}/src/renderer/rhi/frame_integration.cpp"
+    "${REPO_ROOT}/src/renderer/rhi/engine_scene_adapter.cpp"
+    "${REPO_ROOT}/src/renderer/d3d12/lighting.cpp"
+    "${REPO_ROOT}/src/renderer/d3d12/pathtrace_denoise.cpp"
     "${REPO_ROOT}/src/renderer/q4_harness/image_io.cpp")
 add_dependencies(q6_dxr_capture q6_dxr_capture_shader)
 target_include_directories(q6_dxr_capture PRIVATE

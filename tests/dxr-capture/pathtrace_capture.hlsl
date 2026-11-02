@@ -1,24 +1,35 @@
-// Q6 DXR capture shader (spec 004 T069, issue #68).
+// Q6 DXR capture shader (spec 004 T069/T070).
 //
-// Iterative camera path inside the ray-generation shader, one DispatchRays
-// call per group of samples so a long accumulation cannot hit a GPU watchdog.
-// The transport mirrors the documented Q6 CPU slice (pathtrace_material.h):
+// Iterative camera path inside the ray-generation shader, one DispatchRays call
+// per group of samples so a long accumulation cannot hit a GPU watchdog. The
+// transport mirrors the documented Q6 CPU slice (pathtrace_material.h):
 // cosine-weighted Lambertian, a bounded two-lobe conductor, Schlick/Snell
 // dielectric transport with a transmission tint, emission, next-event
 // estimation against one point light, and a two-hemisphere environment split at
-// world z = 0. Alpha testing uses the same deterministic 2x2 checker mask as
-// the CPU fixture, evaluated in an any-hit shader.
+// world z = 0.
+//
+// Content mode samples the Q4 content atlas: base colour (RGBA16F, linear),
+// roughness/metalness/alpha/emissive (RGBA8), with planar per-surface uv. The
+// alpha test then reads the authored base-colour alpha instead of the synthetic
+// checker mask, so the authored cutout is what the ray sees. Synthetic fixtures
+// keep the checker mask.
+//
+// Temporal mode reads the Q3 motion (RGBA8, binary16 du/dv in pixels of uv) and
+// validity (R8) textures, reprojects the previous accumulation and starts from
+// zero wherever the correspondence is invalid. A reset frame is signalled with
+// history.x == 0, so a cut replaces history instead of blending it.
 //
 // The RNG is PCG32 seeded from the pixel and the absolute sample index. It is
 // not the CPU slice's generator; the two are compared through converged means
 // and analytic expectations, not through identical sample sequences.
 
 struct Material {
-    float4 albedoRoughness;  // rgb albedo, roughness
+    float4 albedoRoughness;  // rgb albedo, roughness (synthetic mode)
     float4 tintIor;          // rgb transmission tint, ior
     float4 emissionKind;     // rgb emission, kind (0 diffuse, 1 conductor, 2 dielectric, 3 emissive)
     float4 alphaUv;          // alphaTest, alphaThreshold, uvMode, unused
     float4 uvOriginScale;    // originX, originZ, scaleX, scaleZ
+    float4 content;          // atlasCell, emissiveScale, contentFlags, unused
 };
 
 struct InstanceInfo {
@@ -32,8 +43,15 @@ RaytracingAccelerationStructure gScene : register(t0);
 StructuredBuffer<Material> gMaterials : register(t1);
 StructuredBuffer<InstanceInfo> gInstances : register(t2);
 StructuredBuffer<float3> gPositions : register(t3);
+Texture2D<float4> gMotion : register(t4);
+Texture2D<float> gValidity : register(t5);
+Texture2D<float4> gBaseAtlas : register(t6);
+Texture2D<float4> gPbrAtlas : register(t7);
+Texture2D<float4> gHistory : register(t8);
+Texture2D<float4> gEmissiveAtlas : register(t9);
 RWTexture2D<float4> gOutput : register(u0);
 RWTexture2D<float> gDepth : register(u1);
+RWTexture2D<float4> gHitRef : register(u2);
 
 cbuffer Params : register(b0) {
     float4 camPos;
@@ -48,6 +66,8 @@ cbuffer Params : register(b0) {
     uint4 counts;       // sampleIndex, maxDepth, width, height
     uint4 seed;         // base, frame, unused, unused
     uint4 misc;         // samplesThisDispatch, unused, unused, unused
+    uint4 history;      // useHistory, previousSamples, reset, unused
+    float4 atlasInfo;   // columns, rows, block, unused
 };
 
 static const float kPi = 3.14159265358979323846f;
@@ -62,9 +82,7 @@ struct Payload {
     uint instance;
     uint primitive;
     uint hit;
-    float pad0;
-    float pad1;
-    float pad2;
+    float2 bary;
 };
 
 void InitPayload(inout Payload p) {
@@ -76,9 +94,7 @@ void InitPayload(inout Payload p) {
     p.instance = 0;
     p.primitive = 0;
     p.hit = 0;
-    p.pad0 = 0.0f;
-    p.pad1 = 0.0f;
-    p.pad2 = 0.0f;
+    p.bary = float2(0.0f, 0.0f);
 }
 
 uint PcgHash(uint v) {
@@ -139,11 +155,63 @@ bool RefractDirection(float3 incidence, float3 normal, float eta, out float3 dir
 }
 
 float2 ComputeUv(Material m, float3 local) {
-    if (m.alphaUv.z < 0.5f || m.alphaUv.z > 1.5f) {
+    if (m.alphaUv.z < 0.5f || m.alphaUv.z > 3.5f) {
         return float2(0.0f, 0.0f);
     }
-    return float2((local.x - m.uvOriginScale.x) * m.uvOriginScale.z,
-                  (local.z - m.uvOriginScale.y) * m.uvOriginScale.w);
+    float2 planar;
+    if (m.alphaUv.z < 1.5f) {
+        planar = float2(local.x, local.z);
+    } else if (m.alphaUv.z < 2.5f) {
+        planar = float2(local.x, local.y);
+    } else {
+        planar = float2(local.y, local.z);
+    }
+    // Content surfaces centre the authored image on the surface; the synthetic
+    // fixtures keep their original uncentred planar mapping.
+    const float center = m.content.x >= 0.0f ? 0.5f : 0.0f;
+    return float2((planar.x - m.uvOriginScale.x) * m.uvOriginScale.z + center,
+                  (planar.y - m.uvOriginScale.y) * m.uvOriginScale.w + center);
+}
+
+bool HasContent(Material m) { return m.content.x >= 0.0f; }
+
+// The atlas block for this material, in whole texels. `content.x` is the cell
+// index in row-major order over `atlasInfo.xy`; the block size is `atlasInfo.z`.
+float2 AtlasUv(Material m, float2 uv) {
+    const float block = atlasInfo.z;
+    const float columns = atlasInfo.x;
+    const int cell = int(m.content.x + 0.5f);
+    const int column = cell % int(columns);
+    const int row = cell / int(columns);
+    float2 wrapped = uv - floor(uv);
+    wrapped = min(wrapped, float2(0.999999f, 0.999999f));
+    const float2 origin = float2(float(column), float(row)) * block;
+    const float2 atlasSize = float2(columns * block, atlasInfo.y * block);
+    return (origin + wrapped * block + 0.5f) / atlasSize;
+}
+
+float2 AtlasSize() { return float2(atlasInfo.x, atlasInfo.y) * atlasInfo.z; }
+
+float4 SampleBase(Material m, float2 uv) {
+    return gBaseAtlas.Load(int3(int2(AtlasUv(m, uv) * AtlasSize()), 0));
+}
+
+float4 SampleEmissive(Material m, float2 uv) {
+    return gEmissiveAtlas.Load(int3(int2(AtlasUv(m, uv) * AtlasSize()), 0));
+}
+
+float4 SamplePbr(Material m, float2 uv) {
+    return gPbrAtlas.Load(int3(int2(AtlasUv(m, uv) * AtlasSize()), 0));
+}
+
+float2 MotionOf(float4 m) {
+    const uint r = (uint)(m.r * 255.0f + 0.5f);
+    const uint g = (uint)(m.g * 255.0f + 0.5f);
+    const uint b = (uint)(m.b * 255.0f + 0.5f);
+    const uint a = (uint)(m.a * 255.0f + 0.5f);
+    const float du = f16tof32(r | (g << 16));
+    const float dv = f16tof32(b | (a << 16));
+    return float2(du, dv);
 }
 
 [shader("raygeneration")]
@@ -154,6 +222,7 @@ void RayGen() {
 
     float3 sum = float3(0.0f, 0.0f, 0.0f);
     float firstDepth = -1.0f;
+    float4 firstHitRef = float4(-1.0f, 0.0f, 0.0f, 0.0f);
 
     for (uint sample = 0; sample < samplesThisDispatch; ++sample) {
         const uint sampleIndex = counts.x + sample;
@@ -191,11 +260,34 @@ void RayGen() {
             }
             if (depth == 0) {
                 pathFirstDepth = payload.t;
+                if (sample == 0) {
+                    firstHitRef = float4(float(payload.instance), float(payload.primitive),
+                                         payload.bary.x, payload.bary.y);
+                }
             }
 
-            const Material material = gMaterials[payload.material];
-            const int kind = int(material.emissionKind.w + 0.5f);
-            const float3 emission = material.emissionKind.rgb;
+            Material material = gMaterials[payload.material];
+            int kind = int(material.emissionKind.w + 0.5f);
+            float3 albedo = material.albedoRoughness.rgb;
+            float roughness = material.albedoRoughness.w;
+            float3 emission = material.emissionKind.rgb;
+            float3 tint = material.tintIor.rgb;
+            if (HasContent(material)) {
+                const float4 base = SampleBase(material, payload.uv);
+                const float4 pbr = SamplePbr(material, payload.uv);
+                albedo = base.rgb;
+                roughness = pbr.r;
+                // A metalness above one half selects the conductor lobe; the
+                // authored 0/1 masks make this a discrete choice, not a blend.
+                if (kind == 0 && pbr.g > 0.5f) {
+                    kind = 1;
+                }
+                if (kind == 2) {
+                    tint = base.rgb;
+                }
+                emission = SampleEmissive(material, payload.uv).rgb * material.content.y;
+            }
+
             if (max(emission.r, max(emission.g, emission.b)) > 0.0f) {
                 radiance += throughput * emission;
                 if (kind == 3) {
@@ -207,7 +299,6 @@ void RayGen() {
 
             const bool entering = dot(payload.normal, dir) < 0.0f;
             const float3 facing = entering ? payload.normal : -payload.normal;
-            const float3 albedo = material.albedoRoughness.rgb;
 
             // Next-event estimation, diffuse surfaces only, one point light.
             if (kind == 0 && lightPos.w > 0.5f) {
@@ -246,9 +337,9 @@ void RayGen() {
                 nextDirection = SampleCosineHemisphere(facing, Rand(rngState), Rand(rngState));
                 weight = albedo;
             } else if (kind == 1) {
-                const float roughness = clamp(material.albedoRoughness.w, 0.0f, 1.0f);
+                const float rough = clamp(roughness, 0.0f, 1.0f);
                 const float3 mirror = dir - 2.0f * dot(dir, facing) * facing;
-                if (roughness > 0.0f && Rand(rngState) < roughness) {
+                if (rough > 0.0f && Rand(rngState) < rough) {
                     nextDirection = SampleCosineHemisphere(facing, Rand(rngState), Rand(rngState));
                 } else if (dot(mirror, facing) > 0.0f) {
                     nextDirection = normalize(mirror);
@@ -271,7 +362,7 @@ void RayGen() {
                         weight = float3(1.0f, 1.0f, 1.0f);
                     } else {
                         nextDirection = refracted;
-                        weight = material.tintIor.rgb;
+                        weight = tint;
                         nextOrigin = payload.position - facing * kEpsilon;
                     }
                 }
@@ -296,13 +387,36 @@ void RayGen() {
         }
     }
 
-    // Progressive mean. counts.x is the number of samples already in the
-    // target; one dispatch adds misc.x independent samples per pixel.
-    const float previous = float(counts.x);
-    const float3 accumulated = gOutput[pixel].rgb;
-    gOutput[pixel] =
-        float4((accumulated * previous + sum) / (previous + float(samplesThisDispatch)), 1.0f);
+    float3 previousColor = float3(0.0f, 0.0f, 0.0f);
+    float previousCount = 0.0f;
+    if (history.x != 0u) {
+        const float valid = gValidity[pixel];
+        const float2 motion = MotionOf(gMotion[pixel]);
+        const float2 uv = (float2(pixel) + 0.5f) / extent.zw + motion;
+        const int2 previousPixel = int2(floor(uv * extent.zw));
+        if (valid > 0.5f && previousPixel.x >= 0 && previousPixel.y >= 0 &&
+            previousPixel.x < int(extent.z) && previousPixel.y < int(extent.w)) {
+            previousColor = gHistory[previousPixel].rgb;
+            previousCount = float(history.y);
+        }
+    }
+
+    float3 accumulated = gOutput[pixel].rgb;
+    if (history.x != 0u) {
+        // One sample per frame plus the reprojected history. A reset frame
+        // (history.x == 0) never reaches this branch, so stale history cannot be
+        // blended after a cut or a disocclusion.
+        const float total = max(previousCount + float(samplesThisDispatch), 1.0f);
+        gOutput[pixel] =
+            float4((previousColor * previousCount + sum) / total, 1.0f);
+    } else {
+        const float previous = float(counts.x);
+        gOutput[pixel] =
+            float4((accumulated * previous + sum) / (previous + float(samplesThisDispatch)),
+                   1.0f);
+    }
     gDepth[pixel] = firstDepth;
+    gHitRef[pixel] = firstHitRef;
 }
 
 [shader("miss")]
@@ -317,11 +431,16 @@ void AnyHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes attr
     if (material.alphaUv.x > 0.5f) {
         const float3 local = ObjectRayOrigin() + ObjectRayDirection() * RayTCurrent();
         const float2 uv = ComputeUv(material, local);
-        const float u = uv.x < 0.0f ? 0.0f : (uv.x >= 1.0f ? 0.999999f : uv.x);
-        const float v = uv.y < 0.0f ? 0.0f : (uv.y >= 1.0f ? 0.999999f : uv.y);
-        const int cellU = int(u * 2.0f);
-        const int cellV = int(v * 2.0f);
-        const float coverage = ((cellU + cellV) & 1) == 0 ? 1.0f : 0.0f;
+        float coverage;
+        if (HasContent(material)) {
+            coverage = SamplePbr(material, uv).b;
+        } else {
+            const float u = uv.x < 0.0f ? 0.0f : (uv.x >= 1.0f ? 0.999999f : uv.x);
+            const float v = uv.y < 0.0f ? 0.0f : (uv.y >= 1.0f ? 0.999999f : uv.y);
+            const int cellU = int(u * 2.0f);
+            const int cellV = int(v * 2.0f);
+            coverage = ((cellU + cellV) & 1) == 0 ? 1.0f : 0.0f;
+        }
         if (coverage < material.alphaUv.y) {
             IgnoreHit();
             return;
@@ -348,5 +467,6 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
     payload.uv = ComputeUv(gMaterials[instance.materialIndex], local);
     payload.instance = InstanceID();
     payload.primitive = primitive;
+    payload.bary = attributes.barycentrics;
     payload.hit = 1;
 }

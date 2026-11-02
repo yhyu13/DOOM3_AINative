@@ -23,8 +23,15 @@
 #include <wrl/client.h>
 
 #include "capture_scene.h"
+#include "dxr/q6_frame.h"
+#include "dxr/q6_motion_texture.h"
+#include "dxr/q6_pt_scene.h"
 #include "image_io.h"
+#include "pt_content.h"
+#include "pt_scene.h"
+#include "rhi/frame_integration.h"
 #include "rhi/pathtrace_denoise.h"
+#include "rhi/raytracing_capability.h"
 
 #include <algorithm>
 #include <cmath>
@@ -32,6 +39,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -39,7 +47,7 @@ using Microsoft::WRL::ComPtr;
 
 namespace {
 
-constexpr uint32_t kMaterialStride = 80;
+constexpr uint32_t kMaterialStride = 96;
 constexpr uint32_t kInstanceStride = 16;
 constexpr uint32_t kMaxDispatchSamples = 16;
 constexpr UINT64 kFenceTimeoutMs = 120000;
@@ -52,6 +60,8 @@ struct Config {
     uint32_t height = 180;
     uint32_t sppCap = 0;
     bool skipTiming = false;
+    std::string suite = "fixtures";
+    std::string repoRoot;
 };
 
 struct GpuMaterial {
@@ -60,6 +70,7 @@ struct GpuMaterial {
     float emissionKind[4];
     float alphaUv[4];
     float uvOriginScale[4];
+    float content[4];  // atlasCell, emissiveScale, contentFlags, unused
 };
 static_assert(sizeof(GpuMaterial) == kMaterialStride, "material layout mismatch");
 
@@ -84,6 +95,8 @@ struct FrameConstants {
     uint32_t counts[4];  // sampleIndex, maxDepth, width, height
     uint32_t seed[4];    // base, frame, unused, unused
     uint32_t misc[4];    // samplesThisDispatch, unused, unused, unused
+    uint32_t history[4]; // useHistory, previousSamples, reset, unused
+    float atlasInfo[4];  // columns, rows, block, unused
 };
 
 std::string HrText(HRESULT hr) {
@@ -251,6 +264,20 @@ ComPtr<ID3D12Resource> CreateTexture2D(ID3D12Device* device, uint32_t width, uin
 }
 
 UINT Align(UINT value, UINT alignment) { return (value + alignment - 1) / alignment * alignment; }
+
+D3D12_CPU_DESCRIPTOR_HANDLE SrvSlot(const D3D12_CPU_DESCRIPTOR_HANDLE& base, UINT size,
+                                    uint32_t index) {
+    D3D12_CPU_DESCRIPTOR_HANDLE handle = base;
+    handle.ptr += static_cast<SIZE_T>(size) * index;
+    return handle;
+}
+
+D3D12_GPU_DESCRIPTOR_HANDLE SrvSlot(const D3D12_GPU_DESCRIPTOR_HANDLE& base, UINT size,
+                                    uint32_t index) {
+    D3D12_GPU_DESCRIPTOR_HANDLE handle = base;
+    handle.ptr += static_cast<UINT64>(size) * index;
+    return handle;
+}
 
 struct FloatImage {
     uint32_t width = 0;
@@ -496,6 +523,9 @@ struct Renderer {
     ComPtr<ID3D12Resource> shaderBindingTable;
     D3D12_GPU_VIRTUAL_ADDRESS sbtAddress = 0;
     ComPtr<ID3D12DescriptorHeap> heap;
+    ComPtr<ID3D12Resource> baseAtlas;
+    ComPtr<ID3D12Resource> pbrAtlas;
+    ComPtr<ID3D12Resource> emissiveAtlas;
     UINT descriptorSize = 0;
     D3D12_CPU_DESCRIPTOR_HANDLE srvCpu{};
     D3D12_GPU_DESCRIPTOR_HANDLE srvGpu{};
@@ -543,12 +573,12 @@ struct Renderer {
 bool CreateRootSignature(ID3D12Device5* device, ID3D12RootSignature** out) {
     D3D12_DESCRIPTOR_RANGE srvRange{};
     srvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-    srvRange.NumDescriptors = 4;
+    srvRange.NumDescriptors = 10;
     srvRange.BaseShaderRegister = 0;
 
     D3D12_DESCRIPTOR_RANGE uavRange{};
     uavRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
-    uavRange.NumDescriptors = 2;
+    uavRange.NumDescriptors = 3;
     uavRange.BaseShaderRegister = 0;
 
     D3D12_ROOT_PARAMETER parameters[3] = {};
@@ -568,6 +598,18 @@ bool CreateRootSignature(ID3D12Device5* device, ID3D12RootSignature** out) {
     D3D12_ROOT_SIGNATURE_DESC desc{};
     desc.NumParameters = 3;
     desc.pParameters = parameters;
+    D3D12_STATIC_SAMPLER_DESC sampler{};
+    sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_POINT;
+    sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+    sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+    sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+    sampler.ComparisonFunc = D3D12_COMPARISON_FUNC_NEVER;
+    sampler.MaxLOD = D3D12_FLOAT32_MAX;
+    sampler.ShaderRegister = 0;
+    sampler.RegisterSpace = 0;
+    sampler.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+    desc.NumStaticSamplers = 1;
+    desc.pStaticSamplers = &sampler;
     desc.Flags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
 
     ComPtr<ID3DBlob> signature;
@@ -846,7 +888,7 @@ bool InitializeRenderer(const Config& config, Renderer* renderer) {
 
     D3D12_DESCRIPTOR_HEAP_DESC heapDesc{};
     heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-    heapDesc.NumDescriptors = 6;
+    heapDesc.NumDescriptors = 13;
     heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
     if (!Check(renderer->device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&renderer->heap)),
                "CreateDescriptorHeap")) {
@@ -857,9 +899,130 @@ bool InitializeRenderer(const Config& config, Renderer* renderer) {
     renderer->srvCpu = renderer->heap->GetCPUDescriptorHandleForHeapStart();
     renderer->srvGpu = renderer->heap->GetGPUDescriptorHandleForHeapStart();
     renderer->uavCpu = renderer->srvCpu;
-    renderer->uavCpu.ptr += static_cast<SIZE_T>(renderer->descriptorSize) * 4;
+    renderer->uavCpu.ptr += static_cast<SIZE_T>(renderer->descriptorSize) * 10;
     renderer->uavGpu = renderer->srvGpu;
-    renderer->uavGpu.ptr += static_cast<UINT64>(renderer->descriptorSize) * 4;
+    renderer->uavGpu.ptr += static_cast<UINT64>(renderer->descriptorSize) * 10;
+    return true;
+}
+
+// A texture the shader reads through an SRV, created in a DEFAULT heap and
+// filled once through an upload buffer. Textures are not legal on an UPLOAD
+// heap in D3D12, so the copy is explicit; it is synchronous and happens once per
+// resource, never per frame.
+ComPtr<ID3D12Resource> CreateTextureWithData(Renderer* renderer, uint32_t width,
+                                             uint32_t height, DXGI_FORMAT format,
+                                             uint32_t rowPitch, const void* data) {
+    ComPtr<ID3D12Resource> upload = CreateBuffer(
+        renderer->device.Get(), static_cast<UINT64>(rowPitch) * height,
+        D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ,
+        D3D12_HEAP_TYPE_UPLOAD);
+    if (!upload) {
+        return nullptr;
+    }
+    D3D12_RANGE range{0, 0};
+    void* mapped = nullptr;
+    if (FAILED(upload->Map(0, &range, &mapped)) || mapped == nullptr) {
+        std::printf("ERROR Map(texture upload) failed\n");
+        return nullptr;
+    }
+    for (uint32_t y = 0; y < height; ++y) {
+        std::memcpy(static_cast<uint8_t*>(mapped) + static_cast<size_t>(y) * rowPitch,
+                    static_cast<const uint8_t*>(data) + static_cast<size_t>(y) * rowPitch,
+                    rowPitch);
+    }
+    upload->Unmap(0, nullptr);
+
+    D3D12_HEAP_PROPERTIES heap{};
+    heap.Type = D3D12_HEAP_TYPE_DEFAULT;
+    D3D12_RESOURCE_DESC desc{};
+    desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+    desc.Width = width;
+    desc.Height = height;
+    desc.DepthOrArraySize = 1;
+    desc.MipLevels = 1;
+    desc.Format = format;
+    desc.SampleDesc.Count = 1;
+    desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+    desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+    ComPtr<ID3D12Resource> resource;
+    const HRESULT hr = renderer->device->CreateCommittedResource(
+        &heap, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr,
+        IID_PPV_ARGS(&resource));
+    if (FAILED(hr)) {
+        std::printf("ERROR CreateCommittedResource(texture) failed: %s\n", HrText(hr).c_str());
+        return nullptr;
+    }
+    if (!renderer->Begin()) {
+        std::printf("ERROR cannot begin the texture upload list\n");
+        return nullptr;
+    }
+    D3D12_TEXTURE_COPY_LOCATION source{};
+    source.pResource = upload.Get();
+    source.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+    source.PlacedFootprint.Footprint.Format = format;
+    source.PlacedFootprint.Footprint.Width = width;
+    source.PlacedFootprint.Footprint.Height = height;
+    source.PlacedFootprint.Footprint.Depth = 1;
+    source.PlacedFootprint.Footprint.RowPitch = rowPitch;
+    D3D12_TEXTURE_COPY_LOCATION destination{};
+    destination.pResource = resource.Get();
+    destination.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+    destination.SubresourceIndex = 0;
+    renderer->list->CopyTextureRegion(&destination, 0, 0, 0, &source, nullptr);
+    D3D12_RESOURCE_BARRIER barrier{};
+    barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    barrier.Transition.pResource = resource.Get();
+    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+    barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE |
+                                    D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+    renderer->list->ResourceBarrier(1, &barrier);
+    if (!renderer->Execute()) {
+        std::printf("ERROR texture upload execution failed\n");
+        return nullptr;
+    }
+    return resource;
+}
+
+// Uploads the Q4 content atlas into the two SRVs the shader samples. The
+// textures stay resident for the run and their byte hashes are already in the
+// CPU atlas record, so a capture can cite the exact content it sampled.
+bool UploadContentAtlas(Renderer* renderer, const q6cap::ContentAtlas& atlas,
+                        std::string* error) {
+    if (renderer == nullptr || atlas.width == 0 || atlas.height == 0) {
+        if (error != nullptr) *error = "content atlas is empty";
+        return false;
+    }
+    renderer->baseAtlas = CreateTextureWithData(
+        renderer, atlas.width, atlas.height, DXGI_FORMAT_R16G16B16A16_FLOAT,
+        atlas.width * 8u, atlas.base.data());
+    renderer->pbrAtlas = CreateTextureWithData(
+        renderer, atlas.width, atlas.height, DXGI_FORMAT_R8G8B8A8_UNORM,
+        atlas.width * 4u, atlas.pbr.data());
+    renderer->emissiveAtlas = CreateTextureWithData(
+        renderer, atlas.width, atlas.height, DXGI_FORMAT_R16G16B16A16_FLOAT,
+        atlas.width * 8u, atlas.emissive.data());
+    if (!renderer->baseAtlas || !renderer->pbrAtlas || !renderer->emissiveAtlas) {
+        if (error != nullptr) *error = "content atlas texture creation failed";
+        return false;
+    }
+    D3D12_SHADER_RESOURCE_VIEW_DESC view{};
+    view.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+    view.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    view.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    view.Texture2D.MipLevels = 1;
+    renderer->device->CreateShaderResourceView(
+        renderer->baseAtlas.Get(), &view,
+        SrvSlot(renderer->srvCpu, renderer->descriptorSize, 6));
+    view.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    renderer->device->CreateShaderResourceView(
+        renderer->pbrAtlas.Get(), &view,
+        SrvSlot(renderer->srvCpu, renderer->descriptorSize, 7));
+    view.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+    renderer->device->CreateShaderResourceView(
+        renderer->emissiveAtlas.Get(), &view,
+        SrvSlot(renderer->srvCpu, renderer->descriptorSize, 9));
+    if (error != nullptr) error->clear();
     return true;
 }
 
@@ -880,6 +1043,24 @@ struct ObjectGpu {
 struct RunOptions {
     bool timing = false;
     std::string pngPath;
+    // Content mode: the scene's materials sample the Q4 atlas.
+    bool content = false;
+    uint32_t atlasColumns = 4;
+    uint32_t atlasRows = 2;
+    uint32_t atlasBlock = 256;
+    // Temporal mode: one sample per frame, reprojected through the Q3 motion
+    // and validity textures. `historySamples` is the previous frame's sample
+    // count, and `historyTexture` is the caller-owned previous result.
+    bool temporal = false;
+    bool historyValid = false;
+    uint32_t historySamples = 0;
+    const uint8_t* motionBytes = nullptr;
+    const uint8_t* validityBytes = nullptr;
+    ID3D12Resource* historyTexture = nullptr;
+    // Writes depth and hit reference only (a motion prepass).
+    bool depthOnly = false;
+    // When set, receives the per-pixel instance/primitive/barycentrics.
+    std::vector<doom3::dxr::Q6HitReference>* hits = nullptr;
 };
 
 class SceneRun {
@@ -896,7 +1077,7 @@ public:
         }
         timestampsMs_.clear();
         timing_ = options.timing;
-        if (!CreateResources(scene, width, height, error)) {
+        if (!CreateResources(scene, width, height, options, error)) {
             return false;
         }
         if (!UploadPose(scene, 0, error)) {
@@ -960,10 +1141,10 @@ public:
         if (!BuildTopLevel(scene, error)) {
             return false;
         }
-        if (!Dispatch(scene, samplesPerPixel, options.timing, error)) {
+        if (!Dispatch(scene, samplesPerPixel, options, error)) {
             return false;
         }
-        if (!CopyResults(width, height)) {
+        if (!CopyResults(width, height, options)) {
             *error = "readback copy failed";
             return false;
         }
@@ -973,6 +1154,11 @@ public:
         }
         if (!ReadBack(image, error)) {
             return false;
+        }
+        if (options.hits != nullptr) {
+            if (!ReadHits(options.hits, error)) {
+                return false;
+            }
         }
         if (timing_) {
             if (!ReadTimestamps(samplesPerPixel)) {
@@ -992,7 +1178,7 @@ public:
 
 private:
     bool CreateResources(const q6cap::Scene& scene, uint32_t width, uint32_t height,
-                         std::string* error) {
+                         const RunOptions& options, std::string* error) {
         uint32_t totalVertices = 0;
         for (const q6cap::Object& object : scene.objects) {
             if (object.positions.size() % 3 != 0 || object.positions.empty()) {
@@ -1014,9 +1200,44 @@ private:
         accum_ = CreateTexture2D(renderer_.device.Get(), width, height,
                                  DXGI_FORMAT_R32G32B32A32_FLOAT);
         depth_ = CreateTexture2D(renderer_.device.Get(), width, height, DXGI_FORMAT_R32_FLOAT);
-        if (!positions_ || !materials_ || !instances_ || !accum_ || !depth_) {
+        hitRef_ = CreateTexture2D(renderer_.device.Get(), width, height,
+                                  DXGI_FORMAT_R32G32B32A32_FLOAT);
+        if (!positions_ || !materials_ || !instances_ || !accum_ || !depth_ || !hitRef_) {
             *error = "resource creation failed";
             return false;
+        }
+        if (options.temporal) {
+            if (options.motionBytes == nullptr || options.validityBytes == nullptr ||
+                options.historyTexture == nullptr) {
+                *error = "temporal mode needs motion, validity and a history texture";
+                return false;
+            }
+            motion_ = CreateTextureWithData(&renderer_, width, height,
+                                              DXGI_FORMAT_R8G8B8A8_UNORM, width * 4u,
+                                              options.motionBytes);
+            validity_ = CreateTextureWithData(&renderer_, width, height,
+                                                DXGI_FORMAT_R8_UNORM, width,
+                                                options.validityBytes);
+            if (!motion_ || !validity_) {
+                *error = "motion/validity texture creation failed";
+                return false;
+            }
+            D3D12_SHADER_RESOURCE_VIEW_DESC view{};
+            view.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+            view.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+            view.Texture2D.MipLevels = 1;
+            view.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+            renderer_.device->CreateShaderResourceView(
+                motion_.Get(), &view,
+                SrvSlot(renderer_.srvCpu, renderer_.descriptorSize, 4));
+            view.Format = DXGI_FORMAT_R8_UNORM;
+            renderer_.device->CreateShaderResourceView(
+                validity_.Get(), &view,
+                SrvSlot(renderer_.srvCpu, renderer_.descriptorSize, 5));
+            view.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+            renderer_.device->CreateShaderResourceView(
+                options.historyTexture, &view,
+                SrvSlot(renderer_.srvCpu, renderer_.descriptorSize, 8));
         }
 
         void* mapped = nullptr;
@@ -1048,6 +1269,9 @@ private:
             materials[i].uvOriginScale[1] = source.uvOriginZ;
             materials[i].uvOriginScale[2] = source.uvScaleX;
             materials[i].uvOriginScale[3] = source.uvScaleZ;
+            materials[i].content[0] =
+                options.content ? static_cast<float>(source.contentCell) : -1.0f;
+            materials[i].content[1] = source.emissiveScale;
         }
         materials_->Unmap(0, nullptr);
 
@@ -1102,6 +1326,13 @@ private:
         D3D12_CPU_DESCRIPTOR_HANDLE depthCpu = renderer_.uavCpu;
         depthCpu.ptr += static_cast<SIZE_T>(renderer_.descriptorSize);
         renderer_.device->CreateUnorderedAccessView(depth_.Get(), nullptr, &depthView, depthCpu);
+        D3D12_UNORDERED_ACCESS_VIEW_DESC hitRefView{};
+        hitRefView.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+        hitRefView.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+        D3D12_CPU_DESCRIPTOR_HANDLE hitCpu = renderer_.uavCpu;
+        hitCpu.ptr += static_cast<SIZE_T>(renderer_.descriptorSize) * 2;
+        renderer_.device->CreateUnorderedAccessView(hitRef_.Get(), nullptr, &hitRefView,
+                                                    hitCpu);
 
         objects_.clear();
         objects_.resize(scene.objects.size());
@@ -1326,9 +1557,11 @@ private:
         return true;
     }
 
-    bool Dispatch(const q6cap::Scene& scene, uint32_t samplesPerPixel, bool timing,
-                  std::string* error) {
+    bool Dispatch(const q6cap::Scene& scene, uint32_t samplesPerPixel,
+                  const RunOptions& options, std::string* error) {
         (void)error;
+        const bool timing = options.timing;
+        const uint32_t dispatchSamples = options.depthOnly ? 1u : samplesPerPixel;
         float clear[4] = {0.0f, 0.0f, 0.0f, 0.0f};
         renderer_.list->ClearUnorderedAccessViewFloat(renderer_.uavGpu, renderer_.uavCpu,
                                                       accum_.Get(), clear, 0, nullptr);
@@ -1355,9 +1588,9 @@ private:
 
         uint32_t queryIndex = 0;
         const uint32_t stride = timing ? 1u : kMaxDispatchSamples;
-        for (uint32_t offset = 0; offset < samplesPerPixel; offset += stride) {
+        for (uint32_t offset = 0; offset < dispatchSamples; offset += stride) {
             const uint32_t count =
-                timing ? 1u : std::min(kMaxDispatchSamples, samplesPerPixel - offset);
+                timing ? 1u : std::min(kMaxDispatchSamples, dispatchSamples - offset);
             FrameConstants constants{};
             constants.camPos[0] = scene.camera.position.x;
             constants.camPos[1] = scene.camera.position.y;
@@ -1396,6 +1629,16 @@ private:
             constants.seed[0] = kSeed;
             constants.seed[1] = 0;
             constants.misc[0] = count;
+            const bool useHistory =
+                options.temporal && options.historyValid && !options.depthOnly;
+            constants.history[0] = useHistory ? 1u : 0u;
+            constants.history[1] = options.historySamples;
+            constants.history[2] = 0;
+            constants.history[3] = 0;
+            constants.atlasInfo[0] = options.content ? float(options.atlasColumns) : 0.0f;
+            constants.atlasInfo[1] = options.content ? float(options.atlasRows) : 0.0f;
+            constants.atlasInfo[2] = options.content ? float(options.atlasBlock) : 0.0f;
+            constants.atlasInfo[3] = 0.0f;
 
             renderer_.list->SetComputeRoot32BitConstants(0, sizeof(FrameConstants) / 4,
                                                          &constants, 0);
@@ -1421,9 +1664,10 @@ private:
         return true;
     }
 
-    bool CopyResults(uint32_t width, uint32_t height) {
+    bool CopyResults(uint32_t width, uint32_t height, const RunOptions& options) {
         accumPitch_ = Align(width * 16, 256);
         depthPitch_ = Align(width * 4, 256);
+        hitPitch_ = accumPitch_;
         width_ = width;
         height_ = height;
         readbackAccum_ = CreateBuffer(renderer_.device.Get(), accumPitch_ * height,
@@ -1432,10 +1676,13 @@ private:
         readbackDepth_ = CreateBuffer(renderer_.device.Get(), depthPitch_ * height,
                                       D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_COPY_DEST,
                                       D3D12_HEAP_TYPE_READBACK);
-        if (!readbackAccum_ || !readbackDepth_) {
+        readbackHit_ = CreateBuffer(renderer_.device.Get(), hitPitch_ * height,
+                                    D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_COPY_DEST,
+                                    D3D12_HEAP_TYPE_READBACK);
+        if (!readbackAccum_ || !readbackDepth_ || !readbackHit_) {
             return false;
         }
-        D3D12_RESOURCE_BARRIER barriers[2] = {};
+        D3D12_RESOURCE_BARRIER barriers[3] = {};
         barriers[0].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
         barriers[0].Transition.pResource = accum_.Get();
         barriers[0].Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
@@ -1446,7 +1693,12 @@ private:
         barriers[1].Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
         barriers[1].Transition.StateBefore = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
         barriers[1].Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
-        renderer_.list->ResourceBarrier(2, barriers);
+        barriers[2].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+        barriers[2].Transition.pResource = hitRef_.Get();
+        barriers[2].Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+        barriers[2].Transition.StateBefore = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+        barriers[2].Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
+        renderer_.list->ResourceBarrier(3, barriers);
 
         D3D12_TEXTURE_COPY_LOCATION source{};
         source.pResource = accum_.Get();
@@ -1467,6 +1719,35 @@ private:
         destination.PlacedFootprint.Footprint.Format = DXGI_FORMAT_R32_FLOAT;
         destination.PlacedFootprint.Footprint.RowPitch = depthPitch_;
         renderer_.list->CopyTextureRegion(&destination, 0, 0, 0, &source, nullptr);
+
+        source.pResource = hitRef_.Get();
+        destination.pResource = readbackHit_.Get();
+        destination.PlacedFootprint.Footprint.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+        destination.PlacedFootprint.Footprint.RowPitch = hitPitch_;
+        renderer_.list->CopyTextureRegion(&destination, 0, 0, 0, &source, nullptr);
+
+        if (options.temporal) {
+            // The previous frame becomes the history this frame reprojected
+            // from. The copy happens before the accum transitions back to UAV.
+            D3D12_RESOURCE_BARRIER historyBarrier[2] = {};
+            historyBarrier[0].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+            historyBarrier[0].Transition.pResource = options.historyTexture;
+            historyBarrier[0].Transition.Subresource =
+                D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+            historyBarrier[0].Transition.StateBefore =
+                D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+            historyBarrier[0].Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_DEST;
+            renderer_.list->ResourceBarrier(1, &historyBarrier[0]);
+            renderer_.list->CopyResource(options.historyTexture, accum_.Get());
+            historyBarrier[1].Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+            historyBarrier[1].Transition.pResource = options.historyTexture;
+            historyBarrier[1].Transition.Subresource =
+                D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+            historyBarrier[1].Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+            historyBarrier[1].Transition.StateAfter =
+                D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+            renderer_.list->ResourceBarrier(1, &historyBarrier[1]);
+        }
         return true;
     }
 
@@ -1511,6 +1792,36 @@ private:
         return true;
     }
 
+    bool ReadHits(std::vector<doom3::dxr::Q6HitReference>* hits, std::string* error) {
+        hits->assign(static_cast<size_t>(width_) * height_, doom3::dxr::Q6HitReference{});
+        void* mapped = nullptr;
+        D3D12_RANGE range{0, static_cast<SIZE_T>(hitPitch_) * height_};
+        if (!Check(readbackHit_->Map(0, &range, &mapped), "Map(hit readback)")) {
+            *error = "map hit readback failed";
+            return false;
+        }
+        for (uint32_t y = 0; y < height_; ++y) {
+            const float* row = reinterpret_cast<const float*>(
+                static_cast<const uint8_t*>(mapped) + static_cast<size_t>(y) * hitPitch_);
+            for (uint32_t x = 0; x < width_; ++x) {
+                doom3::dxr::Q6HitReference& hit =
+                    (*hits)[static_cast<size_t>(y) * width_ + x];
+                const float instance = row[x * 4 + 0];
+                if (instance < 0.0f) {
+                    hit.surface = 0xFFFFFFFFu;
+                    continue;
+                }
+                hit.surface = static_cast<uint32_t>(instance + 0.5f);
+                hit.primitive = static_cast<uint32_t>(row[x * 4 + 1] + 0.5f);
+                hit.baryU = row[x * 4 + 2];
+                hit.baryV = row[x * 4 + 3];
+            }
+        }
+        D3D12_RANGE noWrite{0, 0};
+        readbackHit_->Unmap(0, &noWrite);
+        return true;
+    }
+
     bool ReadTimestamps(uint32_t samplesPerPixel) {
         void* mapped = nullptr;
         D3D12_RANGE range{0, sizeof(UINT64) * 2 * samplesPerPixel};
@@ -1536,6 +1847,7 @@ private:
     uint32_t height_ = 0;
     UINT accumPitch_ = 0;
     UINT depthPitch_ = 0;
+    UINT hitPitch_ = 0;
     std::vector<ObjectGpu> objects_;
     ComPtr<ID3D12Resource> positions_;
     ComPtr<ID3D12Resource> materials_;
@@ -1543,10 +1855,14 @@ private:
     ComPtr<ID3D12Resource> instanceUpload_;
     ComPtr<ID3D12Resource> accum_;
     ComPtr<ID3D12Resource> depth_;
+    ComPtr<ID3D12Resource> hitRef_;
+    ComPtr<ID3D12Resource> motion_;
+    ComPtr<ID3D12Resource> validity_;
     ComPtr<ID3D12Resource> tlas_;
     ComPtr<ID3D12Resource> tlasScratch_;
     ComPtr<ID3D12Resource> readbackAccum_;
     ComPtr<ID3D12Resource> readbackDepth_;
+    ComPtr<ID3D12Resource> readbackHit_;
     ComPtr<ID3D12QueryHeap> queryHeap_;
     ComPtr<ID3D12Resource> timestampReadback_;
     std::vector<double> timestampsMs_;
@@ -1726,6 +2042,1107 @@ void WriteReport(const std::string& path, const Renderer& renderer, const Config
     std::printf("REPORT=%s\n", path.c_str());
 }
 
+// ---------------------------------------------------------------------------
+// PT-S1..S5 suite (T069/T070)
+// ---------------------------------------------------------------------------
+
+using doom3::dxr::Q6MotionStats;
+using q6cap::kAtlasBlock;
+using q6cap::kAtlasColumns;
+using q6cap::kAtlasRows;
+
+uint32_t TierValueOf(Renderer& renderer) {
+    D3D12_FEATURE_DATA_D3D12_OPTIONS5 options5{};
+    renderer.device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &options5,
+                                         sizeof(options5));
+    return static_cast<uint32_t>(options5.RaytracingTier);
+}
+
+std::string JointPathIfNeeded(const std::string& outDir, const std::string& name,
+                             bool wanted) {
+    return wanted ? JoinPath(outDir, name) : std::string();
+}
+
+float HalfToFloat(uint16_t word) {
+    const uint32_t sign = (word >> 15) & 0x1u;
+    const uint32_t exponent = (word >> 10) & 0x1Fu;
+    const uint32_t mantissa = word & 0x3FFu;
+    float value;
+    if (exponent == 0) {
+        value = std::ldexp(static_cast<float>(mantissa), -24);
+    } else if (exponent == 31) {
+        value = mantissa == 0 ? INFINITY : NAN;
+    } else {
+        value = std::ldexp(static_cast<float>(mantissa + 1024u),
+                           static_cast<int>(exponent) - 25);
+    }
+    return sign != 0 ? -value : value;
+}
+
+double NowMs() {
+    static LARGE_INTEGER frequency{};
+    if (frequency.QuadPart == 0) {
+        QueryPerformanceFrequency(&frequency);
+    }
+    LARGE_INTEGER counter{};
+    QueryPerformanceCounter(&counter);
+    return static_cast<double>(counter.QuadPart) * 1000.0 /
+           static_cast<double>(frequency.QuadPart);
+}
+
+ComPtr<ID3D12Resource> CreateHistoryTexture(ID3D12Device* device, uint32_t width,
+                                            uint32_t height) {
+    D3D12_HEAP_PROPERTIES heap{};
+    heap.Type = D3D12_HEAP_TYPE_DEFAULT;
+    D3D12_RESOURCE_DESC desc{};
+    desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+    desc.Width = width;
+    desc.Height = height;
+    desc.DepthOrArraySize = 1;
+    desc.MipLevels = 1;
+    desc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+    desc.SampleDesc.Count = 1;
+    desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+    desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+    ComPtr<ID3D12Resource> resource;
+    const HRESULT hr = device->CreateCommittedResource(
+        &heap, D3D12_HEAP_FLAG_NONE, &desc, D3D12_RESOURCE_STATE_COPY_DEST, nullptr,
+        IID_PPV_ARGS(&resource));
+    return SUCCEEDED(hr) ? resource : nullptr;
+}
+
+doom3::rhi::CameraState CameraStateFor(const doom3::dxr::Q6PtSceneSpec& spec,
+                                       uint32_t frame, uint32_t width, uint32_t height) {
+    float position[3];
+    float forward[3];
+    float tanX = 0.75f;
+    float tanY = 0.5f;
+    doom3::dxr::CameraAt(spec, frame, width, height, position, forward, &tanX, &tanY);
+    doom3::rhi::CameraState camera;
+    camera.eye = doom3::rhi::MotionVec3{position[0], position[1], position[2]};
+    const q6cap::Vec3 f = q6cap::Normalize(q6cap::Vec3{forward[0], forward[1], forward[2]});
+    const q6cap::Vec3 right = q6cap::Normalize(q6cap::Cross(f, q6cap::Vec3{0.0f, 0.0f, 1.0f}));
+    const q6cap::Vec3 up = q6cap::Cross(right, f);
+    camera.forward = doom3::rhi::MotionVec3{f.x, f.y, f.z};
+    camera.left = doom3::rhi::MotionVec3{-right.x, -right.y, -right.z};
+    camera.up = doom3::rhi::MotionVec3{up.x, up.y, up.z};
+    camera.tanX = tanX;
+    camera.tanY = tanY;
+    camera.width = width;
+    camera.height = height;
+    return camera;
+}
+
+std::vector<doom3::rhi::RenderRecord> RecordsFor(const doom3::dxr::Q6PtSceneSpec& spec,
+                                                 uint32_t frame) {
+    std::vector<doom3::rhi::RenderRecord> records;
+    for (const auto& surface : spec.surfaces) {
+        std::vector<q6cap::Vec3> positions;
+        q6cap::TessellateSurface(surface, frame, &positions);
+        if (positions.empty()) {
+            continue;
+        }
+        q6cap::Vec3 centroid{0.0f, 0.0f, 0.0f};
+        for (const q6cap::Vec3& position : positions) {
+            centroid = q6cap::Add(centroid, position);
+        }
+        const float inverse = 1.0f / static_cast<float>(positions.size());
+        centroid = q6cap::Scale(centroid, inverse);
+        doom3::rhi::RenderRecord record;
+        record.point = doom3::rhi::MotionVec3{centroid.x, centroid.y, centroid.z};
+        record.hasRenderedRecord = true;
+        records.push_back(record);
+    }
+    return records;
+}
+
+struct PtRow {
+    std::string id;
+    std::string identity;
+    std::string content;
+    std::string status;
+    std::string reason;
+    uint32_t width = 0;
+    uint32_t height = 0;
+    uint32_t sampleSpp = 0;
+    uint32_t referenceSpp = 0;
+    double mae = -1.0;
+    double scaling = -1.0;
+    double p99Image = -1.0;
+    uint64_t nanPixels = 0;
+    bool deterministic = false;
+    std::string shaPng;
+    std::string shaLinear;
+    std::string identityHash;
+    std::string checks;
+};
+
+struct PtSuiteResult {
+    std::vector<PtRow> rows;
+    bool allPassed = true;
+};
+
+double P99RelativeImage(const FloatImage& a, const FloatImage& b) {
+    return P99Relative(a, b, WholeImage(a));
+}
+
+void WritePtReport(const std::string& path, const Renderer& renderer, const Config& config,
+                   const q6cap::ContentAtlas& atlas, uint32_t tier, const char* tierName,
+                   const char* shaderModel, const PtSuiteResult& suite,
+                   const std::string& sequence, const std::string& history,
+                   const std::string& pacing, const std::string& fallback,
+                   const std::string& hdr, const std::string& fallbackSelection) {
+    FILE* file = nullptr;
+    if (fopen_s(&file, path.c_str(), "wb") != 0 || file == nullptr) {
+        std::printf("ERROR cannot write %s\n", path.c_str());
+        return;
+    }
+    std::fprintf(file, "{\n");
+    std::fprintf(file, "  \"probe\": \"q6_dxr_pt_suite\",\n");
+    std::fprintf(file, "  \"scope\": \"PT-S1..S5 declared identities rendered from the Q2 ordered stream and the Q3 pose/motion/validity seam; not a retail DOOM3.exe frame\",\n");
+    std::fprintf(file, "  \"adapter\": {\"name\": \"%s\", \"luid\": \"0x%08lX%08lX\", "
+                       "\"vendor\": %u, \"device\": %u, \"driver_umd\": \"%s\", "
+                       "\"vram_mb\": %llu, \"software\": %d},\n",
+                 renderer.adapterName.c_str(),
+                 static_cast<unsigned long>(renderer.adapterDesc.AdapterLuid.HighPart),
+                 static_cast<unsigned long>(renderer.adapterDesc.AdapterLuid.LowPart),
+                 renderer.adapterDesc.VendorId, renderer.adapterDesc.DeviceId,
+                 renderer.driverVersion.c_str(),
+                 static_cast<unsigned long long>(renderer.adapterDesc.DedicatedVideoMemory /
+                                                 (1024 * 1024)),
+                 (renderer.adapterDesc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) ? 1 : 0);
+    std::fprintf(file, "  \"raytracing_tier\": %u, \"raytracing_tier_name\": \"%s\", "
+                       "\"shader_model\": \"%s\", \"debug_layer\": %s,\n",
+                 tier, tierName, shaderModel, renderer.debugLayer ? "true" : "false");
+    std::fprintf(file, "  \"extent\": {\"width\": %u, \"height\": %u},\n", config.width,
+                 config.height);
+    std::fprintf(file, "  \"content\": {\"atlas_base_sha256\": \"%s\", "
+                       "\"atlas_pbr_sha256\": \"%s\", \"atlas_emissive_sha256\": \"%s\", "
+                       "\"environment\": \"%s\"},\n",
+                 atlas.baseSha256.c_str(), atlas.pbrSha256.c_str(),
+                 atlas.emissiveSha256.c_str(), atlas.environmentAssembly.c_str());
+    std::fprintf(file, "  \"rows\": [\n");
+    for (size_t i = 0; i < suite.rows.size(); ++i) {
+        const PtRow& row = suite.rows[i];
+        std::fprintf(file,
+                     "    {\"id\": \"%s\", \"identity\": \"%s\", \"content\": \"%s\", "
+                     "\"status\": \"%s\", \"reason\": \"%s\", \"width\": %u, \"height\": %u, "
+                     "\"spp\": %u, \"reference_spp\": %u, \"mae\": %.6f, "
+                     "\"sample_scaling\": %.6f, \"p99_image\": %.6f, \"nan_pixels\": %llu, "
+                     "\"deterministic_rerun\": %s, \"sha256_png\": \"%s\", "
+                     "\"sha256_linear_rgb\": \"%s\", \"frame_identity_hash\": \"%s\", "
+                     "\"checks\": \"%s\"}%s\n",
+                     row.id.c_str(), row.identity.c_str(), row.content.c_str(),
+                     row.status.c_str(), row.reason.c_str(), row.width, row.height,
+                     row.sampleSpp, row.referenceSpp, row.mae, row.scaling, row.p99Image,
+                     static_cast<unsigned long long>(row.nanPixels),
+                     row.deterministic ? "true" : "false", row.shaPng.c_str(),
+                     row.shaLinear.c_str(), row.identityHash.c_str(), row.checks.c_str(),
+                     (i + 1 == suite.rows.size()) ? "" : ",");
+    }
+    std::fprintf(file, "  ],\n");
+    std::fprintf(file, "  \"p99_flat_patch\": \"NOT MEASURED: the PT-S1..S5 surfaces carry authored textures; no constant-radiance patch is declared, so the flat-patch p99 row is not claimed\",\n");
+    std::fprintf(file, "  \"input_latency\": \"NOT RUN: the Q6 capture has no window, no input path and no same-scene fallback display, so an input-to-displayed-change median cannot be measured\",\n");
+    std::fprintf(file, "  \"motion_sequence\": %s,\n", sequence.c_str());
+    std::fprintf(file, "  \"history\": %s,\n", history.c_str());
+    std::fprintf(file, "  \"hdr\": %s,\n", hdr.c_str());
+    std::fprintf(file, "  \"frame_pacing\": %s,\n", pacing.c_str());
+    std::fprintf(file, "  \"fallback\": %s,\n", fallback.c_str());
+    std::fprintf(file, "  \"fallback_selection\": %s,\n", fallbackSelection.c_str());
+    std::fprintf(file, "  \"all_rows_passed\": %s\n", suite.allPassed ? "true" : "false");
+    std::fprintf(file, "}\n");
+    std::fclose(file);
+    std::printf("PT_REPORT=%s\n", path.c_str());
+}
+
+std::string JsonEscape(const std::string& value) {
+    std::string out;
+    for (char c : value) {
+        if (c == '"' || c == '\\') {
+            out += '\\';
+        }
+        out += c;
+    }
+    return out;
+}
+
+int RunPtSuite(Renderer& renderer, const Config& config, const std::string& repoRoot) {
+    std::string error;
+    doom3::dxr::Q6ContentRegistry registry;
+    const bool contentLoaded = doom3::dxr::LoadQ6Content(repoRoot, &registry, &error);
+    std::printf("PT_CONTENT_CELLS=%u/7 %s\n", registry.CompleteCount(),
+                contentLoaded ? "COMPLETE" : "INCOMPLETE");
+    if (!contentLoaded) {
+        std::printf("PT_CONTENT_ERROR=%s\n", error.c_str());
+        return 3;
+    }
+    q6cap::ContentAtlas atlas;
+    if (!q6cap::LoadContentAtlas(repoRoot, registry, &atlas, &error)) {
+        std::printf("ERROR content atlas: %s\n", error.c_str());
+        return 1;
+    }
+    std::printf("PT_ATLAS=%ux%u base=%s pbr=%s emissive=%s\n", atlas.width,
+                atlas.height, atlas.baseSha256.c_str(), atlas.pbrSha256.c_str(),
+                atlas.emissiveSha256.c_str());
+    {
+        // Cell 3 is the emissive sign; report its brightest authored texel and
+        // the value at the block centre, so an HDR miss can be attributed.
+        const uint32_t block = q6cap::kAtlasBlock;
+        const uint32_t originX = 3 * block;
+        const uint32_t originY = 0;
+        double brightest = 0.0;
+        for (uint32_t y = 0; y < block; ++y) {
+            for (uint32_t x = 0; x < block; ++x) {
+                const size_t index =
+                    (static_cast<size_t>(originY + y) * atlas.width + originX + x) * 4u;
+                const float value =
+                    static_cast<float>(HalfToFloat(atlas.emissive[index]));
+                brightest = std::max(brightest, static_cast<double>(value));
+            }
+        }
+        const size_t center =
+            (static_cast<size_t>(originY + block / 2) * atlas.width + originX + block / 2) *
+            4u;
+        std::printf("PT_EMISSIVE_BLOCK3 brightest=%.4f center=%.4f\n", brightest,
+                    static_cast<float>(HalfToFloat(atlas.emissive[center])));
+    }
+    if (!UploadContentAtlas(&renderer, atlas, &error)) {
+        std::printf("ERROR %s\n", error.c_str());
+        return 1;
+    }
+
+    const uint32_t width = config.width;
+    const uint32_t height = config.height;
+    std::vector<uint32_t> referenceSpp = {64, 512, 1024, 4096};
+    if (config.sppCap > 0) {
+        for (uint32_t& value : referenceSpp) {
+            value = std::min(value, config.sppCap);
+        }
+        std::sort(referenceSpp.begin(), referenceSpp.end());
+        referenceSpp.erase(std::unique(referenceSpp.begin(), referenceSpp.end()),
+                           referenceSpp.end());
+    }
+    const uint32_t imageSpp = referenceSpp.size() >= 3 ? referenceSpp[referenceSpp.size() - 2]
+                                                       : referenceSpp.back();
+    const uint32_t refSpp = referenceSpp.back();
+    if (refSpp <= imageSpp) {
+        std::printf("ERROR the PT suite needs two sample levels\n");
+        return 1;
+    }
+
+    // One discard render warms the state object, the descriptor heap and the
+    // driver's shader cache, so the first measured frame is not a cold-frame
+    // outlier. It does not contribute to any reported value.
+    {
+        doom3::dxr::Q6PtSceneSpec warmSpec;
+        if (doom3::dxr::BuildPtScene("PT-S1", &warmSpec, &error)) {
+            doom3::rhi::SceneCommandQueue warmQueue;
+            q6cap::PtGeometrySource warmGeometry(warmSpec);
+            q6cap::BuildQ2Queue(warmSpec, width, height, &warmQueue, &error);
+            doom3::dxr::Q6EngineFrame warmFrame;
+            warmFrame.SetScene("PT-S1", warmSpec.name);
+            warmFrame.Consume(warmQueue, &warmGeometry, warmSpec.Assignments(), &error);
+            q6cap::Scene warmScene;
+            q6cap::BuildCaptureScene(warmSpec, warmFrame, 0, width, height, kAtlasColumns,
+                                     &warmScene, &error);
+            SceneRun warmRun(renderer);
+            RunOptions warmOptions;
+            warmOptions.content = true;
+            warmOptions.atlasColumns = kAtlasColumns;
+            warmOptions.atlasRows = kAtlasRows;
+            warmOptions.atlasBlock = kAtlasBlock;
+            FloatImage warmImage;
+            if (!warmRun.Render(warmScene, 1, warmOptions, &warmImage, &error)) {
+                std::printf("ERROR warm-up: %s\n", error.c_str());
+                return 1;
+            }
+        }
+    }
+
+    PtSuiteResult suite;
+    size_t identityCount = 0;
+    const char* const* identities = doom3::dxr::PtIdentities(&identityCount);
+
+    for (size_t identityIndex = 0; identityIndex < identityCount; ++identityIndex) {
+        if (std::string(identities[identityIndex]) == "PT-S3") {
+            continue;  // the motion identity is rendered as a sequence below
+        }
+        const std::string identity = identities[identityIndex];
+        doom3::dxr::Q6PtSceneSpec spec;
+        if (!doom3::dxr::BuildPtScene(identity, &spec, &error)) {
+            std::printf("ERROR %s\n", error.c_str());
+            return 1;
+        }
+        std::vector<doom3::dxr::Q6ContentCell> required;
+        doom3::dxr::CellsForIdentity(identity, &required);
+
+        doom3::rhi::SceneCommandQueue queue;
+        q6cap::PtGeometrySource geometry(spec);
+        if (!q6cap::BuildQ2Queue(spec, width, height, &queue, &error)) {
+            std::printf("ERROR %s\n", error.c_str());
+            return 1;
+        }
+        doom3::dxr::Q6EngineFrame frame;
+        frame.SetScene(identity, spec.name);
+        if (!frame.Consume(queue, &geometry, spec.Assignments(), &error)) {
+            std::printf("ERROR %s\n", error.c_str());
+            return 1;
+        }
+        q6cap::Scene scene;
+        if (!q6cap::BuildCaptureScene(spec, frame, 0, width, height, kAtlasColumns, &scene,
+                                      &error)) {
+            std::printf("ERROR %s\n", error.c_str());
+            return 1;
+        }
+        // Content identity: every draw in the stream resolved to the declared
+        // cell, and every required cell is used.
+        bool cellsUsed = true;
+        for (doom3::dxr::Q6ContentCell cell : required) {
+            bool used = false;
+            for (const doom3::dxr::Q6OrderedSurface& surface : frame.surfaces()) {
+                used = used || surface.cell == cell;
+            }
+            cellsUsed = cellsUsed && used;
+        }
+        std::ostringstream contentText;
+        for (size_t i = 0; i < frame.surfaces().size(); ++i) {
+            contentText << (i == 0 ? "" : "+")
+                        << doom3::dxr::CellMaterialName(frame.surfaces()[i].cell);
+        }
+
+        std::printf("PT_START=%s surfaces=%zu draws=%u content=%s\n", identity.c_str(),
+                    frame.surfaces().size(), frame.stats().drawsResolved,
+                    contentText.str().c_str());
+
+        std::vector<std::pair<uint32_t, FloatImage>> snapshots;
+        bool deviceError = false;
+        for (uint32_t spp : referenceSpp) {
+            SceneRun run(renderer);
+            RunOptions options;
+            options.content = true;
+            options.atlasColumns = kAtlasColumns;
+            options.atlasRows = kAtlasRows;
+            options.atlasBlock = kAtlasBlock;
+            if (spp == imageSpp) {
+                options.pngPath = JoinPath(config.outDir, identity + "-" + spec.name + "-" +
+                                                              std::to_string(spp) + "spp.png");
+            }
+            FloatImage image;
+            const double start = NowMs();
+            if (!run.Render(scene, spp, options, &image, &error)) {
+                std::printf("ERROR %s: %s\n", identity.c_str(), error.c_str());
+                deviceError = true;
+                break;
+            }
+            std::printf("PT_SAMPLE=%s spp=%u wall_ms=%.1f\n", identity.c_str(), spp,
+                        NowMs() - start);
+            snapshots.emplace_back(spp, std::move(image));
+        }
+        if (deviceError) {
+            return 1;
+        }
+        auto findSnapshot = [&](uint32_t spp) -> FloatImage* {
+            for (auto& entry : snapshots) {
+                if (entry.first == spp) {
+                    return &entry.second;
+                }
+            }
+            return nullptr;
+        };
+        FloatImage* image = findSnapshot(imageSpp);
+        FloatImage* reference = findSnapshot(refSpp);
+        if (image == nullptr || reference == nullptr) {
+            std::printf("ERROR missing PT snapshots for %s\n", identity.c_str());
+            return 1;
+        }
+
+        PtRow row;
+        row.id = identity + "-" + spec.name;
+        row.identity = identity;
+        row.content = contentText.str();
+        row.width = width;
+        row.height = height;
+        row.sampleSpp = imageSpp;
+        row.referenceSpp = refSpp;
+        row.nanPixels = CountNan(*image) + CountNan(*reference);
+        row.mae = MeanAbsDiff(*image, *reference);
+        row.p99Image = P99RelativeImage(*image, *reference);
+        uint32_t previousSpp = 0;
+        for (uint32_t level : referenceSpp) {
+            if (level < imageSpp && level > previousSpp) {
+                previousSpp = level;
+            }
+        }
+        FloatImage* previous = previousSpp > 0 ? findSnapshot(previousSpp) : nullptr;
+        if (previous != nullptr) {
+            const double previousMae = MeanAbsDiff(*previous, *reference);
+            row.scaling = row.mae > 0.0 ? previousMae / row.mae : -1.0;
+        }
+        row.shaLinear =
+            Sha256Hex(image->rgb.data(), image->rgb.size() * sizeof(float));
+        const std::string pngPath = JoinPath(
+            config.outDir,
+            identity + "-" + spec.name + "-" + std::to_string(imageSpp) + "spp.png");
+        std::vector<uint8_t> pngBytes;
+        if (ReadFileBytes(pngPath, &pngBytes)) {
+            row.shaPng = Sha256Hex(pngBytes.data(), pngBytes.size());
+        }
+        {
+            SceneRun rerun(renderer);
+            RunOptions options;
+            options.content = true;
+            options.atlasColumns = kAtlasColumns;
+            options.atlasRows = kAtlasRows;
+            options.atlasBlock = kAtlasBlock;
+            FloatImage repeated;
+            if (rerun.Render(scene, referenceSpp.front(), options, &repeated, &error)) {
+                FloatImage* first = findSnapshot(referenceSpp.front());
+                double maxDiff = 0.0;
+                size_t differing = 0;
+                if (first != nullptr) {
+                    for (size_t i = 0; i < first->rgb.size(); i += 3) {
+                        double pixelDiff = 0.0;
+                        for (int c = 0; c < 3; ++c) {
+                            pixelDiff = std::max(
+                                pixelDiff,
+                                static_cast<double>(std::fabs(first->rgb[i + c] -
+                                                            repeated.rgb[i + c])));
+                        }
+                        maxDiff = std::max(maxDiff, pixelDiff);
+                    }
+                }
+                std::printf("PT_DIFF_COUNT=%s pixels=%zu\n", identity.c_str(), differing);
+                const std::string firstHash =
+                    first != nullptr
+                        ? Sha256Hex(first->rgb.data(), first->rgb.size() * sizeof(float))
+                        : std::string();
+                const std::string repeatedHash =
+                    Sha256Hex(repeated.rgb.data(), repeated.rgb.size() * sizeof(float));
+                SceneRun rerun2(renderer);
+                FloatImage repeated2;
+                if (rerun2.Render(scene, referenceSpp.front(), options, &repeated2, &error)) {
+                    double diff2 = 0.0;
+                    for (size_t i = 0; i < repeated.rgb.size(); ++i) {
+                        diff2 = std::max(diff2, static_cast<double>(std::fabs(
+                                                    repeated.rgb[i] - repeated2.rgb[i])));
+                    }
+                    std::printf("PT_DETERMINISM_FRESH=%s max_abs_diff=%.9f\n",
+                                identity.c_str(), diff2);
+                }
+                row.deterministic = first != nullptr && firstHash == repeatedHash;
+                std::printf("PT_DETERMINISM=%s max_abs_diff=%.9f first=%.12s repeated=%.12s\n",
+                            identity.c_str(), maxDiff, firstHash.c_str(),
+                            repeatedHash.c_str());
+            }
+        }
+        row.identityHash = [&]() {
+            std::ostringstream text;
+            text << std::hex
+                 << frame.ComputeIdentityHash(CameraStateFor(spec, 0, width, height), 0);
+            return text.str();
+        }();
+
+        CheckResult check;
+        check.Require(cellsUsed, "content cells used");
+        check.Require(row.nanPixels == 0, "nan-pixels==0");
+        check.Require(row.deterministic, "deterministic-rerun");
+        check.Require(row.mae >= 0.0 && row.mae <= 0.01,
+                      "mae<=0.01 (observed " + std::to_string(row.mae) + ")");
+        check.Require(row.scaling >= 1.5 && row.scaling <= 2.5,
+                      "sample-scaling in [1.5,2.5] (observed " +
+                          std::to_string(row.scaling) + ")");
+        check.Note("mae=" + std::to_string(row.mae) + " p99_image=" +
+                   std::to_string(row.p99Image) + " scaling=" + std::to_string(row.scaling));
+        row.status = check.ok ? "ACCEPT" : "REJECT";
+        row.reason = check.reasons;
+        row.checks = check.detail;
+        suite.allPassed = suite.allPassed && check.ok;
+        std::printf("PT_VERDICT=%s status=%s checks=%s%s%s\n", row.id.c_str(),
+                    row.status.c_str(), row.checks.c_str(),
+                    check.reasons.empty() ? "" : " failed=",
+                    check.reasons.c_str());
+        suite.rows.push_back(std::move(row));
+    }
+
+    // PT-S2 HDR bound and the alpha negative control.
+    std::string hdrText = "NOT RUN";
+    {
+        doom3::dxr::Q6PtSceneSpec spec;
+        if (doom3::dxr::BuildPtScene("PT-S2", &spec, &error)) {
+            doom3::rhi::SceneCommandQueue queue;
+            q6cap::PtGeometrySource geometry(spec);
+            q6cap::BuildQ2Queue(spec, width, height, &queue, &error);
+            doom3::dxr::Q6EngineFrame frame;
+            frame.SetScene("PT-S2", spec.name);
+            frame.Consume(queue, &geometry, spec.Assignments(), &error);
+            q6cap::Scene scene;
+            q6cap::BuildCaptureScene(spec, frame, 0, width, height, kAtlasColumns, &scene,
+                                     &error);
+            SceneRun run(renderer);
+            RunOptions options;
+            options.content = true;
+            options.atlasColumns = kAtlasColumns;
+            options.atlasRows = kAtlasRows;
+            options.atlasBlock = kAtlasBlock;
+            FloatImage image;
+            uint64_t hdrPixels = 0;
+            double maxRadiance = 0.0;
+            if (run.Render(scene, 1024, options, &image, &error)) {
+                for (size_t i = 0; i < image.rgb.size(); i += 3) {
+                    maxRadiance = std::max(maxRadiance, static_cast<double>(std::max(
+                                                                 image.rgb[i],
+                                                                 std::max(image.rgb[i + 1],
+                                                                          image.rgb[i + 2]))));
+                    const float peak = std::max(image.rgb[i], std::max(image.rgb[i + 1],
+                                                                      image.rgb[i + 2]));
+                    if (peak > 1.0f) {
+                        ++hdrPixels;
+                    }
+                }
+            }
+            // Negative control: the same scene with the authored cutout's alpha
+            // test disabled must hide the sign.
+            q6cap::Scene opaque = scene;
+            for (q6cap::Material& material : opaque.materials) {
+                if (material.contentCell ==
+                    static_cast<int>(doom3::dxr::Q6ContentCell::Grating)) {
+                    material.alphaTest = false;
+                }
+            }
+            SceneRun controlRun(renderer);
+            FloatImage control;
+            uint64_t controlPixels = 0;
+            if (controlRun.Render(opaque, 1024, options, &control, &error)) {
+                for (size_t i = 0; i < control.rgb.size(); i += 3) {
+                    const float peak = std::max(control.rgb[i], std::max(control.rgb[i + 1],
+                                                                        control.rgb[i + 2]));
+                    if (peak > 1.0f) {
+                        ++controlPixels;
+                    }
+                }
+            }
+            const bool pass = hdrPixels > 0 && controlPixels < hdrPixels;
+            std::ostringstream text;
+            text << "{\"hdr_pixels\": " << hdrPixels << ", \"alpha_disabled_hdr_pixels\": "
+                 << controlPixels << ", \"max_radiance\": " << maxRadiance
+                 << ", \"verdict\": \"" << (pass ? "PASS" : "FAIL") << "\"}";
+            hdrText = text.str();
+            std::printf("PT_HDR=%s\n", hdrText.c_str());
+            if (!pass) {
+                suite.allPassed = false;
+            }
+        } else {
+            hdrText = "{\"verdict\": \"NOT RUN\", \"reason\": \"" + JsonEscape(error) + "\"}";
+        }
+    }
+
+    // PT-S3: the motion sequence with the Q3 current/previous pose and the
+    // per-pixel motion/validity, including the cut frame and the history reset.
+    std::string sequenceText = "NOT RUN";
+    std::string historyText = "NOT RUN";
+    std::string pacingText = "NOT RUN";
+    {
+        doom3::dxr::Q6PtSceneSpec spec;
+        if (!doom3::dxr::BuildPtScene("PT-S3", &spec, &error)) {
+            std::printf("ERROR %s\n", error.c_str());
+            return 1;
+        }
+        doom3::rhi::FrameIntegration integration;
+        doom3::rhi::FrameIntegrationDesc integrationDesc;
+        integrationDesc.render = doom3::rhi::FrameExtent{width, height};
+        integrationDesc.display = doom3::rhi::FrameExtent{width, height};
+        if (integration.Initialize(integrationDesc, &error) != doom3::rhi::Status::Ok) {
+            std::printf("ERROR %s\n", error.c_str());
+            return 1;
+        }
+        ComPtr<ID3D12Resource> historyTexture =
+            CreateHistoryTexture(renderer.device.Get(), width, height);
+        if (!historyTexture) {
+            std::printf("ERROR history texture creation failed\n");
+            return 1;
+        }
+        doom3::rhi::ViewIdentity viewIdentity;
+        viewIdentity.worldId = 1;
+        viewIdentity.instanceId = 1;
+        viewIdentity.width = width;
+        viewIdentity.height = height;
+
+        std::vector<Q6MotionStats> motionStats;
+        std::vector<uint32_t> validPixels;
+        std::vector<uint32_t> disoccludedPixels;
+        std::vector<double> frameMs;
+        FloatImage cutControl;
+        FloatImage cutReset;
+        FloatImage rawCut;
+        bool haveCutControl = false;
+        bool haveCutReset = false;
+        bool haveRawCut = false;
+        doom3::rhi::CameraState previousCamera = CameraStateFor(spec, 0, width, height);
+        std::string lastIdentityHash;
+
+        for (uint32_t frameIndex = 0; frameIndex <= spec.lastFrame; ++frameIndex) {
+            const double frameStart = NowMs();
+            q6cap::PtGeometrySource geometry(spec);
+            geometry.SetFrame(frameIndex);
+            doom3::rhi::SceneCommandQueue queue;
+            if (!q6cap::BuildQ2Queue(spec, width, height, &queue, &error)) {
+                std::printf("ERROR %s\n", error.c_str());
+                return 1;
+            }
+            doom3::dxr::Q6EngineFrame frame;
+            frame.SetScene("PT-S3", spec.name);
+            if (!frame.Consume(queue, &geometry, spec.Assignments(), &error)) {
+                std::printf("ERROR %s\n", error.c_str());
+                return 1;
+            }
+            q6cap::Scene scene;
+            if (!q6cap::BuildCaptureScene(spec, frame, frameIndex, width, height,
+                                          kAtlasColumns, &scene, &error)) {
+                std::printf("ERROR %s\n", error.c_str());
+                return 1;
+            }
+            const doom3::rhi::CameraState camera =
+                CameraStateFor(spec, frameIndex, width, height);
+
+            std::vector<doom3::dxr::Q6SurfacePose> poses;
+            q6cap::PosesForFrame(spec, frameIndex, &poses);
+            std::vector<doom3::rhi::MotionVec3> q3Previous;
+            doom3::rhi::MotionValidity previousValidity = doom3::rhi::MotionValidity::NoHistory;
+            if (frameIndex > 0) {
+                previousValidity = integration.PreviousPrivatePose(
+                    doom3::rhi::ViewKind::Main, 3, frameIndex - 1, &q3Previous);
+                std::vector<doom3::dxr::Q6SurfacePose> prior;
+                q6cap::PosesForFrame(spec, frameIndex - 1, &prior);
+                for (size_t i = 0; i < poses.size() && i < prior.size(); ++i) {
+                    poses[i].previous = prior[i].current;
+                }
+                if (previousValidity == doom3::rhi::MotionValidity::Valid &&
+                    poses.size() >= 3) {
+                    // The skinned surface uses the Q3 private previous pose.
+                    poses[2].previous = q3Previous;
+                }
+            }
+            std::vector<doom3::rhi::MotionVec3> skinnedCurrent;
+            if (poses.size() >= 3) {
+                skinnedCurrent = poses[2].current;
+            }
+            const doom3::dxr::Q6FrameEvent event =
+                frameIndex == spec.cutFrame ? doom3::dxr::Q6FrameEvent::Cut
+                                            : doom3::dxr::Q6FrameEvent::None;
+            const bool historyValid = frameIndex > 0 && frameIndex != spec.cutFrame;
+            if (!frame.BeginFrame(&integration, camera, 1, frameIndex, viewIdentity,
+                                  RecordsFor(spec, frameIndex), skinnedCurrent, 3, frameIndex,
+                                  event, historyValid, &error)) {
+                std::printf("ERROR %s\n", error.c_str());
+                return 1;
+            }
+            lastIdentityHash = [&]() {
+                std::ostringstream text;
+                text << std::hex << frame.identity().hash;
+                return text.str();
+            }();
+
+            // Motion prepass: depth and per-pixel hit reference.
+            SceneRun prepass(renderer);
+            RunOptions prepassOptions;
+            prepassOptions.content = true;
+            prepassOptions.atlasColumns = kAtlasColumns;
+            prepassOptions.atlasRows = kAtlasRows;
+            prepassOptions.atlasBlock = kAtlasBlock;
+            prepassOptions.depthOnly = true;
+            std::vector<doom3::dxr::Q6HitReference> hits;
+            prepassOptions.hits = &hits;
+            FloatImage depthImage;
+            if (!prepass.Render(scene, 1, prepassOptions, &depthImage, &error)) {
+                std::printf("ERROR %s\n", error.c_str());
+                return 1;
+            }
+            Q6MotionStats stats;
+            if (frameIndex > 0) {
+                if (!frame.BuildMotion(&integration, previousCamera, poses.data(),
+                                       static_cast<uint32_t>(poses.size()), hits.data(),
+                                       width, height, &stats, &error)) {
+                    std::printf("ERROR %s\n", error.c_str());
+                    return 1;
+                }
+            } else {
+                stats.pixels = width * height;
+            }
+            doom3::dxr::Q6MotionTextureData motion;
+            if (!doom3::dxr::PackMotionTexture(integration.motion(), &motion, &error)) {
+                std::printf("ERROR %s\n", error.c_str());
+                return 1;
+            }
+            motionStats.push_back(stats);
+            validPixels.push_back(stats.validPixels);
+            disoccludedPixels.push_back(stats.disoccludedPixels);
+
+            RunOptions options;
+            options.content = true;
+            options.atlasColumns = kAtlasColumns;
+            options.atlasRows = kAtlasRows;
+            options.atlasBlock = kAtlasBlock;
+            options.temporal = true;
+            options.historySamples = frameIndex > 0 ? 1u : 0u;
+            options.motionBytes = motion.motion.data();
+            options.validityBytes = motion.validity.data();
+            options.historyTexture = historyTexture.Get();
+            options.pngPath = JointPathIfNeeded(config.outDir, "PT-S3-motion-frame" +
+                                                                     std::to_string(frameIndex) +
+                                                                     ".png",
+                                               frameIndex == 0 || frameIndex == 4 ||
+                                                   frameIndex == spec.cutFrame ||
+                                                   frameIndex == spec.lastFrame);
+
+            if (frameIndex == spec.cutFrame) {
+                // Control: blend the pre-cut history and require it to ghost.
+                RunOptions controlOptions = options;
+                controlOptions.historyValid = true;
+                controlOptions.pngPath.clear();
+                SceneRun controlRun(renderer);
+                FloatImage controlImage;
+                if (controlRun.Render(scene, 1, controlOptions, &controlImage, &error)) {
+                    cutControl = controlImage;
+                    haveCutControl = true;
+                }
+                options.historyValid = false;
+            } else {
+                options.historyValid = frameIndex > 0;
+            }
+
+            SceneRun run(renderer);
+            FloatImage image;
+            if (!run.Render(scene, 1, options, &image, &error)) {
+                std::printf("ERROR %s\n", error.c_str());
+                return 1;
+            }
+            if (frameIndex == spec.cutFrame) {
+                cutReset = image;
+                haveCutReset = true;
+            }
+            frameMs.push_back(NowMs() - frameStart);
+            std::printf("PT_SEQ=PT-S3 frame=%u valid=%u invalid=%u disoccluded=%u "
+                        "history=%d hash=%s wall_ms=%.1f\n",
+                        frameIndex, stats.validPixels, stats.invalidPixels,
+                        stats.disoccludedPixels, historyValid ? 1 : 0,
+                        lastIdentityHash.c_str(), frameMs.back());
+            previousCamera = camera;
+        }
+
+        // A raw 1-spp cut frame in a fresh run: no history at all.
+        {
+            q6cap::PtGeometrySource geometry(spec);
+            geometry.SetFrame(spec.cutFrame);
+            doom3::rhi::SceneCommandQueue queue;
+            q6cap::BuildQ2Queue(spec, width, height, &queue, &error);
+            doom3::dxr::Q6EngineFrame frame;
+            frame.SetScene("PT-S3", spec.name);
+            frame.Consume(queue, &geometry, spec.Assignments(), &error);
+            q6cap::Scene scene;
+            q6cap::BuildCaptureScene(spec, frame, spec.cutFrame, width, height, kAtlasColumns,
+                                     &scene, &error);
+            SceneRun run(renderer);
+            RunOptions options;
+            options.content = true;
+            options.atlasColumns = kAtlasColumns;
+            options.atlasRows = kAtlasRows;
+            options.atlasBlock = kAtlasBlock;
+            if (run.Render(scene, 1, options, &rawCut, &error)) {
+                haveRawCut = true;
+            }
+        }
+
+        // Ground truth for the cut frame: 512 spp with no history.
+        FloatImage truth;
+        bool haveTruth = false;
+        {
+            q6cap::PtGeometrySource geometry(spec);
+            geometry.SetFrame(spec.cutFrame);
+            doom3::rhi::SceneCommandQueue queue;
+            q6cap::BuildQ2Queue(spec, width, height, &queue, &error);
+            doom3::dxr::Q6EngineFrame frame;
+            frame.SetScene("PT-S3", spec.name);
+            frame.Consume(queue, &geometry, spec.Assignments(), &error);
+            q6cap::Scene scene;
+            q6cap::BuildCaptureScene(spec, frame, spec.cutFrame, width, height, kAtlasColumns,
+                                     &scene, &error);
+            SceneRun run(renderer);
+            RunOptions options;
+            options.content = true;
+            options.atlasColumns = kAtlasColumns;
+            options.atlasRows = kAtlasRows;
+            options.atlasBlock = kAtlasBlock;
+            options.pngPath = JoinPath(config.outDir, "PT-S3-cut-truth-512spp.png");
+            if (run.Render(scene, 512, options, &truth, &error)) {
+                haveTruth = true;
+            }
+        }
+
+        uint64_t ghostReset = 0;
+        uint64_t ghostControl = 0;
+        uint64_t ghostRaw = 0;
+        if (haveTruth && haveCutReset && haveCutControl && haveRawCut) {
+            auto ghostCount = [&](const FloatImage& candidate) {
+                uint64_t count = 0;
+                for (size_t i = 0; i < truth.rgb.size(); i += 3) {
+                    const float candidateError =
+                        std::fabs(candidate.rgb[i] - truth.rgb[i]);
+                    const float rawError = std::fabs(rawCut.rgb[i] - truth.rgb[i]);
+                    if (candidateError > 2.0f * rawError + 1.0e-4f) {
+                        ++count;
+                    }
+                }
+                return count;
+            };
+            ghostReset = ghostCount(cutReset);
+            ghostControl = ghostCount(cutControl);
+            ghostRaw = ghostCount(rawCut);
+        }
+
+        std::ostringstream motionText;
+        motionText << "{\"frames\": " << motionStats.size() << ", \"valid_pixels\": [";
+        for (size_t i = 0; i < validPixels.size(); ++i) {
+            motionText << (i == 0 ? "" : ",") << validPixels[i];
+        }
+        motionText << "], \"disoccluded_pixels\": [";
+        for (size_t i = 0; i < disoccludedPixels.size(); ++i) {
+            motionText << (i == 0 ? "" : ",") << disoccludedPixels[i];
+        }
+        motionText << "], \"max_skinned_displacement\": ";
+        {
+            double maximum = 0.0;
+            std::vector<doom3::dxr::Q6SurfacePose> first;
+            std::vector<doom3::dxr::Q6SurfacePose> last;
+            q6cap::PosesForFrame(spec, 0, &first);
+            q6cap::PosesForFrame(spec, 6, &last);
+            if (first.size() >= 3 && last.size() >= 3) {
+                for (size_t i = 0; i < first[2].current.size() && i < last[2].current.size();
+                     ++i) {
+                    const auto& a = first[2].current[i];
+                    const auto& b = last[2].current[i];
+                    const double dx = b.x - a.x;
+                    const double dy = b.y - a.y;
+                    const double dz = b.z - a.z;
+                    maximum = std::max(maximum, std::sqrt(dx * dx + dy * dy + dz * dz));
+                }
+            }
+            motionText << maximum;
+        }
+        motionText << ", \"identity_hash\": \"" << lastIdentityHash << "\"}";
+        sequenceText = motionText.str();
+
+        const bool ghostsAcceptable = haveTruth && ghostReset == 0 && ghostControl > 0;
+        std::ostringstream historyResult;
+        historyResult << "{\"cut_frame\": " << spec.cutFrame << ", \"ghost_reset_pixels\": "
+                      << ghostReset << ", \"ghost_control_pixels\": " << ghostControl
+                      << ", \"ghost_raw_pixels\": " << ghostRaw
+                      << ", \"verdict\": \"" << (ghostsAcceptable ? "PASS" : "FAIL")
+                      << "\"}";
+        historyText = historyResult.str();
+        std::printf("PT_HISTORY=%s\n", historyText.c_str());
+        if (!ghostsAcceptable) {
+            suite.allPassed = false;
+        }
+
+        // Frame pacing for the playable claim: 60 consecutive frames of the
+        // motion identity at the declared extent, one sample per frame,
+        // including the depth/motion prepass and the Q3 motion build.
+        bool pacingPass = false;
+        if (!config.skipTiming) {
+            doom3::rhi::FrameIntegration pacingIntegration;
+            doom3::rhi::FrameIntegrationDesc pacingDesc;
+            pacingDesc.render = doom3::rhi::FrameExtent{width, height};
+            pacingDesc.display = doom3::rhi::FrameExtent{width, height};
+            pacingIntegration.Initialize(pacingDesc, &error);
+            ComPtr<ID3D12Resource> pacingHistory =
+                CreateHistoryTexture(renderer.device.Get(), width, height);
+            q6cap::PtGeometrySource pacingGeometry(spec);
+            pacingGeometry.SetFrame(4);
+            doom3::rhi::SceneCommandQueue pacingQueue;
+            q6cap::BuildQ2Queue(spec, width, height, &pacingQueue, &error);
+            doom3::dxr::Q6EngineFrame pacingFrame;
+            pacingFrame.SetScene("PT-S3", spec.name);
+            pacingFrame.Consume(pacingQueue, &pacingGeometry, spec.Assignments(), &error);
+            q6cap::Scene pacingScene;
+            q6cap::BuildCaptureScene(spec, pacingFrame, 4, width, height, kAtlasColumns,
+                                     &pacingScene, &error);
+            std::vector<doom3::dxr::Q6SurfacePose> pacingPoses;
+            q6cap::PosesForFrame(spec, 4, &pacingPoses);
+            std::vector<doom3::dxr::Q6SurfacePose> pacingPrior;
+            q6cap::PosesForFrame(spec, 3, &pacingPrior);
+            for (size_t i = 0; i < pacingPoses.size() && i < pacingPrior.size(); ++i) {
+                pacingPoses[i].previous = pacingPrior[i].current;
+            }
+            std::vector<double> pacingFrames;
+            for (uint32_t iteration = 0; iteration < 60; ++iteration) {
+                const double frameStart = NowMs();
+                SceneRun prepass(renderer);
+                RunOptions prepassOptions;
+                prepassOptions.content = true;
+                prepassOptions.atlasColumns = kAtlasColumns;
+                prepassOptions.atlasRows = kAtlasRows;
+                prepassOptions.atlasBlock = kAtlasBlock;
+                prepassOptions.depthOnly = true;
+                std::vector<doom3::dxr::Q6HitReference> pacingHits;
+                prepassOptions.hits = &pacingHits;
+                FloatImage pacingDepth;
+                if (!prepass.Render(pacingScene, 1, prepassOptions, &pacingDepth, &error)) {
+                    std::printf("ERROR pacing prepass: %s\n", error.c_str());
+                    return 1;
+                }
+                Q6MotionStats pacingStats;
+                if (!pacingFrame.BuildMotion(&pacingIntegration,
+                                             CameraStateFor(spec, 3, width, height),
+                                             pacingPoses.data(),
+                                             static_cast<uint32_t>(pacingPoses.size()),
+                                             pacingHits.data(), width, height, &pacingStats,
+                                             &error)) {
+                    std::printf("ERROR pacing motion: %s\n", error.c_str());
+                    return 1;
+                }
+                doom3::dxr::Q6MotionTextureData pacingMotion;
+                doom3::dxr::PackMotionTexture(pacingIntegration.motion(), &pacingMotion,
+                                              &error);
+                RunOptions options;
+                options.content = true;
+                options.atlasColumns = kAtlasColumns;
+                options.atlasRows = kAtlasRows;
+                options.atlasBlock = kAtlasBlock;
+                options.temporal = true;
+                options.historyValid = iteration > 0;
+                options.historySamples = iteration;
+                options.motionBytes = pacingMotion.motion.data();
+                options.validityBytes = pacingMotion.validity.data();
+                options.historyTexture = pacingHistory.Get();
+                SceneRun run(renderer);
+                FloatImage image;
+                if (!run.Render(pacingScene, 1, options, &image, &error)) {
+                    std::printf("ERROR pacing frame: %s\n", error.c_str());
+                    return 1;
+                }
+                pacingFrames.push_back(NowMs() - frameStart);
+            }
+            frameMs = pacingFrames;
+            std::sort(frameMs.begin(), frameMs.end());
+            const double median = frameMs[frameMs.size() / 2];
+            const size_t p95Index = static_cast<size_t>(std::floor(0.95 *
+                                                                  (frameMs.size() - 1)));
+            const double p95 = frameMs[p95Index];
+            pacingPass = median > 0.0 && p95 <= 1.5 * median;
+            std::ostringstream pacing;
+            pacing << "{\"frames\": " << frameMs.size() << ", \"extent\": \"" << width << "x"
+                   << height << "\", \"median_ms\": " << median << ", \"p95_ms\": " << p95
+                   << ", \"fps_median\": " << (median > 0.0 ? 1000.0 / median : -1.0)
+                   << ", \"ratio\": " << (median > 0.0 ? p95 / median : -1.0)
+                   << ", \"verdict\": \"" << (pacingPass ? "PASS" : "FAIL")
+                   << "\", \"note\": \"one sample per frame including the depth/motion "
+                      "prepass and the Q3 motion build; no window and no hybrid comparison\"}";
+            pacingText = pacing.str();
+            std::printf("PT_PACING=%s\n", pacingText.c_str());
+            if (!pacingPass) {
+                suite.allPassed = false;
+            }
+        }
+        {
+            PtRow row;
+            row.id = "PT-S3-motion";
+            row.identity = "PT-S3";
+            row.content = "hero_environment+hero_metal+hero_character_skin";
+            row.width = width;
+            row.height = height;
+            row.identityHash = lastIdentityHash;
+            const bool motionOk = validPixels.size() > 2 && validPixels[1] > 0;
+            CheckResult check;
+            check.Require(motionOk, "per-pixel motion is valid on the moving frame");
+            check.Require(ghostsAcceptable, "history reset after the cut is ghost-free");
+            if (!config.skipTiming) {
+                check.Require(pacingPass, "p95 frame time within 1.5x the median");
+            }
+            check.Note("valid_pixels_frame1=" +
+                       (validPixels.size() > 1 ? std::to_string(validPixels[1]) : "0") +
+                       " ghost_reset=" + std::to_string(ghostReset) +
+                       " ghost_control=" + std::to_string(ghostControl));
+            row.status = check.ok ? "ACCEPT" : "REJECT";
+            row.reason = check.reasons;
+            row.checks = check.detail;
+            suite.allPassed = suite.allPassed && check.ok;
+            std::printf("PT_VERDICT=%s status=%s checks=%s%s%s\n", row.id.c_str(),
+                        row.status.c_str(), row.checks.c_str(),
+                        check.reasons.empty() ? "" : " failed=", check.reasons.c_str());
+            suite.rows.push_back(std::move(row));
+        }
+    }
+
+    // Selection and fallback. The ray-tracing capability is the one this device
+    // reported; the fallback is the non-path-traced renderer the plan keeps
+    // available, never an automatic switch.
+    std::string fallbackText = "NOT RUN";
+    std::string fallbackSelectionText = "NOT RUN";
+    {
+        D3D12_FEATURE_DATA_D3D12_OPTIONS5 options5{};
+        renderer.device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS5, &options5,
+                                             sizeof(options5));
+        doom3::rhi::RaytracingSelectionDesc desc;
+        desc.capability.deviceSupportsRaytracing =
+            options5.RaytracingTier != D3D12_RAYTRACING_TIER_NOT_SUPPORTED;
+        desc.capability.tier = options5.RaytracingTier >= D3D12_RAYTRACING_TIER_1_1
+                                   ? doom3::rhi::RaytracingTier::Tier11
+                                   : doom3::rhi::RaytracingTier::Tier10;
+        desc.capability.shaderModelMajor = 6;
+        desc.capability.shaderModelMinor = 3;
+        desc.gates = doom3::rhi::QualityGate{true, true, true};
+        desc.requested = doom3::rhi::RaytracingRequest::Showcase;
+        desc.allowFallback = false;
+        doom3::rhi::RaytracingSelection selection;
+        std::string selectionError;
+        const doom3::rhi::Status showcaseStatus =
+            doom3::rhi::PlanRaytracingSelection(desc, &selection, &selectionError);
+        const bool showcaseOk = showcaseStatus == doom3::rhi::Status::Ok &&
+                                selection.effective == doom3::rhi::RaytracingRequest::Showcase;
+        doom3::rhi::RaytracingSelectionDesc noDevice = desc;
+        noDevice.capability.deviceSupportsRaytracing = false;
+        noDevice.capability.tier = doom3::rhi::RaytracingTier::Unsupported;
+        noDevice.allowFallback = false;
+        doom3::rhi::RaytracingSelection unsupported;
+        const doom3::rhi::Status unsupportedStatus =
+            doom3::rhi::PlanRaytracingSelection(noDevice, &unsupported, &selectionError);
+        const bool refusedWithoutSwitch =
+            unsupportedStatus != doom3::rhi::Status::Ok && unsupported.fallbackAvailable &&
+            !unsupported.fallbackApproved;
+        noDevice.allowFallback = true;
+        doom3::rhi::RaytracingSelection fallback;
+        const doom3::rhi::Status fallbackStatus =
+            doom3::rhi::PlanRaytracingSelection(noDevice, &fallback, &selectionError);
+        const bool explicitFallback =
+            fallbackStatus == doom3::rhi::Status::Ok &&
+            fallback.effective == doom3::rhi::RaytracingRequest::Hybrid &&
+            fallback.fallbackApproved;
+        const bool pass = showcaseOk && refusedWithoutSwitch && explicitFallback;
+        std::ostringstream text;
+        text << "{\"showcase_selectable\": " << (showcaseOk ? "true" : "false")
+             << ", \"no_device_is_unsupported\": " << (refusedWithoutSwitch ? "true" : "false")
+             << ", \"explicit_hybrid_fallback\": " << (explicitFallback ? "true" : "false")
+             << ", \"automatic_switch\": false, \"verdict\": \""
+             << (pass ? "PASS" : "FAIL") << "\"}";
+        fallbackText = text.str();
+        fallbackSelectionText = "{\"requested\": \"Showcase\", \"effective\": \"" +
+                                std::string(doom3::rhi::ToString(selection.effective)) +
+                                "\", \"limitations\": " +
+                                std::to_string(selection.limitations.size()) + "}";
+        std::printf("PT_FALLBACK=%s\n", fallbackText.c_str());
+        if (!pass) {
+            suite.allPassed = false;
+        }
+    }
+
+    WritePtReport(JoinPath(config.outDir, "pt_report.json"), renderer, config, atlas,
+                  TierValueOf(renderer), TierName(static_cast<D3D12_RAYTRACING_TIER>(TierValueOf(renderer))),
+                  renderer.shaderModel.c_str(), suite, sequenceText, historyText, pacingText,
+                  fallbackText, hdrText, fallbackSelectionText);
+    std::printf("PT_RESULT=%s\n", suite.allPassed ? "PASS" : "FAIL");
+    return suite.allPassed ? 0 : 3;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -1743,6 +3160,10 @@ int main(int argc, char** argv) {
             config.skipTiming = true;
         } else if (std::strcmp(argv[i], "--adapter") == 0 && i + 1 < argc) {
             config.adapterName = argv[++i];
+        } else if (std::strcmp(argv[i], "--suite") == 0 && i + 1 < argc) {
+            config.suite = argv[++i];
+        } else if (std::strcmp(argv[i], "--repo") == 0 && i + 1 < argc) {
+            config.repoRoot = argv[++i];
         } else {
             std::printf("unknown argument: %s\n", argv[i]);
             return 1;
@@ -1763,6 +3184,17 @@ int main(int argc, char** argv) {
     if (!InitializeRenderer(config, &renderer)) {
         std::printf("RESULT=UNSUPPORTED\nEXIT_CODE=2\n");
         return 2;
+    }
+
+    if (config.suite == "pt") {
+        std::string repoRoot = config.repoRoot;
+        if (repoRoot.empty()) {
+            repoRoot = ExeDirectory() + "/../../..";
+        }
+        std::printf("PT_REPO=%s\n", repoRoot.c_str());
+        const int result = RunPtSuite(renderer, config, repoRoot);
+        std::printf("EXIT_CODE=%d\n", result);
+        return result;
     }
 
     D3D12_FEATURE_DATA_D3D12_OPTIONS5 options5{};

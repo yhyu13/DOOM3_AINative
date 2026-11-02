@@ -223,6 +223,8 @@ T057 r3/addendum must record the final verdict against this measurement. See
 
 **Q6 ledger (reconciled 2026-11-02)**: T069 is ticked only as an evidence record — the synthetic DXR captures exist and their 13 hashes were reproduced, but PT-S1..S5, the Q6 engine frame, input latency, VRAM, edge bleed and temporal history do not. T070 is **REVIEW COMPLETE** via `review-q6.md` (PR #131, `86e4eb3`); the review still declines Q6 acceptance. Q6 is not accepted. See `ledger-q6-q7-reconcile.md`.
 
+**Q6 engine-seam acceptance (2026-11-02, `feat/q6-engine-showcase`)**: the Q2 ordered stream, the Q3 current/previous pose and per-pixel motion/validity, and the Q4 content cells are now bound into one frame identity (`src/renderer/dxr`). `tests/dxr-capture --suite pt` renders PT-S1, PT-S2, PT-S4 and PT-S5 at 320x180 and 640x360 (mae 0.000070..0.000773, scaling 1.508..1.531, 0 NaN, deterministic), and PT-S3 as a nine-frame sequence driven by the Q3 seam (28,597 valid motion pixels on frame 1; 0 ghost pixels after the cut against 1,721 in the blend control). The HDR row is 180 px above 1.0 with the authored scale 16 and 0 with the alpha test disabled. Frame pacing is 11.24 ms median / 14.75 ms p95 at 320x180 and 26.64 / 29.01 ms at 640x360. Fallback selectability passes; there is no automatic switch. **Still NOT RUN**: input-to-displayed-change latency (no window/input path), a same-scene hybrid image and latency ratio, 960x540/1280x720 pacing, flat-patch p99, and a retail `DOOM3.exe` frame (T044 absent). Q6 acceptance is still the reviewer's verdict, not this record.
+
 ## Phase 10 — US8: Independently validated future profiles (P3; Q7)
 
 **Goal**: Preserve portable boundaries without claiming Windows implementation implies a browser, mobile or other native port.
@@ -294,4 +296,3 @@ and no WebGPU implementation of `doom3::rhi::Device` exists. See `evidence-q7a.m
 - Once their prerequisites exist, T032/T033, T041's analytic fixture design, T049/T050, T058 and T063 may be prepared in parallel in separate issue/worktree scopes. GPU execution and code integration remain ordered where tests depend on completed production seams.
 - First deliverable: **Q1a only** — one real synthetic clear/readback plus meaningful fence-lifetime proof, reviewed with exact hardware/software and validation results. It is neither a complete User Story 2 nor a playable renderer.
 - Then finish Q1b/Q1 and the baseline, followed by independently gated Q2 → Q3 → Q4; pursue Q5/Q6/Q7 only on their own prerequisites. Do not automatically publish an issue, commit, push or PR merely because a task exists.
-

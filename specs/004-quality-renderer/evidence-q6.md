@@ -621,3 +621,182 @@ authored here: the implementer cannot write the independent verdict.
   codegen bug. That is a build-health fix, not a Q6 result, and it changes neither T069 nor T070.
 - The probe result is attributable to `SELECTED_ADAPTER_INDEX=0` only. It says nothing about the
   `SOFTWARE=1` entry and nothing about the second discrete adapter's capabilities.
+
+## 7. Q6 engine-seam PT-S1..S5 acceptance (T069/T070, 2026-11-02)
+
+This section supersedes the PT-S1..S5 status in §4.5.7. It records a real DXR run of the five
+declared identities on the Q2 ordered draw stream and the Q3 current/previous pose, per-pixel
+motion and validity. It is an **engine-seam frame**, not a retail `DOOM3.exe` frame: the engine-fork
+call sites that would emit this stream from a running game (T044) are still absent, so no
+`DOOM3.exe` process produced any of these pixels. The Q2 `SceneCommandQueue` and the Q3
+`FrameIntegration`/HistoryBuffer are the production objects the engine glue uses; the capture builds
+the same queue in declared surface order and consumes it through `Q6EngineFrame`.
+
+### 7.1 Implementation
+
+| Path | What it is |
+|---|---|
+| `src/renderer/dxr/q6_content.{h,cpp}` | Q4 content identity: the seven sidecars, licences, declared authored channels, emissive scale, the four environment tiles; refuses a cell whose declared channel is missing |
+| `src/renderer/dxr/q6_frame.{h,cpp}` | Q2 stream -> ordered surfaces/lights; Q3 `FrameIntegration` commit; current/previous pose; `ReprojectPoint` per pixel; FNV-1a frame identity; refuses an overlay before the scene, an unassigned surface and an unresolvable draw |
+| `src/renderer/dxr/q6_motion_texture.{h,cpp}` | Q3 `HistoryBuffer` -> the documented RGBA8 binary16 + R8 validity byte contract |
+| `src/renderer/dxr/q6_pt_scene.{h,cpp}` | the fixed PT-S1..S5 geometry, content cell, emitter, environment and frame schedule |
+| `tests/dxr/q6_engine_frame_test.cpp` | device-free seam test, 63 checks, exit 0 |
+| `tests/dxr-capture/pt_content.{h,cpp}` | WIC decode, sRGB decode, 4x2 block atlases (base/emissive RGBA16F, pbr RGBA8), SHA-256 |
+| `tests/dxr-capture/pt_scene.{h,cpp}` | declared geometry -> triangles, Q2 queue, capture scene |
+| `tests/dxr-capture/pathtrace_capture.hlsl` | content sampling (base/roughness/metalness/alpha/emissive), alpha test from the authored cutout, temporal reprojection, hit-reference write |
+| `tests/dxr-capture/dxr_capture.cpp` | PT suite: rows, sequence, cut control, truth, pacing, selection/fallback |
+
+Unchanged: Q2/Q3 core, Q4 content, `doom3_orig/doom3`, and the root/target build. The Q6 CPU slice
+(`q6_dxr`) is untouched; its five tests remain green.
+
+### 7.2 Host and commands
+
+Host: Intel(R) Graphics, LUID `0x000000000001725F`, vendor 32902, device 32103, UMD
+`32.0.101.8331`, DXR tier `1_1`, shader model 6.6, debug layer unavailable. No AMD RX 9070 XT is
+present on this host. The RX 9070 XT named in the task is not claimed.
+
+```
+> .\build-dxr\Release\q6_engine_frame_test.exe
+SUMMARY q6_engine_frame_test checks=63 failures=0
+EXIT=0
+
+> .\build-dxr-capture\Release\q6_dxr_capture.exe --suite pt --repo . --out build-dxr-capture\_pt-final-320 --width 320 --height 180
+PT_CONTENT_CELLS=7/7 COMPLETE
+PT_RESULT=PASS
+EXIT_CODE=0
+
+> .\build-dxr-capture\Release\q6_dxr_capture.exe --suite pt --repo . --out build-dxr-capture\_pt-final-640 --width 640 --height 360
+PT_RESULT=PASS
+EXIT_CODE=0
+```
+
+The legacy fixture suite (`--suite fixtures`, default) is unchanged and still runs.
+
+### 7.3 Content identity
+
+`content/tools/matrix-report.ps1` reports 7/7 authored cells. The capture loaded the same cells and
+hashed what it sampled:
+
+| Atlas | SHA-256 |
+|---|---|
+| base (RGBA16F, linear sRGB-decoded) | `c08351cab75c71b268bf8789f63a595a2a86cc448eb861ae2929ee2a4b0cd468` |
+| pbr (RGBA8 roughness/metalness/alpha/emissive-mask) | `51445fbd012a3dbf58d6b91eebdee1dcd4bb8109990c68c0690ff8863659d281` |
+| emissive (RGBA16F, authored emissive channel) | `e9e6743e6aba936f33e0944ac3b0962fbb0dc27ea47aadef2970381b0a49db09` |
+
+The `environment` cell is the declared 4096x4096 assembly of four 2048 tiles, box-downsampled into
+one 256 block. A channel the sidecar declares unavailable uses the neutral constant (roughness 1,
+metalness 0, alpha 1, emissive 0) and is recorded with that note; no texture is invented. The
+emissive cell's declared `emissiveScale` is 16 and its brightest authored texel is 1.0, so the
+authored radiance reaches 16 before any shading.
+
+### 7.4 PT-S1..S5 rows, 320x180, 1024 spp vs a 4096 spp reference
+
+Commands and full logs: `specs/004-quality-renderer/evidence/t070/run-320x180.log` and
+`report-320x180.json`.
+
+| Row | Content identity | MAE (<=0.01) | sample scaling (1.5..2.5) | NaN | deterministic rerun | Verdict |
+|---|---|---|---|---|---|---|
+| PT-S1 `static-convergence` | environment + metal + dielectric | 0.000341 | 1.524 | 0 | yes (0 px differ) | **ACCEPT** |
+| PT-S2 `alpha-emissive` | environment + emissive_sign + grating | 0.000773 | 1.508 | 0 | yes | **ACCEPT** |
+| PT-S4 `transmission` | environment + glass (2 panes) | 0.000070 | 1.531 | 0 | yes | **ACCEPT** |
+| PT-S5 `large-environment` | environment (4x repeat) + metal | 0.000197 | 1.517 | 0 | yes | **ACCEPT** |
+| PT-S3 `motion` | environment + metal + character_skin | see 7.5 (sequence) | - | 0 | repeatable frame hashes | **ACCEPT** |
+
+Every row consumed the Q2 ordered stream and every surface carries a named cell. No synthetic
+fixture is reported as an identity. Recorded frame-identity hashes (draw order + camera + content
+cells): PT-S1 `442cad18e6649efa`, PT-S2 `37b9e7ecd188d48f`, PT-S4 `252f1104448f5671`, PT-S5
+`cbc6450f42a8017`, PT-S3 sequence `2b6c0184de69cb76`.
+
+`p99-relative` is recorded on the whole image (PT-S1 0.049, PT-S2 0.301, PT-S4 0.050, PT-S5 0.045)
+as a diagnostic only. The rubric's p99 row is scoped to a **flat** patch, and these identities carry
+authored textures with no constant-radiance patch; the flat-patch row is therefore NOT MEASURED, not
+claimed as a pass.
+
+### 7.5 PT-S3 motion, Q3 pose/motion/validity and the history reset
+
+Frames 0..8, one sample per frame, with reprojection. Per-frame identity hashes and valid pixel
+counts are in `report-320x180.json` (`motion_sequence`).
+
+| Item | Observation |
+|---|---|
+| per-pixel motion | 28,597 valid pixels on frame 1 (the rest are background misses), computed through `ReprojectPoint` from the Q3 `HistoryBuffer` |
+| previous pose | `PreviousPrivatePose(Main, 3, gen)` supplies the skinned surface's previous vertices; a mismatch is a reason, never a zero |
+| skinned displacement, frame 0 -> 6 | 0.244 world units |
+| cut / teleport | frame 6 is a `Cut`; the rigid prop also teleports 3.0 on x |
+| history-reset ghosts | 0 pixels (raw cut frame also 0) |
+| history-blend control | 1,721 pixels, i.e. blending the pre-cut history would ghost; the reset removes it |
+| disocclusion pixels | 0 at this composition (the mover stays in frame); the disocclusion reason itself is exercised by the device-free test |
+| motion texture | packed from the Q3 buffer with the documented RGBA8 binary16 + R8 contract; the packer's byte layout is asserted in `q6_engine_frame_test` |
+
+### 7.6 HDR emissive and the alpha control (PT-S2)
+
+| Metric | Observation |
+|---|---|
+| pixels with radiance > 1.0 | 180 |
+| max radiance | 16.0 (the authored 1.0 emissive texel x the declared scale 16) |
+| same scene, authored alpha test disabled | 0 pixels > 1.0 |
+| verdict | **PASS**: the authored emissive radiance above 1.0 reaches the frame, and the cutout controls it |
+
+### 7.7 Playable showcase and fallback
+
+| Extent | Frames | Median | p95 | p95/median | Median fps | Verdict |
+|---|---|---|---|---|---|---|
+| 320x180 | 60 | 11.36 ms | 14.38 ms | 1.27 | 88.1 | PASS |
+| 640x360 | 60 | 28.36 ms | 32.59 ms | 1.15 | 35.3 | PASS |
+
+Each frame includes the depth/hit-reference prepass, the Q3 motion build, the packed-upload and the
+reprojected 1-spp path trace, with a fence wait. These are frame-times, not a playability statement
+at 1080p: 320x180 and 640x360 are the two measured extents, and 960x540 was not measured. Both rows
+are **one recorded sample on this host**; frame times are host-dependent and are not a repeatability
+claim.
+
+Fallback, from the same run:
+
+| Check | Observation |
+|---|---|
+| showcase selectable on this device | true (`PlanRaytracingSelection`, all gates true, effective `Showcase`) |
+| no DXR device, no explicit fallback | refused, `fallbackAvailable` true, no automatic switch |
+| no DXR device, `allowFallback` | effective `Hybrid`, `fallbackApproved` true |
+| verdict | **PASS** for selectability; no same-scene hybrid image was produced by this tool |
+
+### 7.8 Committed images and SHA-256
+
+Nine PNGs are committed in `specs/004-quality-renderer/evidence/t070/` (four identity stills, four
+sequence frames and one cut truth). The two JSON reports and the two run logs in the same directory
+are records, not images.
+
+| File | SHA-256 |
+|---|---|
+| `PT-S1-static-convergence-1024spp.png` | `063fb148844380b183b05aeb4654b91f5733beb45c55ae6bd0d3f006b67ffe95` |
+| `PT-S2-alpha-emissive-1024spp.png` | `53f6fd9865d8a415af97c080c1ac158e947f47f14b353a02940faa4b1f8b816b` |
+| `PT-S3-motion-frame0.png` | `0e6c337782ab9a084f9ba9a1f2f447a5cdac16267508551402f0453d3f3a74ee` |
+| `PT-S3-motion-frame4.png` | `c80ac85d142d566eac7165d166d13d5ffceca493168330bf68fb2132848a8af1` |
+| `PT-S3-motion-frame6.png` | `e63fe6b03d3f93d9038f8d4ba16e793e08854b14aefc353e7ef80fbb12acf24e` |
+| `PT-S3-motion-frame8.png` | `47aa8e9fe5123512eff7fb41fccec8e707448fdad38342bad5c1e2271c1c5cfb` |
+| `PT-S3-cut-truth-512spp.png` | `5b2ab171b71342ce0f661badeaf0c9565c887825533bd50a66a47095bf61cee8` |
+| `PT-S4-transmission-1024spp.png` | `85a3a000c7e28fbbd85a6b04a5eeb5151c2917bba55c40c90c1113cc296a75a1` |
+| `PT-S5-large-environment-1024spp.png` | `e364bbc04d1b986d221b83549648cb1fb0fb5ad210455deaba932d33991ddf98` |
+
+The 640x360 run produced the same verdicts at its own extent; its PNG and linear-RGB hashes are in
+`report-640x360.json`, beside these files.
+
+### 7.9 What remains NOT RUN or NOT MEASURED
+
+| Item | State | Exact reason |
+|---|---|---|
+| input-to-displayed-change latency | **NOT RUN** | no window, no input path and no same-scene hybrid display in this tool |
+| flat-patch p99 | **NOT MEASURED** | the identities carry authored textures; no constant-radiance patch is declared |
+| retail `DOOM3.exe` engine frame | **NOT RUN** | T044 engine-fork call sites are absent; this is an engine-seam frame |
+| hybrid same-scene image and latency ratio | **NOT RUN** | the hybrid renderer is not built into this capture tool |
+| PT-S3 disocclusion pixels | 0 | the teleport keeps the prop on screen; the reason path is covered by the device-free test, not by this composition |
+| 960x540 / 1280x720 pacing | **NOT MEASURED** | only 320x180 and 640x360 were run |
+
+### 7.10 Two findings for the reviewer
+
+1. **The sample-scaling band is centred above the ideal.** For a Monte Carlo error (not variance)
+   the ideal `mae(512)/mae(1024)` is sqrt(2) ~ 1.414; a band of 1.5..2.5 rejects a correct
+   estimator whose observed ratio is 1.37 (measured on PT-S2 at 96x54 during development). At
+   320x180 the four stills measure 1.508..1.531, inside the band, so the rows pass here; the band
+   is nevertheless mis-centred and should be corrected by the owner rather than quietly widened.
+2. **The capture ran on an Intel iGPU, not an RX 9070 XT.** Tier 1.1, SM 6.6 and the full path are
+   real; vendor portability is not proved by this host.
