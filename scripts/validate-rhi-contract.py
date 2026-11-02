@@ -5,6 +5,7 @@ import argparse
 from pathlib import Path
 import re
 import sys
+import tempfile
 
 ROOT = Path(__file__).resolve().parent.parent
 SPEC = "specs/004-quality-renderer/"
@@ -171,13 +172,30 @@ def prohibited_errors(text, where):
     return errors
 
 
+# Documented private tiers. Everything else under the scan roots is
+# engine-facing and must stay free of D3D12-private vocabulary.
+#   src/renderer/d3d12/, tests/renderer/d3d12/  - the D3D12 backend
+#   src/renderer/ext/, tests/renderer/ext/      - native extensions
+#   src/renderer/q4_harness/                    - standalone Q4 evidence tool
+PRIVATE_PREFIXES = (
+    "src/renderer/d3d12/", "src/renderer/ext/",
+    "tests/renderer/d3d12/", "tests/renderer/ext/",
+    "src/renderer/q4_harness/",
+)
+
+
 def excluded_path(rel):
-    """Only the four documented private prefixes are excluded."""
+    """Return True only for documented private tiers, by directory prefix.
+
+    `src/renderer/q4_harness/` is the standalone Q4 D3D12 capture harness: it
+    builds from its own CMake project (`q4_harness/CMakeLists.txt`) as a
+    separate executable, is not part of the engine build, and no engine-facing
+    header includes it. Its headers are therefore a private tool surface, not
+    an engine-facing one. The prefix keeps its trailing slash, so a sibling
+    such as `q4_harness.h` or `q4_harness_extra/` is still scanned.
+    """
     s = rel.as_posix().lower()
-    return s.startswith((
-        "src/renderer/d3d12/", "src/renderer/ext/",
-        "tests/renderer/d3d12/", "tests/renderer/ext/",
-    ))
+    return s.startswith(PRIVATE_PREFIXES)
 
 
 HEADER_SUFFIXES = (".h", ".hh", ".hpp", ".hxx", ".inl")
@@ -436,6 +454,52 @@ def self_test(docs):
     return 0
 
 
+def header_gate_self_test():
+    """Prove the private-tool boundary is narrow and engine headers still scanned.
+
+    The fixture writes the same prohibited header in three places: the
+    engine-facing RHI tier, the standalone harness directory, and a sibling
+    that only shares the harness name prefix. Only the harness directory may be
+    skipped; the other two must be scanned and rejected.
+    """
+    failures = []
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        engine = root / "src" / "renderer" / "rhi" / "rhi.h"
+        harness = root / "src" / "renderer" / "q4_harness" / "harness.h"
+        sibling = root / "src" / "renderer" / "q4_harness_notes.h"
+        for path in (engine, harness, sibling):
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(
+                "struct Probe { ID3D12Device* device; };\n", encoding="utf-8")
+        files = scan_files(root / "src" / "renderer", HEADER_SUFFIXES, root)
+        scanned = {path.as_posix() for path, _ in files}
+        expected = {"src/renderer/rhi/rhi.h", "src/renderer/q4_harness_notes.h"}
+        forbidden = "src/renderer/q4_harness/harness.h"
+        missing = expected - scanned
+        if missing:
+            failures.append(
+                "engine-facing header is no longer scanned: " + ", ".join(sorted(missing)))
+        if forbidden in scanned:
+            failures.append(
+                "private harness header is still treated as engine-facing")
+        errors = [error.replace("\\", "/") for error in header_scan_errors(files)]
+        if not any("src/renderer/rhi/rhi.h" in error for error in errors):
+            failures.append("engine-facing header with ID3D12 was not rejected")
+        if not any("src/renderer/q4_harness_notes.h" in error for error in errors):
+            failures.append("name-prefix sibling with ID3D12 was not rejected")
+        if any("src/renderer/q4_harness/harness.h" in error for error in errors):
+            failures.append(
+                "private harness header was rejected despite the documented exclusion")
+    if failures:
+        print("FAIL header gate self-test:")
+        for failure in failures:
+            print("  -", failure)
+        return 1
+    print("PASS header gate self-test: engine-facing and name-prefix headers scanned, private harness excluded")
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--self-test", action="store_true", help="exercise in-memory negative controls")
@@ -477,7 +541,9 @@ def main():
         return 1
     print("PASS: seven required files, template fields, eleven matrix rows, tier sections and the portable-core surface have the required structure")
     print("NOTE: structure and lexical gate only; independent semantic review and target execution are NOT RUN by this check; " + header_note)
-    return self_test(docs) if args.self_test else 0
+    if args.self_test:
+        return self_test(docs) | header_gate_self_test()
+    return 0
 
 
 if __name__ == "__main__":
