@@ -11,9 +11,10 @@
 // synchronization value.
 //
 // What this slice does not include: the engine-fork call sites
-// (neo/renderer/Model_md5.cpp private pose snapshot, RC_* dispatch into the
-// adapter). They need a fork PR plus a reviewed submodule bump and are recorded
-// as blocked in specs/004-quality-renderer/evidence-q3.md.
+// (neo/renderer/Model_md5.cpp private pose snapshot, sink/RC_* dispatch into the
+// adapter). They need a Q3 fork branch, a reviewed submodule bump with owner
+// sign-off and authorized data; recorded as blocked in
+// specs/004-quality-renderer/evidence-q3.md §6.
 
 #include "rhi/engine_scene_adapter.h"
 #include "rhi/frame_resources.h"

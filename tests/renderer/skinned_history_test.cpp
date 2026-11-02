@@ -123,6 +123,94 @@ void RunSharedCacheLifetime(Runner* runner) {
     }
 }
 
+void RunRegenerationAndDeletion(Runner* runner) {
+    rhi::SkinnedPoseHistory history;
+
+    // First render of surface 11: the shared posed array is owned elsewhere.
+    std::vector<rhi::MotionVec3> shared{P(1.0, 2.0, 3.0), P(4.0, 5.0, 6.0)};
+    runner->Check(history.CommitPose(rhi::ViewKind::Main, 11, 1, shared),
+                  "regeneration: first pose committed");
+
+    // Regenerate the shared geometry: free the old array, then allocate and
+    // fill a new one. The private copy must not alias either array.
+    shared.clear();
+    shared.shrink_to_fit();
+    std::vector<rhi::MotionVec3> previous;
+    runner->Validity("regeneration: previous pose survives source deletion",
+                     history.PreviousPose(rhi::ViewKind::Main, 11, 1, &previous),
+                     rhi::MotionValidity::Valid);
+    if (previous.size() == 2u) {
+        runner->Check(SamePoint(previous[0], P(1.0, 2.0, 3.0)) &&
+                          SamePoint(previous[1], P(4.0, 5.0, 6.0)),
+                      "regeneration: deleted source did not dangle");
+    } else {
+        runner->Check(false, "regeneration: deleted source pose count",
+                      "expected two retained vertices");
+    }
+
+    // Regenerated geometry, same stable surface identity, new generation.
+    std::vector<rhi::MotionVec3> regenerated{P(11.0, 12.0, 13.0)};
+    runner->Check(history.CommitPose(rhi::ViewKind::Main, 11, 2, regenerated),
+                  "regeneration: regenerated pose committed");
+    runner->Validity("regeneration: superseded generation is rejected",
+                     history.PreviousPose(rhi::ViewKind::Main, 11, 1, &previous),
+                     rhi::MotionValidity::Generation);
+    if (history.PreviousPose(rhi::ViewKind::Main, 11, 2, &previous) ==
+        rhi::MotionValidity::Valid) {
+        runner->Check(previous.size() == 1u &&
+                          SamePoint(previous[0], P(11.0, 12.0, 13.0)),
+                      "regeneration: current generation is the new pose");
+    } else {
+        runner->Check(false, "regeneration: current generation readable");
+    }
+
+    // Delete the regenerated shared geometry; the new private copy survives.
+    regenerated.clear();
+    regenerated.shrink_to_fit();
+    runner->Validity("deletion: regenerated pose survives source deletion",
+                     history.PreviousPose(rhi::ViewKind::Main, 11, 2, &previous),
+                     rhi::MotionValidity::Valid);
+
+    // A subview regenerates with its own surface identity while the main view
+    // advances; neither record may alias or replace the other.
+    const std::vector<rhi::MotionVec3> mainPose{P(21.0, 22.0, 23.0)};
+    const std::vector<rhi::MotionVec3> mirrorPose{P(31.0, 32.0, 33.0)};
+    runner->Check(history.CommitPose(rhi::ViewKind::Main, 11, 3, mainPose),
+                  "regeneration: main generation 3 committed");
+    runner->Check(history.CommitPose(rhi::ViewKind::Mirror, 11, 3, mirrorPose),
+                  "regeneration: mirror generation 3 committed");
+    const std::vector<rhi::MotionVec3> mainNewer{P(41.0, 42.0, 43.0)};
+    runner->Check(history.CommitPose(rhi::ViewKind::Main, 11, 4, mainNewer),
+                  "regeneration: main generation 4 committed");
+    if (history.PreviousPose(rhi::ViewKind::Mirror, 11, 3, &previous) ==
+        rhi::MotionValidity::Valid) {
+        runner->Check(previous.size() == 1u &&
+                          SamePoint(previous[0], P(31.0, 32.0, 33.0)),
+                      "regeneration: main commit does not replace the mirror");
+    } else {
+        runner->Check(false, "regeneration: mirror pose readable");
+    }
+    if (history.PreviousPose(rhi::ViewKind::Main, 11, 4, &previous) ==
+        rhi::MotionValidity::Valid) {
+        runner->Check(previous.size() == 1u &&
+                          SamePoint(previous[0], P(41.0, 42.0, 43.0)),
+                      "regeneration: main keeps its own newer pose");
+    } else {
+        runner->Check(false, "regeneration: main newer pose readable");
+    }
+    runner->Validity("regeneration: main generation 3 superseded",
+                     history.PreviousPose(rhi::ViewKind::Main, 11, 3, &previous),
+                     rhi::MotionValidity::Generation);
+
+    history.Clear();
+    runner->Check(!history.HasPose(rhi::ViewKind::Main, 11) &&
+                      !history.HasPose(rhi::ViewKind::Mirror, 11),
+                  "deletion: clear drops every view");
+    runner->Validity("deletion: cleared view has no history",
+                     history.PreviousPose(rhi::ViewKind::Main, 11, 4, &previous),
+                     rhi::MotionValidity::NoHistory);
+}
+
 void RunSubviewIsolation(Runner* runner) {
     rhi::SkinnedPoseHistory history;
     const std::vector<rhi::MotionVec3> mainPose{P(1.0, 0.0, 0.0)};
@@ -216,6 +304,7 @@ int main() {
     Runner runner;
     RunNumericRows(&runner);
     RunSharedCacheLifetime(&runner);
+    RunRegenerationAndDeletion(&runner);
     RunSubviewIsolation(&runner);
     RunGenerationAndRejection(&runner);
     return runner.Finish("q3-skinned-history");
