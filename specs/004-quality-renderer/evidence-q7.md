@@ -66,7 +66,7 @@ fixture.
 | `cmake --build build-q7 --config Release --target q7_portable_profile_test -- -m` | 0 | built `q7_profile.lib` and `q7_portable_profile_test.exe` |
 | `ctest --test-dir build-q7 -C Release --no-tests=error --output-on-failure -R portable_profile` | 0 | 6/6 tests, 0 failures |
 | `build-q7/Release/q7_portable_profile_test.exe all` | 0 | `SUMMARY portable_profile checks=537 failures=0` |
-| `node tests/webgpu/run-profile.mjs --browser "$env:WGPU_BROWSER" --repeat 2 --out build/webgpu-profile --evidence specs/004-quality-renderer/evidence` | 0 | 11 PASS / 0 FAIL / 4 NOT RUN twice; repeatable; pinned major 156 true; artifact `evidence/q7-profile.json` |
+| `node tests/webgpu/run-profile.mjs --browser <host chrome.exe> --repeat 2 --out build/webgpu-profile --evidence specs/004-quality-renderer/evidence` | 0 | 11 PASS / 0 FAIL / 4 NOT RUN twice; repeatable; pinned major 156 true; artifact `evidence/q7-profile.json` (`--browser` also accepts `$env:WGPU_BROWSER`; the host path is not recorded) |
 | `git grep --no-index -n -E "dxr|dlss|raytracing|ray query|acceleration structure" -- web/profile tests/webgpu/profile.test.mjs` | 1 (expected: no match) | zero hits; grep exits 1 when nothing matches |
 | `git status --short doom3_orig/doom3` | 0 | no output; submodule clean at `a9c49da5` |
 
