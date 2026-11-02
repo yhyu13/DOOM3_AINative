@@ -359,14 +359,19 @@ class SurfaceAndHeaderGate(ValidatorTestCase):
         self.assertTrue(validator.excluded_path(Path("src/renderer/ext/x.h")))
         self.assertTrue(validator.excluded_path(Path("tests/renderer/d3d12/x.cpp")))
         self.assertTrue(validator.excluded_path(Path("tests/renderer/ext/x.cpp")))
+        self.assertTrue(validator.excluded_path(Path("src/renderer/q4_harness/harness.h")))
         self.assertFalse(validator.excluded_path(Path("src/renderer/rhi/ext/x.h")))
         self.assertFalse(validator.excluded_path(Path("tests/renderer/sub/ext/x.cpp")))
+        self.assertFalse(validator.excluded_path(Path("src/renderer/q4_harness.h")))
+        self.assertFalse(validator.excluded_path(Path("src/renderer/q4_harness_extra/x.h")))
     def test_scanner_excludes_only_documented_prefixes(self):
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp)
             files = {
                 "src/renderer/rhi/rhi.h": "struct TextureView;",
                 "src/renderer/rhi/ext/private.h": "struct TextureView;",
+                "src/renderer/q4_harness/harness.h": "struct ID3D12Device;",
+                "src/renderer/q4_harness_notes.h": "struct TextureView;",
                 "src/renderer/d3d12/x.h": "struct ID3D12Device;",
                 "src/renderer/ext/x.h": "struct ID3D12Device;",
                 "tests/renderer/rhi_clear_test.cpp": "int x;",
@@ -382,7 +387,8 @@ class SurfaceAndHeaderGate(ValidatorTestCase):
             tests = validator.scan_files(
                 base / "tests" / "renderer", validator.TEST_SUFFIXES, base)
             self.assertEqual(
-                [Path("src/renderer/rhi/ext/private.h"),
+                [Path("src/renderer/q4_harness_notes.h"),
+                 Path("src/renderer/rhi/ext/private.h"),
                  Path("src/renderer/rhi/rhi.h")],
                 [path for path, _ in headers])
             self.assertEqual(
