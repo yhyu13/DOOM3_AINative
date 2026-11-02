@@ -387,8 +387,3 @@ void PosesForFrame(const doom3::dxr::Q6PtSceneSpec& spec, uint32_t frame,
 }
 
 }  // namespace q6cap
-
-
-
-
-

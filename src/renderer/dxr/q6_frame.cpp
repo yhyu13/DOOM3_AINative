@@ -389,5 +389,3 @@ bool Q6EngineFrame::BuildMotion(rhi::FrameIntegration* integration,
 
 }  // namespace dxr
 }  // namespace doom3
-
-

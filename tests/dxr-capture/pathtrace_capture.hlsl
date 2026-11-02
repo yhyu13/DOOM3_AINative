@@ -470,12 +470,3 @@ void ClosestHit(inout Payload payload, in BuiltInTriangleIntersectionAttributes 
     payload.bary = attributes.barycentrics;
     payload.hit = 1;
 }
-
-
-
-
-
-
-
-
-

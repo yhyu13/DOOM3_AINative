@@ -73,5 +73,3 @@ add_custom_command(
     COMMAND "${CMAKE_COMMAND}" -E copy_if_different
             "${CAPTURE_SHADER}" "$<TARGET_FILE_DIR:q6_dxr_capture>/pathtrace_capture.cso"
     COMMENT "Copying pathtrace_capture.cso next to q6_dxr_capture")
-
-

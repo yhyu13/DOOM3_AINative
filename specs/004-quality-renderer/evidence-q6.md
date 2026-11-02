@@ -746,7 +746,9 @@ counts are in `report-320x180.json` (`motion_sequence`).
 
 Each frame includes the depth/hit-reference prepass, the Q3 motion build, the packed-upload and the
 reprojected 1-spp path trace, with a fence wait. These are frame-times, not a playability statement
-at 1080p: 320x180 and 640x360 are the two measured extents, and 960x540 was not measured.
+at 1080p: 320x180 and 640x360 are the two measured extents, and 960x540 was not measured. Both rows
+are **one recorded sample on this host**; frame times are host-dependent and are not a repeatability
+claim.
 
 Fallback, from the same run:
 
@@ -759,7 +761,9 @@ Fallback, from the same run:
 
 ### 7.8 Committed images and SHA-256
 
-All files are in `specs/004-quality-renderer/evidence/t070/`.
+Nine PNGs are committed in `specs/004-quality-renderer/evidence/t070/` (four identity stills, four
+sequence frames and one cut truth). The two JSON reports and the two run logs in the same directory
+are records, not images.
 
 | File | SHA-256 |
 |---|---|
@@ -796,6 +800,3 @@ The 640x360 run produced the same verdicts at its own extent; its PNG and linear
    is nevertheless mis-centred and should be corrected by the owner rather than quietly widened.
 2. **The capture ran on an Intel iGPU, not an RX 9070 XT.** Tier 1.1, SM 6.6 and the full path are
    real; vendor portability is not proved by this host.
-
-
-

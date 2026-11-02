@@ -332,10 +332,3 @@ void CameraAt(const Q6PtSceneSpec& scene, uint32_t frame, uint32_t width, uint32
 
 }  // namespace dxr
 }  // namespace doom3
-
-
-
-
-
-
-

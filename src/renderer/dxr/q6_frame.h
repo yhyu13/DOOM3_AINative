@@ -208,4 +208,3 @@ const char* PtSceneName(const std::string& identity);
 
 }  // namespace dxr
 }  // namespace doom3
-

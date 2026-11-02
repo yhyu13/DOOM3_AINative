@@ -40,11 +40,11 @@ the numeric budgets are not set by this file.
 
 | Id | Scene | Content | Motion | Status |
 |---|---|---|---|---|
-| PT-S1 `static-convergence` | dielectric and metal under one direct key plus a named environment, camera still | `content/hero/dielectric/` and the `opaque_metal` cell (both authored, CC0) | none | **ACCEPTED (engine-seam)** at 320x180 and 640x360: mae 0.000341, scaling 1.524, deterministic; evidence §7 |
-| PT-S2 `alpha-emissive` | alpha-tested cutout in front of an HDR emissive sign | `alpha_tested` and `emissive` cells (authored) | none | **ACCEPTED (engine-seam)**: HDR radiance 16 reaches 180 px, alpha-disabled control 0; mae 0.000773, scaling 1.508; evidence §7 |
-| PT-S3 `motion` | rigid prop and skinned character crossing a lit floor | `skinned_character` surface (authored) | rigid and skinned keys, with a cut/teleport frame | **ACCEPTED (engine-seam)**: Q3 pose/motion/validity drive reprojection; 0 ghost px after the cut vs 1,721 in the blend control; evidence §7.5 |
-| PT-S4 `transmission` | clear and tinted glass with an environment behind it | `transmissive_glass` cell (authored) | none, then a slow camera move | **ACCEPTED (engine-seam)**: mae 0.000070, scaling 1.531, deterministic; evidence §7 |
-| PT-S5 `large-environment` | the large environment surface with the residency test surface | `large_environment` cell (authored) | camera dolly | **ACCEPTED (engine-seam)**: mae 0.000197, scaling 1.517, deterministic; evidence §7 |
+| PT-S1 `static-convergence` | dielectric and metal under one direct key plus a named environment, camera still | `content/hero/dielectric/` and the `opaque_metal` cell (both authored, CC0) | none | **RENDERED (engine-seam evidence) — acceptance pending independent review**: mae 0.000341, scaling 1.524, deterministic at 320x180/640x360; evidence §7 |
+| PT-S2 `alpha-emissive` | alpha-tested cutout in front of an HDR emissive sign | `alpha_tested` and `emissive` cells (authored) | none | **RENDERED (engine-seam evidence) — acceptance pending independent review**: HDR radiance 16 reaches 180 px, alpha-disabled control 0; mae 0.000773, scaling 1.508; evidence §7 |
+| PT-S3 `motion` | rigid prop and skinned character crossing a lit floor | `skinned_character` surface (authored) | rigid and skinned keys, with a cut/teleport frame | **RENDERED (engine-seam evidence) — acceptance pending independent review**: Q3 pose/motion/validity drive reprojection; 0 ghost px after the cut vs 1,721 in the blend control; evidence §7.5 |
+| PT-S4 `transmission` | clear and tinted glass with an environment behind it | `transmissive_glass` cell (authored) | none, then a slow camera move | **RENDERED (engine-seam evidence) — acceptance pending independent review**: mae 0.000070, scaling 1.531, deterministic; evidence §7 |
+| PT-S5 `large-environment` | the large environment surface with the residency test surface | `large_environment` cell (authored) | camera dolly | **RENDERED (engine-seam evidence) — acceptance pending independent review**: mae 0.000197, scaling 1.517, deterministic; evidence §7 |
 
 The Q4 content matrix is 7/7 authored (`content/tools/matrix-report.ps1`, exit 0), not 1 of 7 as an
 earlier revision said. Captures in a fresh worktree are 0/7 until packages are built, and the six
@@ -133,13 +133,13 @@ rejection is not a threshold.
   alpha/transmission, reference accumulation plus bilateral denoise and history rejection, explicit
   fallback selection) is implemented. Its CPU fixtures pass in Debug (5/5); Release passes 4/5 on this
   host because one denoiser check is codegen-sensitive under `/O2 /fp:precise`. See `evidence-q6.md`.
-- PT-S1..S5 are **ACCEPTED at the engine-seam scope** on one host (2026-11-02). `tests/dxr-capture
+- PT-S1..S5 are **RENDERED at the engine-seam scope** on one host (2026-11-02); Q6 acceptance is pending independent review, not decided by this file. `tests/dxr-capture
   --suite pt` consumes the Q2 `SceneCommandQueue` and the Q3 `FrameIntegration`, binds the Q4 content
   cells (atlas hashes in §7 of `evidence-q6.md`), and records the five identities with images,
   linear-RGB and PNG hashes, convergence, the HDR and alpha controls, the cut/history reset, and
   frame pacing at 320x180 and 640x360. This is not a retail `DOOM3.exe` frame: T044's engine-fork
   call sites are absent, so the frame is the engine seam, not a running game.
-- The verified identity rows at 320x180 (1024 vs 4096 spp): PT-S1 mae 0.000341 / scaling 1.524,
+- The recorded identity rows at 320x180 (1024 vs 4096 spp): PT-S1 mae 0.000341 / scaling 1.524,
   PT-S2 0.000773 / 1.508, PT-S4 0.000070 / 1.531, PT-S5 0.000197 / 1.517, all 0 NaN and
   deterministic. PT-S3 uses a sequence: 28,597 valid motion pixels on frame 1, 0 ghost pixels after
   the cut against 1,721 in the blend control, 0.244 world units of skinned displacement.
@@ -155,6 +155,3 @@ rejection is not a threshold.
   this host. That is not a Q6 renderer, and no Q6 frame time or latency is measured or claimed.
 - Every numeric threshold above is predeclared. The §4.5 fixture measurements and the §7 identity
   measurements are observations for the review; they are not a review verdict.
-
-
-

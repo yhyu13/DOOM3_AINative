@@ -391,8 +391,8 @@ int main() {
                      Q6FrameEvent::Cut, false, &error);
     runner.Check(hashC.identity().hash != hashA.identity().hash,
                  "a different draw order hashes differently");
-    
-    
+
+
 
     // 9. Motion texture packing matches the Q3 byte contract.
     doom3::rhi::HistoryBuffer history;
@@ -432,9 +432,3 @@ int main() {
 
     return runner.Finish("q6_engine_frame_test");
 }
-
-
-
-
-
-

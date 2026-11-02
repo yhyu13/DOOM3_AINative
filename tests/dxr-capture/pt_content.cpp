@@ -415,9 +415,3 @@ bool AtlasUv(const ContentAtlas& atlas, doom3::dxr::Q6ContentCell cell, float u,
 }
 
 }  // namespace q6cap
-
-
-
-
-
-

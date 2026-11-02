@@ -296,5 +296,3 @@ and no WebGPU implementation of `doom3::rhi::Device` exists. See `evidence-q7a.m
 - Once their prerequisites exist, T032/T033, T041's analytic fixture design, T049/T050, T058 and T063 may be prepared in parallel in separate issue/worktree scopes. GPU execution and code integration remain ordered where tests depend on completed production seams.
 - First deliverable: **Q1a only** — one real synthetic clear/readback plus meaningful fence-lifetime proof, reviewed with exact hardware/software and validation results. It is neither a complete User Story 2 nor a playable renderer.
 - Then finish Q1b/Q1 and the baseline, followed by independently gated Q2 → Q3 → Q4; pursue Q5/Q6/Q7 only on their own prerequisites. Do not automatically publish an issue, commit, push or PR merely because a task exists.
-
-
