@@ -1,4 +1,4 @@
-﻿# Q2/Q3 ledger reconciliation (2026-11-02)
+# Q2/Q3 ledger reconciliation (2026-11-02)
 
 Status: reconciliation of the Q2 (US3) and Q3 (US4) task rows against merged work. This is
 **not** Q2/Q3 acceptance, not a parity or capture result, and not an independent review. It changes
@@ -258,39 +258,41 @@ commands and outputs are in
 ## Addendum 2026-11-03 — Q2 device follow-up (Device/pipelines, live sink, T038/T082 fork)
 
 Branch `feat/q2-engine-device-followup` (superproject) plus fork branch
-`spec-004-q2-device-followup` (PR yhyu13/DOOM-3#4). This addendum closes the source-level notes
-that the previous addendum left, and records exactly what remains. It does not accept Q2, does not
-move the submodule pin, and does not re-export the patches.
+`spec-004-q2-device-followup` (PR yhyu13/DOOM-3#4, merged at `ff767f4`). The submodule pin moved
+once to that merge SHA, the target patch/manifest were re-exported against it (74 modified, 0
+added/removed), and the target copy was deleted and reconstructed from the export (74/74 verified).
+This does not accept Q2 and does not deliver a live launch.
 
 | Row | Previous remaining note | State after this branch | Still blocked |
 |---|---|---|---|
-| T038 | `tr_guisurf.cpp` untouched; fork change staged but not compiled | Fork commit `a91a70f` (PR #4) marks the `R_RenderGuiSurf` quads; compiled in the generated target copy with this patch set (build exit 0) | The pin is still `c87e87b`; the coordinated bump is pending fork review/merge and was not performed. HUD image metrics remain T039 |
-| T080 | `R_InitRenderApi` creates no Device/pipelines | The installed initialize callback creates the hardware Device, the four classic pipelines and `EngineQ2DeviceConsumer`; `renderer.q2.engine_device_bootstrap` submits and reads back a textured frame | No retail data, so no engine frame; the pin does not include the fork branch until the bump |
-| T081 | no engine Device exists to receive a live upload | The same callback installs `EngineQ2DeviceTextureCache`; `imageUpload` reaches a device texture and the draw samples it | One texture per draw, static point sampler and mip 0 only remain portable limits; no live upload until the bump |
-| T082 | the fork seam does not emit the volume packet | Fork commit `46f9242` emits one `q2ShadowVolumePacket_t` per chain before its light packet; the installer converts it and the device consumer submits back/front stencil plus shade | No live engine frame and every retail CP-07 row remains `NOT RUN` |
+| T038 | `tr_guisurf.cpp` untouched; fork change uncompiled | Fork commit `a91a70f` is in the pinned submodule; the clean target build compiles it | HUD image metrics remain T039; a fresh `r_renderApi 1` launch is refused at `RA_STAGE_SURFACE` |
+| T080 | `R_InitRenderApi` creates no Device/pipelines | When the installed initialize callback is reached, it creates the hardware Device, the four classic pipelines and `EngineQ2DeviceConsumer`; the fixture submits and reads back a textured frame | Live launch BLOCKED: the engine refuses before the callback because no D3D12 window/surface path exists. No retail data, so no engine frame |
+| T081 | no engine Device exists to receive a live upload | The callback installs `EngineQ2DeviceTextureCache`; `imageUpload` reaches a device texture and the draw samples it (fixture readback) | No live upload, same surface refusal; one texture per draw, static point sampler and mip 0 only remain portable limits |
+| T082 | the fork seam does not emit the volume packet | Fork commit `46f9242` is in the pinned submodule; it emits one `q2ShadowVolumePacket_t` per chain before its light packet, and the installer registers the bridge (`Q2_SEAM_SHADOW_VOLUME` present) | No live engine frame and every retail CP-07 row remains `NOT RUN` |
 
 ### Corrected blockers
 
-- **B5** (no sink/device consumer) is resolved at source level: the engine's initialize callback now
-  creates the Device and pipelines. It is not a rendered engine frame; B1 still blocks that.
-- **B8** (fork PR #3) is superseded by fork PR #4, which contains both the T038 commit and the T082
-  packet. It requires independent review; the coordinated bump and patch re-export are the remaining
-  steps and were **not** performed here because merging is prohibited for this task.
+- **B5** (no sink/device consumer) is resolved at source level, but the engine path that would reach
+  it is not: `R_InitRenderApi` refuses at `RA_STAGE_SURFACE` when `glConfig.vidWidth/Height` is zero,
+  before `sink->initialize`. Live launch is **BLOCKED**, not delivered.
+- **B8** (fork PR) is resolved: PR #4 merged at `ff767f4`; the superproject pin now carries it.
 - **B1** (retail/demo data) is unchanged and still blocks T039, T048's moving scene and T083.
-- **B2/B3** (no independent `review-q2.md`/`review-q3.md`) are unchanged; the T040 review recorded in
-  PR #146 is not extended by this branch.
+- **B2/B3** (no independent `review-q2.md`/`review-q3.md`) are unchanged; PR #148 still needs an
+  independent verdict.
 
 ### Evidence
 
-Renderer fixtures: **50/50 passed in Debug and Release** with MSVC 19.44.35228.0, including the new
-`renderer.q2.engine_device_bootstrap`. Target builds: pin `c87e87b` exit 0 (`DOOM3.exe` 17,647,104
-bytes) and fork diff applied exit 0 (`DOOM3.exe` 17,650,176 bytes); `dumpbin` shows
-`EngineQ2DeviceRuntime` and `CreateEngineQ2ClassicPipelines` in `doom3_rhi.lib`. Full commands and
-readback values are in [evidence-q2.md](./evidence-q2.md) §15.
+Renderer fixtures: **50/50 passed in Debug and Release** with MSVC 19.44.35228.0, including
+`renderer.q2.engine_device_bootstrap`. Re-export: 74 modified, 0 added/removed, patch 768,243 bytes;
+reconstructed target 74/74 verified. Clean Release build exit 0: `DOOM3.exe` 17,650,176 bytes,
+`DOOM3XP.exe` 17,835,008 bytes; `BridgeShadowVolumePacket` is defined in `doom3_engine.lib` and
+`EngineQ2DeviceRuntime` resolves from `doom3_rhi.lib`. Full commands and readback values are in
+[evidence-q2.md](./evidence-q2.md) §15.
 
 ### Non-claims
 
-- No engine frame, retail scene, CP-07 row, parity image or Q2 acceptance is claimed.
+- No live launch, engine frame, retail scene, CP-07 row, parity image or Q2 acceptance is claimed.
+  Device creation is proved only when the installed initialize callback is invoked.
 - The shadow-volume packet is the caster chain the classic stencil pass draws, not a claim of a new
   port-side volume extrusion.
 - `owner-sign-off:` in the PRs quotes the owner's verbatim authorization for Q2 fork branches and
