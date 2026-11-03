@@ -213,7 +213,8 @@ endif()
 # device backend, a per-image texture cache and shadow-volume packet
 # submission. Synthetic content only; no retail data and no engine frame.
 add_library(q2_device STATIC
-    "${Q1A_SOURCE_ROOT}/src/renderer/d3d12/engine_q2_device_consumer.cpp")
+    "${Q1A_SOURCE_ROOT}/src/renderer/d3d12/engine_q2_device_consumer.cpp"
+    "${Q1A_SOURCE_ROOT}/src/renderer/rhi/engine_q2_device_bootstrap.cpp")
 target_include_directories(q2_device PUBLIC "${Q1A_HEADER_ROOT}")
 target_link_libraries(q2_device PUBLIC q3_integration q1a_rhi)
 target_compile_features(q2_device PUBLIC cxx_std_17)
@@ -227,6 +228,18 @@ target_compile_features(q2_device_consumer_test PRIVATE cxx_std_17)
 target_include_directories(q2_device_consumer_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 if(MSVC)
     target_compile_options(q2_device_consumer_test PRIVATE /W4 /permissive- /EHsc)
+endif()
+
+# The R_InitRenderApi bootstrap (T080-T082): EngineQ2DeviceRuntime creates the
+# hardware device and the four classic pipelines, then the fixture drives the
+# same callback table the engine registration unit converts and reads back the
+# textured surface and the stencil/shade frame. Synthetic content only.
+add_executable(q2_engine_device_bootstrap_test q2_engine_device_bootstrap_test.cpp)
+target_link_libraries(q2_engine_device_bootstrap_test PRIVATE q2_device)
+target_compile_features(q2_engine_device_bootstrap_test PRIVATE cxx_std_17)
+target_include_directories(q2_engine_device_bootstrap_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+if(MSVC)
+    target_compile_options(q2_engine_device_bootstrap_test PRIVATE /W4 /permissive- /EHsc)
 endif()
 
 # T036 failed-initialization / reference-fallback contract. CPU-only: it drives the
@@ -334,6 +347,7 @@ add_test(NAME renderer.q2.fork_seam COMMAND q2_fork_seam_test)
 add_test(NAME renderer.q2.device_consumer.texture COMMAND q2_device_consumer_test texture)
 add_test(NAME renderer.q2.device_consumer.shadow COMMAND q2_device_consumer_test shadow)
 add_test(NAME renderer.q2.device_consumer.stream COMMAND q2_device_consumer_test stream)
+add_test(NAME renderer.q2.engine_device_bootstrap COMMAND q2_engine_device_bootstrap_test)
 set_tests_properties(
     renderer.q2.command_order
     renderer.q2.classic_compatibility
@@ -348,6 +362,7 @@ set_tests_properties(
     renderer.q2.device_consumer.texture
     renderer.q2.device_consumer.shadow
     renderer.q2.device_consumer.stream
+    renderer.q2.engine_device_bootstrap
     PROPERTIES
         SKIP_RETURN_CODE 77
         TIMEOUT 240

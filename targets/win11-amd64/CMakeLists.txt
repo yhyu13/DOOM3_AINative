@@ -161,6 +161,10 @@ set(DOOM3_RHI_SOURCES
     "${PORT_RENDERER_DIR}/rhi/frame_integration.cpp"
     "${PORT_RENDERER_DIR}/rhi/frame_motion_resources.cpp"
     "${PORT_RENDERER_DIR}/rhi/engine_q2_sink.cpp"
+    # Device/pipeline creation executed from R_InitRenderApi's initialize
+    # callback (spec 004 T080-T082): the engine registration unit calls this
+    # runtime, which owns the D3D12 Device and the four classic pipelines.
+    "${PORT_RENDERER_DIR}/rhi/engine_q2_device_bootstrap.cpp"
     # Engine-side D3D12 consumer for the Q2 sink (spec 004 T080-T082): the
     # device backend, per-image texture cache and shadow-volume packet
     # submission. Compiled into the engine library so the call site the fork
