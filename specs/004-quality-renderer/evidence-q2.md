@@ -656,6 +656,7 @@ All commands ran in this worktree on 2026-11-03. Logs are worktree-local and git
 | `cmake --build --preset win11-amd64-release -- -m` (pin `c87e87b`, marker absent) | 0 | `DOOM3.exe` 17,647,104 bytes; `DOOM3XP.exe` 17,830,912 bytes |
 | fork diff `c87e87b..46f9242` applied to the generated target copy, same build (marker present) | 0 | `DOOM3.exe` 17,650,176 bytes; `DOOM3XP.exe` 17,835,008 bytes |
 | `dumpbin /symbols build/targets/win11-amd64/Release/doom3_rhi.lib` | 0 | `CreateEngineQ2ClassicPipelines`, `EngineQ2DeviceRuntime::{Create,Shutdown}` defined |
+| `py -3 -I scripts/validate-rhi-contract.py` | 1 | the new header passes after removing backend-private vocabulary; the only remaining failure is the pre-existing `src/renderer/dxr/q6_motion_texture.h` hit, which this branch does not modify |
 | `git push` fork branch `spec-004-q2-device-followup` | 0 | fork PR https://github.com/yhyu13/DOOM-3/pull/4 |
 
 The fork changes were compiled against the real engine target copy, not inspected only: the target

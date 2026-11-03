@@ -1,9 +1,9 @@
 #pragma once
 
-// Concrete D3D12 bootstrap for the Q2 classic path (spec 004 T080-T082).
+// Concrete classic-backend bootstrap for the Q2 path (spec 004 T080-T082).
 //
 // R_InitRenderApi is the engine's call site, but it cannot name Device,
-// Pipeline or D3D12 vocabulary: those live in the port. The engine registration
+// Pipeline or backend-private vocabulary: those live in the port. The engine registration
 // unit (engine_q2_sink_install.cpp) calls this runtime from its initialize
 // callback, so the "create the Device and the four classic pipelines" step that
 // R_InitRenderApi performs happens here, in the superproject, exactly once per
