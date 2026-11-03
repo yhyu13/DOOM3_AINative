@@ -1,9 +1,13 @@
 // T037 — classic material/light/shadow compatibility fixtures (spec 004).
 //
 // Covers the classification half of CP-02, CP-03, CP-04, CP-05, CP-06, CP-07, CP-08, CP-09,
-// CP-10, CP-11, CP-12, CP-19, CP-20, CP-21, CP-24. The drawn half (image parity) needs legal
-// demo data and an owned program; it is recorded separately in evidence-q2.md and is not
-// claimed here.
+// CP-10, CP-11, CP-12, CP-14, CP-15, CP-16, CP-19, CP-20, CP-21, CP-24. The drawn half
+// (image parity) needs legal demo data and an owned program; it is recorded separately in
+// evidence-q2.md and is not claimed here.
+//
+// CP-14/CP-15/CP-16 are structural here: a mirror/xray subview is a separate non-overlay
+// view in the ordered stream, and a portal sky is one environment stage. Mirror recursion,
+// portal-sky content, xray surface indexing and every image comparison remain NOT RUN.
 //
 // The program gate is the merged spec 008 resolver reading the shipping manifest, so the
 // refusal of every non-owned classic program is exercised against the real manifest rather
@@ -21,6 +25,7 @@ namespace {
 
 using doom3::rhi::CoverageClass;
 using doom3::rhi::DrawClass;
+using doom3::rhi::DrawSurfPacket;
 using doom3::rhi::LightInput;
 using doom3::rhi::LightKind;
 using doom3::rhi::LightPlan;
@@ -28,6 +33,11 @@ using doom3::rhi::MaterialInput;
 using doom3::rhi::MaterialPlan;
 using doom3::rhi::MaterialShadowInput;
 using doom3::rhi::ProgramGate;
+using doom3::rhi::SceneAdapter;
+using doom3::rhi::SceneAdapterDesc;
+using doom3::rhi::SceneCommandKind;
+using doom3::rhi::SceneCommandQueue;
+using doom3::rhi::SceneExecuteResult;
 using doom3::rhi::ShadowPolicy;
 using doom3::rhi::ShadowSuppression;
 using doom3::rhi::StageClass;
@@ -402,6 +412,162 @@ int RunDepthHacks() {
     return 0;
 }
 
+// CP-14: a mirror is a subview rendered as its own view before the main view. It must not
+// be reclassified as a display overlay, and its packets must keep their stream position.
+int RunMirrorSubview(SceneAdapter& adapter) {
+    SceneCommandQueue queue;
+    queue.BeginView(q2_test::MakeSceneView(41, 1280, 720));  // mirror subview
+    queue.Draw(q2_test::MakePacket(140, 2));
+    queue.EndView();
+    queue.BeginView(q2_test::MakeSceneView(42, 1280, 720));  // main view
+    queue.Draw(q2_test::MakePacket(141, 3));
+    queue.EndView();
+
+    SceneExecuteResult result;
+    std::string error;
+    if (adapter.Execute(&queue, &result, &error) != Status::Ok) {
+        q2_test::Log("CP-14 mirror subview execute failed: %s", error.c_str());
+        return 1;
+    }
+    const std::vector<SceneCommandKind> expected = {
+        SceneCommandKind::BeginView, SceneCommandKind::DrawPacket, SceneCommandKind::EndView,
+        SceneCommandKind::BeginView, SceneCommandKind::DrawPacket, SceneCommandKind::EndView};
+    if (!q2_test::RequireSequence(result.executed, expected,
+                                  "CP-14 mirror then main")) {
+        return 1;
+    }
+    if (!q2_test::RequireEq(result.views, 2, "CP-14 subview and main are two views")) return 1;
+    if (!q2_test::RequireEq(result.overlays, 0, "CP-14 a mirror subview is not an overlay")) {
+        return 1;
+    }
+    if (!q2_test::Require(result.viewIds.size() == 2 && result.viewIds[0] == 41 &&
+                              result.viewIds[1] == 42,
+                          "CP-14 the subview executes before the main view")) {
+        return 1;
+    }
+    if (!q2_test::RequireEq(result.drawsExtracted, 2,
+                            "CP-14 both subview and main draws are extracted")) {
+        return 1;
+    }
+    q2_test::Log("CP-14 mirror subview: separate view, not an overlay");
+    return 0;
+}
+
+// CP-15: a portal sky is a single environment stage with no sampled-texture upload. The
+// manifest gate refuses the stub `environment` program, so the sky is not drawn from a stub.
+int RunPortalSky(const ProgramGate& openGate, const ProgramGate& manifestGate) {
+    MaterialInput sky;
+    sky.name = "textures/sfx/portal_sky";
+    sky.skybox = true;
+
+    MaterialPlan plan;
+    std::string error;
+    if (doom3::rhi::PlanMaterial(sky, openGate, &plan, &error) != Status::Ok) {
+        q2_test::Log("CP-15 portal sky plan failed: %s", error.c_str());
+        return 1;
+    }
+    if (!q2_test::RequireEq(plan.stageCount, 1, "CP-15 portal sky is one stage")) return 1;
+    if (!q2_test::Require(plan.stages[0].kind == StageClass::Skybox,
+                          "CP-15 the stage is the skybox stage")) {
+        return 1;
+    }
+    if (!q2_test::RequireEq(plan.stages[0].programId, 1, "CP-15 skybox stage has a program")) {
+        return 1;
+    }
+    if (!q2_test::Require(plan.coverage == CoverageClass::Opaque,
+                          "CP-15 the sky is opaque")) {
+        return 1;
+    }
+    if (!q2_test::Require(plan.drawClass == DrawClass::Opaque,
+                          "CP-15 the sky stays in the opaque draw class")) {
+        return 1;
+    }
+    if (!q2_test::Require(!plan.needsTexture[0],
+                          "CP-15 the portal sky is texgen, not a sampled upload")) {
+        return 1;
+    }
+    if (!q2_test::Require(plan.refusal == nullptr, "CP-15 an open gate draws the sky")) {
+        return 1;
+    }
+
+    MaterialPlan refused;
+    if (doom3::rhi::PlanMaterial(sky, manifestGate, &refused, &error) != Status::Ok) {
+        return 1;
+    }
+    if (!q2_test::Require(refused.refusal != nullptr,
+                          "CP-15 the manifest refuses the stub environment program")) {
+        return 1;
+    }
+    if (!q2_test::RequireEq(refused.stageCount, 0,
+                            "CP-15 a refused sky submits no stage")) {
+        return 1;
+    }
+    q2_test::Log("CP-15 portal sky: one environment stage; manifest refuses the stub");
+    return 0;
+}
+
+// CP-16: an xray subview is also a separate non-overlay view. The portable material plan
+// classifies its blended surface; per-surface xray indexing is an engine/image behaviour and
+// remains NOT RUN.
+int RunXraySubview(SceneAdapter& adapter, const ProgramGate& openGate) {
+    MaterialInput xray;
+    xray.name = "textures/sfx/xray";
+    xray.blend = true;
+    MaterialPlan plan;
+    std::string error;
+    if (doom3::rhi::PlanMaterial(xray, openGate, &plan, &error) != Status::Ok) {
+        q2_test::Log("CP-16 xray material plan failed: %s", error.c_str());
+        return 1;
+    }
+    if (!q2_test::Require(plan.coverage == CoverageClass::Translucent,
+                          "CP-16 an xray surface is blended")) {
+        return 1;
+    }
+    if (!q2_test::Require(plan.drawClass == DrawClass::Translucent,
+                          "CP-16 an xray surface is in the translucent draw class")) {
+        return 1;
+    }
+
+    SceneCommandQueue queue;
+    queue.BeginView(q2_test::MakeSceneView(51, 1280, 720));  // xray subview
+    DrawSurfPacket xrayPacket = q2_test::MakePacket(160, 1);
+    xrayPacket.translucent = true;
+    queue.Draw(xrayPacket);
+    queue.EndView();
+    queue.BeginView(q2_test::MakeSceneView(52, 1280, 720));  // main view
+    queue.Draw(q2_test::MakePacket(161, 2));
+    queue.EndView();
+
+    SceneExecuteResult result;
+    if (adapter.Execute(&queue, &result, &error) != Status::Ok) {
+        q2_test::Log("CP-16 xray subview execute failed: %s", error.c_str());
+        return 1;
+    }
+    const std::vector<SceneCommandKind> expected = {
+        SceneCommandKind::BeginView, SceneCommandKind::DrawPacket, SceneCommandKind::EndView,
+        SceneCommandKind::BeginView, SceneCommandKind::DrawPacket, SceneCommandKind::EndView};
+    if (!q2_test::RequireSequence(result.executed, expected, "CP-16 xray then main")) {
+        return 1;
+    }
+    if (!q2_test::RequireEq(result.views, 2, "CP-16 xray subview and main are two views")) {
+        return 1;
+    }
+    if (!q2_test::RequireEq(result.overlays, 0, "CP-16 an xray subview is not an overlay")) {
+        return 1;
+    }
+    if (!q2_test::Require(result.viewIds.size() == 2 && result.viewIds[0] == 51 &&
+                              result.viewIds[1] == 52,
+                          "CP-16 the xray subview executes before the main view")) {
+        return 1;
+    }
+    if (!q2_test::RequireEq(result.drawsExtracted, 2,
+                            "CP-16 both xray and main draws are extracted")) {
+        return 1;
+    }
+    q2_test::Log("CP-16 xray subview: separate view; xray surface indexing NOT RUN");
+    return 0;
+}
+
 }  // namespace
 
 int main() {
@@ -432,6 +598,23 @@ int main() {
     if (RunShadowChains() != 0) return 1;
     if (RunDepthHacks() != 0) return 1;
 
-    q2_test::Log("T037 PASS (structural/classification only; image parity NOT RUN)");
+    // CP-14/CP-15/CP-16. The subview cases only need the ordered stream, so the adapter
+    // stays structural: no device, no frame and no image comparison is claimed.
+    SceneAdapterDesc adapterDesc;
+    adapterDesc.displayWidth = 1280;
+    adapterDesc.displayHeight = 720;
+    adapterDesc.structuralOnly = true;
+    SceneAdapter adapter;
+    std::string adapterError;
+    if (adapter.Initialize(adapterDesc, &adapterError) != Status::Ok) {
+        q2_test::Log("INIT subview adapter failed: %s", adapterError.c_str());
+        return 1;
+    }
+    if (RunMirrorSubview(adapter) != 0) return 1;
+    if (RunPortalSky(openGate, manifestGate) != 0) return 1;
+    if (RunXraySubview(adapter, openGate) != 0) return 1;
+
+    q2_test::Log("T037 PASS (structural/classification only; CP-14/15/16 structural; "
+                 "image parity NOT RUN)");
     return 0;
 }
