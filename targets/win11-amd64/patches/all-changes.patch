@@ -8486,7 +8486,7 @@ index 9bcf4bf..dc4e5bf 100644
  
  			// draw it
 diff --git a/a/neo/renderer/GuiModel.cpp b/b/neo/renderer/GuiModel.cpp
-index 23c57e5..2ae8de3 100644
+index 76bf896..0c2450e 100644
 --- a/a/neo/renderer/GuiModel.cpp
 +++ b/b/neo/renderer/GuiModel.cpp
 @@ -90,7 +90,7 @@ void idGuiModel::WriteToDemo( idDemoFile *demo ) {
@@ -8813,7 +8813,7 @@ index 5d3edbc..976436a 100644
  	glyphInfo_t			glyphs [GLYPHS_PER_FONT];
  	float				glyphScale;
 diff --git a/a/neo/renderer/RenderSystem_init.cpp b/b/neo/renderer/RenderSystem_init.cpp
-index 521a85c..c2389f9 100644
+index 8835abf..a8b6247 100644
 --- a/a/neo/renderer/RenderSystem_init.cpp
 +++ b/b/neo/renderer/RenderSystem_init.cpp
 @@ -45,6 +45,7 @@ static void GfxInfo_f( void );
@@ -8843,7 +8843,7 @@ index 521a85c..c2389f9 100644
  				break;
  		}
  
-@@ -2278,6 +2280,10 @@ R_InitCommands
+@@ -2279,6 +2281,10 @@ R_InitCommands
  */
  void R_InitCommands( void ) {
  	cmdSystem->AddCommand( "renderapi_status", R_RenderApiStatus_f, CMD_FL_RENDERER, "prints the render API selection, state and typed failure" );
@@ -8854,7 +8854,7 @@ index 521a85c..c2389f9 100644
  	cmdSystem->AddCommand( "MakeMegaTexture", idMegaTexture::MakeMegaTexture_f, CMD_FL_RENDERER|CMD_FL_CHEAT, "processes giant images" );
  	cmdSystem->AddCommand( "sizeUp", R_SizeUp_f, CMD_FL_RENDERER, "makes the rendered view larger" );
  	cmdSystem->AddCommand( "sizeDown", R_SizeDown_f, CMD_FL_RENDERER, "makes the rendered view smaller" );
-@@ -2387,6 +2393,10 @@ void idRenderSystemLocal::Init( void ) {
+@@ -2388,6 +2394,10 @@ void idRenderSystemLocal::Init( void ) {
  	// build brightness translation tables
  	R_SetColorMappings();
  
@@ -8865,7 +8865,7 @@ index 521a85c..c2389f9 100644
  	R_InitMaterials();
  
  	renderModelManager->Init();
-@@ -2444,6 +2454,8 @@ void idRenderSystemLocal::Shutdown( void ) {
+@@ -2445,6 +2455,8 @@ void idRenderSystemLocal::Shutdown( void ) {
  	delete guiModel;
  	delete demoGuiModel;
  
