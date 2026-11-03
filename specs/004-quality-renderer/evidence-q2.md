@@ -564,8 +564,8 @@ is **not** in the reviewed tree and no bump was created.
 
 ### 14.2 Commands and exits
 
-Run from this worktree on 2026-11-03. `cmake` was not on `PATH`; the VS2022-bundled binary was used.
-Logs are worktree-local and git-ignored: `build-q2-residual-configure.log`,
+Run from this worktree on 2026-11-03. `cmake` was not on `PATH`; the VS2022-bundled binary was
+used. Logs are worktree-local and git-ignored: `build-q2-residual-configure.log`,
 `build-q2-residual-release.log`, `build-q2-residual-debug.log`.
 
 | # | Command | Exit | Observed |
