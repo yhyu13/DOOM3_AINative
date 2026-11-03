@@ -232,9 +232,11 @@ does not accept Q2 and does not run with retail data.
 
 ### Evidence
 
-`ctest --test-dir build-q2-residual -C Release -L q2` and `-C Debug -L q2` both report **9/9
-passed**; `q2_render_api_fallback_test`, `q2_classic_compatibility_test` and `q2_classic_gui_test`
-exit 0 in both configurations. The full commands and outputs are in
+`ctest --test-dir build-q2-residual -C Release -L q2` and `-C Debug -L q2` both report **12/12
+passed** after the rebase onto `8a58e43`: the #145 device-consumer tests plus these T036–T038
+additions; neither set was reverted. `q2_render_api_fallback_test`,
+`q2_classic_compatibility_test` and `q2_classic_gui_test` exit 0 in both configurations. The full
+commands and outputs are in
 [evidence-q2.md](./evidence-q2.md) §14.
 
 ### Blockers

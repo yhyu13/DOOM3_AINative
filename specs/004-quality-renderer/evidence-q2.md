@@ -577,12 +577,14 @@ used. Logs are worktree-local and git-ignored: `build-q2-residual-configure.log`
 | 5 | `build-q2-residual\Debug\q2_render_api_fallback_test.exe` | 0 | same T036 line |
 | 6 | `build-q2-residual\Release\q2_classic_compatibility_test.exe` | 0 | `CP-14 mirror subview`, `CP-15 portal sky`, `CP-16 xray subview`, then `T037 PASS (structural/classification only; CP-14/15/16 structural; image parity NOT RUN)` |
 | 7 | `build-q2-residual\Release\q2_classic_gui_test.exe` | 0 | `ORDER world-gui capture before the overlay: BeginView > DrawPacket > CopyToImage > EndView > BeginView > DrawPacket > EndView > SwapBuffers`, `CONTROL copy-after-overlay is rejected`, `T038 PASS (structure only; HUD image metrics NOT RUN)` |
-| 8 | `ctest --test-dir build-q2-residual -C Release -L q2 --output-on-failure` | 0, **9/9** | includes `renderer.q2.render_api_fallback` |
-| 9 | `ctest --test-dir build-q2-residual -C Debug -L q2 --output-on-failure` | 0, **9/9** | includes `renderer.q2.render_api_fallback` |
+| 8 | `ctest --test-dir build-q2-residual -C Release -L q2 --output-on-failure` | 0, **12/12** | includes `renderer.q2.render_api_fallback` and the three #145 device-consumer tests |
+| 9 | `ctest --test-dir build-q2-residual -C Debug -L q2 --output-on-failure` | 0, **12/12** | includes `renderer.q2.render_api_fallback` and the three #145 device-consumer tests |
 | 10 | `git -C doom3_orig/doom3 push origin HEAD:refs/heads/spec-004-q2-q3-guisurf` | 0 | fork branch created; fork PR https://github.com/yhyu13/DOOM-3/pull/3 |
 
-The Debug run of the two existing Q2 executables is included in the 9/9 CTest runs; their direct
-output matches the Release lines above.
+The Debug run of the existing Q2 executables is included in the 12/12 CTest runs (5
+structural/fork-seam cases, 3 device-consumer cases from #145, and 4 synthetic GPU fixtures); their
+direct output matches the Release lines above. The rebase onto `8a58e43` kept both the #145
+device-consumer additions and the T036–T038 additions; neither was reverted.
 
 ### 14.3 What this proves and what it does not
 
