@@ -541,3 +541,78 @@ covered by `renderer.q2.stencil_shadow`, not re-run here.
    `q6_motion_texture.h` hit from merged PR #138; fixing it is Q6 scope and is not part of this
    branch.
 6. **Reviews.** T040 is still NOT RUN and Q2 is not accepted. This file is author evidence only.
+## 14. Q2 residual tests T036/T037/T038 (2026-11-03)
+
+Addendum for issue #143. This section adds the three residual test cases and records exactly what
+they prove. It does not change Q2 acceptance, does not run with retail data, and does not produce an
+engine frame or a parity image.
+
+### 14.1 What changed
+
+| Row | File | Added |
+|---|---|---|
+| T036 | `tests/renderer/q2_render_api_fallback_test.cpp` | A classic consumer asked for real submission without a backend, or without a surface pipeline, refuses to initialize with an actionable reason; the refusal does not rewrite the request to structural-only; the reference/structural path still initializes and executes in the same process; a zero display extent is refused and the consumer is recoverable |
+| T037 | `tests/renderer/classic_compatibility_test.cpp` | CP-14 mirror subview (separate non-overlay view before the main view), CP-15 portal sky (one `Skybox`/`environment` stage, no sampled upload, manifest gate refuses the stub), CP-16 xray subview (separate non-overlay view, blended surface classified translucent) |
+| T038 | `tests/renderer/classic_gui_test.cpp` | World-GUI view → `CopyToImage` → overlay order, with a negative control that rejects a copy recorded after the overlay begins |
+
+`tests/renderer/CMakeLists.txt` adds the T036 executable and the `renderer.q2.render_api_fallback`
+CTest entry. The engine fork gains a `tr_guisurf.cpp` change on branch `spec-004-q2-q3-guisurf`
+(PR yhyu13/DOOM-3#3): the quads emitted by `R_RenderGuiSurf` are marked `DSF_GUI_SURFACE`, so the
+ordered seam forwards `worldGui=true` for the GUI content. `EmitFullScreen` is unchanged and remains
+the display overlay. The commit is `54d26a6`; the superproject still pins `c87e87b`, so this change
+is **not** in the reviewed tree and no bump was created.
+
+### 14.2 Commands and exits
+
+Run from this worktree on 2026-11-03. `cmake` was not on `PATH`; the VS2022-bundled binary was
+used. Logs are worktree-local and git-ignored: `build-q2-residual-configure.log`,
+`build-q2-residual-release.log`, `build-q2-residual-debug.log`.
+
+| # | Command | Exit | Observed |
+|---|---|---|---|
+| 1 | `cmake -S tests/renderer -B build-q2-residual -G "Visual Studio 17 2022" -A x64` | 0 | configured with MSVC 19.44.35228.0 |
+| 2 | `cmake --build build-q2-residual --config Release -- -m` | 0 | all test executables built, including `q2_render_api_fallback_test.exe` |
+| 3 | `cmake --build build-q2-residual --config Debug -- -m` | 0 | all test executables built |
+| 4 | `build-q2-residual\Release\q2_render_api_fallback_test.exe` | 0 | `T036 PASS (portable failed-init/fallback contract; engine r_renderApi launch and T083 NOT RUN)` |
+| 5 | `build-q2-residual\Debug\q2_render_api_fallback_test.exe` | 0 | same T036 line |
+| 6 | `build-q2-residual\Release\q2_classic_compatibility_test.exe` | 0 | `CP-14 mirror subview`, `CP-15 portal sky`, `CP-16 xray subview`, then `T037 PASS (structural/classification only; CP-14/15/16 structural; image parity NOT RUN)` |
+| 7 | `build-q2-residual\Release\q2_classic_gui_test.exe` | 0 | `ORDER world-gui capture before the overlay: BeginView > DrawPacket > CopyToImage > EndView > BeginView > DrawPacket > EndView > SwapBuffers`, `CONTROL copy-after-overlay is rejected`, `T038 PASS (structure only; HUD image metrics NOT RUN)` |
+| 8 | `ctest --test-dir build-q2-residual -C Release -L q2 --output-on-failure` | 0, **12/12** | includes `renderer.q2.render_api_fallback` and the three #145 device-consumer tests |
+| 9 | `ctest --test-dir build-q2-residual -C Debug -L q2 --output-on-failure` | 0, **12/12** | includes `renderer.q2.render_api_fallback` and the three #145 device-consumer tests |
+| 10 | `git -C doom3_orig/doom3 push origin HEAD:refs/heads/spec-004-q2-q3-guisurf` | 0 | fork branch created; fork PR https://github.com/yhyu13/DOOM-3/pull/3 |
+
+The Debug run of the existing Q2 executables is included in the 12/12 CTest runs (5
+structural/fork-seam cases, 3 device-consumer cases from #145, and 4 synthetic GPU fixtures); their
+direct output matches the Release lines above. The rebase onto `8a58e43` kept both the #145
+device-consumer additions and the T036–T038 additions; neither was reverted.
+
+### 14.3 What this proves and what it does not
+
+- **T036 is still PARTIAL, not ticked.** The test proves the portable failure/fallback contract:
+  an actionable refusal, no rewrite into structural-only mode, and a usable reference path. It does
+  not boot the engine, does not set `r_renderApi`, and does not prove the GL path renders. The
+  engine-side selector is still evidenced only by the fork source and the PR #113 string check;
+  T083's forced-failure launch remains NOT RUN because there is no legal game data.
+- **T037 is ticked for its test deliverable.** CP-14/CP-15/CP-16 now have structural/classification
+  cases. Mirror recursion, portal-sky content, xray surface indexing and all image comparisons are
+  still `NOT RUN`; T039 owns those results. The production halves of T080–T082 are unchanged.
+- **T038 is still PARTIAL, not ticked.** The `CopyToImage` ordering case and its negative control
+  pass, and the fork change exists on `spec-004-q2-q3-guisurf`. The fork change is **not compiled in
+  this worktree**: building the target copy from the modified submodule would make
+  `targets/win11-amd64/patches/all-changes.patch` fail its result-hash verification (the patch is
+  tied to `c87e87b`). A coordinated bump is required before the target build can prove the fork
+  change compiles; no second bump was created here. HUD image metrics remain T039.
+- **No acceptances.** Q2 is not accepted. No classic frame, GL-vs-D3D12 comparison, HUD metric or
+  retail scene is claimed. The Q2 GPU fixtures that ran here (`renderer.q2.draw_geometry`,
+  `texture_sampling`, `stencil_shadow`, `scene_submit`) are synthetic frames, as recorded in §10.
+- **Reviews.** T040 is still NOT RUN. The superproject PR and the fork PR require an independent
+  reviewer; this section is author evidence only.
+
+### 14.4 Header scan note
+
+`py -3 -I scripts/validate-rhi-contract.py` exits **1** on this branch, but only for the pre-existing
+`src/renderer/dxr/q6_motion_texture.h` (`D3D12` vocabulary). That file is untouched by this branch
+and belongs to Q6, which this assignment excludes. The new public test unit
+`tests/renderer/q2_render_api_fallback_test.cpp` is not reported by the scan after removing the
+prohibited term from its comment; the exit-0 result quoted in §4 command 18 should not be read as
+still green until the Q6 row is fixed.

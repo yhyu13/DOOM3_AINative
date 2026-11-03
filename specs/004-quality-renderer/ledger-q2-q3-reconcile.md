@@ -216,3 +216,41 @@ notes at source level; it does not accept Q2 and does not claim a live engine fr
   `q2-device-*.png` frames are synthetic offscreen readbacks.
 - The stage rule samples one diffuse-slot texture; it is not full multi-stage bump/diffuse/specular
   evaluation.
+## Addendum 2026-11-03 — Q2 residual tests T036/T037/T038
+
+Branch `feat/q2-residual-tests`, based on `main` at `8a58e43` (after the #145 device-consumer
+merge; both addenda coexist). Submodule `doom3_orig/doom3` is at
+`c87e87b` before and after this branch (the fork change below is on the fork only; the worktree was
+restored to the pin). This addendum changes only the three rows and records the new test evidence; it
+does not accept Q2 and does not run with retail data.
+
+| Row | Previous state | State after this branch | Remaining condition |
+|---|---|---|---|
+| T036 | PARTIAL; failed-init test absent | **PARTIAL — test added and passing.** `tests/renderer/q2_render_api_fallback_test.cpp` proves the portable contract: actionable refusal without a backend/pipeline, no rewrite to structural-only, reference path still initializes and executes, bad extent refused then recovered. 2/2 configurations pass. | It does not execute the engine `r_renderApi` selector or the GL path. T083 (forced-failure launch) needs legal data and is NOT RUN; T040 is absent. |
+| T037 | PARTIAL; CP-14/15/16 absent | **DONE for the test deliverable.** `classic_compatibility_test.cpp` adds CP-14 mirror subview (separate non-overlay view), CP-15 portal sky (one environment stage; manifest refuses the stub) and CP-16 xray subview (separate non-overlay view, blended surface). 2/2 configurations pass. | Image parity, mirror recursion, portal-sky content and xray surface indexing remain NOT RUN (T039). T080–T082 production halves unchanged. |
+| T038 | PARTIAL; no `CopyToImage` case, `tr_guisurf.cpp` untouched | **PARTIAL — case added and fork change staged.** `classic_gui_test.cpp` records a mid-frame `CopyToImage` inside the world-GUI view, asserts it precedes the display overlay and rejects the copy-after-overlay order (negative control). Fork branch `spec-004-q2-q3-guisurf` (PR yhyu13/DOOM-3#3, commit `54d26a6`) marks `R_RenderGuiSurf`'s emitted quads `DSF_GUI_SURFACE`; `EmitFullScreen` stays an overlay. 2/2 configurations pass for the portable case. | The fork change is not in the pinned submodule and was not compiled here: a target build from the modified submodule would fail the patch result-hash check tied to `c87e87b`. A coordinated bump is required. HUD image metrics remain T039. |
+
+### Evidence
+
+`ctest --test-dir build-q2-residual -C Release -L q2` and `-C Debug -L q2` both report **12/12
+passed** after the rebase onto `8a58e43`: the #145 device-consumer tests plus these T036–T038
+additions; neither set was reverted. `q2_render_api_fallback_test`,
+`q2_classic_compatibility_test` and `q2_classic_gui_test` exit 0 in both configurations. The full
+commands and outputs are in
+[evidence-q2.md](./evidence-q2.md) §14.
+
+### Blockers
+
+- **B1** (retail/demo data) is unchanged and still blocks T039, T048's moving scene and T083.
+- **B2/B3** (no independent `review-q2.md`/`review-q3.md`) are unchanged; T040 is still NOT RUN.
+- **B8 (new)**: fork PR yhyu13/DOOM-3#3 needs independent review, then the superproject bump needs
+  owner sign-off and coordination. No second bump was created; the pinned SHA stays `c87e87b`.
+  Until then the `tr_guisurf.cpp` change is not in the reviewed tree and is not compiled by the
+  target build.
+
+### Non-claims
+
+- T037 being ticked covers its test-definition deliverable only; it is not a parity or acceptance
+  claim. Every CP image row in T039 remains `NOT RUN`/`SKIPPED`.
+- The T036 test proves the portable failure/fallback contract, not the engine selector launch.
+- The T038 fork change is not compiled or run in this worktree; only the portable ordering case ran.

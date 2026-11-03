@@ -229,6 +229,17 @@ if(MSVC)
     target_compile_options(q2_device_consumer_test PRIVATE /W4 /permissive- /EHsc)
 endif()
 
+# T036 failed-initialization / reference-fallback contract. CPU-only: it drives the
+# portable consumer the engine installs, not the engine selector itself (T083 owns the
+# forced-failure launch). No device, window or shader compiler is used.
+add_executable(q2_render_api_fallback_test q2_render_api_fallback_test.cpp)
+target_link_libraries(q2_render_api_fallback_test PRIVATE q3_integration q1a_rhi)
+target_compile_features(q2_render_api_fallback_test PRIVATE cxx_std_17)
+target_include_directories(q2_render_api_fallback_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+if(MSVC)
+    target_compile_options(q2_render_api_fallback_test PRIVATE /W4 /permissive- /EHsc)
+endif()
+
 enable_testing()
 
 set(Q1A_EVIDENCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/q1a-evidence")
@@ -318,6 +329,7 @@ set_tests_properties(
 add_test(NAME renderer.q2.command_order COMMAND q2_engine_command_order_test)
 add_test(NAME renderer.q2.classic_compatibility COMMAND q2_classic_compatibility_test)
 add_test(NAME renderer.q2.classic_gui COMMAND q2_classic_gui_test)
+add_test(NAME renderer.q2.render_api_fallback COMMAND q2_render_api_fallback_test)
 add_test(NAME renderer.q2.fork_seam COMMAND q2_fork_seam_test)
 add_test(NAME renderer.q2.device_consumer.texture COMMAND q2_device_consumer_test texture)
 add_test(NAME renderer.q2.device_consumer.shadow COMMAND q2_device_consumer_test shadow)
@@ -326,6 +338,7 @@ set_tests_properties(
     renderer.q2.command_order
     renderer.q2.classic_compatibility
     renderer.q2.classic_gui
+    renderer.q2.render_api_fallback
     PROPERTIES
         TIMEOUT 120
         LABELS "q2"
