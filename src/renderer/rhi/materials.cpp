@@ -236,6 +236,78 @@ Status BindMaterialTextures(const MaterialPlan& plan,
     return Status::Ok;
 }
 
+Status SelectStageTextureForDraw(const MaterialStageImage* stages,
+                                 uint32_t stageCount, Texture* texture,
+                                 uint32_t* stageIndex, std::string* error) {
+    if (texture == nullptr) {
+        if (error != nullptr) {
+            *error = "SelectStageTextureForDraw needs an output texture";
+        }
+        return Status::InvalidArgument;
+    }
+    *texture = Texture();
+    if (stageIndex != nullptr) {
+        *stageIndex = 0;
+    }
+    if (stages == nullptr) {
+        if (stageCount == 0) {
+            // An untextured material is valid: the caller's program owns the
+            // colour. Zero is not an error, it is "no stage texture".
+            if (error != nullptr) {
+                error->clear();
+            }
+            return Status::Ok;
+        }
+        if (error != nullptr) {
+            *error = "SelectStageTextureForDraw needs the stage facts";
+        }
+        return Status::InvalidArgument;
+    }
+
+    // A declared map without an uploaded texture is a refusal, never a
+    // substitute. Check every stage, not only the selected one: the material
+    // contract requires every declared map to be resident.
+    for (uint32_t i = 0; i < stageCount; ++i) {
+        if (stages[i].hasImage && stages[i].texture.id == 0) {
+            if (error != nullptr) {
+                *error = "material stage " + std::to_string(i) +
+                         " declares an image but no device texture was uploaded for it; "
+                         "the stage is not sampled through an implicit substitute";
+            }
+            return Status::InvalidArgument;
+        }
+    }
+
+    const uint32_t preferred = stageCount >= 2u ? 1u : 0u;
+    if (stages[preferred].hasImage) {
+        *texture = stages[preferred].texture;
+        if (stageIndex != nullptr) {
+            *stageIndex = preferred;
+        }
+        if (error != nullptr) {
+            error->clear();
+        }
+        return Status::Ok;
+    }
+    for (uint32_t i = 0; i < stageCount; ++i) {
+        if (stages[i].hasImage) {
+            *texture = stages[i].texture;
+            if (stageIndex != nullptr) {
+                *stageIndex = i;
+            }
+            if (error != nullptr) {
+                error->clear();
+            }
+            return Status::Ok;
+        }
+    }
+    // No stage has an image: the material draws untextured.
+    if (error != nullptr) {
+        error->clear();
+    }
+    return Status::Ok;
+}
+
 const char* ToString(ChannelState value) {
     switch (value) {
         case ChannelState::Authored: return "Authored";

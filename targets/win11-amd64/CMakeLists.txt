@@ -161,6 +161,11 @@ set(DOOM3_RHI_SOURCES
     "${PORT_RENDERER_DIR}/rhi/frame_integration.cpp"
     "${PORT_RENDERER_DIR}/rhi/frame_motion_resources.cpp"
     "${PORT_RENDERER_DIR}/rhi/engine_q2_sink.cpp"
+    # Engine-side D3D12 consumer for the Q2 sink (spec 004 T080-T082): the
+    # device backend, per-image texture cache and shadow-volume packet
+    # submission. Compiled into the engine library so the call site the fork
+    # will add links against the same implementation the fixtures exercise.
+    "${PORT_RENDERER_DIR}/d3d12/engine_q2_device_consumer.cpp"
 )
 foreach(rhi_source IN LISTS DOOM3_RHI_SOURCES)
     if(NOT EXISTS "${rhi_source}")

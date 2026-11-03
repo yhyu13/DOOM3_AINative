@@ -136,6 +136,39 @@ Status BindMaterialTextures(const MaterialPlan& plan,
                             BoundMaterialPlan* bound, std::string* error);
 
 // ---------------------------------------------------------------------------
+// Q2 engine-seam stage selection (T081)
+// ---------------------------------------------------------------------------
+//
+// The engine fork sends up to eight material stages, each with an optional
+// image identity, in the material's sorted stage order (bump, then diffuse,
+// then specular within a bump-delimited group; Material.cpp:1742-1771). The
+// portable DrawItem samples one texture, so the consumer cannot bind the whole
+// canonical plan yet. This selects the stage the classic interaction's colour
+// comes from and records which stage index was chosen.
+//
+// The rule is deliberately narrow and testable:
+//   * every declared stage image must have an uploaded texture, otherwise the
+//     draw is InvalidArgument and no implicit substitute is sampled;
+//   * with two or more stages the diffuse slot is stage 1 (the canonical
+//     bump -> diffuse -> specular order); with one stage it is stage 0;
+//   * if the preferred slot declares no image, the first declared stage is
+//     used instead.
+//
+// This is a bounded one-texture binding, not a claim that multi-stage
+// bump/diffuse/specular evaluation is complete. `MaterialStageImage` is
+// parallel to the engine's stage facts already converted by the registration
+// unit; nothing engine-specific crosses this header.
+
+struct MaterialStageImage {
+    bool hasImage = false;
+    Texture texture;
+};
+
+Status SelectStageTextureForDraw(const MaterialStageImage* stages,
+                                 uint32_t stageCount, Texture* texture,
+                                 uint32_t* stageIndex, std::string* error);
+
+// ---------------------------------------------------------------------------
 // Q4 modern material contract (T050/T051)
 // ---------------------------------------------------------------------------
 //

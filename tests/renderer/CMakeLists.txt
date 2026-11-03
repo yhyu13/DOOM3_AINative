@@ -209,6 +209,26 @@ if(MSVC)
     target_compile_options(q2_fork_seam_test PRIVATE /W4 /permissive- /EHsc)
 endif()
 
+# Engine-side D3D12 consumer (T080/T081/T082): the portable sink plus a real
+# device backend, a per-image texture cache and shadow-volume packet
+# submission. Synthetic content only; no retail data and no engine frame.
+add_library(q2_device STATIC
+    "${Q1A_SOURCE_ROOT}/src/renderer/d3d12/engine_q2_device_consumer.cpp")
+target_include_directories(q2_device PUBLIC "${Q1A_HEADER_ROOT}")
+target_link_libraries(q2_device PUBLIC q3_integration q1a_rhi)
+target_compile_features(q2_device PUBLIC cxx_std_17)
+if(MSVC)
+    target_compile_options(q2_device PRIVATE /W4 /permissive- /EHsc)
+endif()
+
+add_executable(q2_device_consumer_test q2_device_consumer_test.cpp)
+target_link_libraries(q2_device_consumer_test PRIVATE q2_device)
+target_compile_features(q2_device_consumer_test PRIVATE cxx_std_17)
+target_include_directories(q2_device_consumer_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+if(MSVC)
+    target_compile_options(q2_device_consumer_test PRIVATE /W4 /permissive- /EHsc)
+endif()
+
 enable_testing()
 
 set(Q1A_EVIDENCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/q1a-evidence")
@@ -299,6 +319,9 @@ add_test(NAME renderer.q2.command_order COMMAND q2_engine_command_order_test)
 add_test(NAME renderer.q2.classic_compatibility COMMAND q2_classic_compatibility_test)
 add_test(NAME renderer.q2.classic_gui COMMAND q2_classic_gui_test)
 add_test(NAME renderer.q2.fork_seam COMMAND q2_fork_seam_test)
+add_test(NAME renderer.q2.device_consumer.texture COMMAND q2_device_consumer_test texture)
+add_test(NAME renderer.q2.device_consumer.shadow COMMAND q2_device_consumer_test shadow)
+add_test(NAME renderer.q2.device_consumer.stream COMMAND q2_device_consumer_test stream)
 set_tests_properties(
     renderer.q2.command_order
     renderer.q2.classic_compatibility
@@ -309,10 +332,13 @@ set_tests_properties(
 )
 set_tests_properties(
     renderer.q2.fork_seam
+    renderer.q2.device_consumer.texture
+    renderer.q2.device_consumer.shadow
+    renderer.q2.device_consumer.stream
     PROPERTIES
         SKIP_RETURN_CODE 77
         TIMEOUT 240
-        LABELS "q2;q3"
+        LABELS "q2"
         ENVIRONMENT "RHI_EVIDENCE_DIR=${Q1A_EVIDENCE_DIR}"
 )
 

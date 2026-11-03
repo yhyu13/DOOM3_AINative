@@ -12,7 +12,12 @@
 // converts those values; the engine-side call sites live on the fork branch.
 //
 // With no classic frame backend configured, initialization is refused with an
-// actionable reason instead of drawing an empty frame.
+// actionable reason instead of drawing an empty frame. The concrete backend is
+// `rhi/d3d12/engine_q2_device_consumer.h` (EngineQ2D3D12Consumer): it owns the
+// Device-backed SceneGeometryBackend, the per-image texture cache and the
+// shadow-volume packet path. It is linked into doom3_rhi; the fork's
+// R_InitRenderApi is the call site that will create the Device and the four
+// pipelines and configure this installer with them.
 
 #include "renderer/RenderApi.h"
 

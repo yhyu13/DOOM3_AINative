@@ -189,3 +189,30 @@ seam. It does **not** accept Q2 or Q3 and is not merged.
   rows on a fresh copy. The patch remains a modified-files-only reconstruction.
 - The fork and bump PRs are open for review. Nothing here is Q2/Q3 acceptance.
 
+
+## Addendum 2026-11-03 — Q2 device consumer, texture cache and shadow-volume packets
+
+Branch `feat/q2-device-consumer`, issue #142. This addendum narrows the three remaining T080-T082
+notes at source level; it does not accept Q2 and does not claim a live engine frame.
+
+| Row | Previous remaining note | State after this branch | Still blocked |
+|---|---|---|---|
+| T080 | no device consumer in the engine | `EngineQ2DeviceConsumer` + `EngineQ2DeviceBackend` are compiled into `doom3_rhi`; a synthetic ordered surface frame is submitted and read back | `R_InitRenderApi` creates no Device/pipelines and no retail data exists, so no live engine frame |
+| T081 | no live texture cache in the engine | `EngineQ2DeviceTextureCache` turns `imageUpload` into a device texture; the material stage selects the diffuse slot and a synthetic readback samples the uploaded image and a replacement | no engine Device exists to receive a live upload; one texture per draw and a static point sampler remain portable limits |
+| T082 | engine sends no shadow-volume meshes | `Q2SinkShadowVolumePacket` is attached to its light identity and submitted as back/front stencil plus shade; chain mismatch is refused | the fork seam still does not emit the packet; no live engine frame and every retail-data CP-07 row is `NOT RUN` |
+
+### Corrected blockers
+
+- **B5** (no sink/device consumer) is split again: the superproject now links a concrete device
+  backend and texture cache, but the engine still has no Device/pipeline creation call site. Source
+  and link evidence are not a rendered engine frame.
+- **B1** (retail data) and **B2** (independent Q2 review) are unchanged. T040 is still NOT RUN.
+- The contract validator's only red item is the pre-existing `src/renderer/dxr/q6_motion_texture.h`
+  D3D12-vocabulary hit from merged PR #138; this branch does not modify Q6.
+
+### Non-claims
+
+- No engine frame, retail scene, CP-07 row, texture parity or parity image is claimed. The
+  `q2-device-*.png` frames are synthetic offscreen readbacks.
+- The stage rule samples one diffuse-slot texture; it is not full multi-stage bump/diffuse/specular
+  evaluation.
