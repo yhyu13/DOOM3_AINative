@@ -461,3 +461,83 @@ test's evidence directory, not parity captures.
 6. **Reviews.** T040 is still NOT RUN and Q2 is not accepted. The fork PR and the bump PR require an
    independent reviewer; this file is author evidence only.
 
+
+## 13. Engine-side device consumer, texture cache and shadow-volume packets (2026-11-03)
+
+Status: author evidence for issue #142 on branch `feat/q2-device-consumer`. It addresses the three
+remaining T080-T082 notes at source level and with synthetic readbacks. It is **not** a live engine
+frame, not retail-data evidence, and not Q2 acceptance.
+
+### 13.1 What was added
+
+| Task | File | Behaviour |
+|---|---|---|
+| T080 | `src/renderer/rhi/engine_q2_sink_device.h`, `src/renderer/d3d12/engine_q2_device_consumer.cpp` | `EngineQ2DeviceBackend` implements `SceneGeometryBackend` with `Device::CreateBuffer` and `Device::SubmitDrawFrame`; `EngineQ2DeviceConsumer` owns the portable sink, the backend and the cache. It is compiled into `doom3_rhi` and a synthetic ordered surface frame is drawn and read back. |
+| T081 | same files, `src/renderer/rhi/engine_q2_sink.{h,cpp}`, `src/renderer/rhi/materials.{h,cpp}` | `Q2TextureUploader` plus `EngineQ2DeviceTextureCache` turn an `imageUpload` into a device texture (RGBA8/sRGB, R8, BC5, BC7; BC1/BC3 and R8-sRGB are refused with a reason). `SelectStageTextureForDraw` binds the material's diffuse slot and refuses a declared map with no uploaded texture. |
+| T082 | `src/renderer/rhi/engine_q2_sink.{h,cpp}` | `Q2SinkShadowVolumePacket` is sent immediately before its light packet; the consumer attaches it by the light identity it assigns and `ResolveLight` returns the back/front/shade meshes. The adapter then submits the two stencil passes and the shade pass. |
+
+No `doom3_orig/doom3` pointer, root `CMakeLists.txt`, `engine_scene_adapter.{h,cpp}`, Q4/Q5/Q6/Q7
+file or Q2 residual test was changed. One source entry was added to
+`targets/win11-amd64/CMakeLists.txt` (`DOOM3_RHI_SOURCES`); that makes this a build-system change
+whose reviewer must rerun the target build.
+
+### 13.2 Commands and exits
+
+All commands ran in this worktree on 2026-11-03. Build logs are in the git-ignored `build-q2/` and
+`build/`.
+
+| Command | Exit | Observed |
+|---|---:|---|
+| `cmake -S tests/renderer -B build-q2 -G "Visual Studio 17 2022" -A x64` | 0 | MSVC 19.44.35228.0, Windows SDK 10.0.26100.0 |
+| `cmake --build build-q2 --config Release -- -m` | 0 | all renderer test executables built |
+| `ctest --test-dir build-q2 -C Release --output-on-failure` | 0 | **48/48 passed**, including `renderer.q2.device_consumer.texture`, `.shadow` and `.stream` |
+| `cmake --build build-q2 --config Debug -- -m` | 0 | all Debug executables built |
+| `ctest --test-dir build-q2 -C Debug --output-on-failure` | 0 | **48/48 passed** |
+| `q2_device_consumer_test.exe texture` | 0 | hardware and WARP: `SUMMARY pass=2 fail=0 skip=0` |
+| `q2_device_consumer_test.exe shadow` | 0 | hardware and WARP: `SUMMARY pass=2 fail=0 skip=0` |
+| `q2_device_consumer_test.exe stream` | 0 | hardware and WARP: `SUMMARY pass=2 fail=0 skip=0` |
+| `cmake --preset win11-amd64` | 0 | `new-target` and `apply-target-patches` exit 0 |
+| `cmake --build --preset win11-amd64-release -- -m` | 0 | `doom3_rhi.lib`, `DOOM3.exe` (17,626,112 bytes) and `DOOM3XP.exe` (17,810,432 bytes) built |
+| `dumpbin /symbols build/targets/win11-amd64/Release/doom3_rhi.lib` | 0 | `EngineQ2DeviceConsumer`, `EngineQ2DeviceBackend` and `EngineQ2DeviceTextureCache` are defined in the engine library |
+| `py -3 scripts/validate-rhi-contract.py` | 1 | the new files pass; the only failure is the pre-existing `src/renderer/dxr/q6_motion_texture.h` D3D12-vocabulary hit, which this branch does not modify |
+
+Host adapters: `Intel(R) Graphics` (vendor `0x8086`, device `0x7D67`) as hardware index 0 and
+`Microsoft Basic Render Driver` (WARP). No discrete adapter is claimed.
+
+### 13.3 Synthetic frames
+
+Each frame is the 8x8 readback of an offscreen draw, upscaled 16x by the fixture. They are not a
+classic scene, not parity and not an engine frame.
+
+| Frame | Proves |
+|---|---|
+| `evidence/q2-device-texture.png` | a 2x2 RGBA8 engine image becomes a device texture; the material stage binds it and the four quadrants sample exactly |
+| `evidence/q2-device-texture-replaced.png` | a repeated upload under the same image id replaces the cached texture and the next frame samples the replacement |
+| `evidence/q2-device-shadow.png` | a shadow-volume packet attached to its light produces the back-increment/front-decrement pattern; the excluded light adds no stencil work |
+| `evidence/q2-device-stream.png` | two ordered textured surfaces; the two-stage material samples its diffuse slot (stage 1) and the first surface keeps its own image |
+
+Negative controls executed by the same fixtures: a declared stage image with no upload is refused
+(`material stage 0 declares an image but no device texture was uploaded`); a volume packet for chain
+2 followed by a chain-1 light packet is refused rather than dropped. A swap of the stencil ops is
+covered by `renderer.q2.stencil_shadow`, not re-run here.
+
+### 13.4 Limits and non-claims
+
+1. **No live engine frame.** `R_InitRenderApi` still creates no Device and no pipelines, so
+   `r_renderApi 1` reaches the typed refusal. The new consumer is linked into `doom3_rhi` but no
+   engine call site invokes it. The "device consumer exists in the engine library" claim is source
+   and link evidence, not a rendered frame.
+2. **The fork seam still does not emit a shadow-volume packet.** The consumer accepts and submits
+   one; a fork call site that fills `Q2SinkShadowVolumePacket` is future work. The shadow frame is
+   synthetic.
+3. **One texture per draw.** The portable `DrawItem` samples one texture. The stage rule picks the
+   diffuse slot (stage 1 for two or more stages, otherwise stage 0); it is not full multi-stage
+   bump/diffuse/specular evaluation. Per-image filter/repeat facts are retained but the portable
+   sampler is a static point sampler. Only mip 0 is forwarded by the engine seam; the device texture
+   has one mip and records the declared count.
+4. **No retail data.** No `.pk4`/`.pk3`/`.pak` is present, so CP-07 and every T039 image row remain
+   `NOT RUN`/`SKIPPED`.
+5. **Validator baseline.** The contract validator's only remaining failure is the pre-existing
+   `q6_motion_texture.h` hit from merged PR #138; fixing it is Q6 scope and is not part of this
+   branch.
+6. **Reviews.** T040 is still NOT RUN and Q2 is not accepted. This file is author evidence only.

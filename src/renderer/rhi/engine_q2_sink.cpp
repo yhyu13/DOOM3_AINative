@@ -1,5 +1,7 @@
 #include "rhi/engine_q2_sink.h"
 
+#include "rhi/materials.h"
+
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
@@ -102,6 +104,13 @@ bool EngineQ2SinkConsumer::Initialize(int width, int height, std::string* error)
     queue_.Clear();
     surfaces_.clear();
     imageUploads_.clear();
+    imageTextures_.clear();
+    surfaceStages_.clear();
+    pendingVolume_ = Q2SinkShadowVolumePacket();
+    hasPendingVolume_ = false;
+    volumes_.clear();
+    shadowVolumePackets_ = 0;
+    shadowVolumesResolved_ = 0;
 
     auto fail = [error](const std::string& reason) {
         if (error != nullptr) {
@@ -173,10 +182,22 @@ void EngineQ2SinkConsumer::Shutdown() {
     queue_.Clear();
     surfaces_.clear();
     imageUploads_.clear();
+    imageTextures_.clear();
+    surfaceStages_.clear();
+    pendingVolume_ = Q2SinkShadowVolumePacket();
+    hasPendingVolume_ = false;
+    volumes_.clear();
+    shadowVolumePackets_ = 0;
+    shadowVolumesResolved_ = 0;
     lastResult_ = SceneExecuteResult();
     lastError_.clear();
     initialized_ = false;
     lastSwapSucceeded_ = false;
+}
+
+uint32_t EngineQ2SinkConsumer::surfaceStageIndex(uint32_t surfaceId) const {
+    const auto found = surfaceStages_.find(surfaceId);
+    return found == surfaceStages_.end() ? kNoStageIndex : found->second;
 }
 
 bool EngineQ2SinkConsumer::Refuse(const std::string& reason) {
@@ -185,6 +206,59 @@ bool EngineQ2SinkConsumer::Refuse(const std::string& reason) {
         lastError_ = reason;
     }
     return false;
+}
+
+bool EngineQ2SinkConsumer::ValidateGeometry(
+    const Q2SinkSurfaceGeometry& geometry, const char* what) {
+    if (geometry.vertices.empty()) {
+        return Refuse(std::string(what) + " carries no vertices");
+    }
+    for (uint16_t index : geometry.indices) {
+        if (index >= geometry.vertices.size()) {
+            return Refuse(std::string(what) + " has an index outside the vertex array");
+        }
+    }
+    return true;
+}
+
+bool EngineQ2SinkConsumer::BindSurfaceTexture(
+    uint32_t surfaceId, const Q2SinkMaterialFacts& material) {
+    if (desc_.textureBackend == nullptr) {
+        // A structural consumer has no device cache. Leaving the surface
+        // untextured is the caller's explicit choice, not a silent substitute.
+        return true;
+    }
+    const auto surface = surfaces_.find(surfaceId);
+    if (surface == surfaces_.end()) {
+        // Geometry was not captured (long-running mode), so there is no
+        // SceneSurfaceGeometry to bind; ResolveSurface will refuse later.
+        return true;
+    }
+
+    const int count = std::min(std::max(material.textures.numStages, 0),
+                               kQ2MaxStageTextures);
+    MaterialStageImage stages[kQ2MaxStageTextures];
+    for (int i = 0; i < count; ++i) {
+        stages[i].hasImage = material.textures.hasImage[i];
+        if (!stages[i].hasImage) {
+            continue;
+        }
+        const auto found = imageTextures_.find(material.textures.imageId[i]);
+        if (found != imageTextures_.end()) {
+            stages[i].texture = found->second;
+        }
+    }
+
+    Texture texture;
+    uint32_t stageIndex = 0;
+    std::string error;
+    if (SelectStageTextureForDraw(stages, static_cast<uint32_t>(count), &texture,
+                                  &stageIndex, &error) != Status::Ok) {
+        return Refuse("the draw's material stage texture is unavailable: " + error);
+    }
+    surface->second.texture = texture;
+    surfaceStages_[surfaceId] = texture.id == 0 ? kNoStageIndex : stageIndex;
+    return true;
 }
 
 bool EngineQ2SinkConsumer::BeginView(unsigned int viewId, int x, int y,
@@ -215,6 +289,10 @@ bool EngineQ2SinkConsumer::BeginView(unsigned int viewId, int x, int y,
     // A stable per-view light identity lets a geometry source cache volumes
     // across frames without inventing a global id the engine never sent.
     lightSerial_ = 0;
+    // A shadow-volume packet belongs to a light in the same view; it cannot
+    // carry over to the next view.
+    pendingVolume_ = Q2SinkShadowVolumePacket();
+    hasPendingVolume_ = false;
     return true;
 }
 
@@ -248,6 +326,12 @@ bool EngineQ2SinkConsumer::DrawPacket(unsigned int surfaceId,
     packet.sortKey =
         static_cast<uint64_t>(static_cast<uint32_t>(material.sort));
     (void)modelDepthHack;  // the adapter applies the hack from the projection
+    // Resolve the device texture before the packet is queued, so a declared
+    // stage image with no uploaded texture refuses the draw instead of
+    // sampling whatever the previous surface left bound.
+    if (!BindSurfaceTexture(surfaceId, material)) {
+        return false;
+    }
     if (!queue_.Draw(packet)) {
         return Refuse("the classic stream could not express a draw packet");
     }
@@ -276,8 +360,27 @@ bool EngineQ2SinkConsumer::LightPacket(const Q2SinkLightFacts& light) {
         (light.excluded && light.chainKind == 0 && !light.noShadows);
     packet.material.noSelfShadow = light.chainMaterialNoSelfShadow;
     packet.sameEntity = light.chainSameEntity;
+    if (hasPendingVolume_) {
+        if (light.chainKind == 0 || light.excluded) {
+            return Refuse(
+                "a shadow-volume packet was sent for a light packet that carries no "
+                "shadow chain; refusing instead of dropping the volume");
+        }
+        if (pendingVolume_.chainKind != light.chainKind) {
+            return Refuse(
+                "a shadow-volume packet names chain " +
+                std::to_string(pendingVolume_.chainKind) +
+                " but the next light packet names chain " +
+                std::to_string(light.chainKind));
+        }
+    }
     if (!queue_.DrawLight(packet)) {
         return Refuse("the classic stream could not express a light packet");
+    }
+    if (hasPendingVolume_) {
+        volumes_[packet.lightId] = pendingVolume_;
+        pendingVolume_ = Q2SinkShadowVolumePacket();
+        hasPendingVolume_ = false;
     }
     return true;
 }
@@ -333,6 +436,9 @@ bool EngineQ2SinkConsumer::SwapBuffers() {
     const Status status =
         frame_.ExecuteFrame(&adapter_, &queue_, &lastResult_, &executeError);
     queue_.Clear();
+    // Volumes are consumed by the execution above; keeping them would let a
+    // future light with the same serial pick up stale geometry.
+    volumes_.clear();
     if (status != Status::Ok) {
         lastError_ = executeError.empty()
                          ? "the Q2 stream could not be executed"
@@ -407,11 +513,56 @@ bool EngineQ2SinkConsumer::ImageUpload(const Q2SinkImageUpload& image) {
             return Refuse("an image upload has an inconsistent byte count");
         }
     }
+    if (desc_.textureBackend != nullptr && !image.pixels.empty()) {
+        Texture texture;
+        std::string uploadError;
+        if (!desc_.textureBackend->UploadImage(image.imageId, image, &texture,
+                                               &uploadError)) {
+            return Refuse("image " + std::to_string(image.imageId) +
+                          " could not be uploaded: " + uploadError);
+        }
+        imageTextures_[image.imageId] = texture;
+    } else if (image.pixels.empty()) {
+        // A render target has no CPU pixels to upload. It must not keep a
+        // texture from an earlier upload of the same identity.
+        imageTextures_.erase(image.imageId);
+    }
+
     Q2SinkImageUpload stored = image;
     if (!desc_.captureImageUploads) {
         stored.pixels.clear();
     }
     imageUploads_[image.imageId] = std::move(stored);
+    return true;
+}
+
+bool EngineQ2SinkConsumer::ShadowVolumePacket(
+    const Q2SinkShadowVolumePacket& packet) {
+    if (!initialized_) {
+        return Refuse(
+            "a shadow-volume packet arrived before the classic scene consumer "
+            "initialized");
+    }
+    if (hasPendingVolume_) {
+        return Refuse(
+            "two shadow-volume packets arrived before their light packets; the "
+            "engine emits one packet per chain in order");
+    }
+    if (packet.chainKind != 1 && packet.chainKind != 2) {
+        return Refuse("a shadow-volume packet names an unknown chain kind " +
+                      std::to_string(packet.chainKind));
+    }
+    if (!ValidateGeometry(packet.back, "a shadow-volume back mesh") ||
+        !ValidateGeometry(packet.front, "a shadow-volume front mesh")) {
+        return false;
+    }
+    if (!packet.shade.vertices.empty() &&
+        !ValidateGeometry(packet.shade, "a shadow-volume shade mesh")) {
+        return false;
+    }
+    pendingVolume_ = packet;
+    hasPendingVolume_ = true;
+    ++shadowVolumePackets_;
     return true;
 }
 
@@ -442,12 +593,36 @@ bool EngineQ2SinkConsumer::ResolveSurface(uint32_t surfaceId,
 
 bool EngineQ2SinkConsumer::ResolveLight(
     const doom3::rhi::LightPacket& packet, SceneLightGeometry* geometry) {
+    if (geometry == nullptr) {
+        return false;
+    }
+    // A shadow-volume packet sent for this light wins over an external source:
+    // it is the geometry the engine attached to this exact chain.
+    const auto found = volumes_.find(packet.lightId);
+    if (found != volumes_.end()) {
+        const Q2SinkShadowVolumePacket& volume = found->second;
+        geometry->volumes[0].vertices = volume.back.vertices;
+        geometry->volumes[0].indices = volume.back.indices;
+        std::memcpy(geometry->volumes[0].transform, volume.back.transform,
+                    sizeof(geometry->volumes[0].transform));
+        geometry->volumes[1].vertices = volume.front.vertices;
+        geometry->volumes[1].indices = volume.front.indices;
+        std::memcpy(geometry->volumes[1].transform, volume.front.transform,
+                    sizeof(geometry->volumes[1].transform));
+        geometry->shade.vertices = volume.shade.vertices;
+        geometry->shade.indices = volume.shade.indices;
+        std::memcpy(geometry->shade.transform, volume.shade.transform,
+                    sizeof(geometry->shade.transform));
+        std::memcpy(geometry->tint, volume.tint, sizeof(geometry->tint));
+        ++shadowVolumesResolved_;
+        return true;
+    }
     if (desc_.lightGeometrySource != nullptr &&
         desc_.lightGeometrySource != this) {
         return desc_.lightGeometrySource->ResolveLight(packet, geometry);
     }
-    // The value-only engine seam does not carry shadow-volume/shade geometry
-    // yet. Refuse the packet instead of inventing a volume.
+    // Without a packet or a source there is no volume. Refuse the packet
+    // instead of inventing one.
     return false;
 }
 

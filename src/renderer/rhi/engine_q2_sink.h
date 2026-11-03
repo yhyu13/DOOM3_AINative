@@ -34,6 +34,9 @@ namespace rhi {
 // number in the portable header avoids including an engine header.
 constexpr int kQ2MaxStageTextures = 8;
 
+// Returned by surfaceStageIndex when no stage texture was selected.
+constexpr uint32_t kNoStageIndex = 0xFFFFFFFFu;
+
 // Per-stage texture identity and sampler facts (spec 004 T081). `imageId` is the
 // engine registry identity; filter/repeat are the engine enums forwarded as ints.
 struct Q2SinkTextureStageFacts {
@@ -117,6 +120,29 @@ struct Q2SinkImageUpload {
     int bytesPerRow = 0;
 };
 
+// One shadow-volume packet (T082). The engine's value-only seam does not emit
+// these yet, so this is the consumer-side packet a fork call site can use once
+// it does. The packet is sent immediately before the light packet it belongs
+// to, exactly as surfacePacket precedes its draw packet; the consumer attaches
+// it to the light identity it assigns and resolves it during execution.
+struct Q2SinkShadowVolumePacket {
+    int chainKind = 0;  // 1 global, 2 local; 0 is not a volume packet
+    float tint[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+    Q2SinkSurfaceGeometry back;
+    Q2SinkSurfaceGeometry front;
+    Q2SinkSurfaceGeometry shade;
+};
+
+// Uploads one engine image into a device texture (T081). Implemented by the
+// device consumer; the portable sink never names Device. A failure is reported
+// with an actionable reason and the image is not cached.
+class Q2TextureUploader {
+public:
+    virtual ~Q2TextureUploader() = default;
+    virtual bool UploadImage(uint32_t imageId, const Q2SinkImageUpload& image,
+                             Texture* texture, std::string* error) = 0;
+};
+
 // One private skinned pose snapshot (T044).
 struct Q2SinkPrivatePose {
     uint32_t viewId = 0;
@@ -158,11 +184,16 @@ struct EngineQ2SinkDesc {
     // of pretending a frame was drawn.
     bool structuralOnly = false;
     SceneGeometryBackend* backend = nullptr;
+    // Uploads the images received through imageUpload and caches the resulting
+    // device textures by engine image identity. Null keeps the sink structural:
+    // material stage images are validated but no texture is bound.
+    Q2TextureUploader* textureBackend = nullptr;
     // Null means the consumer itself resolves the surfaces received through
     // surfacePacket. An external source still wins when supplied.
     SceneGeometrySource* geometry = nullptr;
-    // Shadow-volume/shade geometry is not part of the value-only engine seam yet.
-    // A fixture can supply it; the engine leaves this null and gets a refusal.
+    // Shadow-volume/shade geometry can arrive as a Q2SinkShadowVolumePacket.
+    // This source is the explicit fallback for a caller that already owns the
+    // volumes; the engine leaves both absent until its call site exists.
     SceneGeometrySource* lightGeometrySource = nullptr;
     // Retaining every surface/image copy is useful for a fixture and wrong for a
     // long-running engine frame loop unless the caller opted in.
@@ -224,6 +255,10 @@ public:
     bool SurfacePacket(unsigned int surfaceId,
                        const Q2SinkSurfaceGeometry& geometry);
     bool ImageUpload(const Q2SinkImageUpload& image);
+    // Sends the shadow-volume geometry for the next light packet. The engine
+    // seam still carries no such packet; this is the consumer contract a fork
+    // call site targets, and the synthetic stream tests drive it directly.
+    bool ShadowVolumePacket(const Q2SinkShadowVolumePacket& packet);
     bool PrivatePose(const Q2SinkPrivatePose& pose);
 
     // SceneGeometrySource: the ordered draw stream resolves the surface that the
@@ -241,6 +276,15 @@ public:
     const std::map<uint32_t, Q2SinkImageUpload>& imageUploads() const {
         return imageUploads_;
     }
+    // Device textures produced by the image uploads, keyed by engine image id.
+    const std::map<uint32_t, Texture>& imageTextures() const {
+        return imageTextures_;
+    }
+    // The stage index the last draw packet sampled for `surfaceId`, or
+    // kNoStageIndex when the surface is untextured / unknown.
+    uint32_t surfaceStageIndex(uint32_t surfaceId) const;
+    uint32_t shadowVolumePackets() const { return shadowVolumePackets_; }
+    uint32_t shadowVolumesResolved() const { return shadowVolumesResolved_; }
 
     // Q3 side of the wiring. These delegate to the integration so an engine
     // call site can commit the view it rendered, retain a private pose and
@@ -288,6 +332,10 @@ private:
     static bool SwapBuffersThunk(void* user);
 
     bool Refuse(const std::string& reason);
+    bool ValidateGeometry(const Q2SinkSurfaceGeometry& geometry,
+                          const char* what);
+    bool BindSurfaceTexture(uint32_t surfaceId,
+                            const Q2SinkMaterialFacts& material);
 
     EngineQ2SinkDesc desc_;
     Q2SinkCallbacks callbacks_;
@@ -302,6 +350,16 @@ private:
     bool lastSwapSucceeded_ = false;
     std::map<uint32_t, SceneSurfaceGeometry> surfaces_;
     std::map<uint32_t, Q2SinkImageUpload> imageUploads_;
+    std::map<uint32_t, Texture> imageTextures_;
+    std::map<uint32_t, uint32_t> surfaceStages_;
+    // Shadow volumes are keyed by the light identity assigned when the light
+    // packet arrives. The pending slot holds one packet, because the engine
+    // emits one packet per chain in order.
+    Q2SinkShadowVolumePacket pendingVolume_;
+    bool hasPendingVolume_ = false;
+    std::map<uint32_t, Q2SinkShadowVolumePacket> volumes_;
+    uint32_t shadowVolumePackets_ = 0;
+    uint32_t shadowVolumesResolved_ = 0;
 };
 
 }  // namespace rhi
