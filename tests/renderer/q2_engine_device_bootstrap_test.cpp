@@ -4,9 +4,11 @@
 // calls EngineQ2DeviceRuntime. This fixture exercises exactly that object: it
 // creates the hardware device, compiles the four classic pipelines, initializes
 // EngineQ2DeviceConsumer and then drives the same callback table the engine
-// registration unit converts. It proves the "device and pipelines now exist"
-// half with a real readback; it is still not a retail engine frame, because no
-// legally loaded level emits the packets.
+// registration unit converts. It proves the "device and pipelines exist when the
+// installed initialize callback is reached" half with a real readback; it does
+// not launch the engine, and a fresh launch is refused before this callback
+// because no window surface exists. No retail data, no engine frame, no Q2
+// acceptance.
 //
 // A host with no hardware device returns 77 (SKIP). No PASS is claimed without
 // a readback.
@@ -284,6 +286,6 @@ int main() {
         q1b_test::Log("BOOTSTRAP shutdown left the runtime created");
         return 1;
     }
-    q1b_test::Log("BOOTSTRAP PASS: R_InitRenderApi device/pipelines -> live sink -> readback");
+    q1b_test::Log("BOOTSTRAP PASS: initialize-callback device/pipelines -> sink -> readback (live launch NOT RUN)");
     return 0;
 }
