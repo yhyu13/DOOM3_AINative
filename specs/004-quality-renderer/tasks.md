@@ -6,6 +6,8 @@
 
 **Format**: `[P]` means the task may be prepared concurrently only in a **separate issue/worktree**; tasks in the same issue run serially under one writer. `[USn]` maps to the corresponding user story. For each behavioral change, first establish its public test seam, observe a real assertion failure, implement only that slice, run the unchanged test green, then deliberately break and restore production behavior to prove sensitivity. Compiler errors and skipped tests are not red or green evidence. All tasks remain unchecked until their own evidence exists. New remediation tasks T080–T089 are appended rather than renumbering the existing backlog; their phase placement defines execution order, not their numeric suffix. T088 is the one exception: although listed in the cross-cutting phase, its text and the dependency section place it before Q2.
 
+**Owner decision 2026-11-04**: Q2, Q3 and Q7 are accepted as **partial / out of scope for this programme** ([owner-decision-partial-q2-q3-q7.md](./owner-decision-partial-q2-q3-q7.md)). This does **not** accept their remaining rows: Q2 T036/T038/T039/T080–T083, Q3 T044/T048 and Q7 T074 stay open/blocked. Issues #53/#62/#67 and all PRs remain open.
+
 ## Phase 1 — Setup and governance
 
 - [x] T001 Finalize the first-issue contract in `specs/004-quality-renderer/issue-q1a.md`, including scope, public seam, acceptance, validation distinctions and file ownership; filed as GitHub issue #11.
